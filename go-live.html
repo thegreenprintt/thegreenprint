@@ -240,21 +240,17 @@ function goLive(){
     }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
   }).then(function(r){
     _micStream=r.mic;
-    // Mix mic + screen audio together via AudioContext
-    try{
-      _audioCtx=new AudioContext();
-      var dest=_audioCtx.createMediaStreamDestination();
-      var micSrc=_audioCtx.createMediaStreamSource(_micStream);
-      micSrc.connect(dest);
-      if(r.hasScreenAudio){
-        var screenSrc=_audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks()));
-        screenSrc.connect(dest);
-        log('Mic + screen audio mixed ✓');
-      } else {
-        log('Mic only (no screen audio selected)');
-      }
-      _mixedStream=dest.stream;
-    }catch(e){_mixedStream=_micStream;}
+    // Pass mic + screen audio tracks directly — keeps browser echo cancellation intact
+    // (AudioContext routing was bypassing AEC causing the echo)
+    var mixedTracks=[];
+    _micStream.getAudioTracks().forEach(function(t){mixedTracks.push(t);});
+    if(r.hasScreenAudio){
+      _screenStream.getAudioTracks().forEach(function(t){mixedTracks.push(t);});
+      log('Mic + screen audio ready ✓');
+    } else {
+      log('Mic only (check Share audio in the screen picker for system sound)');
+    }
+    _mixedStream=new MediaStream(mixedTracks);
     _live=true;
     initCanvas();
     log('Starting peer connection…');
@@ -430,7 +426,7 @@ function toggleMic(){
 }
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false})
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false})
   .then(function(s){
     _camStream=s;_camOn=true;
     document.getElementById('camv').srcObject=s;
@@ -470,8 +466,7 @@ function endStream(){
   [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
     if(s)s.getTracks().forEach(function(t){t.stop();});
   });
-  if(_audioCtx)try{_audioCtx.close();}catch(e){}
-  _audioCtx=null;_mixedStream=null;
+  _mixedStream=null;
   if(_peer)try{_peer.destroy();}catch(e){}
   _peer=null;
   document.getElementById('scrnv').style.display='none';
