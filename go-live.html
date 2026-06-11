@@ -186,8 +186,13 @@ function setVC(n){
 
 // ── Canvas compositor: setInterval keeps running when tab is backgrounded ──
 function initCanvas(){
-  _canvas.width=1280;_canvas.height=720;
+  _canvas.width=1920;_canvas.height=1080;
+  _ctx.imageSmoothingEnabled=true;
+  _ctx.imageSmoothingQuality='high';
   _outStream=_canvas.captureStream(30);
+  // Tell WebRTC to optimize for crisp text/charts, not motion blur
+  var vt=_outStream.getVideoTracks()[0];
+  if(vt&&'contentHint' in vt)vt.contentHint='detail';
   log('Canvas ready — '+_outStream.getVideoTracks().length+' video track(s)');
   _drawInterval=setInterval(function(){
     if(!_live)return;
@@ -197,7 +202,7 @@ function initCanvas(){
     if(_camOn){
       var cv2=document.getElementById('camv');
       if(cv2&&cv2.readyState>=2){
-        var pw=240,ph=135,px=1280-pw-18,py=720-ph-18;
+        var pw=320,ph=180,px=1920-pw-24,py=1080-ph-24;
         _ctx.save();_ctx.fillStyle='#000';_ctx.fillRect(px,py,pw,ph);_ctx.restore();
         _ctx.save();_ctx.translate(px+pw,py);_ctx.scale(-1,1);_ctx.drawImage(cv2,0,0,pw,ph);_ctx.restore();
       }
@@ -213,7 +218,7 @@ function goLive(){
   log('Choose your screen or window…');
   document.getElementById('bGo').disabled=true;
   navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
+    video:{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30},cursor:'always'},
     audio:false
   }).then(function(scrn){
     _screenStream=scrn;
@@ -297,6 +302,22 @@ function startPeer(){
           log('ICE→'+vname+': '+s);
           if(s==='connected'||s==='completed'){
             sys('✅ '+vname+' is watching.');
+            // Boost bitrate to 4 Mbps for sharp quality
+            call.peerConnection.getSenders().forEach(function(sender){
+              if(sender.track&&sender.track.kind==='video'){
+                var p=sender.getParameters();
+                if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+                p.encodings[0].maxBitrate=8000000; // 8 Mbps — crisp 1080p
+                p.encodings[0].maxFramerate=30;
+                sender.setParameters(p).catch(function(){});
+              }
+              if(sender.track&&sender.track.kind==='audio'){
+                var p=sender.getParameters();
+                if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+                p.encodings[0].maxBitrate=128000;
+                sender.setParameters(p).catch(function(){});
+              }
+            });
           } else if(s==='failed'){
             sys('❌ ICE failed for '+vname+' — TURN relay may be needed');
           }
