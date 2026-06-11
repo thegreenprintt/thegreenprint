@@ -198,6 +198,24 @@ var ICE = {
 var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
 var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
+var _pipPollTimer=null; // polls pip.videoWidth to auto-show/hide camera PIP
+
+// Auto-show/hide camera PIP based on actual decoded frame dimensions.
+// Dummy track = 2×2 px → hidden. Real camera = 1920×1080 → shown.
+// No data channel dependency — self-healing and reconnect-safe.
+function startPipPoll(){
+  if(_pipPollTimer)clearInterval(_pipPollTimer);
+  _pipPollTimer=setInterval(function(){
+    var pip=document.getElementById('cam-pip');
+    if(!pip||!pip.srcObject)return;
+    pip.style.display=(pip.videoWidth>4)?'block':'none';
+  },500);
+}
+function stopPipPoll(){
+  if(_pipPollTimer){clearInterval(_pipPollTimer);_pipPollTimer=null;}
+  var pip=document.getElementById('cam-pip');
+  if(pip){pip.style.display='none';pip.srcObject=null;}
+}
 
 var _isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 
@@ -364,16 +382,15 @@ function connectToHost(){
       if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
       v.play().catch(function(){});
 
-      // Track 1 = camera raw track — route to PIP overlay
-      // Show/hide is controlled by {t:'cam'} data channel message from broadcaster
+      // Track 1 = camera raw track — route to PIP overlay.
+      // Visibility is managed by videoWidth polling (startPipPoll), not a data channel message.
+      // Dummy track = 2×2 → hidden. Real cam = 1920×1080 → shown automatically.
       var pip=document.getElementById('cam-pip');
       if(pip&&vt[1]){
-        var camStream=new MediaStream([vt[1]]);
-        pip.srcObject=camStream;
+        pip.srcObject=new MediaStream([vt[1]]);
         pip.muted=true;
         pip.play().catch(function(){});
-        // PIP visibility controlled via data channel message {t:'cam', on: true/false}
-        // Keep hidden until broadcaster explicitly turns cam on
+        startPipPoll(); // watches pip.videoWidth every 500ms
       }
 
       setLive(true);
@@ -387,9 +404,7 @@ function connectToHost(){
       _sysShown.live=false;
       document.getElementById('unmute-overlay').classList.remove('show');
       document.getElementById('offline-msg').style.display='flex';
-      // Hide camera PIP when stream ends
-      var pip=document.getElementById('cam-pip');
-      if(pip){pip.style.display='none';pip.srcObject=null;}
+      stopPipPoll(); // clears interval + hides PIP
       if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
       scheduleReconnect(5000);
     });
@@ -424,8 +439,10 @@ function connectToHost(){
         if(m.t==='chat')  addChat(m.n,m.x,m.h);
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
         if(m.t==='cam'){
+          // Fast-path: instant show/hide when broadcaster clicks camera button.
+          // The videoWidth poll (startPipPoll) backs this up — no single point of failure.
           var pip=document.getElementById('cam-pip');
-          if(pip)pip.style.display=m.on?'block':'none';
+          if(pip&&pip.srcObject)pip.style.display=m.on?'block':'none';
         }
         if(m.t==='ended'){
           setLive(false);
