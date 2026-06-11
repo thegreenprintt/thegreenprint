@@ -97,6 +97,17 @@ body{padding-top:56px}
 .cin::placeholder{color:rgba(240,250,243,.14)}
 .csnd{height:34px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.1);color:rgba(0,255,135,.52);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .csnd:hover{background:rgba(0,255,135,.1);color:#00ff87}
+/* ── Auth Gate ── */
+#auth-gate{position:fixed;inset:0;background:#050505;z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-box{width:100%;max-width:340px;text-align:center}
+.auth-eye{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.35);margin-bottom:20px}
+.auth-title{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:6px}
+.auth-sub{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.3);margin-bottom:28px}
+#auth-pwd{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:1rem;outline:none;letter-spacing:.08em;-webkit-appearance:none;border-radius:0;margin-bottom:10px;text-align:center}
+#auth-pwd:focus{border-color:rgba(0,255,135,.3)}
+#auth-submit{width:100%;height:44px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-bottom:10px}
+#auth-submit:disabled{opacity:.4;cursor:not-allowed}
+#auth-err{font-size:.68rem;color:rgba(255,59,92,.7);min-height:20px;margin-top:4px}
 /* ── Stream Recap Modal ── */
 #recap-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center;padding:20px}
 #recap-overlay.show{display:flex}
@@ -120,6 +131,19 @@ body{padding-top:56px}
 </style>
 </head>
 <body>
+<!-- Auth gate — blocks entire page until password verified -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <div class="auth-eye">Broadcaster Access</div>
+    <div class="auth-title">The Greenprint</div>
+    <div class="auth-sub">Private control room. Enter your password to continue.</div>
+    <input id="auth-pwd" type="password" placeholder="••••••••••••" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')verifyAuth()">
+    <button id="auth-submit" onclick="verifyAuth()">Unlock →</button>
+    <div id="auth-err"></div>
+  </div>
+</div>
+
 <nav>
   <div class="brand"><div class="dot" id="ndot"></div>THE GREENPRINT</div>
   <div style="display:flex;align-items:center;gap:14px">
@@ -211,6 +235,60 @@ body{padding-top:56px}
 <canvas id="cv" style="display:none"></canvas>
 
 <script>
+// ─────────────────────────────────────────────────────────────────
+// AUTH — SHA-256 password gate. Change PASSWORD below to update.
+// To get the hash of a new password run in browser console:
+//   crypto.subtle.digest('SHA-256',new TextEncoder().encode('yourpassword'))
+//     .then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
+// ─────────────────────────────────────────────────────────────────
+// Current password: 100Wallpaper
+var _PWD_HASH='688c62cbcc9582042931a11a16cd824cca4396d6a1a51f5da6f61dafb81ca1a9';
+var _AUTH_KEY='gp_host_auth_v2';
+var _authAttempts=0,_authLockedUntil=0,_authReady=false;
+
+async function verifyAuth(){
+  var now=Date.now();
+  if(now<_authLockedUntil){
+    var secs=Math.ceil((_authLockedUntil-now)/1000);
+    showAuthErr('Too many failed attempts. Wait '+secs+'s.');
+    return;
+  }
+  var btn=document.getElementById('auth-submit');
+  btn.disabled=true;
+  var pwd=document.getElementById('auth-pwd').value;
+  if(!pwd){btn.disabled=false;showAuthErr('Enter your password.');return;}
+  try{
+    var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));
+    var hex=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    if(hex===_PWD_HASH){
+      _authAttempts=0;
+      // Session valid for 8 hours — stored in sessionStorage (clears on tab close)
+      sessionStorage.setItem(_AUTH_KEY,JSON.stringify({ok:true,ts:now,exp:now+8*3600000}));
+      document.getElementById('auth-gate').style.display='none';
+      initPage();
+    } else {
+      _authAttempts++;
+      document.getElementById('auth-pwd').value='';
+      var delay=Math.min(Math.pow(2,_authAttempts-1)*2000,120000); // 2s,4s,8s…max 2min
+      if(_authAttempts>=3){_authLockedUntil=now+delay;showAuthErr('Wrong password. Locked for '+Math.ceil(delay/1000)+'s.');}
+      else{showAuthErr('Wrong password. '+  (3-_authAttempts)+' attempt'+(3-_authAttempts===1?'':'s')+' left.');}
+    }
+  }catch(e){showAuthErr('Auth error. Refresh and try again.');}
+  btn.disabled=false;
+}
+function showAuthErr(msg){var e=document.getElementById('auth-err');e.textContent=msg;}
+
+// Auto-unlock if valid session exists
+(function(){
+  try{
+    var s=JSON.parse(sessionStorage.getItem(_AUTH_KEY)||'null');
+    if(s&&s.ok&&s.exp>Date.now()){
+      document.getElementById('auth-gate').style.display='none';
+      initPage();
+    }
+  }catch(e){}
+})();
+
 // ── Fixed peer ID — must exactly match HOST_PEER_ID in stream.html ──
 var PEER_ID = 'gp-greenprint-live';
 
@@ -366,8 +444,12 @@ function setVC(n){
 // ── Canvas compositor: GPU-accelerated, frame-perfect rendering ──
 function initCanvas(){
   var settings=_screenStream.getVideoTracks()[0].getSettings();
-  _SW=settings.width||1920;
-  _SH=settings.height||1080;
+  // Cap at 1920×1080 — Full HD is the streaming industry standard.
+  // 4K canvas (3840×2160) forces 8M pixels/frame through CPU/GPU every 33ms,
+  // which starves the camera decoder and causes lag. 1080p = same sharpness
+  // for viewers, 4× less rendering work, smooth camera.
+  _SW=Math.min(settings.width||1920,1920);
+  _SH=Math.min(settings.height||1080,1080);
   _canvas.width=_SW;
   _canvas.height=_SH;
   _ctx.imageSmoothingEnabled=true;
@@ -543,6 +625,8 @@ function startPeer(){
   _peer.on('connection',function(dc){
     var pid=dc.peer;
     if(_banned.indexOf(pid)>-1){dc.close();return;}
+    // Hard cap: max 500 concurrent connections
+    if(Object.keys(_viewers).length>=500){dc.close();return;}
     if(!_viewers[pid])_viewers[pid]={};
     _viewers[pid].dc=dc;
 
@@ -558,20 +642,41 @@ function startPeer(){
       if(_live)callViewer(pid);
     });
     dc.on('data',function(raw){
-      try{
-        var m=JSON.parse(raw);
-        if(m.t==='join'){
-          _viewers[pid].name=m.n||'Viewer';
-          if(_live)_stats.unique[pid]=_viewers[pid].name;
-          // Store lead data sent from viewer's gate form
-          if(m.e||m.p)addLead(m.fn||m.n,m.e,m.p);
-        }
-        if(m.t==='chat'){
-          _stats.chatCount++;
-          addMsg(_viewers[pid].name||'Viewer',m.x,'viewer',pid);
-          broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false},pid);
-        }
-      }catch(e){}
+      // ── Security: strict validation ──
+      if(typeof raw!=='string'||raw.length>2000)return; // reject oversized payloads
+      var m;try{m=JSON.parse(raw);}catch(e){return;} // reject malformed JSON
+      if(!m||typeof m.t!=='string')return; // require type field
+
+      // ── Rate limiting: max 8 messages per 30s per viewer ──
+      var now=Date.now();
+      if(!_viewers[pid]._rl){_viewers[pid]._rl={count:0,reset:now+30000};}
+      if(now>_viewers[pid]._rl.reset){_viewers[pid]._rl={count:0,reset:now+30000};}
+      _viewers[pid]._rl.count++;
+      if(_viewers[pid]._rl.count>8){
+        // Auto-ban repeat spammers (>3x over limit)
+        if(_viewers[pid]._rl.count>24){kick(pid);sys('Auto-banned: '+(_viewers[pid].name||pid)+' (spam)');}
+        return;
+      }
+
+      if(m.t==='join'){
+        // Sanitize name — strip HTML, limit length
+        var safeName=String(m.n||'Viewer').replace(/<[^>]*>/g,'').slice(0,40).trim()||'Viewer';
+        _viewers[pid].name=safeName;
+        if(_live)_stats.unique[pid]=safeName;
+        // Accept lead data — validate fields
+        var safeEmail=typeof m.e==='string'?m.e.slice(0,100).replace(/[<>"]/g,''):'';
+        var safePhone=typeof m.p==='string'?m.p.slice(0,30).replace(/[^0-9+\-(). ]/g,''):'';
+        var safeFull=typeof m.fn==='string'?m.fn.slice(0,80).replace(/<[^>]*>/g,''):safeName;
+        if(safeEmail||safePhone)addLead(safeFull,safeEmail,safePhone);
+      }
+      if(m.t==='chat'){
+        // Validate chat message
+        if(typeof m.x!=='string'||!m.x.trim())return;
+        var safeMsg=m.x.slice(0,200).trim(); // enforce max length
+        _stats.chatCount++;
+        addMsg(_viewers[pid].name||'Viewer',safeMsg,'viewer',pid);
+        broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:safeMsg,h:false},pid);
+      }
     });
     dc.on('close',function(){rmViewer(pid);});
   });
@@ -631,7 +736,7 @@ function toggleMic(){
 }
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:60}},audio:false})
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false})
   .then(function(s){
     _camStream=s;_camOn=true;
     var cv=document.getElementById('camv');
@@ -698,14 +803,16 @@ function endStream(){
   showReport();
 }
 
-// Load PeerJS then immediately register peer — viewers can connect before you go live
-(function(){
+// initPage() — called only after successful auth. Nothing streams or loads until verified.
+function initPage(){
+  if(_authReady)return; // prevent double-init
+  _authReady=true;
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
   s.onload=function(){startPeer();};
   s.onerror=function(){log('Failed to load PeerJS. Check your internet connection.');};
   document.body.appendChild(s);
-})();
+}
 </script>
 </body>
 </html>

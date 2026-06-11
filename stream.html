@@ -67,21 +67,32 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .live-badge.on{display:flex}
 .live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pp 1.8s infinite}
 @keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-/* Mute button */
-#mute-btn,#fs-btn{height:32px;padding:0 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s;border-radius:2px}
+/* Mute / fullscreen buttons */
+#mute-btn,#fs-btn{height:36px;padding:0 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s;border-radius:2px;touch-action:manipulation}
 #mute-btn:hover,#fs-btn:hover{background:rgba(255,255,255,.09);color:rgba(240,250,243,.85)}
 #mute-btn.muted{background:rgba(255,59,92,.08);border-color:rgba(255,59,92,.25);color:rgba(255,59,92,.7)}
-/* On mobile, make the bar more compact so it doesn't crowd portrait mode */
+/* Mobile bar: taller touch targets, compact text */
 @media(max-width:760px){
-  .bar{padding:6px 10px}
+  .bar{padding:7px 10px;gap:6px}
   .btitle{font-size:.7rem}
   .bhost{display:none}
+  #mute-btn,#fs-btn{height:40px;padding:0 12px;font-size:.6rem}
 }
+/* Tap-to-unmute overlay shown on mobile when stream starts */
+#unmute-overlay{display:none;position:absolute;inset:0;align-items:center;justify-content:center;z-index:20;pointer-events:none}
+#unmute-overlay.show{display:flex}
+#unmute-tap{background:rgba(0,0,0,.7);border:1px solid rgba(0,255,135,.25);color:#00ff87;font-family:'Urbanist',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:14px 28px;cursor:pointer;pointer-events:all;-webkit-tap-highlight-color:transparent;border-radius:2px;backdrop-filter:blur(4px)}
 /* Chat panel */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
-/* Mobile: chat sits below video, full width, fixed height */
+/* Mobile: chat sits below video, full width, taller for easy typing */
 @media(max-width:760px){
-  .ccol{border-left:none;border-top:1px solid rgba(255,255,255,.05);height:260px;flex-shrink:0}
+  .ccol{border-left:none;border-top:1px solid rgba(255,255,255,.05);height:280px;flex-shrink:0}
+}
+/* Mobile chat input row — bigger send button */
+@media(max-width:760px){
+  .cfoot{padding:8px 8px}
+  .cin{height:44px;font-size:16px}
+  .csend{height:44px;padding:0 16px;font-size:.62rem}
 }
 .chd{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05)}
 .chl{font-size:.54rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2)}
@@ -129,7 +140,11 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
   <div class="grid">
     <div class="vcol">
       <div class="stage">
-        <video id="vid" autoplay playsinline></video>
+        <video id="vid" autoplay playsinline disableRemotePlayback></video>
+        <!-- Mobile tap-to-unmute prompt — shows automatically when stream goes live -->
+        <div id="unmute-overlay">
+          <button id="unmute-tap" onclick="mobileTapUnmute()">🔊 Tap to Hear Audio</button>
+        </div>
         <div class="offline" id="offline-msg">
           <div class="ot">Not Live Yet</div>
           <div class="os">Jacob will appear here when the session starts.<br>Stay on this page — it connects automatically.</div>
@@ -181,6 +196,14 @@ var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
 var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
 
+var _isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+
+function mobileTapUnmute(){
+  // Triggered by the big overlay tap on mobile — unmute and hide overlay
+  document.getElementById('unmute-overlay').classList.remove('show');
+  if(_muted)toggleMute();
+}
+
 function toggleMute(){
   var vid=document.getElementById('vid');
   var btn=document.getElementById('mute-btn');
@@ -227,7 +250,7 @@ document.addEventListener('webkitfullscreenchange',function(){
 // Auto-skip gate if they logged in within the last 24 hours
 (function(){
   try{
-    var saved=JSON.parse(localStorage.getItem('gp_lead')||'null');
+    var saved=JSON.parse(localStorage.getItem('gp_lead_v2')||'null');
     if(saved&&saved.ts&&(Date.now()-saved.ts)<86400000){
       // Under 24 hours — skip gate
       _name=(saved.name||'Viewer').split(' ')[0];
@@ -276,7 +299,7 @@ function enterStream(){
   if(!phone){err.textContent='Please enter your phone number.';err.style.display='block';return;}
   err.style.display='none';
   _name=name.split(' ')[0]||'Viewer';
-  try{localStorage.setItem('gp_lead',JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()}));}catch(e){}
+  try{localStorage.setItem('gp_lead_v2',JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()}));}catch(e){}
   document.getElementById('gate').style.display='none';
   document.getElementById('main').style.display='block';
   loadPeerJS();
@@ -311,8 +334,14 @@ function connectToHost(){
     debug:0
   });
 
-  // Broadcaster will call us — register handler immediately
+  // Broadcaster will call us — only accept from the known host peer ID
   _peer.on('call',function(call){
+    if(call.peer!==HOST_PEER_ID){
+      // Reject calls from anyone other than Jacob's broadcaster
+      try{call.close();}catch(e){}
+      console.warn('[SECURITY] Rejected call from unknown peer:',call.peer);
+      return;
+    }
     stat('Stream arriving — answering…');
     call.answer(new MediaStream());
 
@@ -326,14 +355,17 @@ function connectToHost(){
       if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
       v.play().catch(function(){});
       setLive(true);
+      // On mobile: show the big tap-to-unmute overlay over the video
+      if(_isMobile){document.getElementById('unmute-overlay').classList.add('show');}
       // Only show "live" message once per page load to prevent spam
-      if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live! Tap 🔇 Muted to hear audio.');}
+      if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
     });
 
     call.on('close',function(){
       stat('Stream ended — will reconnect when Jacob goes live again…');
       setLive(false);
-      _sysShown.live=false; // reset so next go-live shows the message again
+      _sysShown.live=false;
+      document.getElementById('unmute-overlay').classList.remove('show');
       document.getElementById('offline-msg').style.display='flex';
       if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
       scheduleReconnect(5000);
@@ -356,7 +388,7 @@ function connectToHost(){
     dc.on('open',function(){
       _dc=dc;
       // Send full lead data so broadcaster can see it in their leads tab
-      var lead=null;try{lead=JSON.parse(localStorage.getItem('gp_lead')||'null');}catch(e){}
+      var lead=null;try{lead=JSON.parse(localStorage.getItem('gp_lead_v2')||'null');}catch(e){}
       dc.send(JSON.stringify({t:'join',n:_name,e:lead?lead.email:'',p:lead?lead.phone:'',fn:lead?lead.name:''}));
       stat('Joined — waiting for Jacob to go live…');
       // Only show connected message once — suppress on reconnects
@@ -413,9 +445,22 @@ function connectToHost(){
   });
 }
 
+// ── Viewer-side rate limit: max 5 messages per 20s ──
+var _chatRl={count:0,reset:0};
 function sendChat(){
   var inp=document.getElementById('chat-input'),txt=inp.value.trim();
-  if(!txt)return;inp.value='';
+  if(!txt)return;
+  txt=txt.slice(0,200); // enforce length cap
+  // Rate limit check
+  var now=Date.now();
+  if(now>_chatRl.reset){_chatRl={count:0,reset:now+20000};}
+  _chatRl.count++;
+  if(_chatRl.count>5){
+    addSys('Slow down — too many messages.');
+    inp.value='';
+    return;
+  }
+  inp.value='';
   addChat(_name,txt,false);
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
