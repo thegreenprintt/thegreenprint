@@ -156,7 +156,7 @@ var ICE = {
   ]
 };
 
-var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null;
+var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null;
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null;
 var _viewers={}, _banned=[];
@@ -231,9 +231,10 @@ function goLive(){
   }).then(function(scrn){
     _screenStream=scrn;
     var sv=document.getElementById('scrnv');
-    sv.srcObject=scrn;
-    sv.muted=true; // never play screen audio back through local speakers
-    sv.volume=0;
+    // Video-only srcObject — keeping audio tracks out of the element
+    // prevents any browser from playing them back locally
+    sv.srcObject=new MediaStream(scrn.getVideoTracks());
+    sv.muted=true;sv.volume=0;
     sv.style.display='block';
     document.getElementById('ph').style.display='none';
     var hasScreenAudio=scrn.getAudioTracks().length>0;
@@ -251,17 +252,26 @@ function goLive(){
     }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
   }).then(function(r){
     _micStream=r.mic;
-    // Pass mic + screen audio tracks directly — keeps browser echo cancellation intact
-    // (AudioContext routing was bypassing AEC causing the echo)
-    var mixedTracks=[];
-    _micStream.getAudioTracks().forEach(function(t){mixedTracks.push(t);});
-    if(r.hasScreenAudio){
-      _screenStream.getAudioTracks().forEach(function(t){mixedTracks.push(t);});
-      log('Mic + screen audio ready ✓');
-    } else {
-      log('Mic only (check Share audio in the screen picker for system sound)');
+    // Mix mic + screen audio into ONE track via AudioContext
+    // WebRTC only reliably delivers the first audio track to viewers
+    // Mixing into one track guarantees both mic and screen audio reach them
+    try{
+      _audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      var dest=_audioCtx.createMediaStreamDestination();
+      _audioCtx.createMediaStreamSource(_micStream).connect(dest);
+      if(r.hasScreenAudio){
+        _audioCtx.createMediaStreamSource(
+          new MediaStream(_screenStream.getAudioTracks())
+        ).connect(dest);
+        log('Mic + screen audio mixed ✓');
+      } else {
+        log('Mic only — check "Share audio" in screen picker for system sound');
+      }
+      _mixedStream=dest.stream;
+    }catch(e){
+      log('AudioContext unavailable — mic only');
+      _mixedStream=_micStream;
     }
-    _mixedStream=new MediaStream(mixedTracks);
     _live=true;
     initCanvas();
     // Show LIVE status
@@ -360,7 +370,7 @@ function startPeer(){
         if(m.t==='join')_viewers[pid].name=m.n||'Viewer';
         if(m.t==='chat'){
           addMsg(_viewers[pid].name||'Viewer',m.x,'viewer',pid);
-          broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false});
+          broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false},pid);
         }
       }catch(e){}
     });
@@ -384,8 +394,9 @@ function rmViewer(pid){
   if(_viewers[pid]){sys((_viewers[pid].name||'Viewer')+' left.');delete _viewers[pid];}
   setVC(Object.keys(_viewers).length);
 }
-function broadcast(obj){
+function broadcast(obj,excludePid){
   Object.keys(_viewers).forEach(function(pid){
+    if(pid===excludePid)return; // don't echo back to sender
     var dc=_viewers[pid].dc;
     if(dc&&dc.open)try{dc.send(JSON.stringify(obj));}catch(e){}
   });
@@ -467,6 +478,8 @@ function endStream(){
   [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
     if(s)s.getTracks().forEach(function(t){t.stop();});
   });
+  if(_audioCtx)try{_audioCtx.close();}catch(e){}
+  _audioCtx=null;
   _screenStream=null;_micStream=null;_camStream=null;_mixedStream=null;
   _outStream=null;
   document.getElementById('scrnv').style.display='none';

@@ -44,6 +44,10 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 @media(max-width:760px){
   .stage{aspect-ratio:16/9;flex:none}
 }
+/* Hide browser auto-captions / live-caption overlays */
+#vid::-webkit-media-text-track-container,
+#vid::-webkit-media-text-track-display,
+#vid::cue{display:none!important;visibility:hidden!important}
 #vid{width:100%;height:100%;object-fit:contain;display:block}
 .offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:32px;background:#030303}
 .offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
@@ -57,6 +61,16 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .live-badge.on{display:flex}
 .live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pp 1.8s infinite}
 @keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
+/* Mute button */
+#mute-btn{height:32px;padding:0 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s;border-radius:2px}
+#mute-btn:hover{background:rgba(255,255,255,.09);color:rgba(240,250,243,.85)}
+#mute-btn.muted{background:rgba(255,59,92,.08);border-color:rgba(255,59,92,.25);color:rgba(255,59,92,.7)}
+/* On mobile, make the bar more compact so it doesn't crowd portrait mode */
+@media(max-width:760px){
+  .bar{padding:6px 10px}
+  .btitle{font-size:.7rem}
+  .bhost{display:none}
+}
 /* Chat panel */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 /* Mobile: chat sits below video, full width, fixed height */
@@ -121,7 +135,10 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
           <div class="btitle" id="stream-title">The Greenprint — Live Session</div>
           <div class="bhost">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
         </div>
-        <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <button id="mute-btn" onclick="toggleMute()">🔊 Unmute</button>
+          <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
+        </div>
       </div>
     </div>
     <div class="ccol">
@@ -154,6 +171,22 @@ var ICE = {
 };
 
 var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
+var _muted=true; // start muted so autoplay policy lets video play
+
+function toggleMute(){
+  var vid=document.getElementById('vid');
+  var btn=document.getElementById('mute-btn');
+  _muted=!_muted;
+  vid.muted=_muted;
+  if(_muted){btn.textContent='🔇 Muted';btn.classList.add('muted');}
+  else{btn.textContent='🔊 Live Audio';btn.classList.remove('muted');}
+}
+
+// Initialize button state
+(function(){
+  var btn=document.getElementById('mute-btn');
+  if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
+})();
 
 // Auto-skip gate if they logged in within the last 24 hours
 (function(){
@@ -250,17 +283,13 @@ function connectToHost(){
       stat('Stream connected ✅');
       var v=document.getElementById('vid');
       v.srcObject=stream;
-      v.muted=false;
-      v.play().catch(function(){
-        // Autoplay blocked — create unmute overlay
-        var btn=document.createElement('button');
-        btn.textContent='▶ Tap to watch';
-        btn.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:1.2rem;cursor:pointer;width:100%;height:100%;z-index:5;font-family:Urbanist,sans-serif';
-        btn.onclick=function(){v.play();btn.remove();};
-        document.querySelector('.stage').appendChild(btn);
-      });
+      v.muted=true; // always start muted so autoplay succeeds
+      _muted=true;
+      var btn=document.getElementById('mute-btn');
+      if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
+      v.play().catch(function(){});
       setLive(true);
-      addSys('🔴 Stream is live!');
+      addSys('🔴 Stream is live! Tap 🔇 Muted in the bar below to hear audio.');
     });
 
     call.on('close',function(){
