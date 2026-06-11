@@ -9,35 +9,35 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif}
 nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
-.brand{font-weight:700;font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.brand{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
 .dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
-#status{font-size:.62rem;letter-spacing:.12em;color:rgba(240,250,243,.2)}
-#status.live{color:rgba(255,59,92,.7)}
-.back{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25);text-decoration:none}
-
+#navstat{font-size:.6rem;font-weight:600;letter-spacing:.18em;color:rgba(240,250,243,.2)}
+#navstat.on{color:rgba(255,59,92,.7)}
+#vc{font-size:.6rem;color:rgba(240,250,243,.22);display:none}
+#vc.on{display:flex;align-items:center;gap:4px}
 /* GATE */
 #gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:80px 20px 20px;z-index:50}
-.glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.05) 0%,transparent 65%);pointer-events:none}
+.glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.06) 0%,transparent 65%);pointer-events:none}
 .box{width:100%;max-width:420px;position:relative;z-index:1}
-.eyebrow{font-size:.58rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:28px;text-align:center}
-h1{font-family:'Syne',sans-serif;font-size:clamp(2rem,6vw,2.8rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:10px}
+.ey{font-size:.58rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:24px;text-align:center}
+h1{font-family:'Syne',sans-serif;font-size:clamp(1.9rem,6vw,2.7rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:10px}
 h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.sub{font-size:.82rem;font-weight:300;color:rgba(240,250,243,.45);line-height:1.75;margin-bottom:28px}
+.sub{font-size:.82rem;font-weight:300;color:rgba(240,250,243,.4);line-height:1.75;margin-bottom:26px}
 .f{margin-bottom:10px}
 .f label{display:block;font-size:.56rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(0,255,135,.38);margin-bottom:5px}
-.f input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.f input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;-webkit-appearance:none;border-radius:0}
 .f input:focus{border-color:rgba(0,255,135,.3)}
 .f input::placeholder{color:rgba(240,250,243,.18)}
-#err{font-size:.7rem;color:#ff3b5c;margin:6px 0;display:none}
-#go{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:6px}
-.fine{font-size:.63rem;font-weight:300;color:rgba(240,250,243,.22);text-align:center;margin-top:14px;line-height:1.65}
-
+#err{font-size:.7rem;color:#ff3b5c;margin:6px 0 2px;display:none}
+#go{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:8px;transition:opacity .15s}
+#go:hover{opacity:.9}
+.fine{font-size:.63rem;font-weight:300;color:rgba(240,250,243,.2);text-align:center;margin-top:14px;line-height:1.65}
 /* MAIN */
 #main{display:none;padding-top:56px;height:100vh}
 .grid{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 56px)}
 @media(max-width:900px){.grid{grid-template-columns:1fr}}
 .vcol{display:flex;flex-direction:column;background:#000}
-.stage{flex:1;position:relative;background:#030303}
+.stage{flex:1;position:relative;background:#030303;overflow:hidden}
 #vid{width:100%;height:100%;object-fit:contain;display:block}
 .offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:40px;background:#030303}
 .offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
@@ -45,21 +45,17 @@ h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-cl
 .os{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.14);line-height:1.8;position:relative;z-index:1}
 .bar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
 .bar-title{font-size:.8rem;font-weight:500;color:rgba(240,250,243,.5)}
-.bar-host{font-size:.66rem;font-weight:300;color:rgba(240,250,243,.22);margin-top:2px}
+.bar-host{font-size:.64rem;font-weight:300;color:rgba(240,250,243,.2);margin-top:2px}
 .badges{display:flex;align-items:center;gap:12px}
 .lp{display:none;align-items:center;gap:5px;font-size:.6rem;font-weight:600;letter-spacing:.14em;color:rgba(255,59,92,.7)}
 .lp.on{display:flex}
-.ld{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:p 1.8s infinite}
-@keyframes p{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-.vp{display:none;font-size:.62rem;color:rgba(240,250,243,.25)}
-.vp.on{display:flex;align-items:center;gap:4px}
-
+.ld{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pb 1.8s infinite}
+@keyframes pb{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
 /* CHAT */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:900px){.ccol{display:none}}
 .chd{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
 .chl{font-size:.58rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.22)}
-#cvc{font-size:.58rem;font-weight:600;letter-spacing:.1em;color:rgba(0,255,135,.38)}
 .feed{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 .feed::-webkit-scrollbar{width:2px}
 .feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.15)}
@@ -70,7 +66,7 @@ h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-cl
 .mt{font-size:.78rem;font-weight:300;color:rgba(240,250,243,.58);line-height:1.55}
 .mt.s{color:rgba(255,255,255,.18);font-style:italic;font-size:.72rem}
 .cft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
-.cin{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.cin{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;-webkit-appearance:none;border-radius:0}
 .cin:focus{border-color:rgba(0,255,135,.22)}
 .cin::placeholder{color:rgba(240,250,243,.15)}
 .csnd{height:36px;padding:0 12px;background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.6);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
@@ -80,21 +76,21 @@ h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-cl
 <body>
 <nav>
   <div class="brand"><div class="dot"></div>THE GREENPRINT</div>
-  <div style="display:flex;align-items:center;gap:16px">
-    <span id="status">offline</span>
-    <a href="index.html" class="back">← Back</a>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span id="navstat">offline</span>
+    <span id="vc">👁 <span id="vcn">1</span></span>
   </div>
 </nav>
 
 <div id="gate">
   <div class="glow"></div>
   <div class="box">
-    <div class="eyebrow">Exclusive Live Access</div>
+    <div class="ey">Exclusive Live Access</div>
     <h1>Watch The<br><span>Greenprint Live.</span></h1>
-    <p class="sub">Enter your details to access live day trading sessions, real-time strategy breakdowns, and Q&amp;A with Jacob.</p>
-    <div class="f"><label for="fn">Full Name</label><input id="fn" type="text" placeholder="Your full name" autocomplete="name"></div>
-    <div class="f"><label for="fe">Email Address</label><input id="fe" type="email" placeholder="you@email.com" autocomplete="email"></div>
-    <div class="f"><label for="fp">Phone Number</label><input id="fp" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
+    <p class="sub">Enter your details to access live day trading sessions, real-time strategy and Q&amp;A with Jacob.</p>
+    <div class="f"><label>Full Name</label><input id="fn" type="text" placeholder="Your full name" autocomplete="name"></div>
+    <div class="f"><label>Email Address</label><input id="fe" type="email" placeholder="you@email.com" autocomplete="email"></div>
+    <div class="f"><label>Phone Number</label><input id="fp" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
     <div id="err"></div>
     <button id="go" onclick="submit()">Continue →</button>
     <p class="fine">Your information is private and will never be shared or sold.</p>
@@ -106,18 +102,23 @@ h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-cl
     <div class="vcol">
       <div class="stage">
         <video id="vid" autoplay playsinline></video>
-        <div class="offline" id="ob"><div class="ot">Not Live Yet</div><div class="os">Jacob will appear here when the session starts.</div></div>
+        <div class="offline" id="ob">
+          <div class="ot">Not Live Yet</div>
+          <div class="os">Jacob will appear here when the session starts.<br>Stay on this page — it will connect automatically.</div>
+        </div>
       </div>
       <div class="bar">
-        <div><div class="bar-title" id="stitle">The Greenprint — Live Session</div><div class="bar-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div></div>
+        <div>
+          <div class="bar-title" id="stitle">The Greenprint — Live Session</div>
+          <div class="bar-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
+        </div>
         <div class="badges">
           <div class="lp" id="lp"><div class="ld"></div>live</div>
-          <div class="vp" id="vp">👁 <span id="vc">0</span>&nbsp;watching</div>
         </div>
       </div>
     </div>
     <div class="ccol">
-      <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
+      <div class="chd"><span class="chl">Live Chat</span></div>
       <div class="feed" id="feed"></div>
       <div class="cft">
         <input class="cin" id="ci" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')chat()">
@@ -128,18 +129,18 @@ h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-cl
 </div>
 
 <script>
-var PEER_ID='gp-stream-2025', _name='You', _peer=null, _dc=null;
+var PEER_ID='gp-stream-2025', _name='Viewer', _peer=null, _dc=null;
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function sys(t){msg('',t,true);}
-function msg(n,t,s,h){
+function sys(t){addMsg('',t,true,false);}
+function addMsg(n,t,isSys,isHost){
   var f=document.getElementById('feed'),d=document.createElement('div');d.className='m';
-  d.innerHTML=s?'<div class="mt s">'+esc(t)+'</div>':'<div class="mn'+(h?' h':'')+'">'+esc(n)+'</div><div class="mt">'+esc(t)+'</div>';
+  if(isSys){d.innerHTML='<div class="mt s">'+esc(t)+'</div>';}
+  else{d.innerHTML='<div class="mn'+(isHost?' h':'')+'">'+esc(n)+'</div><div class="mt">'+esc(t)+'</div>';}
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 function setLive(on){
   document.getElementById('lp').className='lp'+(on?' on':'');
-  document.getElementById('vp').className='vp'+(on?' on':'');
-  var s=document.getElementById('status');s.textContent=on?'live':'offline';s.className=on?'live':'';
+  var s=document.getElementById('navstat');s.textContent=on?'live':'offline';s.className=on?'on':'';
 }
 function submit(){
   var n=(document.getElementById('fn').value||'').trim();
@@ -154,12 +155,12 @@ function submit(){
   try{localStorage.setItem('gp_v',JSON.stringify({n:n,e:e,p:p,t:Date.now()}));}catch(x){}
   document.getElementById('gate').style.display='none';
   document.getElementById('main').style.display='block';
-  load();
+  loadPeer();
 }
-function load(){
+function loadPeer(){
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload=connect;s.onerror=function(){sys('Could not connect. Please refresh.');};
+  s.onload=connect;
   document.body.appendChild(s);
 }
 function connect(){
@@ -169,17 +170,23 @@ function connect(){
       var call=peer.call(PEER_ID,null);
       if(!call){setTimeout(connect,8000);return;}
       call.on('stream',function(s){
-        var v=document.getElementById('vid');v.srcObject=s;v.muted=false;v.play().catch(function(){});
-        document.getElementById('ob').style.display='none';setLive(true);
+        var v=document.getElementById('vid');v.srcObject=s;v.muted=false;
+        v.play().catch(function(){});
+        document.getElementById('ob').style.display='none';
+        setLive(true);
       });
       call.on('close',function(){setLive(false);setTimeout(connect,8000);});
       var dc=peer.connect(PEER_ID,{reliable:true,metadata:{name:_name}});
       dc.on('open',function(){_dc=dc;dc.send(JSON.stringify({t:'join',n:_name}));});
       dc.on('data',function(r){
-        try{var m=JSON.parse(r);
-          if(m.t==='chat')msg(m.n,m.x,false,m.h);
+        try{
+          var m=JSON.parse(r);
+          if(m.t==='chat')addMsg(m.n,m.x,false,m.h);
           else if(m.t==='title')document.getElementById('stitle').textContent=m.x;
-          else if(m.t==='kick'){peer.destroy();document.getElementById('main').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(240,250,243,.3);font-size:.9rem;letter-spacing:.08em;">Removed from stream.</div>';}
+          else if(m.t==='kick'){
+            peer.destroy();
+            document.getElementById('main').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(240,250,243,.3);font-size:.9rem;letter-spacing:.08em;">You have been removed from this stream.</div>';
+          }
         }catch(x){}
       });
     });
@@ -189,11 +196,22 @@ function connect(){
 }
 function chat(){
   var i=document.getElementById('ci'),t=i.value.trim();if(!t)return;i.value='';
-  msg(_name,t,false,false);
+  addMsg(_name,t,false,false);
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:t}));
 }
-(function(){try{var s=JSON.parse(localStorage.getItem('gp_v'));if(s&&Date.now()-s.t<30*24*60*60*1000){_name=s.n?s.n.split(' ')[0]:'You';document.getElementById('gate').style.display='none';document.getElementById('main').style.display='block';load();}}catch(x){}})();
-setTimeout(function(){sys('Welcome to The Greenprint Live 🔥');},800);
+// Auto-skip gate for returning visitors
+(function(){
+  try{
+    var s=JSON.parse(localStorage.getItem('gp_v'));
+    if(s&&s.n&&s.e&&s.p&&Date.now()-s.t<30*24*60*60*1000){
+      _name=s.n.split(' ')[0];
+      document.getElementById('gate').style.display='none';
+      document.getElementById('main').style.display='block';
+      loadPeer();
+    }
+  }catch(x){}
+})();
+setTimeout(function(){sys('Welcome to The Greenprint Live 🔥');},600);
 </script>
 </body>
 </html>

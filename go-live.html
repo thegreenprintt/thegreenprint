@@ -9,50 +9,64 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif}
 nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
-.brand{font-family:'Syne',sans-serif;font-weight:800;font-size:.82rem;letter-spacing:.22em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.brand{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
 .dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
-.dot.live{background:#ff3b5c;box-shadow:0 0 8px rgba(255,59,92,.7);animation:pulse 1.8s infinite}
+.dot.live{background:#ff3b5c;box-shadow:0 0 8px rgba(255,59,92,.6);animation:pulse 1.8s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 8px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
 #navstat{font-size:.6rem;font-weight:600;letter-spacing:.18em;color:rgba(240,250,243,.2)}
 #navstat.on{color:rgba(255,59,92,.7)}
 #vc{font-size:.6rem;color:rgba(240,250,243,.22);display:none}
 #vc.on{display:flex;align-items:center;gap:4px}
-
 body{padding-top:56px}
 .wrap{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 56px)}
 @media(max-width:960px){.wrap{grid-template-columns:1fr}}
-
-/* VIDEO SIDE */
+/* VIDEO */
 .vcol{display:flex;flex-direction:column;background:#000}
-.stage{flex:1;position:relative;background:#030303}
+.stage{flex:1;position:relative;background:#030303;overflow:hidden}
 #myv{width:100%;height:100%;object-fit:contain;display:none}
+/* CAMERA PIP */
+#pip{position:absolute;bottom:16px;right:16px;width:220px;border:1px solid rgba(255,255,255,.1);background:#000;display:none;flex-direction:column;z-index:10;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+#pip.show{display:flex}
+#pip.mini{width:72px}
+#pip.mini #camv{height:54px}
+#pip.mini .pip-bar span{display:none}
+#camv{width:100%;height:138px;object-fit:cover;display:block;background:#111}
+.pip-bar{background:rgba(10,10,10,.9);padding:4px 8px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.07)}
+.pip-bar span{font-size:.56rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,250,243,.3)}
+.pip-acts{display:flex;gap:4px}
+.pip-btn{background:none;border:none;color:rgba(240,250,243,.35);cursor:pointer;font-size:.7rem;padding:2px 4px;line-height:1}
+.pip-btn:hover{color:rgba(240,250,243,.8)}
+/* PLACEHOLDER */
 .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#030303;text-align:center;padding:40px}
 .ph::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
 .ph-t{font-weight:300;font-size:1rem;letter-spacing:.25em;text-transform:uppercase;color:rgba(240,250,243,.12);position:relative;z-index:1}
 .ph-s{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.12);line-height:1.8;position:relative;z-index:1}
+/* CONTROLS */
 .ctrl{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:14px 18px;display:flex;flex-direction:column;gap:12px}
 .title-row{display:flex;gap:8px}
-#titinp{flex:1;height:40px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 14px;font-family:'Urbanist',sans-serif;font-size:.82rem;outline:none;transition:border-color .2s}
+#titinp{flex:1;height:40px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 14px;font-family:'Urbanist',sans-serif;font-size:.82rem;outline:none;transition:border-color .2s;border-radius:0}
 #titinp:focus{border-color:rgba(0,255,135,.25)}
 #titinp::placeholder{color:rgba(240,250,243,.18)}
 .tsave{height:40px;padding:0 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:rgba(240,250,243,.45);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
 .tsave:hover{border-color:rgba(0,255,135,.2);color:rgba(0,255,135,.6)}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
-.btn{height:40px;padding:0 18px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;transition:all .18s;white-space:nowrap}
-#bStart{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;flex:1}
+.btn{height:40px;padding:0 16px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;transition:all .18s;white-space:nowrap}
+#bStart{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;flex:1;min-width:100px}
 #bStart:hover{opacity:.9}
 #bStart:disabled{opacity:.4;cursor:not-allowed}
 #bEnd{background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.25);color:rgba(255,59,92,.7);display:none}
 #bEnd:hover{background:rgba(255,59,92,.18)}
 #bMic{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.45)}
 #bMic:hover{border-color:rgba(0,255,135,.2)}
-#bMic.muted{background:rgba(255,59,92,.08);border-color:rgba(255,59,92,.2);color:rgba(255,59,92,.6)}
+#bMic.off{background:rgba(255,59,92,.08);border-color:rgba(255,59,92,.2);color:rgba(255,59,92,.6)}
+#bCam{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.45)}
+#bCam:hover{border-color:rgba(0,255,135,.2)}
+#bCam.on{background:rgba(0,255,135,.06);border-color:rgba(0,255,135,.2);color:rgba(0,255,135,.7)}
 #bScreen{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.45)}
 #bScreen:hover{border-color:rgba(0,255,135,.2)}
 .stat{font-size:.64rem;font-weight:300;color:rgba(240,250,243,.22);line-height:1.6}
 #slog{color:rgba(0,255,135,.4)}
-
-/* CHAT SIDE */
+/* CHAT */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:960px){.ccol{display:none}}
 .chd{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
@@ -71,7 +85,7 @@ body{padding-top:56px}
 .kb{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.3);cursor:pointer;font-size:.9rem;line-height:1;padding:2px 4px;margin-top:1px}
 .kb:hover{color:rgba(255,59,92,.8)}
 .cft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
-.cin{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s}
+.cin{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;border-radius:0}
 .cin:focus{border-color:rgba(0,255,135,.22)}
 .cin::placeholder{color:rgba(240,250,243,.15)}
 .csnd{height:36px;padding:0 12px;background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.6);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
@@ -91,7 +105,23 @@ body{padding-top:56px}
   <div class="vcol">
     <div class="stage">
       <video id="myv" autoplay muted playsinline></video>
-      <div class="ph" id="ph"><div class="ph-t">Ready to go live</div><div class="ph-s">Click "Go Live" below to start<br>sharing your screen with viewers.</div></div>
+
+      <!-- Camera PIP -->
+      <div id="pip">
+        <video id="camv" autoplay muted playsinline></video>
+        <div class="pip-bar">
+          <span>Camera</span>
+          <div class="pip-acts">
+            <button class="pip-btn" onclick="togglePipSize()" title="Minimize/Expand">▢</button>
+            <button class="pip-btn" onclick="toggleCam()" title="Turn camera off">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ph" id="ph">
+        <div class="ph-t">Ready to go live</div>
+        <div class="ph-s">Click "Go Live" below to share your screen.</div>
+      </div>
     </div>
     <div class="ctrl">
       <div class="title-row">
@@ -100,9 +130,10 @@ body{padding-top:56px}
       </div>
       <div class="btns">
         <button class="btn" id="bStart" onclick="goLive()">🔴 Go Live</button>
-        <button class="btn" id="bEnd" onclick="endStream()">End Stream</button>
-        <button class="btn" id="bMic" onclick="toggleMic()">🎙 Mic On</button>
-        <button class="btn" id="bScreen" onclick="switchSource()">🖥 Screen</button>
+        <button class="btn" id="bEnd" onclick="endStream()">⏹ End</button>
+        <button class="btn" id="bMic" onclick="toggleMic()">🎙 Mic</button>
+        <button class="btn" id="bCam" onclick="toggleCam()">📷 Camera</button>
+        <button class="btn" id="bScreen" onclick="switchSource()">🖥 Switch</button>
       </div>
       <div class="stat">Status: <span id="slog">Waiting — click Go Live to begin.</span></div>
     </div>
@@ -119,11 +150,12 @@ body{padding-top:56px}
 </div>
 
 <script>
-var PEER_ID='gp-stream-2025';
-var _peer=null, _screen=null, _mic=null, _live=false, _micOn=true;
-var _viewers={};   // peerId → {call, dc}
-var _banned=[];
-var _vcCount=0;
+var PEER_ID = 'gp-stream-2025';
+var _peer = null, _screen = null, _mic = null, _cam = null;
+var _live = false, _micOn = true, _camOn = false, _pipMini = false;
+var _canvas = null, _ctx = null, _raf = null;
+var _canvasStream = null;
+var _viewers = {}, _banned = [];
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function log(t){document.getElementById('slog').textContent=t;}
@@ -131,102 +163,124 @@ function sys(t){addMsg('',t,true,false,null);}
 function addMsg(n,t,isSys,isHost,pid){
   var f=document.getElementById('feed'),d=document.createElement('div');d.className='mi';
   var l=document.createElement('div');l.className='ml';
-  if(isSys){
-    l.innerHTML='<div class="mt s">'+esc(t)+'</div>';
-  } else {
-    l.innerHTML='<div class="mn'+(isHost?' h':'')+'">'+esc(n)+'</div><div class="mt">'+esc(t)+'</div>';
-  }
+  if(isSys){l.innerHTML='<div class="mt s">'+esc(t)+'</div>';}
+  else{l.innerHTML='<div class="mn'+(isHost?' h':'')+'">'+esc(n)+'</div><div class="mt">'+esc(t)+'</div>';}
   d.appendChild(l);
-  if(pid){
-    var k=document.createElement('button');k.className='kb';k.title='Kick';k.textContent='✕';
-    k.onclick=(function(id){return function(){kick(id);};})(pid);
-    d.appendChild(k);
-  }
+  if(pid){var k=document.createElement('button');k.className='kb';k.title='Kick';k.textContent='✕';k.onclick=(function(id){return function(){kick(id);};})(pid);d.appendChild(k);}
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 function setVC(n){
-  _vcCount=n;
-  var s=n+' viewer'+(n===1?'':'s');
-  document.getElementById('cvc2').textContent=s;
+  document.getElementById('cvc2').textContent=n+' viewer'+(n===1?'':'s');
   document.getElementById('vcn').textContent=n;
   document.getElementById('vc').className=n>0?'on':'';
 }
 
+/* ── CANVAS COMPOSITOR ── */
+function initCanvas(){
+  _canvas = document.createElement('canvas');
+  _canvas.width = 1280; _canvas.height = 720;
+  _ctx = _canvas.getContext('2d');
+  _canvasStream = _canvas.captureStream(30);
+  drawLoop();
+}
+function drawLoop(){
+  if(!_live){return;}
+  _ctx.clearRect(0,0,1280,720);
+  var sv = document.getElementById('myv');
+  if(sv && sv.readyState >= 2){
+    _ctx.drawImage(sv,0,0,1280,720);
+  } else {
+    _ctx.fillStyle='#030303';_ctx.fillRect(0,0,1280,720);
+  }
+  if(_camOn && !_pipMini){
+    var cv = document.getElementById('camv');
+    if(cv && cv.readyState >= 2){
+      var pw=240,ph=135,px=1280-pw-16,py=720-ph-16;
+      _ctx.save();
+      _ctx.shadowColor='rgba(0,0,0,.5)';_ctx.shadowBlur=16;
+      _ctx.fillStyle='#000';_ctx.fillRect(px,py,pw,ph);
+      _ctx.restore();
+      _ctx.drawImage(cv,px,py,pw,ph);
+    }
+  }
+  _raf = requestAnimationFrame(drawLoop);
+}
+
+/* ── GO LIVE ── */
 function goLive(){
-  log('Requesting screen…');
-  document.getElementById('bStart').disabled=true;
+  log('Requesting screen share…');
+  document.getElementById('bStart').disabled = true;
   navigator.mediaDevices.getDisplayMedia({
     video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
     audio:true
   }).then(function(screen){
-    _screen=screen;
-    document.getElementById('myv').srcObject=screen;
-    document.getElementById('myv').style.display='block';
-    document.getElementById('ph').style.display='none';
+    _screen = screen;
+    document.getElementById('myv').srcObject = screen;
+    document.getElementById('myv').style.display = 'block';
+    document.getElementById('ph').style.display = 'none';
     return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
   }).then(function(mic){
-    _mic=mic;
+    _mic = mic;
+    _live = true;
+    initCanvas();
     startPeer();
   }).catch(function(e){
     log('Error: '+e.message+'. Try again.');
-    document.getElementById('bStart').disabled=false;
+    document.getElementById('bStart').disabled = false;
   });
 }
 
+/* ── PEER ── */
 function startPeer(){
-  log('Connecting…');
-  _peer=new Peer(PEER_ID,{debug:0});
-  _peer.on('open',function(id){
-    _live=true;
-    log('🔴 LIVE — viewers can join now.');
-    document.getElementById('navdot').className='dot live';
-    document.getElementById('navstat').textContent='live';document.getElementById('navstat').className='on';
-    document.getElementById('bStart').style.display='none';
-    document.getElementById('bEnd').style.display='inline-flex';
-    document.getElementById('bEnd').style.display='block';
-    sys('🔴 Stream started. Share thegreenprint.trade/stream.html with your audience.');
+  _peer = new Peer(PEER_ID, {debug:0});
+  _peer.on('open', function(){
+    log('🔴 LIVE — share thegreenprint.trade/stream.html with viewers.');
+    document.getElementById('navdot').className = 'dot live';
+    document.getElementById('navstat').textContent = 'live';
+    document.getElementById('navstat').className = 'on';
+    document.getElementById('bStart').style.display = 'none';
+    document.getElementById('bEnd').style.display = 'block';
+    sys('🔴 You are live! Share thegreenprint.trade/stream.html with your audience.');
   });
-  _peer.on('call',function(call){
-    var vid=new MediaStream([..._screen.getVideoTracks(),...(_mic?_mic.getAudioTracks():[])]);
-    call.answer(vid);
-    var pid=call.peer;
-    if(!_viewers[pid])_viewers[pid]={};
-    _viewers[pid].call=call;
-    call.on('close',function(){rmViewer(pid);});
+  _peer.on('call', function(call){
+    // Send canvas (composited screen+camera) + mic
+    var tracks = [..._canvasStream.getVideoTracks(), ...(_mic ? _mic.getAudioTracks() : [])];
+    call.answer(new MediaStream(tracks));
+    var pid = call.peer;
+    if(!_viewers[pid]) _viewers[pid]={};
+    _viewers[pid].call = call;
+    call.on('close', function(){rmViewer(pid);});
   });
-  _peer.on('connection',function(dc){
-    var pid=dc.peer;
-    if(_banned.indexOf(pid)>-1){dc.close();return;}
-    if(!_viewers[pid])_viewers[pid]={};
-    _viewers[pid].dc=dc;
-    dc.on('open',function(){
-      _viewers[pid].name=dc.metadata&&dc.metadata.name?dc.metadata.name:'Viewer';
-      addViewer(pid);
+  _peer.on('connection', function(dc){
+    var pid = dc.peer;
+    if(_banned.indexOf(pid) > -1){dc.close();return;}
+    if(!_viewers[pid]) _viewers[pid]={};
+    _viewers[pid].dc = dc;
+    dc.on('open', function(){
+      _viewers[pid].name = (dc.metadata&&dc.metadata.name) ? dc.metadata.name : 'Viewer';
+      setVC(Object.keys(_viewers).length);
+      sys((_viewers[pid].name||'Someone')+' joined.');
       pushTitle();
     });
-    dc.on('data',function(r){
-      try{var m=JSON.parse(r);
-        if(m.t==='join'){_viewers[pid].name=m.n||'Viewer';updateNames();}
-        if(m.t==='chat'){addMsg(_viewers[pid].name||'Viewer',m.x,false,false,pid);broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false});}
+    dc.on('data', function(r){
+      try{
+        var m = JSON.parse(r);
+        if(m.t==='join'){_viewers[pid].name=m.n||'Viewer';}
+        if(m.t==='chat'){
+          addMsg(_viewers[pid].name||'Viewer', m.x, false, false, pid);
+          broadcast({t:'chat', n:_viewers[pid].name||'Viewer', x:m.x, h:false});
+        }
       }catch(x){}
     });
-    dc.on('close',function(){rmViewer(pid);});
+    dc.on('close', function(){rmViewer(pid);});
   });
-  _peer.on('error',function(e){
-    if(e.type==='unavailable-id'){log('Peer ID taken — try ending and going live again.');document.getElementById('bStart').disabled=false;}
-    else{log('Connection error: '+e.message);}
+  _peer.on('error', function(e){
+    if(e.type==='unavailable-id'){log('ID in use — end stream and try again.');document.getElementById('bStart').disabled=false;}
+    else{log('Error: '+e.message);}
   });
 }
 
-function addViewer(pid){
-  setVC(Object.keys(_viewers).length);
-  sys(((_viewers[pid]&&_viewers[pid].name)||'Someone')+' joined.');
-}
-function rmViewer(pid){
-  delete _viewers[pid];
-  setVC(Object.keys(_viewers).length);
-}
-function updateNames(){setVC(Object.keys(_viewers).length);}
+function rmViewer(pid){delete _viewers[pid];setVC(Object.keys(_viewers).length);}
 function broadcast(obj){
   Object.keys(_viewers).forEach(function(pid){
     var dc=_viewers[pid].dc;
@@ -234,15 +288,13 @@ function broadcast(obj){
   });
 }
 function kick(pid){
-  if(!pid||!_viewers[pid])return;
+  if(!_viewers[pid])return;
   var dc=_viewers[pid].dc, call=_viewers[pid].call;
   try{if(dc&&dc.open)dc.send(JSON.stringify({t:'kick'}));}catch(x){}
   setTimeout(function(){
     try{if(dc)dc.close();}catch(x){}
     try{if(call)call.close();}catch(x){}
-    _banned.push(pid);
-    rmViewer(pid);
-    sys('Viewer removed.');
+    _banned.push(pid);rmViewer(pid);sys('Viewer removed.');
   },300);
 }
 function pushTitle(){
@@ -254,55 +306,74 @@ function sendChat(){
   addMsg('Jacob (Host)',t,false,true,null);
   broadcast({t:'chat',n:'Jacob (Host)',x:t,h:true});
 }
+
+/* ── TOGGLES ── */
 function toggleMic(){
   if(!_mic)return;
   _micOn=!_micOn;
   _mic.getAudioTracks().forEach(function(tr){tr.enabled=_micOn;});
   var b=document.getElementById('bMic');
-  b.textContent=_micOn?'🎙 Mic On':'🔇 Mic Off';
-  b.className='btn'+(_micOn?'':' muted');
-  log(_micOn?'Microphone on.':'Microphone muted.');
+  b.textContent=_micOn?'🎙 Mic':'🔇 Muted';
+  b.className='btn'+(_micOn?'':' off');
+}
+function toggleCam(){
+  if(_camOn){
+    // Turn off
+    if(_cam)_cam.getTracks().forEach(function(t){t.stop();});
+    _cam=null;_camOn=false;
+    document.getElementById('camv').srcObject=null;
+    document.getElementById('pip').className='';
+    document.getElementById('bCam').textContent='📷 Camera';
+    document.getElementById('bCam').className='btn';
+    log('Camera off.');
+  } else {
+    // Turn on
+    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:false})
+    .then(function(stream){
+      _cam=stream;_camOn=true;
+      document.getElementById('camv').srcObject=stream;
+      document.getElementById('pip').className='show';
+      document.getElementById('bCam').textContent='📷 Cam On';
+      document.getElementById('bCam').className='btn on';
+      log('Camera on.');
+    }).catch(function(e){log('Camera error: '+e.message);});
+  }
+}
+function togglePipSize(){
+  _pipMini=!_pipMini;
+  var pip=document.getElementById('pip');
+  pip.className=_pipMini?'show mini':'show';
 }
 function switchSource(){
   navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
-    audio:false
+    video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},audio:false
   }).then(function(s){
-    var oldTracks=_screen.getVideoTracks();
-    var newTrack=s.getVideoTracks()[0];
+    var old=_screen?_screen.getVideoTracks():[];
     _screen=s;
     document.getElementById('myv').srcObject=s;
-    // replace in all active calls
-    Object.keys(_viewers).forEach(function(pid){
-      var call=_viewers[pid].call;
-      if(call&&call.peerConnection){
-        call.peerConnection.getSenders().forEach(function(sender){
-          if(sender.track&&sender.track.kind==='video')sender.replaceTrack(newTrack).catch(function(){});
-        });
-      }
-    });
-    oldTracks.forEach(function(t){t.stop();});
+    old.forEach(function(t){t.stop();});
     log('Screen source switched.');
-  }).catch(function(){log('Source switch cancelled.');});
+  }).catch(function(){log('Switch cancelled.');});
 }
 function endStream(){
   if(!confirm('End your live stream?'))return;
   broadcast({t:'ended'});
+  cancelAnimationFrame(_raf);_live=false;
   if(_screen)_screen.getTracks().forEach(function(t){t.stop();});
   if(_mic)_mic.getTracks().forEach(function(t){t.stop();});
+  if(_cam)_cam.getTracks().forEach(function(t){t.stop();});
   if(_peer)_peer.destroy();
-  _live=false;
   document.getElementById('myv').style.display='none';
+  document.getElementById('pip').className='';
   document.getElementById('ph').style.display='flex';
   document.getElementById('ph').querySelector('.ph-t').textContent='Stream Ended';
-  document.getElementById('ph').querySelector('.ph-s').textContent='Reload this page to go live again.';
+  document.getElementById('ph').querySelector('.ph-s').textContent='Reload to go live again.';
   document.getElementById('navdot').className='dot';
   document.getElementById('navstat').textContent='offline';document.getElementById('navstat').className='';
   document.getElementById('bEnd').style.display='none';
   document.getElementById('bStart').style.display='block';
   document.getElementById('bStart').disabled=false;
-  setVC(0);
-  log('Stream ended.');
+  setVC(0);log('Stream ended.');
 }
 
 // Load PeerJS
@@ -310,7 +381,7 @@ function endStream(){
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
   s.onload=function(){log('Ready — click Go Live to start.');};
-  s.onerror=function(){log('Failed to load streaming library. Check your internet connection.');};
+  s.onerror=function(){log('Could not load streaming library. Check connection.');};
   document.body.appendChild(s);
 })();
 </script>
