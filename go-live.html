@@ -75,11 +75,18 @@ body{padding-top:56px}
 .leads-count{font-size:.54rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:rgba(0,255,135,.4)}
 .leads-export{height:26px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.5);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
 .leads-export:hover{background:rgba(0,255,135,.12);color:#00ff87}
-.lead-row{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;flex-direction:column;gap:2px}
 .lead-row:hover{background:rgba(255,255,255,.02)}
 .lead-name{font-size:.72rem;font-weight:600;color:rgba(240,250,243,.7)}
 .lead-detail{font-size:.6rem;font-weight:300;color:rgba(240,250,243,.3);word-break:break-all}
 .leads-empty{padding:32px 16px;text-align:center;font-size:.68rem;font-weight:300;color:rgba(240,250,243,.15);line-height:1.8}
+.lead-copy{flex-shrink:0;height:22px;padding:0 7px;background:rgba(0,255,135,.04);border:1px solid rgba(0,255,135,.1);color:rgba(0,255,135,.35);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.48rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-radius:2px;transition:all .15s;white-space:nowrap}
+.lead-copy:hover{background:rgba(0,255,135,.12);color:#00ff87;border-color:rgba(0,255,135,.3)}
+.lead-copy.ok{background:rgba(0,255,135,.1);color:#00ff87}
+.leads-actions{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
+.leads-action-btn{flex:1;height:30px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:rgba(240,250,243,.4);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .15s}
+.leads-action-btn:hover{background:rgba(0,255,135,.07);border-color:rgba(0,255,135,.18);color:rgba(0,255,135,.7)}
+.lead-row{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px}
+.lead-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .feed{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px}
 .feed::-webkit-scrollbar{width:2px}
 .feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.13)}
@@ -204,9 +211,12 @@ body{padding-top:56px}
     <div id="leads-panel">
       <div class="leads-hd">
         <span class="leads-count" id="leads-count">0 leads</span>
-        <button class="leads-export" onclick="exportLeads()">⬇ Export CSV</button>
       </div>
-      <div id="leads-list"><div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div></div>
+      <div class="leads-actions">
+        <button class="leads-action-btn" id="copy-all-btn" onclick="copyAllLeads()">📋 Copy All</button>
+        <button class="leads-action-btn" onclick="exportLeads()">⬇ CSV</button>
+      </div>
+      <div id="leads-list" style="flex:1;overflow-y:auto"><div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div></div>
     </div>
   </div>
 </div>
@@ -355,18 +365,42 @@ function renderLeads(){
     return;
   }
   list.innerHTML='';
-  _leads.forEach(function(l){
+  _leads.forEach(function(l,i){
     var d=document.createElement('div');d.className='lead-row';
     var dt=l.ts?new Date(l.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    d.innerHTML='<div class="lead-name">'+esc(l.name)+'<span style="font-size:.52rem;font-weight:300;color:rgba(240,250,243,.2);margin-left:6px">'+dt+'</span></div>'
+    var info=document.createElement('div');info.className='lead-info';
+    info.innerHTML='<div class="lead-name">'+esc(l.name)
+      +'<span style="font-size:.52rem;font-weight:300;color:rgba(240,250,243,.2);margin-left:6px">'+dt+'</span></div>'
       +(l.email?'<div class="lead-detail">✉ '+esc(l.email)+'</div>':'')
       +(l.phone?'<div class="lead-detail">📞 '+esc(l.phone)+'</div>':'');
+    var btn=document.createElement('button');
+    btn.className='lead-copy';btn.textContent='📋 Copy';
+    btn.onclick=(function(lead,b){return function(){
+      var txt=[lead.name,lead.email,lead.phone].filter(Boolean).join(' | ');
+      navigator.clipboard.writeText(txt).then(function(){
+        b.textContent='✅';b.className='lead-copy ok';
+        setTimeout(function(){b.textContent='📋 Copy';b.className='lead-copy';},1800);
+      }).catch(function(){});
+    };})(l,btn);
+    d.appendChild(info);d.appendChild(btn);
     list.appendChild(d);
   });
 }
 
+function copyAllLeads(){
+  if(!_leads.length){return;}
+  var txt=_leads.map(function(l){
+    return[l.name,l.email,l.phone].filter(Boolean).join(' | ');
+  }).join('\n');
+  var btn=document.getElementById('copy-all-btn');
+  navigator.clipboard.writeText(txt).then(function(){
+    btn.textContent='✅ Copied!';
+    setTimeout(function(){btn.textContent='📋 Copy All';},2000);
+  }).catch(function(){});
+}
+
 function exportLeads(){
-  if(!_leads.length){alert('No leads to export yet.');return;}
+  if(!_leads.length){return;}
   var csv='Name,Email,Phone,Date\n'+_leads.map(function(l){
     var dt=l.ts?new Date(l.ts).toLocaleString():'';
     return[l.name,l.email,l.phone,dt].map(function(v){return'"'+(v||'').replace(/"/g,'""')+'"';}).join(',');
@@ -459,12 +493,11 @@ function createDummyCamTrack(){
 // ── Canvas compositor: GPU-accelerated, frame-perfect rendering ──
 function initCanvas(){
   var settings=_screenStream.getVideoTracks()[0].getSettings();
-  // Cap at 1920×1080 — Full HD is the streaming industry standard.
-  // 4K canvas (3840×2160) forces 8M pixels/frame through CPU/GPU every 33ms,
-  // which starves the camera decoder and causes lag. 1080p = same sharpness
-  // for viewers, 4× less rendering work, smooth camera.
-  _SW=Math.min(settings.width||1920,1920);
-  _SH=Math.min(settings.height||1080,1080);
+  // Camera is now a separate track so the canvas only carries screen share.
+  // Cap at 2560×1440 (2K) — dramatically sharper than 1080p for reading text/charts,
+  // without the full 4K GPU encoder cost. Viewers see crisp screen content.
+  _SW=Math.min(settings.width||1920,2560);
+  _SH=Math.min(settings.height||1080,1440);
   _canvas.width=_SW;
   _canvas.height=_SH;
   _ctx.imageSmoothingEnabled=true;
@@ -519,7 +552,7 @@ function goLive(){
   });
 
   navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:30},cursor:'always'},
+    video:{width:{ideal:2560},height:{ideal:1440},frameRate:{ideal:30,max:30},cursor:'always'},
     audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000}
   }).then(function(scrn){
     _screenStream=scrn;
