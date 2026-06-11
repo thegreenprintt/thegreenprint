@@ -204,8 +204,8 @@ function connectToHost(){
     _peer = new Peer(undefined, {debug:0});
     _peer.on('open', function(){
 
-      // Receive video stream
-      var call = _peer.call(HOST_PEER_ID, null);
+      // Receive video stream — use empty stream so PeerJS establishes connection properly
+      var call = _peer.call(HOST_PEER_ID, new MediaStream());
       if(!call){ retry(); return; }
       call.on('stream', function(stream){
         var v = document.getElementById('vid');
@@ -261,19 +261,7 @@ function sendChat(){
   }
 }
 
-// ── AUTO-SKIP FOR RETURNING VISITORS ──
-(function(){
-  try{
-    var saved = JSON.parse(localStorage.getItem('gp_viewer'));
-    var month = 30 * 24 * 60 * 60 * 1000;
-    if(saved && saved.name && saved.email && saved.phone && (Date.now() - saved.ts) < month){
-      _name = saved.name.split(' ')[0];
-      document.getElementById('gate').style.display = 'none';
-      document.getElementById('main').style.display = 'block';
-      loadPeerJS();
-    }
-  }catch(e){}
-})();
+// Gate always shows — no auto-skip. Every visitor must enter their info.
 
 // Welcome message
 setTimeout(function(){ addSys('Welcome to The Greenprint Live 🔥'); }, 500);
