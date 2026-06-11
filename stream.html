@@ -142,7 +142,7 @@ var ICE = {
   ]
 };
 
-var _name='Viewer', _peer=null, _dc=null, _retries=0;
+var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function stat(t){
@@ -197,6 +197,12 @@ function loadPeerJS(){
   document.body.appendChild(s);
 }
 
+function scheduleReconnect(ms){
+  // Prevent duplicate timers
+  if(_reconnectTimer)clearTimeout(_reconnectTimer);
+  _reconnectTimer=setTimeout(function(){_reconnectTimer=null;connectToHost();},ms);
+}
+
 function connectToHost(){
   // Clean up any previous peer
   if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
@@ -233,10 +239,11 @@ function connectToHost(){
     });
 
     call.on('close',function(){
-      stat('Stream ended.');
+      stat('Stream ended — will reconnect when Jacob goes live again…');
       setLive(false);
       document.getElementById('offline-msg').style.display='flex';
-      addSys('Stream ended.');
+      addSys('Stream ended — reconnecting automatically when Jacob goes live again.');
+      scheduleReconnect(5000);
     });
 
     if(call.peerConnection){
@@ -265,7 +272,14 @@ function connectToHost(){
         var m=JSON.parse(raw);
         if(m.t==='chat')  addChat(m.n,m.x,m.h);
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
-        if(m.t==='ended'){setLive(false);document.getElementById('offline-msg').style.display='flex';addSys('Stream ended by host.');}
+        if(m.t==='ended'){
+          setLive(false);
+          document.getElementById('offline-msg').style.display='flex';
+          addSys('Stream ended — will reconnect automatically when Jacob goes live again.');
+          // Destroy current peer and start polling for the next session
+          if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
+          scheduleReconnect(5000);
+        }
         if(m.t==='kick'){
           if(_peer)try{_peer.destroy();}catch(e){}
           document.getElementById('main').innerHTML=
@@ -278,11 +292,11 @@ function connectToHost(){
 
     dc.on('error',function(e){
       stat('Data channel error — retrying in 8s…');
-      setTimeout(connectToHost,8000);
+      scheduleReconnect(8000);
     });
     dc.on('close',function(){
       stat('Disconnected — reconnecting in 8s…');
-      setTimeout(connectToHost,8000);
+      scheduleReconnect(8000);
     });
   });
 
@@ -291,14 +305,14 @@ function connectToHost(){
     if(e.type==='peer-unavailable'){
       // Host isn't live yet — keep waiting silently
       var delay=_retries<5?8000:15000;
-      stat('Stream not started yet — checking again in '+(delay/1000)+'s…');
-      setTimeout(connectToHost,delay);
+      stat('Waiting for Jacob to go live… (checking in '+(delay/1000)+'s)');
+      scheduleReconnect(delay);
     } else if(e.type==='network'||e.type==='server-error'){
       stat('Network issue — retrying in 10s…');
-      setTimeout(connectToHost,10000);
+      scheduleReconnect(10000);
     } else {
       stat('Error ('+e.type+') — retrying in 10s…');
-      setTimeout(connectToHost,10000);
+      scheduleReconnect(10000);
     }
   });
 }
