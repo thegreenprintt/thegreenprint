@@ -6,8 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Watch Live | The Greenprint</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <style>
 /* ─────────────────────────────────────────
    RESET + TOKENS
@@ -715,233 +713,209 @@ var _isBC = false;
 var _peer = null, _displayStream = null, _micStream = null, _micMuted = false;
 var _viewers = 0, _activeCalls = [];
 var _names = ['Marcus T.','Destiny R.','Jordan K.','Amir S.','Tasha W.','Kevin L.','Brianna M.','DeShawn P.'];
-var _quips = ['🔥 Let's go!','Good morning!','Ready to learn','Great setup 🙌','What are we trading today?','Watching from Atlanta 📍','Already up 2% 💰','NQ or ES?','This community is 🔥','Charts loaded ✅','Jacob always delivers 🎯','Let's get it 💰'];
+var _quips = ['Let's go! 🔥','Good morning!','Ready to learn','What are we trading?','Already up 2% 💰','NQ or ES?','This community is 🔥','Locked in 👀','Let's get it 💰','Jacob always delivers 🎯'];
 var _qi = 0;
 
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── STEP 1: Subscribe then go straight to stream ──────────────────────────────
+// ── CONTINUE BUTTON — pure JS, zero dependencies ──────────────────────────────
 function handleSubscribe(){
-  try{
-    var name  = (document.getElementById('f-name').value  || '').trim();
-    var email = (document.getElementById('f-email').value || '').trim();
-    var phone = (document.getElementById('f-phone').value || '').trim();
-    var err   = document.getElementById('sub-err');
+  var name  = document.getElementById('f-name').value.trim();
+  var email = document.getElementById('f-email').value.trim();
+  var phone = document.getElementById('f-phone').value.trim();
+  var err   = document.getElementById('sub-err');
 
-    if(!name) { err.textContent='Please enter your name.'; err.style.display='block'; return; }
-    if(!email){ err.textContent='Please enter your email.'; err.style.display='block'; return; }
-    if(!phone){ err.textContent='Please enter your phone number.'; err.style.display='block'; return; }
+  if(!name) { err.textContent='Enter your name.'; err.style.display='block'; return; }
+  if(!email){ err.textContent='Enter your email.'; err.style.display='block'; return; }
+  if(!phone){ err.textContent='Enter your phone number.'; err.style.display='block'; return; }
 
-    try{ localStorage.setItem('gp_live_v2', JSON.stringify({name:name, email:email, phone:phone, ts:Date.now()})); }catch(e){}
+  try{ localStorage.setItem('gp_sub', JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()})); }catch(e){}
 
-    showStream();
-  }catch(e){ alert('Error: ' + e.message); }
-}
-
-// ── SHOW STREAM PAGE ──────────────────────────────────────────────────────────
-function showStream(){
-  // Hide gate immediately — synchronous, always works
+  // Hide gate, show stream — simple, synchronous, always works
   document.getElementById('gate').style.display = 'none';
-  document.getElementById('paywall').style.display = 'none';
   document.getElementById('main').style.display = 'block';
-  // Do async parts after gate is already hidden
-  _afterShowStream();
+
+  // Now lazy-load PeerJS and set up stream
+  _initStream();
 }
 
-async function _afterShowStream(){
+// ── LAZY LOAD PeerJS then connect ─────────────────────────────────────────────
+function _initStream(){
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+  s.onload = function(){
+    _checkBroadcaster().then(function(){
+      if(_isBC){
+        document.getElementById('bcStrip').classList.add('show');
+        addSysMsg('Broadcaster mode. Click Go Live when ready.');
+      } else {
+        connectAsViewer();
+        fakeViewers();
+      }
+      setTimeout(function(){ addSysMsg('Welcome to The Greenprint Live 🔥'); }, 600);
+    });
+  };
+  s.onerror = function(){
+    addSysMsg('Connection error — please refresh.');
+  };
+  document.head.appendChild(s);
+}
+
+async function _checkBroadcaster(){
   try{
     var hash = location.hash;
     if(hash && hash.startsWith('#bc=')){
-      var ph = await sha256(decodeURIComponent(hash.slice(4)));
+      var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(decodeURIComponent(hash.slice(4))));
+      var ph = [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
       if(ph === BC_HASH) _isBC = true;
     }
   }catch(e){}
-
-  if(_isBC){
-    document.getElementById('bcStrip').classList.add('show');
-    addSysMsg('Broadcaster mode. Click Go Live when ready.');
-  } else {
-    setTimeout(connectAsViewer, 500);
-  }
-
-  setTimeout(function(){ addSysMsg('Welcome to The Greenprint Live 🔥'); }, 800);
-  if(!_isBC) fakeViewers();
-}
-
-// ── CRYPTO ───────────────────────────────────────────────────────────────────
-async function sha256(s){
-  var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 
 // ── VIEWER ────────────────────────────────────────────────────────────────────
 function connectAsViewer(){
   try{
-    if(typeof Peer === 'undefined'){ addSysMsg('Connecting…'); return; }
     _peer = new Peer(undefined, {debug:0});
     _peer.on('open', function(){
       var call = _peer.call(GP_PEER_ID, null);
       if(!call){ setTimeout(connectAsViewer, 8000); return; }
       call.on('stream', function(s){
         var v = document.getElementById('streamVideo');
-        v.srcObject = s;
-        v.play().catch(function(){});
+        v.srcObject = s; v.play().catch(function(){});
         document.getElementById('offlineOverlay').style.display = 'none';
         setLiveUI(true);
       });
-      call.on('close', function(){ setLiveUI(false); setTimeout(connectAsViewer, 8000); });
-      call.on('error', function(){ setTimeout(connectAsViewer, 8000); });
+      call.on('close', function(){ setLiveUI(false); setTimeout(connectAsViewer,8000); });
+      call.on('error', function(){ setTimeout(connectAsViewer,8000); });
     });
     _peer.on('error', function(err){
-      if(err.type === 'peer-unavailable') setTimeout(connectAsViewer, 8000);
+      if(err.type==='peer-unavailable') setTimeout(connectAsViewer,8000);
     });
-  }catch(e){ setTimeout(connectAsViewer, 10000); }
+  }catch(e){ setTimeout(connectAsViewer,10000); }
 }
 
 // ── BROADCASTER ───────────────────────────────────────────────────────────────
 async function startStream(){
-  var startBtn = document.getElementById('startBtn');
-  startBtn.disabled = true;
-  setStatus('Requesting screen…');
+  var btn = document.getElementById('startBtn');
+  btn.disabled = true; setStatus('Requesting screen…');
   try{
     _displayStream = await navigator.mediaDevices.getDisplayMedia({
-      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
-      audio:true
+      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},audio:true
     });
-    try{
-      _micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
-    }catch(e){ addSysMsg('Mic not found — screen audio only.'); }
+    try{ _micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false}); }
+    catch(e){ addSysMsg('Mic not found — screen audio only.'); }
 
     var video = document.getElementById('streamVideo');
-    video.srcObject = _displayStream;
-    video.muted = true;
+    video.srcObject = _displayStream; video.muted = true;
     document.getElementById('offlineOverlay').style.display = 'none';
 
-    var allTracks = [..._displayStream.getTracks()];
-    if(_micStream) allTracks = allTracks.concat(_micStream.getAudioTracks());
-    var broadcastStream = new MediaStream(allTracks);
+    var tracks = [..._displayStream.getTracks()];
+    if(_micStream) tracks = tracks.concat(_micStream.getAudioTracks());
+    var broadcastStream = new MediaStream(tracks);
 
     setStatus('Connecting…');
     _peer = new Peer(GP_PEER_ID, {debug:0});
-
     _peer.on('open', function(){
       setStatus('🔴 Live');
-      startBtn.style.display = 'none';
+      btn.style.display = 'none';
       document.getElementById('stopBtn').style.display = 'inline-flex';
       document.getElementById('micBtn').classList.add('on');
       document.getElementById('micBtn').textContent = '🎙 Mic On';
       setLiveUI(true);
       addSysMsg('You are live! 🚀');
-      fakeStreamViewers();
     });
-
     _peer.on('call', function(call){
-      call.answer(broadcastStream);
-      _activeCalls.push(call);
-      setViewerCount(_viewers + 1);
+      call.answer(broadcastStream); _activeCalls.push(call);
+      setViewerCount(_viewers+1);
       call.on('close', function(){
-        _activeCalls = _activeCalls.filter(function(c){ return c !== call; });
-        setViewerCount(Math.max(0, _viewers - 1));
+        _activeCalls = _activeCalls.filter(function(c){return c!==call;});
+        setViewerCount(Math.max(0,_viewers-1));
       });
     });
-
     _peer.on('error', function(err){
-      if(err.type === 'unavailable-id'){
-        addSysMsg('⚠ Stream ID already in use.');
-        startBtn.disabled = false;
-        setStatus('');
-      }
+      if(err.type==='unavailable-id'){ addSysMsg('Stream ID in use.'); btn.disabled=false; setStatus(''); }
     });
-
     _displayStream.getVideoTracks()[0].addEventListener('ended', stopStream);
-
   }catch(er){
-    startBtn.disabled = false;
-    setStatus('');
-    if(er.name === 'NotAllowedError') addSysMsg('Screen share permission denied.');
-    else addSysMsg('Error: ' + er.message);
-    if(_displayStream){ _displayStream.getTracks().forEach(function(t){t.stop();}); _displayStream = null; }
-    if(_micStream){ _micStream.getTracks().forEach(function(t){t.stop();}); _micStream = null; }
+    btn.disabled = false; setStatus('');
+    addSysMsg(er.name==='NotAllowedError'?'Permission denied.':'Error: '+er.message);
+    if(_displayStream){ _displayStream.getTracks().forEach(function(t){t.stop();}); _displayStream=null; }
+    if(_micStream){ _micStream.getTracks().forEach(function(t){t.stop();}); _micStream=null; }
   }
 }
 
 function stopStream(){
-  _activeCalls.forEach(function(c){ c.close(); }); _activeCalls = [];
-  if(_peer){ _peer.destroy(); _peer = null; }
-  if(_displayStream){ _displayStream.getTracks().forEach(function(t){t.stop();}); _displayStream = null; }
-  if(_micStream){ _micStream.getTracks().forEach(function(t){t.stop();}); _micStream = null; }
-  document.getElementById('streamVideo').srcObject = null;
-  document.getElementById('offlineOverlay').style.display = 'flex';
-  var b = document.getElementById('startBtn'); b.style.display = 'inline-flex'; b.disabled = false;
-  document.getElementById('stopBtn').style.display = 'none';
+  _activeCalls.forEach(function(c){c.close();}); _activeCalls=[];
+  if(_peer){_peer.destroy();_peer=null;}
+  if(_displayStream){_displayStream.getTracks().forEach(function(t){t.stop();});_displayStream=null;}
+  if(_micStream){_micStream.getTracks().forEach(function(t){t.stop();});_micStream=null;}
+  document.getElementById('streamVideo').srcObject=null;
+  document.getElementById('offlineOverlay').style.display='flex';
+  var b=document.getElementById('startBtn'); b.style.display='inline-flex'; b.disabled=false;
+  document.getElementById('stopBtn').style.display='none';
   setLiveUI(false); setStatus('Stream ended'); addSysMsg('Stream ended.');
 }
 
 function setLiveUI(live){
-  document.getElementById('liveBadge').style.display = live ? 'flex' : 'none';
-  document.getElementById('viewerBadge').style.display = live ? 'flex' : 'none';
-  var pill = document.getElementById('tb-status-label');
-  if(pill){ pill.className = live ? 'live' : ''; document.getElementById('tb-live-text').textContent = live ? 'live' : 'offline'; }
+  document.getElementById('liveBadge').style.display=live?'flex':'none';
+  document.getElementById('viewerBadge').style.display=live?'flex':'none';
+  var pill=document.getElementById('tb-status-label');
+  if(pill){pill.className=live?'live':'';document.getElementById('tb-live-text').textContent=live?'live':'offline';}
 }
-
 function toggleMic(){
-  _micMuted = !_micMuted;
-  if(_displayStream) _displayStream.getAudioTracks().forEach(function(t){ t.enabled = !_micMuted; });
-  if(_micStream) _micStream.getAudioTracks().forEach(function(t){ t.enabled = !_micMuted; });
-  var b = document.getElementById('micBtn');
-  b.textContent = _micMuted ? '🔇 Mic Off' : '🎙 Mic On';
-  b.classList.toggle('on', !_micMuted); b.classList.toggle('danger', _micMuted);
+  _micMuted=!_micMuted;
+  if(_displayStream)_displayStream.getAudioTracks().forEach(function(t){t.enabled=!_micMuted;});
+  if(_micStream)_micStream.getAudioTracks().forEach(function(t){t.enabled=!_micMuted;});
+  var b=document.getElementById('micBtn');
+  b.textContent=_micMuted?'🔇 Mic Off':'🎙 Mic On';
+  b.classList.toggle('on',!_micMuted); b.classList.toggle('danger',_micMuted);
 }
 function toggleCam(){ addSysMsg('Camera overlay coming soon.'); }
-
-function setStatus(msg){ var s = document.getElementById('bcStatus'); if(s) s.textContent = msg; }
+function setStatus(msg){ var s=document.getElementById('bcStatus'); if(s)s.textContent=msg; }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────────
-function addSysMsg(t){ addChatMsg('', t, true, false); }
-function addChatMsg(name, text, system, host){
-  var feed = document.getElementById('chatFeed');
-  var d = document.createElement('div'); d.className = 'chat-item';
-  if(system){ d.innerHTML = '<div class="chat-text system-text">' + esc(text) + '</div>'; }
-  else{ d.innerHTML = '<div class="chat-name' + (host ? ' host-name' : '') + '">' + esc(name) + '</div><div class="chat-text">' + esc(text) + '</div>'; }
-  feed.appendChild(d); feed.scrollTop = feed.scrollHeight;
+function addSysMsg(t){ addChatMsg('',t,true,false); }
+function addChatMsg(name,text,system,host){
+  var feed=document.getElementById('chatFeed');
+  var d=document.createElement('div'); d.className='chat-item';
+  if(system){ d.innerHTML='<div class="chat-text system-text">'+esc(text)+'</div>'; }
+  else{ d.innerHTML='<div class="chat-name'+(host?' host-name':'')+'" >'+esc(name)+'</div><div class="chat-text">'+esc(text)+'</div>'; }
+  feed.appendChild(d); feed.scrollTop=feed.scrollHeight;
 }
 function sendChat(){
-  var inp = document.getElementById('chatInput');
-  var t = inp.value.trim(); if(!t) return;
-  var sub = null; try{ sub = JSON.parse(localStorage.getItem('gp_live_v2')); }catch(e){}
-  var n = sub ? sub.name.split(' ')[0] : 'You';
-  addChatMsg(n + (_isBC ? ' 🎙' : ''), t, false, _isBC);
-  inp.value = '';
+  var inp=document.getElementById('chatInput');
+  var t=inp.value.trim(); if(!t)return;
+  var sub=null; try{sub=JSON.parse(localStorage.getItem('gp_sub'));}catch(e){}
+  var n=sub?sub.name.split(' ')[0]:'You';
+  addChatMsg(n+(_isBC?' 🎙':''),t,false,_isBC);
+  inp.value='';
 }
 function setViewerCount(n){
-  _viewers = n;
-  document.getElementById('vcNum').textContent = n;
-  document.getElementById('chatViewerCount').textContent = n + ' viewer' + (n !== 1 ? 's' : '');
+  _viewers=n;
+  document.getElementById('vcNum').textContent=n;
+  document.getElementById('chatViewerCount').textContent=n+' viewer'+(n!==1?'s':'');
 }
 function fakeViewers(){
-  var greet = ['Hey everyone 👋','Ready for today!','Morning everyone'];
+  var greet=['Hey everyone 👋','Ready for today!','Morning everyone'];
   _names.slice(0,3).forEach(function(nm,j){
-    setTimeout(function(){ addChatMsg(nm, greet[j]); setViewerCount(_viewers+1); }, 2500 + j*3200);
+    setTimeout(function(){addChatMsg(nm,greet[j]);setViewerCount(_viewers+1);},2500+j*3200);
   });
-}
-function fakeStreamViewers(){
-  var iv = setInterval(function(){
-    if(!_peer || _peer.destroyed){ clearInterval(iv); return; }
-    if(Math.random() > 0.5){ addChatMsg(_names[Math.floor(Math.random()*_names.length)], _quips[_qi++ % _quips.length]); }
-  }, 5000);
 }
 
 // ── PLAN CARDS ────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', function(){
-  var pa = document.getElementById('plan-a');
-  var pb = document.getElementById('plan-b');
-  if(pa) pa.onclick = function(){ pa.classList.add('sel'); pb.classList.remove('sel'); };
-  if(pb) pb.onclick = function(){ pb.classList.add('sel'); pa.classList.remove('sel'); };
+document.addEventListener('DOMContentLoaded', function(){
+  var pa=document.getElementById('plan-a'), pb=document.getElementById('plan-b');
+  if(pa) pa.onclick=function(){pa.classList.add('sel');pb.classList.remove('sel');};
+  if(pb) pb.onclick=function(){pb.classList.add('sel');pa.classList.remove('sel');};
 
-  // If returning subscriber, skip gate
+  // Auto-skip gate for returning subscribers
   try{
-    var stored = JSON.parse(localStorage.getItem('gp_live_v2'));
-    if(stored && (Date.now() - stored.ts) < 30*24*60*60*1000){ showStream(); }
+    var stored=JSON.parse(localStorage.getItem('gp_sub'));
+    if(stored&&(Date.now()-stored.ts)<30*24*60*60*1000){
+      document.getElementById('gate').style.display='none';
+      document.getElementById('main').style.display='block';
+      _initStream();
+    }
   }catch(e){}
 });
 </script>
