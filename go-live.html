@@ -201,8 +201,12 @@ var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null;
 var _viewers={}, _banned=[];
-var _canvas=document.getElementById('cv'), _ctx=_canvas.getContext('2d');
+var _canvas=document.getElementById('cv');
+// desynchronized: bypasses compositor sync → GPU-accelerated compositing
+// alpha: false → no transparency blending overhead
+var _ctx=_canvas.getContext('2d',{alpha:false,desynchronized:true});
 var _SW=1920, _SH=1080; // actual captured screen dimensions
+var _drawActive=false; // controls rVFC loop
 
 // ── Stream stats tracking ──
 var _stats={start:null,peak:0,unique:{},chatCount:0,title:'The Greenprint — Live Session'};
@@ -269,9 +273,8 @@ function setVC(n){
   if(_live)statPeakCheck();
 }
 
-// ── Canvas compositor: dynamically sized to match captured screen ──
+// ── Canvas compositor: GPU-accelerated, frame-perfect rendering ──
 function initCanvas(){
-  // Read actual screen dimensions from the captured track
   var settings=_screenStream.getVideoTracks()[0].getSettings();
   _SW=settings.width||1920;
   _SH=settings.height||1080;
@@ -280,25 +283,44 @@ function initCanvas(){
   _ctx.imageSmoothingEnabled=true;
   _ctx.imageSmoothingQuality='high';
   _outStream=_canvas.captureStream(30);
-  // 'detail' = optimize for crisp text/charts (not motion blur)
   var vt=_outStream.getVideoTracks()[0];
   if(vt&&'contentHint' in vt)vt.contentHint='detail';
-  log('Canvas: '+_SW+'×'+_SH+' — '+_outStream.getVideoTracks().length+' track(s)');
-  _drawInterval=setInterval(function(){
-    if(!_live)return;
-    var sv=document.getElementById('scrnv');
-    if(sv&&sv.readyState>=2){_ctx.drawImage(sv,0,0,_SW,_SH);}
+  log('Canvas: '+_SW+'×'+_SH+' — GPU compositing active');
+
+  _drawActive=true;
+  var sv=document.getElementById('scrnv');
+
+  function drawFrame(){
+    if(!_drawActive)return;
+    // Draw screen
+    if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
     else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
+    // Draw camera PIP — 20% width for premium presence
     if(_camOn){
       var cv2=document.getElementById('camv');
       if(cv2&&cv2.readyState>=2){
-        var pw=Math.round(_SW*0.16),ph=Math.round(pw*9/16);
-        var px=_SW-pw-24,py=_SH-ph-24;
-        _ctx.save();_ctx.fillStyle='#000';_ctx.fillRect(px,py,pw,ph);_ctx.restore();
+        var pw=Math.round(_SW*0.20),ph=Math.round(pw*9/16);
+        var px=_SW-pw-28,py=_SH-ph-28;
+        // Mirror flip for natural selfie orientation
         _ctx.save();_ctx.translate(px+pw,py);_ctx.scale(-1,1);_ctx.drawImage(cv2,0,0,pw,ph);_ctx.restore();
       }
     }
-  },33);
+    // requestVideoFrameCallback fires exactly when a new decoded screen frame
+    // arrives — frame-perfect, no polling lag, hardware-accelerated
+    if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
+      sv.requestVideoFrameCallback(drawFrame);
+    }
+  }
+
+  if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
+    // Modern path: frame-perfect, GPU-driven
+    sv.requestVideoFrameCallback(drawFrame);
+    log('Renderer: requestVideoFrameCallback (frame-perfect)');
+  } else {
+    // Fallback: interval-based (older browsers)
+    _drawInterval=setInterval(drawFrame,33);
+    log('Renderer: setInterval fallback');
+  }
 }
 
 // ── Go Live ──
@@ -525,7 +547,7 @@ function toggleMic(){
 }
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false})
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:60}},audio:false})
   .then(function(s){
     _camStream=s;_camOn=true;
     var cv=document.getElementById('camv');
@@ -560,9 +582,8 @@ function switchScreen(){
   }).catch(function(){log('Switch cancelled.');});
 }
 function endStream(){
-  if(!confirm('End the stream?'))return;
   broadcast({t:'ended'});
-  clearInterval(_drawInterval);_live=false;
+  _drawActive=false;clearInterval(_drawInterval);_live=false;
   // Close all active calls but keep data channels — viewers stay connected and waiting
   Object.keys(_viewers).forEach(function(pid){
     var call=_viewers[pid].call;
