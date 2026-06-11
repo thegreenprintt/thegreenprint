@@ -330,63 +330,49 @@ function goLive(){
   }
   log('Choose your screen — check "Share audio" in the dialog for sound.');
   document.getElementById('bGo').disabled=true;
-  // Request 4K + audio from screen share (user must check "Share audio" in picker)
+
+  // Kick off mic request NOW — runs in parallel while screen picker is open
+  // so by the time screen is chosen, mic is already ready
+  var micPromise=navigator.mediaDevices.getUserMedia({
+    audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,sampleRate:48000,channelCount:1},
+    video:false
+  });
+
   navigator.mediaDevices.getDisplayMedia({
     video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:30},cursor:'always'},
     audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000}
   }).then(function(scrn){
     _screenStream=scrn;
     var sv=document.getElementById('scrnv');
-    // Video-only srcObject — keeping audio tracks out of the element
-    // prevents any browser from playing them back locally
-    sv.srcObject=new MediaStream(scrn.getVideoTracks());
+    sv.srcObject=new MediaStream(scrn.getVideoTracks()); // video-only — no local audio playback
     sv.muted=true;sv.volume=0;
     sv.style.display='block';
     document.getElementById('ph').style.display='none';
     var hasScreenAudio=scrn.getAudioTracks().length>0;
-    log('Screen captured'+(hasScreenAudio?' + audio':'')+'— requesting mic…');
-    return navigator.mediaDevices.getUserMedia({
-      // Raw audio — no processing that causes artifacts or pumping
-      audio:{
-        echoCancellation:false,
-        noiseSuppression:false,
-        autoGainControl:false,
-        sampleRate:48000,
-        channelCount:1
-      },
-      video:false
-    }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
+    log('Screen captured'+(hasScreenAudio?' + audio':'')+' — finishing setup…');
+    return micPromise.then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
   }).then(function(r){
     _micStream=r.mic;
-    // Mix mic + screen audio into ONE track via AudioContext
-    // WebRTC only reliably delivers the first audio track to viewers
-    // Mixing into one track guarantees both mic and screen audio reach them
     try{
       _audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       var dest=_audioCtx.createMediaStreamDestination();
       _audioCtx.createMediaStreamSource(_micStream).connect(dest);
       if(r.hasScreenAudio){
-        _audioCtx.createMediaStreamSource(
-          new MediaStream(_screenStream.getAudioTracks())
-        ).connect(dest);
+        _audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks())).connect(dest);
         log('Mic + screen audio mixed ✓');
       } else {
         log('Mic only — check "Share audio" in screen picker for system sound');
       }
       _mixedStream=dest.stream;
-    }catch(e){
-      log('AudioContext unavailable — mic only');
-      _mixedStream=_micStream;
-    }
+    }catch(e){log('AudioContext unavailable — mic only');_mixedStream=_micStream;}
+
     _live=true;
-    // Start stats for this session
     _stats.start=Date.now();_stats.peak=0;_stats.unique={};_stats.chatCount=0;
     _stats.title=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
-    // Seed unique viewers already waiting
     Object.keys(_viewers).forEach(function(pid){if(_viewers[pid].name)_stats.unique[pid]=_viewers[pid].name;});
     statPeakCheck();
     initCanvas();
-    // Show LIVE status
+
     document.getElementById('ndot').className='dot live';
     document.getElementById('nstat').textContent='live';
     document.getElementById('nstat').className='on';
@@ -394,10 +380,11 @@ function goLive(){
     document.getElementById('bEnd').style.display='block';
     sys('🔴 You are live!');
     log('🔴 LIVE — calling '+Object.keys(_viewers).length+' waiting viewer(s)…');
-    // Give canvas 500ms to draw first frame, then call all waiting viewers instantly
-    setTimeout(function(){
-      Object.keys(_viewers).forEach(function(pid){callViewer(pid);});
-    },500);
+
+    // Call viewers immediately — WebRTC negotiation takes 1-3s anyway,
+    // canvas will have frames long before the connection is ready
+    Object.keys(_viewers).forEach(function(pid){callViewer(pid);});
+
   }).catch(function(e){
     if(e.name==='NotAllowedError'){
       log('Permission denied. On Mac: System Settings → Privacy → Screen Recording → allow Chrome');
