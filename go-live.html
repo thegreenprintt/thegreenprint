@@ -156,11 +156,12 @@ var ICE = {
   ]
 };
 
-var _peer=null, _screenStream=null, _micStream=null, _camStream=null;
+var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null;
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null;
 var _viewers={}, _banned=[];
 var _canvas=document.getElementById('cv'), _ctx=_canvas.getContext('2d');
+var _SW=1920, _SH=1080; // actual captured screen dimensions
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function log(t){document.getElementById('slogtxt').textContent=t;console.log('[HOST]',t);}
@@ -184,25 +185,31 @@ function setVC(n){
   document.getElementById('nvc').className=n>0?'on':'';
 }
 
-// ── Canvas compositor: setInterval keeps running when tab is backgrounded ──
+// ── Canvas compositor: dynamically sized to match captured screen ──
 function initCanvas(){
-  _canvas.width=1920;_canvas.height=1080;
+  // Read actual screen dimensions from the captured track
+  var settings=_screenStream.getVideoTracks()[0].getSettings();
+  _SW=settings.width||1920;
+  _SH=settings.height||1080;
+  _canvas.width=_SW;
+  _canvas.height=_SH;
   _ctx.imageSmoothingEnabled=true;
   _ctx.imageSmoothingQuality='high';
   _outStream=_canvas.captureStream(30);
-  // Tell WebRTC to optimize for crisp text/charts, not motion blur
+  // 'detail' = optimize for crisp text/charts (not motion blur)
   var vt=_outStream.getVideoTracks()[0];
   if(vt&&'contentHint' in vt)vt.contentHint='detail';
-  log('Canvas ready — '+_outStream.getVideoTracks().length+' video track(s)');
+  log('Canvas: '+_SW+'×'+_SH+' — '+_outStream.getVideoTracks().length+' track(s)');
   _drawInterval=setInterval(function(){
     if(!_live)return;
     var sv=document.getElementById('scrnv');
-    if(sv&&sv.readyState>=2){_ctx.drawImage(sv,0,0,1280,720);}
-    else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,1280,720);}
+    if(sv&&sv.readyState>=2){_ctx.drawImage(sv,0,0,_SW,_SH);}
+    else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
     if(_camOn){
       var cv2=document.getElementById('camv');
       if(cv2&&cv2.readyState>=2){
-        var pw=320,ph=180,px=1920-pw-24,py=1080-ph-24;
+        var pw=Math.round(_SW*0.16),ph=Math.round(pw*9/16);
+        var px=_SW-pw-24,py=_SH-ph-24;
         _ctx.save();_ctx.fillStyle='#000';_ctx.fillRect(px,py,pw,ph);_ctx.restore();
         _ctx.save();_ctx.translate(px+pw,py);_ctx.scale(-1,1);_ctx.drawImage(cv2,0,0,pw,ph);_ctx.restore();
       }
@@ -215,26 +222,42 @@ function goLive(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
     log('Use Chrome or Edge for screen sharing.');return;
   }
-  log('Choose your screen or window…');
+  log('Choose your screen — check "Share audio" in the dialog for sound.');
   document.getElementById('bGo').disabled=true;
+  // Request 4K + audio from screen share (user must check "Share audio" in picker)
   navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30},cursor:'always'},
-    audio:false
+    video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:30},cursor:'always'},
+    audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000}
   }).then(function(scrn){
     _screenStream=scrn;
     document.getElementById('scrnv').srcObject=scrn;
     document.getElementById('scrnv').style.display='block';
     document.getElementById('ph').style.display='none';
-    log('Screen captured — requesting mic…');
+    var hasScreenAudio=scrn.getAudioTracks().length>0;
+    log('Screen captured'+(hasScreenAudio?' + audio':'')+'— requesting mic…');
     return navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true},video:false
-    });
-  }).then(function(mic){
-    _micStream=mic;
+      audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000},video:false
+    }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
+  }).then(function(r){
+    _micStream=r.mic;
+    // Mix mic + screen audio together via AudioContext
+    try{
+      _audioCtx=new AudioContext();
+      var dest=_audioCtx.createMediaStreamDestination();
+      var micSrc=_audioCtx.createMediaStreamSource(_micStream);
+      micSrc.connect(dest);
+      if(r.hasScreenAudio){
+        var screenSrc=_audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks()));
+        screenSrc.connect(dest);
+        log('Mic + screen audio mixed ✓');
+      } else {
+        log('Mic only (no screen audio selected)');
+      }
+      _mixedStream=dest.stream;
+    }catch(e){_mixedStream=_micStream;}
     _live=true;
     initCanvas();
     log('Starting peer connection…');
-    // Give canvas one full second to draw frames before connecting
     setTimeout(startPeer,1000);
   }).catch(function(e){
     if(e.name==='NotAllowedError'){
@@ -281,8 +304,9 @@ function startPeer(){
       sys(vname+' joined the stream.');
       pushTitle();
 
-      // Call the viewer with canvas video + mic audio
-      var aTracks=_micStream?_micStream.getAudioTracks():[];
+      // Call the viewer with canvas video + mixed audio (mic + screen)
+      var audioSrc=_mixedStream||_micStream;
+      var aTracks=audioSrc?audioSrc.getAudioTracks():[];
       var vTracks=_outStream?_outStream.getVideoTracks():[];
 
       if(vTracks.length===0){
@@ -402,6 +426,7 @@ function toggleMic(){
   _micStream.getAudioTracks().forEach(function(t){t.enabled=_micOn;});
   document.getElementById('bMic').textContent=_micOn?'🎙 Mic':'🔇 Muted';
   document.getElementById('bMic').className='btn'+(_micOn?'':' off');
+  log(_micOn?'Mic on':'Mic muted');
 }
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
@@ -442,9 +467,11 @@ function endStream(){
   if(!confirm('End the stream?'))return;
   broadcast({t:'ended'});
   clearInterval(_drawInterval);_live=false;
-  [_screenStream,_micStream,_camStream].forEach(function(s){
+  [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
     if(s)s.getTracks().forEach(function(t){t.stop();});
   });
+  if(_audioCtx)try{_audioCtx.close();}catch(e){}
+  _audioCtx=null;_mixedStream=null;
   if(_peer)try{_peer.destroy();}catch(e){}
   _peer=null;
   document.getElementById('scrnv').style.display='none';
