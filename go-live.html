@@ -61,9 +61,25 @@ body{padding-top:56px}
 #slogtxt{color:rgba(0,255,135,.38)}
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:920px){.ccol{display:none}}
-.chd{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
+/* Tab bar */
+.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
+.tab-btn{flex:1;height:38px;background:none;border:none;border-bottom:2px solid transparent;color:rgba(240,250,243,.2);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.54rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;transition:all .15s}
+.tab-btn.active{color:rgba(0,255,135,.7);border-bottom-color:rgba(0,255,135,.4)}
+.tab-btn:hover:not(.active){color:rgba(240,250,243,.45)}
+.chd{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .chl{font-size:.56rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2)}
 #cvc{font-size:.56rem;font-weight:600;color:rgba(0,255,135,.35)}
+/* Leads panel */
+#leads-panel{flex:1;overflow-y:auto;display:none;flex-direction:column}
+.leads-hd{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
+.leads-count{font-size:.54rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:rgba(0,255,135,.4)}
+.leads-export{height:26px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.5);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.leads-export:hover{background:rgba(0,255,135,.12);color:#00ff87}
+.lead-row{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;flex-direction:column;gap:2px}
+.lead-row:hover{background:rgba(255,255,255,.02)}
+.lead-name{font-size:.72rem;font-weight:600;color:rgba(240,250,243,.7)}
+.lead-detail{font-size:.6rem;font-weight:300;color:rgba(240,250,243,.3);word-break:break-all}
+.leads-empty{padding:32px 16px;text-align:center;font-size:.68rem;font-weight:300;color:rgba(240,250,243,.15);line-height:1.8}
 .feed{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px}
 .feed::-webkit-scrollbar{width:2px}
 .feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.13)}
@@ -147,11 +163,26 @@ body{padding-top:56px}
     </div>
   </div>
   <div class="ccol">
-    <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
-    <div class="feed" id="feed"></div>
-    <div class="cft">
-      <input class="cin" id="ci" placeholder="Reply to viewers…" maxlength="200" onkeydown="if(event.key==='Enter')hostChat()">
-      <button class="csnd" onclick="hostChat()">Send</button>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
+      <button class="tab-btn" id="tab-leads" onclick="switchTab('leads')">📋 Leads <span id="leads-badge"></span></button>
+    </div>
+    <!-- Chat panel -->
+    <div id="chat-panel" style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
+      <div class="feed" id="feed"></div>
+      <div class="cft">
+        <input class="cin" id="ci" placeholder="Reply to viewers…" maxlength="200" onkeydown="if(event.key==='Enter')hostChat()">
+        <button class="csnd" onclick="hostChat()">Send</button>
+      </div>
+    </div>
+    <!-- Leads panel -->
+    <div id="leads-panel">
+      <div class="leads-hd">
+        <span class="leads-count" id="leads-count">0 leads</span>
+        <button class="leads-export" onclick="exportLeads()">⬇ Export CSV</button>
+      </div>
+      <div id="leads-list"><div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div></div>
     </div>
   </div>
 </div>
@@ -207,6 +238,65 @@ var _canvas=document.getElementById('cv');
 var _ctx=_canvas.getContext('2d',{alpha:false,desynchronized:true});
 var _SW=1920, _SH=1080; // actual captured screen dimensions
 var _drawActive=false; // controls rVFC loop
+
+// ── Tab switching ──
+function switchTab(tab){
+  var isChat=tab==='chat';
+  document.getElementById('chat-panel').style.display=isChat?'flex':'none';
+  document.getElementById('leads-panel').style.display=isChat?'none':'flex';
+  document.getElementById('tab-chat').className='tab-btn'+(isChat?' active':'');
+  document.getElementById('tab-leads').className='tab-btn'+(isChat?'':' active');
+}
+
+// ── Leads storage & display ──
+var _leads=[];
+try{_leads=JSON.parse(localStorage.getItem('gp_leads')||'[]');}catch(e){}
+renderLeads();
+
+function addLead(name,email,phone){
+  if(!email&&!phone)return; // skip if no contact info
+  // Deduplicate by email
+  var exists=_leads.some(function(l){return l.email&&l.email===email;});
+  if(exists)return;
+  var lead={name:name||'Unknown',email:email||'',phone:phone||'',ts:Date.now()};
+  _leads.unshift(lead);
+  try{localStorage.setItem('gp_leads',JSON.stringify(_leads));}catch(e){}
+  renderLeads();
+}
+
+function renderLeads(){
+  var list=document.getElementById('leads-list');
+  var count=document.getElementById('leads-count');
+  var badge=document.getElementById('leads-badge');
+  if(!list)return;
+  if(count)count.textContent=_leads.length+' lead'+(_leads.length===1?'':'s');
+  if(badge)badge.textContent=_leads.length>0?'('+_leads.length+')':'';
+  if(_leads.length===0){
+    list.innerHTML='<div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div>';
+    return;
+  }
+  list.innerHTML='';
+  _leads.forEach(function(l){
+    var d=document.createElement('div');d.className='lead-row';
+    var dt=l.ts?new Date(l.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    d.innerHTML='<div class="lead-name">'+esc(l.name)+'<span style="font-size:.52rem;font-weight:300;color:rgba(240,250,243,.2);margin-left:6px">'+dt+'</span></div>'
+      +(l.email?'<div class="lead-detail">✉ '+esc(l.email)+'</div>':'')
+      +(l.phone?'<div class="lead-detail">📞 '+esc(l.phone)+'</div>':'');
+    list.appendChild(d);
+  });
+}
+
+function exportLeads(){
+  if(!_leads.length){alert('No leads to export yet.');return;}
+  var csv='Name,Email,Phone,Date\n'+_leads.map(function(l){
+    var dt=l.ts?new Date(l.ts).toLocaleString():'';
+    return[l.name,l.email,l.phone,dt].map(function(v){return'"'+(v||'').replace(/"/g,'""')+'"';}).join(',');
+  }).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='greenprint-leads-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
 
 // ── Stream stats tracking ──
 var _stats={start:null,peak:0,unique:{},chatCount:0,title:'The Greenprint — Live Session'};
@@ -295,14 +385,16 @@ function initCanvas(){
     // Draw screen
     if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
     else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
-    // Draw camera PIP — 20% width for premium presence
+    // Draw camera PIP — 20% width, smoothing OFF for sharp motion
     if(_camOn){
       var cv2=document.getElementById('camv');
       if(cv2&&cv2.readyState>=2){
         var pw=Math.round(_SW*0.20),ph=Math.round(pw*9/16);
         var px=_SW-pw-28,py=_SH-ph-28;
-        // Mirror flip for natural selfie orientation
+        _ctx.imageSmoothingEnabled=false; // prevents motion blur on camera
         _ctx.save();_ctx.translate(px+pw,py);_ctx.scale(-1,1);_ctx.drawImage(cv2,0,0,pw,ph);_ctx.restore();
+        _ctx.imageSmoothingEnabled=true;  // restore for screen text rendering
+        _ctx.imageSmoothingQuality='high';
       }
     }
     // requestVideoFrameCallback fires exactly when a new decoded screen frame
@@ -468,7 +560,12 @@ function startPeer(){
     dc.on('data',function(raw){
       try{
         var m=JSON.parse(raw);
-        if(m.t==='join'){_viewers[pid].name=m.n||'Viewer';if(_live)_stats.unique[pid]=_viewers[pid].name;}
+        if(m.t==='join'){
+          _viewers[pid].name=m.n||'Viewer';
+          if(_live)_stats.unique[pid]=_viewers[pid].name;
+          // Store lead data sent from viewer's gate form
+          if(m.e||m.p)addLead(m.fn||m.n,m.e,m.p);
+        }
         if(m.t==='chat'){
           _stats.chatCount++;
           addMsg(_viewers[pid].name||'Viewer',m.x,'viewer',pid);
