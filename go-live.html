@@ -92,10 +92,10 @@ body{padding-top:56px}
 .feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.13)}
 .mi{display:flex;align-items:flex-start;gap:5px}
 .ml{flex:1;min-width:0}
-.mn{font-size:.6rem;font-weight:600;color:rgba(0,255,135,.48)}
+.mn{font-size:.72rem;font-weight:600;color:rgba(0,255,135,.48)}
 .mn.h{color:#00ff87}
-.mt{font-size:.76rem;font-weight:300;color:rgba(240,250,243,.55);line-height:1.5;word-break:break-word}
-.mt.s{color:rgba(255,255,255,.16);font-style:italic;font-size:.7rem}
+.mt{font-size:.9rem;font-weight:300;color:rgba(240,250,243,.7);line-height:1.5;word-break:break-word}
+.mt.s{color:rgba(255,255,255,.22);font-style:italic;font-size:.8rem}
 .kbtn{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.28);cursor:pointer;font-size:.85rem;padding:1px 3px;line-height:1;margin-top:1px}
 .kbtn:hover{color:rgba(255,59,92,.75)}
 .cft{padding:8px 10px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:5px}
@@ -500,8 +500,9 @@ function initCanvas(){
   _SH=Math.min(settings.height||1080,1440);
   _canvas.width=_SW;
   _canvas.height=_SH;
-  _ctx.imageSmoothingEnabled=true;
-  _ctx.imageSmoothingQuality='high';
+  // Disable smoothing — screen share has text/charts that look sharper
+  // without interpolation. Smoothing blurs pixel edges on downscale.
+  _ctx.imageSmoothingEnabled=false;
   _outStream=_canvas.captureStream(30);
   var vt=_outStream.getVideoTracks()[0];
   if(vt&&'contentHint' in vt)vt.contentHint='detail';
@@ -641,7 +642,7 @@ function callViewer(pid){
       log('ICE→'+vname+': '+st);
       if(st==='connected'||st==='completed'){
         sys('✅ '+vname+' is watching.');
-        // Assign bitrates: screen=15 Mbps, camera=2.5 Mbps, audio=192k
+        // Assign bitrates: screen=20 Mbps, camera=2.5 Mbps, audio=192k
         var vidIdx=0;
         call.peerConnection.getSenders().forEach(function(s){
           if(!s.track)return;
@@ -649,8 +650,8 @@ function callViewer(pid){
           if(!p.encodings||!p.encodings.length)p.encodings=[{}];
           if(s.track.kind==='video'){
             if(vidIdx===0){
-              // Screen/canvas track
-              p.encodings[0].maxBitrate=15000000;
+              // Screen/canvas track — boosted for sharp text/charts
+              p.encodings[0].maxBitrate=20000000;
               p.encodings[0].maxFramerate=30;
             } else {
               // Camera track — store sender ref for replaceTrack
@@ -666,6 +667,10 @@ function callViewer(pid){
             s.setParameters(p).catch(function(){});
           }
         });
+        // Send camera PIP state now that stream is live — more reliable than dc.on('open') alone
+        if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+          try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:!!_camOn}));}catch(e){}
+        }
       } else if(st==='failed'){
         sys('⚠ Connection issue with '+vname+' — retrying…');
         delete _viewers[pid].call;
