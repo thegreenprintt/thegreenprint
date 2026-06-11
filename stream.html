@@ -224,12 +224,18 @@ nav{
 }
 
 /* ─── Camera PIP ─── */
+/* Opacity-based show/hide — never display:none, so iOS Safari plays the video */
 #cam-pip{
-  display:none;position:absolute;bottom:14px;right:14px;
+  opacity:0;pointer-events:none;
+  position:absolute;bottom:14px;right:14px;
   width:20%;max-width:220px;min-width:80px;
   aspect-ratio:16/9;object-fit:cover;transform:scaleX(-1);z-index:10;
   border:1.5px solid rgba(0,255,135,.25);background:#000;
-  box-shadow:0 0 0 1px rgba(0,0,0,.6),0 8px 32px rgba(0,0,0,.9),0 0 24px rgba(0,255,135,.06)
+  box-shadow:0 0 0 1px rgba(0,0,0,.6),0 8px 32px rgba(0,0,0,.9),0 0 24px rgba(0,255,135,.06);
+  transition:opacity .3s ease
+}
+@media(max-width:760px){
+  #cam-pip{width:28%;min-width:90px;bottom:10px;right:10px}
 }
 
 /* ─── Floating chat overlay on video ─── */
@@ -336,6 +342,9 @@ nav{
   flex-shrink:0;display:flex;align-items:center;justify-content:space-between
 }
 .chl{font-size:.5rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(237,245,240,.2)}
+/* Stream title shown in chat header on mobile */
+.mob-title{display:none;font-size:.6rem;font-weight:500;color:rgba(237,245,240,.38);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%}
+@media(max-width:760px){.mob-title{display:block}}
 .feed{
   flex:1;overflow-y:auto;padding:10px;
   display:flex;flex-direction:column;gap:7px;
@@ -507,6 +516,7 @@ nav{
     <div class="ccol">
       <div class="chd">
         <span class="chl">Live Chat</span>
+        <span id="mob-title" class="mob-title">The Greenprint — Live Session</span>
       </div>
       <div class="feed" id="feed"></div>
       <div class="cfoot">
@@ -576,18 +586,25 @@ function clearStreamTimer(){
 }
 
 // ── Camera PIP poll ──
+function showPip(on){
+  var pip=document.getElementById('cam-pip');
+  if(!pip)return;
+  pip.style.opacity=on?'1':'0';
+  pip.style.pointerEvents=on?'auto':'none';
+}
 function startPipPoll(){
   if(_pipPollTimer)clearInterval(_pipPollTimer);
   _pipPollTimer=setInterval(function(){
     var pip=document.getElementById('cam-pip');
     if(!pip||!pip.srcObject)return;
-    pip.style.display=(_camShouldShow&&pip.videoWidth>4)?'block':'none';
+    showPip(_camShouldShow&&pip.videoWidth>4);
   },500);
 }
 function stopPipPoll(){
   if(_pipPollTimer){clearInterval(_pipPollTimer);_pipPollTimer=null;}
+  showPip(false);
   var pip=document.getElementById('cam-pip');
-  if(pip){pip.style.display='none';pip.srcObject=null;}
+  if(pip)pip.srcObject=null;
 }
 
 var _isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0;
@@ -774,7 +791,7 @@ function connectToHost(){
           pip.srcObject=stream;pip.muted=true;
           pip.play().catch(function(){});
           startPipPoll();
-          if(_camShouldShow)pip.style.display='block';
+          showPip(_camShouldShow);
         }
       });
       call.on('close',function(){stopPipPoll();_camShouldShow=false;});
@@ -833,7 +850,10 @@ function connectToHost(){
       try{
         var m=JSON.parse(raw);
         if(m.t==='chat'){addChat(m.n,m.x,m.h);addChatOverlay(m.n,m.x,m.h);}
-        if(m.t==='title')document.getElementById('stream-title').textContent=m.x;
+        if(m.t==='title'){
+          document.getElementById('stream-title').textContent=m.x;
+          var mt=document.getElementById('mob-title');if(mt)mt.textContent=m.x;
+        }
         if(m.t==='live'){
           var v=document.getElementById('vid');
           var alreadyLive=v&&v.srcObject&&v.videoWidth>0;
@@ -847,7 +867,7 @@ function connectToHost(){
         if(m.t==='cam'){
           _camShouldShow=m.on;
           var pip=document.getElementById('cam-pip');
-          if(pip&&pip.srcObject)pip.style.display=m.on?'block':'none';
+          if(pip&&pip.srcObject)showPip(m.on);
         }
         if(m.t==='react'){
           var allowed=['🔥','💰','📈','💎','🚀'];
