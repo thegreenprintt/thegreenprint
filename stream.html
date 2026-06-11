@@ -7,554 +7,193 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif;overflow-x:hidden}
-
-/* NAV */
+html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif}
 nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
-.nav-brand{font-weight:700;font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(240,250,243,.85);display:flex;align-items:center;gap:8px}
-.nav-dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
-.nav-right{display:flex;align-items:center;gap:16px}
-#nav-status{font-size:.62rem;font-weight:500;letter-spacing:.12em;text-transform:lowercase;color:rgba(240,250,243,.2);transition:color .3s}
-#nav-status.live{color:rgba(255,59,92,.7)}
-#host-btn{background:none;border:none;cursor:pointer;font-size:.58rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,250,243,.07);padding:4px 8px;transition:color .25s}
-#host-btn:hover{color:rgba(0,255,135,.35)}
-.nav-back{font-size:.62rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25);text-decoration:none;transition:color .2s}
-.nav-back:hover{color:rgba(0,255,135,.6)}
+.brand{font-weight:700;font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
+#status{font-size:.62rem;letter-spacing:.12em;color:rgba(240,250,243,.2)}
+#status.live{color:rgba(255,59,92,.7)}
+.back{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25);text-decoration:none}
 
 /* GATE */
-#gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:80px 20px 20px;z-index:50;overflow-y:auto}
-.gate-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.05) 0%,transparent 65%);pointer-events:none}
-.gate-box{width:100%;max-width:420px;position:relative;z-index:1}
-.gate-eyebrow{font-size:.58rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:28px;text-align:center}
-.gate-title{font-family:'Syne',sans-serif;font-size:clamp(2rem,6vw,2.8rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:10px}
-.gate-title span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.gate-sub{font-size:.82rem;font-weight:300;color:rgba(240,250,243,.45);line-height:1.75;margin-bottom:28px}
-.field{margin-bottom:10px}
-.field label{display:block;font-size:.56rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(0,255,135,.38);margin-bottom:5px}
-.field input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:300;outline:none;transition:border-color .2s;-webkit-appearance:none}
-.field input:focus{border-color:rgba(0,255,135,.3)}
-.field input::placeholder{color:rgba(240,250,243,.18)}
-#gate-err{font-size:.7rem;font-weight:500;color:#ff3b5c;margin:8px 0 4px;display:none}
-#continue-btn{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .15s;margin-top:6px}
-#continue-btn:hover{opacity:.9;transform:translateY(-1px)}
-#continue-btn:active{transform:translateY(0)}
-.gate-fine{font-size:.63rem;font-weight:300;color:rgba(240,250,243,.22);text-align:center;margin-top:14px;line-height:1.65}
+#gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:80px 20px 20px;z-index:50}
+.glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.05) 0%,transparent 65%);pointer-events:none}
+.box{width:100%;max-width:420px;position:relative;z-index:1}
+.eyebrow{font-size:.58rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:28px;text-align:center}
+h1{font-family:'Syne',sans-serif;font-size:clamp(2rem,6vw,2.8rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:10px}
+h1 span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{font-size:.82rem;font-weight:300;color:rgba(240,250,243,.45);line-height:1.75;margin-bottom:28px}
+.f{margin-bottom:10px}
+.f label{display:block;font-size:.56rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(0,255,135,.38);margin-bottom:5px}
+.f input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.f input:focus{border-color:rgba(0,255,135,.3)}
+.f input::placeholder{color:rgba(240,250,243,.18)}
+#err{font-size:.7rem;color:#ff3b5c;margin:6px 0;display:none}
+#go{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:6px}
+.fine{font-size:.63rem;font-weight:300;color:rgba(240,250,243,.22);text-align:center;margin-top:14px;line-height:1.65}
 
 /* MAIN */
 #main{display:none;padding-top:56px;height:100vh}
-.stream-wrap{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 56px)}
-@media(max-width:900px){.stream-wrap{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 56px)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.vcol{display:flex;flex-direction:column;background:#000}
+.stage{flex:1;position:relative;background:#030303}
+#vid{width:100%;height:100%;object-fit:contain;display:block}
+.offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:40px;background:#030303}
+.offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
+.ot{font-weight:300;font-size:.9rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
+.os{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.14);line-height:1.8;position:relative;z-index:1}
+.bar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.bar-title{font-size:.8rem;font-weight:500;color:rgba(240,250,243,.5)}
+.bar-host{font-size:.66rem;font-weight:300;color:rgba(240,250,243,.22);margin-top:2px}
+.badges{display:flex;align-items:center;gap:12px}
+.lp{display:none;align-items:center;gap:5px;font-size:.6rem;font-weight:600;letter-spacing:.14em;color:rgba(255,59,92,.7)}
+.lp.on{display:flex}
+.ld{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:p 1.8s infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
+.vp{display:none;font-size:.62rem;color:rgba(240,250,243,.25)}
+.vp.on{display:flex;align-items:center;gap:4px}
 
-/* VIDEO COL */
-.vid-col{display:flex;flex-direction:column;background:#000;min-width:0}
-.vid-stage{flex:1;position:relative;background:#000;overflow:hidden}
-#streamVideo{width:100%;height:100%;object-fit:contain;display:block;background:#000}
-.offline-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:40px;background:#030303}
-.offline-overlay::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
-.offline-title{font-weight:300;font-size:.9rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
-.offline-sub{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.14);line-height:1.8;position:relative;z-index:1}
-
-/* STREAM INFO BAR */
-.vid-infobar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-#streamTitleDisplay{font-size:.8rem;font-weight:500;color:rgba(240,250,243,.5);letter-spacing:.03em}
-#streamHostDisplay{font-size:.66rem;font-weight:300;color:rgba(240,250,243,.22);margin-top:2px}
-.vid-badges{display:flex;align-items:center;gap:14px}
-.live-pill{display:none;align-items:center;gap:5px;font-size:.6rem;font-weight:600;letter-spacing:.14em;color:rgba(255,59,92,.7)}
-.live-pill.on{display:flex}
-.live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pulse 1.8s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-.viewer-pill{display:none;font-size:.62rem;color:rgba(240,250,243,.25)}
-.viewer-pill.on{display:flex;align-items:center;gap:4px}
-
-/* BROADCASTER STRIP */
-#bcStrip{display:none;background:rgba(3,3,3,.99);border-top:1px solid rgba(255,255,255,.04);padding:10px 18px;gap:8px;align-items:center;flex-wrap:wrap}
-#bcStrip.show{display:flex}
-.bc-title-wrap{flex:1;min-width:160px}
-#titleInput{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:rgba(240,250,243,.7);padding:0 12px;height:32px;font-family:'Urbanist',sans-serif;font-size:.78rem;font-weight:400;outline:none;width:100%;transition:border-color .2s}
-#titleInput:focus{border-color:rgba(0,255,135,.25)}
-#titleInput::placeholder{color:rgba(240,250,243,.2)}
-.bc-btn{height:32px;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(240,250,243,.4);transition:all .2s;white-space:nowrap}
-.bc-btn:hover{border-color:rgba(0,255,135,.3);color:rgba(0,255,135,.65)}
-.bc-btn.active{border-color:rgba(0,255,135,.4);color:#00ff87;background:rgba(0,255,135,.06)}
-.bc-btn.red{border-color:rgba(255,59,92,.3);color:rgba(255,59,92,.7)}
-.bc-btn.go{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-weight:700;height:36px;padding:0 18px}
-.bc-btn.go:hover{opacity:.9}
-#bcStatus{font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,250,243,.2)}
-
-/* CHAT COL */
-.chat-col{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
-@media(max-width:900px){.chat-col{display:none}}
-.chat-hd{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
-.chat-hd-label{font-size:.58rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.22)}
-#chatVC{font-size:.58rem;font-weight:600;letter-spacing:.1em;color:rgba(0,255,135,.38)}
-.chat-feed{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
-.chat-feed::-webkit-scrollbar{width:2px}
-.chat-feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.15)}
-.msg{display:flex;flex-direction:column;gap:2px}
-.msg-header{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.msg-name{font-size:.62rem;font-weight:600;color:rgba(0,255,135,.5);letter-spacing:.03em}
-.msg-name.host-tag{color:#00ff87}
-.msg-name.sys-tag{color:rgba(255,255,255,.15)}
-.msg-text{font-size:.78rem;font-weight:300;color:rgba(240,250,243,.58);line-height:1.55}
-.msg-text.sys-text{color:rgba(255,255,255,.18);font-style:italic;font-size:.72rem}
-.kick-btn{background:none;border:none;cursor:pointer;font-size:.6rem;color:rgba(255,59,92,.3);padding:0 2px;transition:color .2s;flex-shrink:0;display:none}
-.kick-btn:hover{color:#ff3b5c}
-.bc-mode .kick-btn{display:inline}
-
-.chat-ft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
-.chat-in{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;-webkit-appearance:none}
-.chat-in:focus{border-color:rgba(0,255,135,.22)}
-.chat-in::placeholder{color:rgba(240,250,243,.15);font-size:.76rem}
-.chat-send{height:36px;padding:0 12px;background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.6);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
-.chat-send:hover{background:rgba(0,255,135,.12);color:#00ff87}
+/* CHAT */
+.ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
+@media(max-width:900px){.ccol{display:none}}
+.chd{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
+.chl{font-size:.58rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.22)}
+#cvc{font-size:.58rem;font-weight:600;letter-spacing:.1em;color:rgba(0,255,135,.38)}
+.feed{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.feed::-webkit-scrollbar{width:2px}
+.feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.15)}
+.m{display:flex;flex-direction:column;gap:2px}
+.mn{font-size:.62rem;font-weight:600;color:rgba(0,255,135,.5)}
+.mn.h{color:#00ff87}
+.mn.s{color:rgba(255,255,255,.15)}
+.mt{font-size:.78rem;font-weight:300;color:rgba(240,250,243,.58);line-height:1.55}
+.mt.s{color:rgba(255,255,255,.18);font-style:italic;font-size:.72rem}
+.cft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
+.cin{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.cin:focus{border-color:rgba(0,255,135,.22)}
+.cin::placeholder{color:rgba(240,250,243,.15)}
+.csnd{height:36px;padding:0 12px;background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.6);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.csnd:hover{background:rgba(0,255,135,.12);color:#00ff87}
 </style>
 </head>
 <body>
-
-<!-- NAV -->
 <nav>
-  <div class="nav-brand"><div class="nav-dot"></div>THE GREENPRINT</div>
-  <div class="nav-right">
-    <span id="nav-status">offline</span>
-    <button id="host-btn" onclick="hostLogin()">host</button>
-    <a href="index.html" class="nav-back">← Back</a>
+  <div class="brand"><div class="dot"></div>THE GREENPRINT</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span id="status">offline</span>
+    <a href="index.html" class="back">← Back</a>
   </div>
 </nav>
 
-<!-- GATE -->
 <div id="gate">
-  <div class="gate-bg"></div>
-  <div class="gate-box">
-    <div class="gate-eyebrow">Exclusive Live Access</div>
-    <h1 class="gate-title">Watch The<br><span>Greenprint Live.</span></h1>
-    <p class="gate-sub">Enter your details to access live day trading sessions, real-time strategy breakdowns, and Q&amp;A with Jacob.</p>
-    <div class="field"><label for="g-name">Full Name</label><input type="text" id="g-name" placeholder="Your full name" autocomplete="name"></div>
-    <div class="field"><label for="g-email">Email Address</label><input type="email" id="g-email" placeholder="you@email.com" autocomplete="email"></div>
-    <div class="field"><label for="g-phone">Phone Number</label><input type="tel" id="g-phone" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
-    <div id="gate-err"></div>
-    <button id="continue-btn" onclick="goLive()">Continue →</button>
-    <p class="gate-fine">Your information is private and will never be shared or sold.</p>
+  <div class="glow"></div>
+  <div class="box">
+    <div class="eyebrow">Exclusive Live Access</div>
+    <h1>Watch The<br><span>Greenprint Live.</span></h1>
+    <p class="sub">Enter your details to access live day trading sessions, real-time strategy breakdowns, and Q&amp;A with Jacob.</p>
+    <div class="f"><label for="fn">Full Name</label><input id="fn" type="text" placeholder="Your full name" autocomplete="name"></div>
+    <div class="f"><label for="fe">Email Address</label><input id="fe" type="email" placeholder="you@email.com" autocomplete="email"></div>
+    <div class="f"><label for="fp">Phone Number</label><input id="fp" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
+    <div id="err"></div>
+    <button id="go" onclick="submit()">Continue →</button>
+    <p class="fine">Your information is private and will never be shared or sold.</p>
   </div>
 </div>
 
-<!-- MAIN STREAM -->
 <div id="main">
-  <div class="stream-wrap">
-
-    <!-- VIDEO -->
-    <div class="vid-col">
-      <div class="vid-stage">
-        <video id="streamVideo" autoplay playsinline></video>
-        <div class="offline-overlay" id="offlineBox">
-          <div class="offline-title">Not Live Yet</div>
-          <div class="offline-sub">Jacob will appear here when the session starts.</div>
-        </div>
+  <div class="grid">
+    <div class="vcol">
+      <div class="stage">
+        <video id="vid" autoplay playsinline></video>
+        <div class="offline" id="ob"><div class="ot">Not Live Yet</div><div class="os">Jacob will appear here when the session starts.</div></div>
       </div>
-
-      <div class="vid-infobar">
-        <div>
-          <div id="streamTitleDisplay">The Greenprint — Live Session</div>
-          <div id="streamHostDisplay">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
+      <div class="bar">
+        <div><div class="bar-title" id="stitle">The Greenprint — Live Session</div><div class="bar-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div></div>
+        <div class="badges">
+          <div class="lp" id="lp"><div class="ld"></div>live</div>
+          <div class="vp" id="vp">👁 <span id="vc">0</span>&nbsp;watching</div>
         </div>
-        <div class="vid-badges">
-          <div class="live-pill" id="livePill"><div class="live-dot"></div>live</div>
-          <div class="viewer-pill" id="viewerPill">👁 <span id="vcNum">0</span>&nbsp;watching</div>
-        </div>
-      </div>
-
-      <!-- BROADCASTER CONTROLS -->
-      <div id="bcStrip">
-        <div class="bc-title-wrap">
-          <input id="titleInput" type="text" placeholder="Stream title…" value="The Greenprint — Live Session" oninput="updateTitle(this.value)">
-        </div>
-        <button class="bc-btn go" id="startBtn" onclick="startStream()">🔴 &nbsp;Go Live</button>
-        <button class="bc-btn red" id="stopBtn" style="display:none" onclick="stopStream()">⬛ &nbsp;End Stream</button>
-        <button class="bc-btn" id="micBtn" onclick="toggleMic()">🎙 &nbsp;Mic</button>
-        <span id="bcStatus"></span>
       </div>
     </div>
-
-    <!-- CHAT -->
-    <div class="chat-col" id="chatCol">
-      <div class="chat-hd">
-        <span class="chat-hd-label">Live Chat</span>
-        <span id="chatVC">0 viewers</span>
-      </div>
-      <div class="chat-feed" id="chatFeed"></div>
-      <div class="chat-ft">
-        <input class="chat-in" id="chatIn" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="chat-send" onclick="sendChat()">Send</button>
+    <div class="ccol">
+      <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
+      <div class="feed" id="feed"></div>
+      <div class="cft">
+        <input class="cin" id="ci" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')chat()">
+        <button class="csnd" onclick="chat()">Send</button>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════════════════════════════
-var PEER_ID = 'greenprint-live-v2';
-var BC_HASH = '27b5f32f840f41cce3efc3e10a2b3ee76cf7e9413bedc79cf2c7b77f06efab33';
-
-// ═══════════════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════════════
-var _isBC       = false;
-var _peer       = null;
-var _display    = null;
-var _mic        = null;
-var _muted      = false;
-var _viewers    = 0;
-var _mediaCalls = {};   // peerId → media call
-var _dataConns  = {};   // peerId → data connection
-var _viewerNames= {};   // peerId → display name
-var _banned     = [];   // banned peer IDs
-var _userName   = 'You';
-var _peerJSLoaded = false;
-
-// ═══════════════════════════════════════════════════════════════
-//  GATE — CONTINUE BUTTON
-// ═══════════════════════════════════════════════════════════════
-function goLive(){
-  var name  = (document.getElementById('g-name').value  || '').trim();
-  var email = (document.getElementById('g-email').value || '').trim();
-  var phone = (document.getElementById('g-phone').value || '').trim();
-  var err   = document.getElementById('gate-err');
-
-  if(!name) { err.textContent='Please enter your name.'; err.style.display='block'; return; }
-  if(!email){ err.textContent='Please enter your email.'; err.style.display='block'; return; }
-  if(!phone){ err.textContent='Please enter your phone number.'; err.style.display='block'; return; }
-
-  err.style.display = 'none';
-  _userName = name.split(' ')[0];
-
-  try{ localStorage.setItem('gp_viewer', JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()})); }catch(e){}
-
-  document.getElementById('gate').style.display = 'none';
-  document.getElementById('main').style.display = 'block';
-  loadPeerJS();
+var PEER_ID='gp-stream-2025', _name='You', _peer=null, _dc=null;
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function sys(t){msg('',t,true);}
+function msg(n,t,s,h){
+  var f=document.getElementById('feed'),d=document.createElement('div');d.className='m';
+  d.innerHTML=s?'<div class="mt s">'+esc(t)+'</div>':'<div class="mn'+(h?' h':'')+'">'+esc(n)+'</div><div class="mt">'+esc(t)+'</div>';
+  f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  HOST LOGIN (hidden button in nav)
-// ═══════════════════════════════════════════════════════════════
-async function hostLogin(){
-  var pin = prompt('Host PIN:');
-  if(!pin) return;
-  try{
-    var b  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin.trim().toLowerCase()));
-    var ph = [...new Uint8Array(b)].map(function(x){return x.toString(16).padStart(2,'0');}).join('');
-    if(ph !== BC_HASH) return;
-    _isBC = true;
-    document.getElementById('bcStrip').classList.add('show');
-    document.getElementById('chatCol').classList.add('bc-mode');
-    sysMsg('Broadcaster mode unlocked. Set your title and click Go Live.');
-  }catch(e){}
+function setLive(on){
+  document.getElementById('lp').className='lp'+(on?' on':'');
+  document.getElementById('vp').className='vp'+(on?' on':'');
+  var s=document.getElementById('status');s.textContent=on?'live':'offline';s.className=on?'live':'';
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  LOAD PEERJS
-// ═══════════════════════════════════════════════════════════════
-function loadPeerJS(){
-  if(_peerJSLoaded){ afterPeerJS(); return; }
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload  = function(){ _peerJSLoaded=true; afterPeerJS(); };
-  s.onerror = function(){ sysMsg('Stream library failed to load. Please refresh.'); };
+function submit(){
+  var n=(document.getElementById('fn').value||'').trim();
+  var e=(document.getElementById('fe').value||'').trim();
+  var p=(document.getElementById('fp').value||'').trim();
+  var er=document.getElementById('err');
+  if(!n){er.textContent='Please enter your name.';er.style.display='block';return;}
+  if(!e){er.textContent='Please enter your email.';er.style.display='block';return;}
+  if(!p){er.textContent='Please enter your phone number.';er.style.display='block';return;}
+  er.style.display='none';
+  _name=n.split(' ')[0];
+  try{localStorage.setItem('gp_v',JSON.stringify({n:n,e:e,p:p,t:Date.now()}));}catch(x){}
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
+  load();
+}
+function load(){
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+  s.onload=connect;s.onerror=function(){sys('Could not connect. Please refresh.');};
   document.body.appendChild(s);
 }
-
-function afterPeerJS(){
-  if(_isBC){
-    sysMsg('Ready to go live. Click Go Live when you\'re set.');
-  } else {
-    connectViewer();
-  }
-  setTimeout(function(){ sysMsg('Welcome to The Greenprint Live 🔥'); }, 600);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  VIEWER — connect to broadcaster
-// ═══════════════════════════════════════════════════════════════
-function connectViewer(){
-  if(_peer && !_peer.destroyed){ _peer.destroy(); }
+function connect(){
   try{
-    var peer = new Peer(undefined, {debug:0});
-
-    peer.on('open', function(myId){
-      // 1. Media call — receive the video stream
-      var call = peer.call(PEER_ID, null);
-      if(!call){
-        _peer = peer;
-        setTimeout(connectViewer, 8000);
-        return;
-      }
-      call.on('stream', function(stream){
-        var v = document.getElementById('streamVideo');
-        v.srcObject = stream;
-        v.muted = false;
-        v.play().catch(function(){});
-        document.getElementById('offlineBox').style.display = 'none';
-        setLiveUI(true);
+    var peer=new Peer(undefined,{debug:0});
+    peer.on('open',function(){
+      var call=peer.call(PEER_ID,null);
+      if(!call){setTimeout(connect,8000);return;}
+      call.on('stream',function(s){
+        var v=document.getElementById('vid');v.srcObject=s;v.muted=false;v.play().catch(function(){});
+        document.getElementById('ob').style.display='none';setLive(true);
       });
-      call.on('close', function(){ setLiveUI(false); setTimeout(connectViewer, 8000); });
-
-      // 2. Data connection — send/receive chat
-      var conn = peer.connect(PEER_ID, {reliable:true, metadata:{name:_userName}});
-      conn.on('open', function(){
-        _dataConns['host'] = conn;
-        // Announce ourselves
-        conn.send(JSON.stringify({type:'join', name:_userName}));
-      });
-      conn.on('data', function(raw){
-        try{
-          var msg = JSON.parse(raw);
-          if(msg.type === 'chat'){
-            addMsg(msg.name, msg.text, false, msg.host);
-          } else if(msg.type === 'title'){
-            document.getElementById('streamTitleDisplay').textContent = msg.text;
-          } else if(msg.type === 'kick'){
-            peer.destroy();
-            document.getElementById('main').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:Urbanist,sans-serif;font-size:.9rem;color:rgba(240,250,243,.3);letter-spacing:.08em;">You have been removed from this stream.</div>';
-          }
-        }catch(e){}
-      });
-      conn.on('close', function(){ delete _dataConns['host']; });
-    });
-
-    peer.on('error', function(e){
-      if(e.type === 'peer-unavailable') setTimeout(connectViewer, 8000);
-    });
-
-    _peer = peer;
-  }catch(e){ setTimeout(connectViewer, 10000); }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  BROADCASTER — go live
-// ═══════════════════════════════════════════════════════════════
-async function startStream(){
-  var btn = document.getElementById('startBtn');
-  btn.disabled = true; setStatus('Requesting screen…');
-
-  try{
-    _display = await navigator.mediaDevices.getDisplayMedia({
-      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
-      audio:true
-    });
-    try{
-      _mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
-    }catch(e){ sysMsg('Mic not found — using screen audio only.'); }
-
-    // Local preview (muted to avoid feedback)
-    var v = document.getElementById('streamVideo');
-    v.srcObject = _display; v.muted = true;
-    document.getElementById('offlineBox').style.display = 'none';
-
-    // Build broadcast stream
-    var tracks = [..._display.getTracks()];
-    if(_mic) tracks = tracks.concat(_mic.getAudioTracks());
-    var bStream = new MediaStream(tracks);
-
-    setStatus('Connecting…');
-    if(_peer && !_peer.destroyed){ _peer.destroy(); }
-    var peer = new Peer(PEER_ID, {debug:0});
-
-    peer.on('open', function(){
-      setStatus('🔴 Live');
-      btn.style.display = 'none';
-      document.getElementById('stopBtn').style.display = 'inline-flex';
-      document.getElementById('micBtn').classList.add('active');
-      setLiveUI(true);
-      sysMsg('You are live! 🚀');
-    });
-
-    // Answer incoming media calls from viewers
-    peer.on('call', function(call){
-      if(_banned.indexOf(call.peer) !== -1){ call.close(); return; }
-      call.answer(bStream);
-      _mediaCalls[call.peer] = call;
-      updateViewerCount();
-      call.on('close', function(){
-        delete _mediaCalls[call.peer];
-        delete _viewerNames[call.peer];
-        updateViewerCount();
+      call.on('close',function(){setLive(false);setTimeout(connect,8000);});
+      var dc=peer.connect(PEER_ID,{reliable:true,metadata:{name:_name}});
+      dc.on('open',function(){_dc=dc;dc.send(JSON.stringify({t:'join',n:_name}));});
+      dc.on('data',function(r){
+        try{var m=JSON.parse(r);
+          if(m.t==='chat')msg(m.n,m.x,false,m.h);
+          else if(m.t==='title')document.getElementById('stitle').textContent=m.x;
+          else if(m.t==='kick'){peer.destroy();document.getElementById('main').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(240,250,243,.3);font-size:.9rem;letter-spacing:.08em;">Removed from stream.</div>';}
+        }catch(x){}
       });
     });
-
-    // Accept incoming data connections from viewers (for chat)
-    peer.on('connection', function(conn){
-      if(_banned.indexOf(conn.peer) !== -1){ conn.close(); return; }
-      _dataConns[conn.peer] = conn;
-      var vname = (conn.metadata && conn.metadata.name) ? conn.metadata.name : 'Viewer';
-      _viewerNames[conn.peer] = vname;
-
-      conn.on('data', function(raw){
-        try{
-          var msg = JSON.parse(raw);
-          if(msg.type === 'join'){
-            _viewerNames[conn.peer] = msg.name || vname;
-            sysMsg((_viewerNames[conn.peer]) + ' joined the stream');
-            // Send current title to new viewer
-            conn.send(JSON.stringify({type:'title', text:document.getElementById('titleInput').value||'The Greenprint — Live Session'}));
-          } else if(msg.type === 'chat'){
-            // Show in broadcaster's chat with kick button
-            addMsg(msg.name, msg.text, false, false, conn.peer);
-            // Echo to all other viewers
-            broadcastMsg({type:'chat', name:msg.name, text:msg.text, host:false});
-          }
-        }catch(e){}
-      });
-      conn.on('close', function(){
-        delete _dataConns[conn.peer];
-        updateViewerCount();
-      });
-    });
-
-    peer.on('error', function(e){
-      if(e.type === 'unavailable-id'){ sysMsg('Stream ID in use — try ending any previous stream first.'); btn.disabled=false; setStatus(''); }
-    });
-
-    _display.getVideoTracks()[0].addEventListener('ended', stopStream);
-    _peer = peer;
-
-  }catch(er){
-    btn.disabled = false; setStatus('');
-    sysMsg(er.name === 'NotAllowedError' ? 'Screen share permission denied.' : 'Error: ' + er.message);
-    if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
-    if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
-  }
+    peer.on('error',function(e){if(e.type==='peer-unavailable')setTimeout(connect,8000);});
+    _peer=peer;
+  }catch(x){setTimeout(connect,10000);}
 }
-
-function stopStream(){
-  broadcastMsg({type:'stream-end'});
-  Object.keys(_mediaCalls).forEach(function(id){ _mediaCalls[id].close(); });
-  _mediaCalls = {}; _dataConns = {}; _viewerNames = {};
-  if(_peer){_peer.destroy();_peer=null;}
-  if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
-  if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
-  document.getElementById('streamVideo').srcObject = null;
-  document.getElementById('offlineBox').style.display = 'flex';
-  var b = document.getElementById('startBtn'); b.style.display='inline-flex'; b.disabled=false;
-  document.getElementById('stopBtn').style.display = 'none';
-  document.getElementById('micBtn').classList.remove('active');
-  setLiveUI(false); setStatus('Stream ended'); sysMsg('Stream ended.');
+function chat(){
+  var i=document.getElementById('ci'),t=i.value.trim();if(!t)return;i.value='';
+  msg(_name,t,false,false);
+  if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:t}));
 }
-
-function toggleMic(){
-  _muted = !_muted;
-  if(_display) _display.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
-  if(_mic)     _mic.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
-  var b = document.getElementById('micBtn');
-  b.textContent = _muted ? '🔇 Muted' : '🎙 Mic';
-  b.classList.toggle('active', !_muted);
-  b.classList.toggle('red', _muted);
-}
-
-function updateTitle(val){
-  document.getElementById('streamTitleDisplay').textContent = val || 'The Greenprint — Live Session';
-  broadcastMsg({type:'title', text:val});
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  KICK / BAN
-// ═══════════════════════════════════════════════════════════════
-function kickViewer(peerId){
-  _banned.push(peerId);
-  if(_dataConns[peerId]){
-    try{ _dataConns[peerId].send(JSON.stringify({type:'kick'})); }catch(e){}
-    setTimeout(function(){ if(_dataConns[peerId]) _dataConns[peerId].close(); }, 500);
-  }
-  if(_mediaCalls[peerId]){ _mediaCalls[peerId].close(); }
-  delete _dataConns[peerId]; delete _mediaCalls[peerId]; delete _viewerNames[peerId];
-  updateViewerCount();
-  sysMsg('Viewer removed from stream.');
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  CHAT
-// ═══════════════════════════════════════════════════════════════
-function sendChat(){
-  var inp = document.getElementById('chatIn');
-  var t = inp.value.trim(); if(!t) return;
-  inp.value = '';
-
-  if(_isBC){
-    // Broadcaster message — show locally and broadcast to all viewers
-    addMsg('Jacob 🎙', t, false, true);
-    broadcastMsg({type:'chat', name:'Jacob 🎙', text:t, host:true});
-  } else {
-    // Viewer message — show locally and send to broadcaster
-    addMsg(_userName, t, false, false);
-    if(_dataConns['host'] && _dataConns['host'].open){
-      _dataConns['host'].send(JSON.stringify({type:'chat', name:_userName, text:t}));
-    }
-  }
-}
-
-function broadcastMsg(msgObj){
-  var json = JSON.stringify(msgObj);
-  Object.keys(_dataConns).forEach(function(id){
-    try{ if(_dataConns[id].open) _dataConns[id].send(json); }catch(e){}
-  });
-}
-
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function sysMsg(t){ addMsg('',t,true,false,null); }
-
-function addMsg(name, text, sys, host, peerId){
-  var feed = document.getElementById('chatFeed');
-  var d = document.createElement('div'); d.className = 'msg';
-  if(sys){
-    d.innerHTML = '<div class="msg-text sys-text">' + esc(text) + '</div>';
-  } else {
-    var kickBtn = (peerId && _isBC) ? '<button class="kick-btn" onclick="kickViewer(\''+esc(peerId)+'\')" title="Remove viewer">✕</button>' : '';
-    d.innerHTML =
-      '<div class="msg-header">' +
-        '<span class="msg-name'+(host?' host-tag':'')+'">'+esc(name)+'</span>'+
-        kickBtn +
-      '</div>' +
-      '<div class="msg-text">'+esc(text)+'</div>';
-  }
-  feed.appendChild(d);
-  feed.scrollTop = feed.scrollHeight;
-}
-
-function updateViewerCount(){
-  var n = Object.keys(_mediaCalls).length;
-  _viewers = n;
-  document.getElementById('vcNum').textContent = n;
-  document.getElementById('chatVC').textContent = n + ' viewer' + (n!==1?'s':'');
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  UI HELPERS
-// ═══════════════════════════════════════════════════════════════
-function setLiveUI(on){
-  document.getElementById('livePill').className   = 'live-pill'   + (on?' on':'');
-  document.getElementById('viewerPill').className = 'viewer-pill' + (on?' on':'');
-  var ns = document.getElementById('nav-status');
-  ns.textContent = on ? 'live' : 'offline';
-  ns.className   = on ? 'live' : '';
-}
-function setStatus(t){ var s=document.getElementById('bcStatus'); if(s)s.textContent=t; }
-
-// ═══════════════════════════════════════════════════════════════
-//  AUTO-SKIP FOR RETURNING VISITORS
-// ═══════════════════════════════════════════════════════════════
-(function(){
-  try{
-    var s = JSON.parse(localStorage.getItem('gp_viewer'));
-    if(s && (Date.now()-s.ts) < 30*24*60*60*1000){
-      _userName = s.name ? s.name.split(' ')[0] : 'You';
-      document.getElementById('gate').style.display = 'none';
-      document.getElementById('main').style.display = 'block';
-      loadPeerJS();
-    }
-  }catch(e){}
-})();
+(function(){try{var s=JSON.parse(localStorage.getItem('gp_v'));if(s&&Date.now()-s.t<30*24*60*60*1000){_name=s.n?s.n.split(' ')[0]:'You';document.getElementById('gate').style.display='none';document.getElementById('main').style.display='block';load();}}catch(x){}})();
+setTimeout(function(){sys('Welcome to The Greenprint Live 🔥');},800);
 </script>
 </body>
 </html>
