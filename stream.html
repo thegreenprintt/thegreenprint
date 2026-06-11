@@ -178,6 +178,7 @@ var ICE = {
 };
 
 var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
+var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
 
 function toggleMute(){
@@ -299,6 +300,7 @@ function scheduleReconnect(ms){
 function connectToHost(){
   // Clean up any previous peer
   if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
+  _sysShown.ended=false; // allow next ended message to show
 
   _retries++;
   stat('Connecting… (attempt '+_retries+')');
@@ -318,20 +320,22 @@ function connectToHost(){
       stat('Stream connected ✅');
       var v=document.getElementById('vid');
       v.srcObject=stream;
-      v.muted=true; // always start muted so autoplay succeeds
+      v.muted=true;
       _muted=true;
       var btn=document.getElementById('mute-btn');
       if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
       v.play().catch(function(){});
       setLive(true);
-      addSys('🔴 Stream is live! Tap 🔇 Muted in the bar below to hear audio.');
+      // Only show "live" message once per page load to prevent spam
+      if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live! Tap 🔇 Muted to hear audio.');}
     });
 
     call.on('close',function(){
       stat('Stream ended — will reconnect when Jacob goes live again…');
       setLive(false);
+      _sysShown.live=false; // reset so next go-live shows the message again
       document.getElementById('offline-msg').style.display='flex';
-      addSys('Stream ended — reconnecting automatically when Jacob goes live again.');
+      if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
       scheduleReconnect(5000);
     });
 
@@ -351,9 +355,12 @@ function connectToHost(){
 
     dc.on('open',function(){
       _dc=dc;
-      dc.send(JSON.stringify({t:'join',n:_name}));
+      // Send full lead data so broadcaster can see it in their leads tab
+      var lead=null;try{lead=JSON.parse(localStorage.getItem('gp_lead')||'null');}catch(e){}
+      dc.send(JSON.stringify({t:'join',n:_name,e:lead?lead.email:'',p:lead?lead.phone:'',fn:lead?lead.name:''}));
       stat('Joined — waiting for Jacob to go live…');
-      addSys('Connected ✅ — waiting for Jacob to go live.');
+      // Only show connected message once — suppress on reconnects
+      if(!_sysShown.connected){_sysShown.connected=true;addSys('Connected ✅ — waiting for Jacob to go live.');}
     });
 
     dc.on('data',function(raw){
@@ -363,9 +370,9 @@ function connectToHost(){
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
         if(m.t==='ended'){
           setLive(false);
+          _sysShown.live=false;
           document.getElementById('offline-msg').style.display='flex';
-          addSys('Stream ended — will reconnect automatically when Jacob goes live again.');
-          // Destroy current peer and start polling for the next session
+          if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
           if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
           scheduleReconnect(5000);
         }
