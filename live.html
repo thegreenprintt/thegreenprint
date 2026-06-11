@@ -581,7 +581,7 @@ html,body{height:100%;background:var(--k);color:var(--w);font-family:'Urbanist',
         <div class="field-group">
           <div class="field">
             <label class="field-label" for="f-name">Full Name</label>
-            <input class="field-input" id="f-name" type="text" placeholder="Jacob Walton" autocomplete="name">
+            <input class="field-input" id="f-name" type="text" placeholder="Full Name" autocomplete="name">
           </div>
           <div class="field">
             <label class="field-label" for="f-email">Email Address</label>
@@ -769,6 +769,11 @@ function handleSubscribe(){
 }
 
 function goStep2(){
+  // If Clerk isn't configured, skip auth and go straight to the stream
+  if(!window.Clerk||CLERK_KEY==='REPLACE_WITH_YOUR_CLERK_PUBLISHABLE_KEY'){
+    onAuthDone();
+    return;
+  }
   document.getElementById('gp1').className='gp-step done';
   document.getElementById('gpn1').textContent='✓';
   document.getElementById('gpl1').className='gp-line done';
