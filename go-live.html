@@ -20,11 +20,9 @@ nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);b
 body{padding-top:56px}
 .wrap{display:grid;grid-template-columns:1fr 310px;height:calc(100vh - 56px)}
 @media(max-width:920px){.wrap{grid-template-columns:1fr}}
-/* STAGE */
 .vcol{display:flex;flex-direction:column;background:#000}
 .stage{flex:1;position:relative;background:#030303;overflow:hidden}
 #scrnv{width:100%;height:100%;object-fit:contain;display:none}
-/* CAMERA PIP overlay */
 #campip{position:absolute;bottom:14px;right:14px;width:200px;display:none;flex-direction:column;border:1px solid rgba(255,255,255,.12);background:#000;box-shadow:0 6px 24px rgba(0,0,0,.7);z-index:10}
 #campip.show{display:flex}
 #campip.mini{width:64px}
@@ -36,12 +34,10 @@ body{padding-top:56px}
 .pip-btns{display:flex;gap:2px}
 .pb{background:none;border:none;color:rgba(240,250,243,.3);cursor:pointer;font-size:.72rem;padding:1px 4px;line-height:1}
 .pb:hover{color:rgba(240,250,243,.75)}
-/* PLACEHOLDER */
 .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#030303;text-align:center;padding:40px}
 .ph::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
 .ph-t{font-weight:300;font-size:.95rem;letter-spacing:.25em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
 .ph-s{font-size:.7rem;font-weight:300;color:rgba(240,250,243,.1);line-height:1.8;position:relative;z-index:1}
-/* CONTROLS */
 .ctrl{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:12px 16px;display:flex;flex-direction:column;gap:10px}
 .trow{display:flex;gap:7px}
 #titinp{flex:1;height:38px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 13px;font-family:'Urbanist',sans-serif;font-size:.82rem;outline:none;border-radius:0}
@@ -63,7 +59,6 @@ body{padding-top:56px}
 #bSwitch{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.42)}
 .slog{font-size:.62rem;font-weight:300;color:rgba(240,250,243,.2);line-height:1.55}
 #slogtxt{color:rgba(0,255,135,.38)}
-/* CHAT */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:920px){.ccol{display:none}}
 .chd{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
@@ -76,7 +71,6 @@ body{padding-top:56px}
 .ml{flex:1;min-width:0}
 .mn{font-size:.6rem;font-weight:600;color:rgba(0,255,135,.48)}
 .mn.h{color:#00ff87}
-.mn.s{color:rgba(255,255,255,.14)}
 .mt{font-size:.76rem;font-weight:300;color:rgba(240,250,243,.55);line-height:1.5;word-break:break-word}
 .mt.s{color:rgba(255,255,255,.16);font-style:italic;font-size:.7rem}
 .kbtn{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.28);cursor:pointer;font-size:.85rem;padding:1px 3px;line-height:1;margin-top:1px}
@@ -101,20 +95,17 @@ body{padding-top:56px}
 <div class="wrap">
   <div class="vcol">
     <div class="stage">
-      <!-- Screen preview -->
       <video id="scrnv" autoplay muted playsinline></video>
-      <!-- Camera PIP -->
       <div id="campip">
         <video id="camv" autoplay muted playsinline></video>
         <div class="pip-bar">
           <span class="pip-label">Camera</span>
           <div class="pip-btns">
-            <button class="pb" onclick="pipMinToggle()" title="Minimize">▢</button>
-            <button class="pb" onclick="camOff()" title="Turn off camera">✕</button>
+            <button class="pb" onclick="pipMinToggle()">▢</button>
+            <button class="pb" onclick="camOff()">✕</button>
           </div>
         </div>
       </div>
-      <!-- Placeholder -->
       <div class="ph" id="ph">
         <div class="ph-t">Ready to go live</div>
         <div class="ph-s">Click Go Live to start sharing your screen.</div>
@@ -135,7 +126,6 @@ body{padding-top:56px}
       <div class="slog">Status: <span id="slogtxt">Waiting — click Go Live to begin.</span></div>
     </div>
   </div>
-
   <div class="ccol">
     <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
     <div class="feed" id="feed"></div>
@@ -146,323 +136,257 @@ body{padding-top:56px}
   </div>
 </div>
 
-<!-- Hidden canvas for compositing screen + camera for viewers -->
 <canvas id="cv" style="display:none"></canvas>
 
 <script>
-var PEER_ID = 'gp-stream-2025';
-var _peer = null;
-var _screenStream = null;  // raw screen capture
-var _micStream    = null;  // mic audio
-var _camStream    = null;  // camera video
-var _live    = false;
-var _micOn   = true;
-var _camOn   = false;
-var _pipMini = false;
-var _raf     = null;
-var _viewers = {};
-var _banned  = [];
+var PEER_ID = 'gp-live-host-2025'; // unique ID for this broadcaster
 
-// Canvas compositor
+var _peer=null, _screenStream=null, _micStream=null, _camStream=null;
+var _live=false, _micOn=true, _camOn=false, _pipMini=false;
+var _drawInterval=null, _outStream=null;
+var _viewers={}, _banned=[];
+
 var _canvas = document.getElementById('cv');
 var _ctx    = _canvas.getContext('2d');
-var _outStream = null;  // canvas.captureStream() — what viewers receive
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function log(t){ document.getElementById('slogtxt').textContent = t; }
-function sys(t){ chat_add('', t, 'sys'); }
-function chat_add(name, text, type, pid){
-  var f = document.getElementById('feed');
-  var d = document.createElement('div'); d.className = 'mi';
-  var l = document.createElement('div'); l.className = 'ml';
-  if(type==='sys'){
-    l.innerHTML = '<div class="mt s">'+esc(text)+'</div>';
-  } else {
-    l.innerHTML = '<div class="mn'+(type==='host'?' h':'')+'">'+esc(name)+'</div>'
-                + '<div class="mt">'+esc(text)+'</div>';
-  }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function log(t){document.getElementById('slogtxt').textContent=t;}
+function sys(t){addMsg('','',t,'sys');}
+function addMsg(name,text,rawHTML,type,pid){
+  var f=document.getElementById('feed'), d=document.createElement('div'); d.className='mi';
+  var l=document.createElement('div'); l.className='ml';
+  if(type==='sys') l.innerHTML='<div class="mt s">'+esc(rawHTML||text)+'</div>';
+  else l.innerHTML='<div class="mn'+(type==='host'?' h':'')+'">'+esc(name)+'</div><div class="mt">'+esc(text)+'</div>';
   d.appendChild(l);
-  if(pid){
-    var k = document.createElement('button'); k.className='kbtn'; k.textContent='✕'; k.title='Kick';
-    k.onclick = (function(id){ return function(){ kickViewer(id); }; })(pid);
-    d.appendChild(k);
-  }
-  f.appendChild(d); f.scrollTop = f.scrollHeight;
+  if(pid){var k=document.createElement('button');k.className='kbtn';k.textContent='✕';k.onclick=(function(id){return function(){kick(id);};})(pid);d.appendChild(k);}
+  f.appendChild(d); f.scrollTop=f.scrollHeight;
 }
 function setVC(n){
-  document.getElementById('cvc').textContent  = n+' viewer'+(n===1?'':'s');
-  document.getElementById('nvcn').textContent = n;
-  document.getElementById('nvc').className = n>0 ? 'on' : '';
+  document.getElementById('cvc').textContent=n+' viewer'+(n===1?'':'s');
+  document.getElementById('nvcn').textContent=n;
+  document.getElementById('nvc').className=n>0?'on':'';
 }
 
-/* ═══════════════════════════════════
-   CANVAS COMPOSITOR
-   Draws screen full-size + camera PIP
-   _outStream is sent to all viewers
-═══════════════════════════════════ */
+/* CANVAS — uses setInterval so it keeps running even when tab loses focus during screen share */
 function initCompositor(){
-  _canvas.width  = 1280;
-  _canvas.height = 720;
-  _outStream = _canvas.captureStream(30);
-  drawFrame();
+  _canvas.width=1280; _canvas.height=720;
+  _outStream=_canvas.captureStream(30);
+  _drawInterval=setInterval(drawFrame, 33); // ~30fps, runs even in background tab
 }
 function drawFrame(){
   if(!_live) return;
-  _ctx.clearRect(0, 0, 1280, 720);
-
-  // Draw screen
-  var sv = document.getElementById('scrnv');
-  if(sv && sv.readyState >= 2){
-    _ctx.drawImage(sv, 0, 0, 1280, 720);
+  var sv=document.getElementById('scrnv');
+  if(sv && sv.readyState>=2){
+    _ctx.drawImage(sv,0,0,1280,720);
   } else {
-    _ctx.fillStyle = '#030303';
-    _ctx.fillRect(0, 0, 1280, 720);
+    _ctx.fillStyle='#030303'; _ctx.fillRect(0,0,1280,720);
   }
-
-  // Draw camera PIP (bottom-right corner)
   if(_camOn){
-    var cv2 = document.getElementById('camv');
-    if(cv2 && cv2.readyState >= 2){
-      var pw=240, ph=135, px=1280-pw-18, py=720-ph-18;
-      // slight shadow
+    var cv2=document.getElementById('camv');
+    if(cv2 && cv2.readyState>=2){
+      var pw=240,ph=135,px=1280-pw-18,py=720-ph-18;
       _ctx.save();
-      _ctx.shadowColor = 'rgba(0,0,0,.55)';
-      _ctx.shadowBlur  = 14;
-      _ctx.fillStyle   = '#000';
-      _ctx.fillRect(px, py, pw, ph);
+      _ctx.shadowColor='rgba(0,0,0,.5)'; _ctx.shadowBlur=12;
+      _ctx.fillStyle='#000'; _ctx.fillRect(px,py,pw,ph);
       _ctx.restore();
-      // Mirror camera horizontally (looks natural)
       _ctx.save();
-      _ctx.translate(px + pw, py);
-      _ctx.scale(-1, 1);
-      _ctx.drawImage(cv2, 0, 0, pw, ph);
+      _ctx.translate(px+pw,py); _ctx.scale(-1,1);
+      _ctx.drawImage(cv2,0,0,pw,ph);
       _ctx.restore();
     }
   }
-
-  _raf = requestAnimationFrame(drawFrame);
 }
 
-/* ═══════════════
-   GO LIVE
-═══════════════ */
+/* GO LIVE */
 function goLive(){
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
-    log('Screen sharing not supported. Please use Chrome.'); return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
+    log('Screen sharing not supported. Use Chrome.'); return;
   }
   log('Pick a window or screen to share…');
-  document.getElementById('bGo').disabled = true;
+  document.getElementById('bGo').disabled=true;
 
-  // 1. Get screen (video only — avoids macOS audio permission block)
   navigator.mediaDevices.getDisplayMedia({
-    video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30}, cursor:'always' },
-    audio: false
-  })
-  .then(function(scrn){
-    _screenStream = scrn;
-    document.getElementById('scrnv').srcObject = scrn;
-    document.getElementById('scrnv').style.display = 'block';
-    document.getElementById('ph').style.display   = 'none';
-
-    // 2. Get mic separately
-    return navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation:true, noiseSuppression:true },
-      video: false
-    });
-  })
-  .then(function(mic){
-    _micStream = mic;
-    _live = true;
-    initCompositor();  // start canvas draw loop
-    startPeer();
-  })
-  .catch(function(e){
-    var msg = (e.name==='NotAllowedError')
-      ? 'Permission denied. Go to System Settings → Privacy → Screen Recording and enable Chrome, then refresh.'
+    video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
+    audio:false
+  }).then(function(scrn){
+    _screenStream=scrn;
+    document.getElementById('scrnv').srcObject=scrn;
+    document.getElementById('scrnv').style.display='block';
+    document.getElementById('ph').style.display='none';
+    return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+  }).then(function(mic){
+    _micStream=mic;
+    _live=true;
+    initCompositor();
+    // Small delay so canvas draws at least one frame before we start accepting viewers
+    setTimeout(startPeer, 300);
+  }).catch(function(e){
+    var msg=(e.name==='NotAllowedError')
+      ? 'Permission denied. Enable Screen Recording for Chrome in System Settings, then refresh.'
       : 'Error: '+e.message+'. Try again.';
     log(msg);
-    document.getElementById('bGo').disabled = false;
+    document.getElementById('bGo').disabled=false;
   });
 }
 
-/* ═══════════════
-   PEER
-═══════════════ */
+/* PEER — broadcaster calls each viewer (push model, more reliable) */
 function startPeer(){
-  _peer = new Peer(PEER_ID, {debug:0});
+  _peer=new Peer(PEER_ID,{debug:0});
 
-  _peer.on('open', function(){
-    log('🔴 LIVE — share thegreenprint.trade/stream.html with your audience.');
-    document.getElementById('ndot').className = 'dot live';
-    document.getElementById('nstat').textContent = 'live';
-    document.getElementById('nstat').className  = 'on';
-    document.getElementById('bGo').style.display  = 'none';
-    document.getElementById('bEnd').style.display = 'block';
-    sys('🔴 You are live! Share thegreenprint.trade/stream.html with viewers.');
+  _peer.on('open',function(){
+    log('🔴 LIVE — viewers see you at thegreenprint.trade/stream.html');
+    document.getElementById('ndot').className='dot live';
+    document.getElementById('nstat').textContent='live';
+    document.getElementById('nstat').className='on';
+    document.getElementById('bGo').style.display='none';
+    document.getElementById('bEnd').style.display='block';
+    sys('🔴 You are live! Share thegreenprint.trade/stream.html with your audience.');
   });
 
-  // Viewer calls in → answer with composited canvas + mic
-  _peer.on('call', function(call){
-    var audioTracks = _micStream ? _micStream.getAudioTracks() : [];
-    var videoTracks = _outStream  ? _outStream.getVideoTracks()  : [];
-    call.answer(new MediaStream([...videoTracks, ...audioTracks]));
-    var pid = call.peer;
-    if(!_viewers[pid]) _viewers[pid] = {};
-    _viewers[pid].call = call;
-    call.on('close', function(){ rmViewer(pid); });
-  });
+  // Viewer connects data channel → broadcaster pushes stream to them
+  _peer.on('connection',function(dc){
+    var pid=dc.peer;
+    if(_banned.indexOf(pid)>-1){dc.close();return;}
+    if(!_viewers[pid]) _viewers[pid]={};
+    _viewers[pid].dc=dc;
 
-  // Data channel for chat
-  _peer.on('connection', function(dc){
-    var pid = dc.peer;
-    if(_banned.indexOf(pid) > -1){ dc.close(); return; }
-    if(!_viewers[pid]) _viewers[pid] = {};
-    _viewers[pid].dc = dc;
-    dc.on('open', function(){
-      var vname = (dc.metadata && dc.metadata.name) ? dc.metadata.name : 'Viewer';
-      _viewers[pid].name = vname;
+    dc.on('open',function(){
+      var vname=(dc.metadata&&dc.metadata.name)?dc.metadata.name:'Viewer';
+      _viewers[pid].name=vname;
       setVC(Object.keys(_viewers).length);
-      sys(vname + ' joined.');
+      sys(vname+' joined.');
       pushTitle();
+
+      // NOW push the stream to this viewer
+      var audioTracks=_micStream?_micStream.getAudioTracks():[];
+      var videoTracks=_outStream?_outStream.getVideoTracks():[];
+      if(videoTracks.length>0){
+        var call=_peer.call(pid,new MediaStream([...videoTracks,...audioTracks]));
+        _viewers[pid].call=call;
+        call.on('close',function(){rmViewer(pid);});
+      }
     });
-    dc.on('data', function(raw){
+
+    dc.on('data',function(raw){
       try{
-        var m = JSON.parse(raw);
-        if(m.t === 'join') _viewers[pid].name = m.n || 'Viewer';
-        if(m.t === 'chat'){
-          chat_add(_viewers[pid].name || 'Viewer', m.x, 'viewer', pid);
-          broadcast({ t:'chat', n:_viewers[pid].name||'Viewer', x:m.x, h:false });
+        var m=JSON.parse(raw);
+        if(m.t==='join') _viewers[pid].name=m.n||'Viewer';
+        if(m.t==='chat'){
+          addMsg(_viewers[pid].name||'Viewer',m.x,'','viewer',pid);
+          broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false});
         }
       }catch(e){}
     });
-    dc.on('close', function(){ rmViewer(pid); });
+    dc.on('close',function(){rmViewer(pid);});
   });
 
-  _peer.on('error', function(e){
-    if(e.type === 'unavailable-id'){
-      log('Peer ID in use — end the current stream and try again.');
-      document.getElementById('bGo').disabled = false;
+  _peer.on('error',function(e){
+    if(e.type==='unavailable-id'){
+      log('ID in use — end the current stream and try again.');
+      document.getElementById('bGo').disabled=false;
     } else {
-      log('Connection error: '+e.message);
+      log('Peer error: '+e.message);
     }
   });
 }
 
-function rmViewer(pid){ delete _viewers[pid]; setVC(Object.keys(_viewers).length); }
+function rmViewer(pid){delete _viewers[pid]; setVC(Object.keys(_viewers).length);}
 function broadcast(obj){
   Object.keys(_viewers).forEach(function(pid){
-    var dc = _viewers[pid].dc;
-    if(dc && dc.open) try{ dc.send(JSON.stringify(obj)); }catch(e){}
+    var dc=_viewers[pid].dc;
+    if(dc&&dc.open) try{dc.send(JSON.stringify(obj));}catch(e){}
   });
 }
-function kickViewer(pid){
+function kick(pid){
   if(!_viewers[pid]) return;
-  var dc = _viewers[pid].dc, call = _viewers[pid].call;
-  try{ if(dc && dc.open) dc.send(JSON.stringify({t:'kick'})); }catch(e){}
+  var dc=_viewers[pid].dc, call=_viewers[pid].call;
+  try{if(dc&&dc.open)dc.send(JSON.stringify({t:'kick'}));}catch(e){}
   setTimeout(function(){
-    try{ if(dc) dc.close(); }catch(e){}
-    try{ if(call) call.close(); }catch(e){}
-    _banned.push(pid);
-    rmViewer(pid);
-    sys('Viewer removed.');
-  }, 300);
+    try{if(dc)dc.close();}catch(e){}
+    try{if(call)call.close();}catch(e){}
+    _banned.push(pid); rmViewer(pid); sys('Viewer removed.');
+  },300);
 }
 function pushTitle(){
-  var t = document.getElementById('titinp').value.trim() || 'The Greenprint — Live Session';
-  broadcast({ t:'title', x:t });
+  var t=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
+  broadcast({t:'title',x:t});
 }
 function hostChat(){
-  var inp = document.getElementById('ci');
-  var txt = inp.value.trim(); if(!txt) return; inp.value='';
-  chat_add('Jacob (Host)', txt, 'host', null);
-  broadcast({ t:'chat', n:'Jacob (Host)', x:txt, h:true });
+  var inp=document.getElementById('ci'), txt=inp.value.trim(); if(!txt)return; inp.value='';
+  addMsg('Jacob (Host)',txt,'','host',null);
+  broadcast({t:'chat',n:'Jacob (Host)',x:txt,h:true});
 }
 
-/* ═══════════════
-   TOGGLES
-═══════════════ */
+/* TOGGLES */
 function toggleMic(){
-  if(!_micStream) return;
-  _micOn = !_micOn;
-  _micStream.getAudioTracks().forEach(function(t){ t.enabled = _micOn; });
-  document.getElementById('bMic').textContent  = _micOn ? '🎙 Mic' : '🔇 Muted';
-  document.getElementById('bMic').className    = 'btn' + (_micOn ? '' : ' off');
+  if(!_micStream)return;
+  _micOn=!_micOn;
+  _micStream.getAudioTracks().forEach(function(t){t.enabled=_micOn;});
+  document.getElementById('bMic').textContent=_micOn?'🎙 Mic':'🔇 Muted';
+  document.getElementById('bMic').className='btn'+(_micOn?'':' off');
 }
-
-function toggleCam(){
-  if(_camOn){ camOff(); } else { camOn(); }
-}
+function toggleCam(){ _camOn?camOff():camOn(); }
 function camOn(){
-  navigator.mediaDevices.getUserMedia({
-    video:{ width:{ideal:1280}, height:{ideal:720}, facingMode:'user' },
-    audio:false
-  }).then(function(stream){
-    _camStream = stream;
-    _camOn     = true;
-    document.getElementById('camv').srcObject = stream;
-    document.getElementById('campip').className = 'show';
-    document.getElementById('bCam').textContent  = '📷 Cam On';
-    document.getElementById('bCam').className    = 'btn on';
-    log('Camera on — visible to viewers.');
-  }).catch(function(e){
-    log('Camera error: '+e.message);
-  });
+  navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:false})
+  .then(function(stream){
+    _camStream=stream; _camOn=true;
+    document.getElementById('camv').srcObject=stream;
+    document.getElementById('campip').className='show';
+    document.getElementById('bCam').textContent='📷 Cam On';
+    document.getElementById('bCam').className='btn on';
+    log('Camera on.');
+  }).catch(function(e){log('Camera error: '+e.message);});
 }
 function camOff(){
-  if(_camStream) _camStream.getTracks().forEach(function(t){ t.stop(); });
-  _camStream = null; _camOn = false;
-  document.getElementById('camv').srcObject      = null;
-  document.getElementById('campip').className    = '';
-  document.getElementById('bCam').textContent    = '📷 Camera';
-  document.getElementById('bCam').className      = 'btn';
+  if(_camStream)_camStream.getTracks().forEach(function(t){t.stop();});
+  _camStream=null; _camOn=false;
+  document.getElementById('camv').srcObject=null;
+  document.getElementById('campip').className='';
+  document.getElementById('bCam').textContent='📷 Camera';
+  document.getElementById('bCam').className='btn';
   log('Camera off.');
 }
 function pipMinToggle(){
-  _pipMini = !_pipMini;
-  document.getElementById('campip').className = _pipMini ? 'show mini' : 'show';
+  _pipMini=!_pipMini;
+  document.getElementById('campip').className=_pipMini?'show mini':'show';
 }
-
 function switchScreen(){
-  navigator.mediaDevices.getDisplayMedia({
-    video:{ width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30}, cursor:'always' },
-    audio:false
-  }).then(function(s){
-    var old = _screenStream ? _screenStream.getVideoTracks() : [];
-    _screenStream = s;
-    document.getElementById('scrnv').srcObject = s;
-    old.forEach(function(t){ t.stop(); });
-    log('Screen source switched.');
-  }).catch(function(){ log('Switch cancelled.'); });
+  navigator.mediaDevices.getDisplayMedia({video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},audio:false})
+  .then(function(s){
+    var old=_screenStream?_screenStream.getVideoTracks():[];
+    _screenStream=s;
+    document.getElementById('scrnv').srcObject=s;
+    old.forEach(function(t){t.stop();});
+    log('Screen switched.');
+  }).catch(function(){log('Switch cancelled.');});
 }
-
 function endStream(){
-  if(!confirm('End your live stream?')) return;
-  broadcast({ t:'ended' });
-  cancelAnimationFrame(_raf); _live = false;
-  if(_screenStream) _screenStream.getTracks().forEach(function(t){ t.stop(); });
-  if(_micStream)    _micStream.getTracks().forEach(function(t){ t.stop(); });
-  if(_camStream)    _camStream.getTracks().forEach(function(t){ t.stop(); });
-  if(_peer)         _peer.destroy();
-  document.getElementById('scrnv').style.display  = 'none';
-  document.getElementById('campip').className     = '';
-  document.getElementById('ph').style.display     = 'flex';
-  document.getElementById('ph').querySelector('.ph-t').textContent = 'Stream Ended';
-  document.getElementById('ph').querySelector('.ph-s').textContent = 'Reload this page to go live again.';
-  document.getElementById('ndot').className        = 'dot';
-  document.getElementById('nstat').textContent     = 'offline';
-  document.getElementById('nstat').className       = '';
-  document.getElementById('bEnd').style.display   = 'none';
-  document.getElementById('bGo').style.display    = 'block';
-  document.getElementById('bGo').disabled         = false;
+  if(!confirm('End your live stream?'))return;
+  broadcast({t:'ended'});
+  clearInterval(_drawInterval); _live=false;
+  if(_screenStream)_screenStream.getTracks().forEach(function(t){t.stop();});
+  if(_micStream)_micStream.getTracks().forEach(function(t){t.stop();});
+  if(_camStream)_camStream.getTracks().forEach(function(t){t.stop();});
+  if(_peer)_peer.destroy();
+  document.getElementById('scrnv').style.display='none';
+  document.getElementById('campip').className='';
+  document.getElementById('ph').style.display='flex';
+  document.getElementById('ph').querySelector('.ph-t').textContent='Stream Ended';
+  document.getElementById('ph').querySelector('.ph-s').textContent='Reload this page to go live again.';
+  document.getElementById('ndot').className='dot';
+  document.getElementById('nstat').textContent='offline';
+  document.getElementById('nstat').className='';
+  document.getElementById('bEnd').style.display='none';
+  document.getElementById('bGo').style.display='block';
+  document.getElementById('bGo').disabled=false;
   setVC(0); log('Stream ended.');
 }
 
-// Load PeerJS
 (function(){
-  var s = document.createElement('script');
-  s.src    = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload = function(){ log('Ready — click Go Live to start.'); };
-  s.onerror= function(){ log('Could not load streaming library. Check your connection.'); };
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+  s.onload=function(){log('Ready — click Go Live to start.');};
+  s.onerror=function(){log('Could not load streaming library. Check your connection.');};
   document.body.appendChild(s);
 })();
 </script>
