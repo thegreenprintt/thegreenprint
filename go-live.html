@@ -309,6 +309,7 @@ var ICE = {
 var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null;
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null;
+var _dummyCamTrack=null; // invisible 2×2 black placeholder sent when cam is off
 var _viewers={}, _banned=[];
 var _canvas=document.getElementById('cv');
 // desynchronized: bypasses compositor sync → GPU-accelerated compositing
@@ -441,6 +442,20 @@ function setVC(n){
   if(_live)statPeakCheck();
 }
 
+// ── Dummy camera track: 2×2 black canvas, 1fps — holds the WebRTC track slot
+// when camera is off so viewers never lose the track (avoids renegotiation) ──
+function createDummyCamTrack(){
+  try{
+    var dc=document.createElement('canvas');
+    dc.width=2;dc.height=2;
+    var dctx=dc.getContext('2d');
+    dctx.fillStyle='#000';dctx.fillRect(0,0,2,2);
+    var ds=dc.captureStream(1);
+    _dummyCamTrack=ds.getVideoTracks()[0];
+    if(_dummyCamTrack&&'contentHint' in _dummyCamTrack)_dummyCamTrack.contentHint='motion';
+  }catch(e){_dummyCamTrack=null;console.warn('[CAM] Dummy track failed:',e);}
+}
+
 // ── Canvas compositor: GPU-accelerated, frame-perfect rendering ──
 function initCanvas(){
   var settings=_screenStream.getVideoTracks()[0].getSettings();
@@ -467,18 +482,9 @@ function initCanvas(){
     // Draw screen
     if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
     else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
-    // Draw camera PIP — 20% width, smoothing OFF for sharp motion
-    if(_camOn){
-      var cv2=document.getElementById('camv');
-      if(cv2&&cv2.readyState>=2){
-        var pw=Math.round(_SW*0.20),ph=Math.round(pw*9/16);
-        var px=_SW-pw-28,py=_SH-ph-28;
-        _ctx.imageSmoothingEnabled=false; // prevents motion blur on camera
-        _ctx.save();_ctx.translate(px+pw,py);_ctx.scale(-1,1);_ctx.drawImage(cv2,0,0,pw,ph);_ctx.restore();
-        _ctx.imageSmoothingEnabled=true;  // restore for screen text rendering
-        _ctx.imageSmoothingQuality='high';
-      }
-    }
+    // Camera is sent as a separate WebRTC track — NOT drawn on canvas.
+    // This eliminates double-encoding (canvas compress → WebRTC compress)
+    // and gives viewers a clean single-encode hardware-accelerated camera.
     // requestVideoFrameCallback fires exactly when a new decoded screen frame
     // arrives — frame-perfect, no polling lag, hardware-accelerated
     if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
@@ -574,30 +580,55 @@ function callViewer(pid){
   if(!_viewers[pid]||_viewers[pid].call)return; // already called
   var audioSrc=_mixedStream||_micStream;
   var aTracks=audioSrc?audioSrc.getAudioTracks():[];
-  var vTracks=_outStream?_outStream.getVideoTracks():[];
-  if(!vTracks.length){log('No video tracks yet for '+pid);return;}
+  var screenTracks=_outStream?_outStream.getVideoTracks():[];
+  if(!screenTracks.length){log('No video tracks yet for '+pid);return;}
+
+  // Send camera as a SEPARATE raw track (no canvas re-encoding = single encode path,
+  // hardware-accelerated, zero double-compress artifacts).
+  // If cam is off we send a 2×2 dummy so the track slot stays reserved — no renegotiation needed.
+  var camTrack=null;
+  if(_camOn&&_camStream){
+    var ct=_camStream.getVideoTracks()[0];
+    if(ct){if('contentHint' in ct)ct.contentHint='motion';camTrack=ct;}
+  }
+  if(!camTrack)camTrack=_dummyCamTrack; // may be null on old browsers
+
+  var tracks=[].concat(screenTracks);
+  if(camTrack)tracks.push(camTrack);
+  tracks=tracks.concat(aTracks);
+
   var vname=_viewers[pid].name||'Viewer';
   log('Calling '+vname+'…');
-  var call=_peer.call(pid,new MediaStream([].concat(vTracks).concat(aTracks)),{config:ICE});
+  var call=_peer.call(pid,new MediaStream(tracks),{config:ICE});
   _viewers[pid].call=call;
+
   if(call.peerConnection){
     call.peerConnection.oniceconnectionstatechange=function(){
       var st=call.peerConnection.iceConnectionState;
       log('ICE→'+vname+': '+st);
       if(st==='connected'||st==='completed'){
         sys('✅ '+vname+' is watching.');
-        // 15 Mbps video + 192k audio for maximum quality
+        // Assign bitrates: screen=15 Mbps, camera=2.5 Mbps, audio=192k
+        var vidIdx=0;
         call.peerConnection.getSenders().forEach(function(s){
-          if(s.track&&s.track.kind==='video'){
-            var p=s.getParameters();
-            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-            p.encodings[0].maxBitrate=15000000;
-            p.encodings[0].maxFramerate=60;
+          if(!s.track)return;
+          var p=s.getParameters();
+          if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+          if(s.track.kind==='video'){
+            if(vidIdx===0){
+              // Screen/canvas track
+              p.encodings[0].maxBitrate=15000000;
+              p.encodings[0].maxFramerate=30;
+            } else {
+              // Camera track — store sender ref for replaceTrack
+              p.encodings[0].maxBitrate=2500000;
+              p.encodings[0].maxFramerate=30;
+              _viewers[pid].camSender=s;
+            }
+            vidIdx++;
             s.setParameters(p).catch(function(){});
           }
-          if(s.track&&s.track.kind==='audio'){
-            var p=s.getParameters();
-            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+          if(s.track.kind==='audio'){
             p.encodings[0].maxBitrate=192000;
             s.setParameters(p).catch(function(){});
           }
@@ -605,6 +636,7 @@ function callViewer(pid){
       } else if(st==='failed'){
         sys('⚠ Connection issue with '+vname+' — retrying…');
         delete _viewers[pid].call;
+        delete _viewers[pid].camSender;
         setTimeout(function(){callViewer(pid);},2000);
       }
     };
@@ -638,6 +670,14 @@ function startPeer(){
       setVC(Object.keys(_viewers).length);
       sys(vname+(_live?' joined.':' is waiting for stream to start.'));
       pushTitle();
+      // If cam is already on, tell this viewer so they show the PIP overlay
+      if(_camOn){
+        setTimeout(function(){
+          if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+            try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:true}));}catch(e){}
+          }
+        },1200);
+      }
       // If already live, call immediately — otherwise they wait until Go Live
       if(_live)callViewer(pid);
     });
@@ -736,19 +776,42 @@ function toggleMic(){
 }
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false})
-  .then(function(s){
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},
+    audio:false
+  }).then(function(s){
     _camStream=s;_camOn=true;
+    // Show local preview
     var cv=document.getElementById('camv');
     cv.srcObject=s;cv.muted=true;cv.volume=0;
     document.getElementById('campip').className='show';
     document.getElementById('bCam').textContent='📷 Cam On';
     document.getElementById('bCam').className='btn on';
+    // Replace dummy track with real camera on all active calls (no renegotiation)
+    var camTrack=s.getVideoTracks()[0];
+    if(camTrack){
+      if('contentHint' in camTrack)camTrack.contentHint='motion';
+      Object.keys(_viewers).forEach(function(pid){
+        var sender=_viewers[pid].camSender;
+        if(sender)sender.replaceTrack(camTrack).catch(function(){});
+      });
+    }
+    // Tell viewers to show the camera PIP
+    broadcast({t:'cam',on:true});
   }).catch(function(e){log('Camera: '+e.message);});
 }
 function camOff(){
   if(_camStream)_camStream.getTracks().forEach(function(t){t.stop();});
   _camStream=null;_camOn=false;
+  // Replace real cam with dummy track — PIP disappears, track slot stays reserved
+  if(_dummyCamTrack){
+    Object.keys(_viewers).forEach(function(pid){
+      var sender=_viewers[pid].camSender;
+      if(sender)sender.replaceTrack(_dummyCamTrack).catch(function(){});
+    });
+  }
+  // Tell viewers to hide PIP
+  broadcast({t:'cam',on:false});
   document.getElementById('camv').srcObject=null;
   document.getElementById('campip').className='';
   document.getElementById('bCam').textContent='📷 Camera';
@@ -807,6 +870,8 @@ function endStream(){
 function initPage(){
   if(_authReady)return; // prevent double-init
   _authReady=true;
+  // Create dummy cam track immediately — must exist before first callViewer()
+  createDummyCamTrack();
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
   s.onload=function(){startPeer();};

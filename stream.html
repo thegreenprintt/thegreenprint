@@ -141,6 +141,9 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
     <div class="vcol">
       <div class="stage">
         <video id="vid" autoplay playsinline disableRemotePlayback></video>
+        <!-- Camera PIP — separate WebRTC track, single-encode, shown when broadcaster enables camera -->
+        <video id="cam-pip" autoplay playsinline muted
+          style="display:none;position:absolute;bottom:14px;right:14px;width:20%;max-width:220px;min-width:80px;aspect-ratio:16/9;object-fit:cover;transform:scaleX(-1);z-index:10;border:1px solid rgba(255,255,255,.15);background:#000;box-shadow:0 4px 20px rgba(0,0,0,.7)"></video>
         <!-- Mobile tap-to-unmute prompt — shows automatically when stream goes live -->
         <div id="unmute-overlay">
           <button id="unmute-tap" onclick="mobileTapUnmute()">🔊 Tap to Hear Audio</button>
@@ -347,17 +350,34 @@ function connectToHost(){
 
     call.on('stream',function(stream){
       stat('Stream connected ✅');
+      var vt=stream.getVideoTracks();
+      var at=stream.getAudioTracks();
+
+      // Track 0 = screen/canvas stream (with audio)
+      var screenStream=new MediaStream();
+      if(vt[0])screenStream.addTrack(vt[0]);
+      at.forEach(function(t){screenStream.addTrack(t);});
       var v=document.getElementById('vid');
-      v.srcObject=stream;
-      v.muted=true;
-      _muted=true;
+      v.srcObject=screenStream;
+      v.muted=true;_muted=true;
       var btn=document.getElementById('mute-btn');
       if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
       v.play().catch(function(){});
+
+      // Track 1 = camera raw track — route to PIP overlay
+      // Show/hide is controlled by {t:'cam'} data channel message from broadcaster
+      var pip=document.getElementById('cam-pip');
+      if(pip&&vt[1]){
+        var camStream=new MediaStream([vt[1]]);
+        pip.srcObject=camStream;
+        pip.muted=true;
+        pip.play().catch(function(){});
+        // PIP visibility controlled via data channel message {t:'cam', on: true/false}
+        // Keep hidden until broadcaster explicitly turns cam on
+      }
+
       setLive(true);
-      // On mobile: show the big tap-to-unmute overlay over the video
       if(_isMobile){document.getElementById('unmute-overlay').classList.add('show');}
-      // Only show "live" message once per page load to prevent spam
       if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
     });
 
@@ -367,6 +387,9 @@ function connectToHost(){
       _sysShown.live=false;
       document.getElementById('unmute-overlay').classList.remove('show');
       document.getElementById('offline-msg').style.display='flex';
+      // Hide camera PIP when stream ends
+      var pip=document.getElementById('cam-pip');
+      if(pip){pip.style.display='none';pip.srcObject=null;}
       if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
       scheduleReconnect(5000);
     });
@@ -400,6 +423,10 @@ function connectToHost(){
         var m=JSON.parse(raw);
         if(m.t==='chat')  addChat(m.n,m.x,m.h);
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
+        if(m.t==='cam'){
+          var pip=document.getElementById('cam-pip');
+          if(pip)pip.style.display=m.on?'block':'none';
+        }
         if(m.t==='ended'){
           setLive(false);
           _sysShown.live=false;
