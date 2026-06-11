@@ -367,6 +367,8 @@ function scheduleReconnect(ms){
 
 function connectToHost(){
   _reconnecting=true; // block scheduleReconnect until new peer opens
+  // Safety: clear flag after 12s max so we never get permanently stuck
+  setTimeout(function(){if(_reconnecting){_reconnecting=false;}},12000);
   if(_reconnectTimer){clearTimeout(_reconnectTimer);_reconnectTimer=null;}
   // Clean up any previous peer — this fires async close events on old DC/calls,
   // but _reconnecting=true above ensures they don't trigger another reconnect loop
@@ -414,6 +416,13 @@ function connectToHost(){
         var btn=document.getElementById('mute-btn');
         if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
         v.play().catch(function(){});
+        // Fit stage to actual screenshare dimensions — removes black bars
+        v.addEventListener('loadedmetadata',function(){
+          if(v.videoWidth&&v.videoHeight){
+            var stage=document.querySelector('.stage');
+            if(stage)stage.style.aspectRatio=v.videoWidth+'/'+v.videoHeight;
+          }
+        },{once:true});
         setLive(true);
         if(_isMobile){document.getElementById('unmute-overlay').classList.add('show');}
         if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
@@ -529,14 +538,6 @@ function sendChat(){
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
 
-// Reconnect when phone screen unlocks or tab comes back into view (iOS Safari)
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible'&&!_reconnecting&&!_reconnectTimer){
-    var peerBad=!_peer||_peer.disconnected||_peer.destroyed;
-    var dcBad=!_dc||!_dc.open;
-    if(peerBad||dcBad)scheduleReconnect(500);
-  }
-});
 </script>
 </body>
 </html>
