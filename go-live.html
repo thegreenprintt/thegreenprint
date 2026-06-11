@@ -609,78 +609,82 @@ function goLive(){
   });
 }
 
-// ── Call one viewer — used when Go Live fires AND when a new viewer joins mid-stream ──
+// ── Close both calls for a viewer (screen + cam) ──
+function closeViewerCalls(pid){
+  if(!_viewers[pid])return;
+  var sc=_viewers[pid].screenCall,cc=_viewers[pid].camCall;
+  if(sc)try{sc.close();}catch(e){}
+  if(cc)try{cc.close();}catch(e){}
+  delete _viewers[pid].screenCall;
+  delete _viewers[pid].camCall;
+  delete _viewers[pid].camSender;
+}
+
+// ── Call one viewer — TWO separate labeled calls so screen/camera can never swap ──
+// Call 1 (metadata type:'screen') carries the canvas + audio.
+// Call 2 (metadata type:'cam')    carries the raw camera — dummy 2×2 when off.
+// Viewer identifies each by metadata.type so layout is 100% deterministic.
 function callViewer(pid){
-  if(!_viewers[pid]||_viewers[pid].call)return; // already called
+  if(!_viewers[pid]||_viewers[pid].screenCall)return; // already called
+
   var audioSrc=_mixedStream||_micStream;
   var aTracks=audioSrc?audioSrc.getAudioTracks():[];
   var screenTracks=_outStream?_outStream.getVideoTracks():[];
   if(!screenTracks.length){log('No video tracks yet for '+pid);return;}
 
-  // Send camera as a SEPARATE raw track (no canvas re-encoding = single encode path,
-  // hardware-accelerated, zero double-compress artifacts).
-  // If cam is off we send a 2×2 dummy so the track slot stays reserved — no renegotiation needed.
-  var camTrack=null;
-  if(_camOn&&_camStream){
-    var ct=_camStream.getVideoTracks()[0];
-    if(ct){if('contentHint' in ct)ct.contentHint='motion';camTrack=ct;}
-  }
-  if(!camTrack)camTrack=_dummyCamTrack; // may be null on old browsers
-
-  var tracks=[].concat(screenTracks);
-  if(camTrack)tracks.push(camTrack);
-  tracks=tracks.concat(aTracks);
-
   var vname=_viewers[pid].name||'Viewer';
   log('Calling '+vname+'…');
-  var call=_peer.call(pid,new MediaStream(tracks),{config:ICE});
-  _viewers[pid].call=call;
 
-  if(call.peerConnection){
-    call.peerConnection.oniceconnectionstatechange=function(){
-      var st=call.peerConnection.iceConnectionState;
+  // ── Screen call ──
+  var sc=_peer.call(pid,new MediaStream(screenTracks.concat(aTracks)),{config:ICE,metadata:{type:'screen'}});
+  _viewers[pid].screenCall=sc;
+  if(sc.peerConnection){
+    sc.peerConnection.oniceconnectionstatechange=function(){
+      var st=sc.peerConnection.iceConnectionState;
       log('ICE→'+vname+': '+st);
       if(st==='connected'||st==='completed'){
         sys('✅ '+vname+' is watching.');
-        // Assign bitrates: screen=20 Mbps, camera=2.5 Mbps, audio=192k
-        var vidIdx=0;
-        call.peerConnection.getSenders().forEach(function(s){
+        sc.peerConnection.getSenders().forEach(function(s){
           if(!s.track)return;
           var p=s.getParameters();
           if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          if(s.track.kind==='video'){
-            if(vidIdx===0){
-              // Screen/canvas track — boosted for sharp text/charts
-              p.encodings[0].maxBitrate=20000000;
-              p.encodings[0].maxFramerate=30;
-            } else {
-              // Camera track — store sender ref for replaceTrack
-              p.encodings[0].maxBitrate=2500000;
-              p.encodings[0].maxFramerate=30;
-              _viewers[pid].camSender=s;
-            }
-            vidIdx++;
-            s.setParameters(p).catch(function(){});
-          }
-          if(s.track.kind==='audio'){
-            p.encodings[0].maxBitrate=192000;
-            s.setParameters(p).catch(function(){});
-          }
+          if(s.track.kind==='video'){p.encodings[0].maxBitrate=20000000;p.encodings[0].maxFramerate=30;}
+          if(s.track.kind==='audio'){p.encodings[0].maxBitrate=192000;}
+          s.setParameters(p).catch(function(){});
         });
-        // Send camera PIP state now that stream is live — more reliable than dc.on('open') alone
-        if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-          try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:!!_camOn}));}catch(e){}
-        }
       } else if(st==='failed'){
         sys('⚠ Connection issue with '+vname+' — retrying…');
-        delete _viewers[pid].call;
-        delete _viewers[pid].camSender;
+        closeViewerCalls(pid);
         setTimeout(function(){callViewer(pid);},2000);
       }
     };
   }
-  call.on('close',function(){rmViewer(pid);});
-  call.on('error',function(e){log('Call error: '+e.message);});
+  sc.on('close',function(){rmViewer(pid);});
+  sc.on('error',function(e){log('Screen call error: '+e.message);});
+
+  // ── Camera call ──
+  var camTrack=(_camOn&&_camStream)?_camStream.getVideoTracks()[0]:_dummyCamTrack;
+  if(camTrack){
+    if(_camOn&&'contentHint' in camTrack)camTrack.contentHint='motion';
+    var cc=_peer.call(pid,new MediaStream([camTrack]),{config:ICE,metadata:{type:'cam'}});
+    _viewers[pid].camCall=cc;
+    if(cc.peerConnection){
+      cc.peerConnection.oniceconnectionstatechange=function(){
+        var st=cc.peerConnection.iceConnectionState;
+        if(st==='connected'||st==='completed'){
+          cc.peerConnection.getSenders().forEach(function(s){
+            if(!s.track||s.track.kind!=='video')return;
+            var p=s.getParameters();
+            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+            p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
+            s.setParameters(p).catch(function(){});
+            _viewers[pid].camSender=s; // store for replaceTrack on cam toggle
+          });
+        }
+      };
+    }
+    cc.on('error',function(e){log('Cam call error: '+e.message);});
+  }
 }
 
 // ── PeerJS: register peer on page load so viewers can connect immediately ──
@@ -773,7 +777,11 @@ function startPeer(){
 }
 
 function rmViewer(pid){
-  if(_viewers[pid]){sys((_viewers[pid].name||'Viewer')+' left.');delete _viewers[pid];}
+  if(_viewers[pid]){
+    closeViewerCalls(pid);
+    sys((_viewers[pid].name||'Viewer')+' left.');
+    delete _viewers[pid];
+  }
   setVC(Object.keys(_viewers).length);
 }
 function broadcast(obj,excludePid){
@@ -785,12 +793,15 @@ function broadcast(obj,excludePid){
 }
 function kick(pid){
   if(!_viewers[pid])return;
-  var dc=_viewers[pid].dc,call=_viewers[pid].call;
+  var dc=_viewers[pid].dc;
   try{if(dc&&dc.open)dc.send(JSON.stringify({t:'kick'}));}catch(e){}
   setTimeout(function(){
     try{if(dc)dc.close();}catch(e){}
-    try{if(call)call.close();}catch(e){}
-    _banned.push(pid);rmViewer(pid);sys('Viewer removed.');
+    closeViewerCalls(pid);
+    _banned.push(pid);
+    if(_viewers[pid])delete _viewers[pid];
+    setVC(Object.keys(_viewers).length);
+    sys('Viewer removed.');
   },300);
 }
 function pushTitle(){
@@ -875,11 +886,7 @@ function endStream(){
   broadcast({t:'ended'});
   _drawActive=false;clearInterval(_drawInterval);_live=false;
   // Close all active calls but keep data channels — viewers stay connected and waiting
-  Object.keys(_viewers).forEach(function(pid){
-    var call=_viewers[pid].call;
-    if(call)try{call.close();}catch(e){}
-    delete _viewers[pid].call;
-  });
+  Object.keys(_viewers).forEach(function(pid){closeViewerCalls(pid);});
   [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
     if(s)s.getTracks().forEach(function(t){t.stop();});
   });

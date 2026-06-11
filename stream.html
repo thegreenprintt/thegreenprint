@@ -110,6 +110,15 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .cin::placeholder{color:rgba(240,250,243,.14)}
 .csend{height:38px;padding:0 14px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.11);color:rgba(0,255,135,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .csend:hover{background:rgba(0,255,135,.11);color:#00ff87}
+/* ── Floating chat overlay on video ── */
+#chat-overlay{position:absolute;bottom:80px;left:14px;width:270px;pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:6px}
+@media(max-width:760px){#chat-overlay{bottom:56px;left:8px;width:195px}}
+.co-msg{background:rgba(0,0,0,.54);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 10px 6px;border-left:2px solid rgba(0,255,135,.45);animation:coIn .22s ease,coOut .35s ease 7.65s forwards}
+.co-name{font-size:.56rem;font-weight:700;color:rgba(0,255,135,.8);margin-bottom:2px}
+.co-name.h{color:#00ff87}
+.co-text{font-size:.73rem;color:rgba(255,255,255,.82);line-height:1.4;word-break:break-word}
+@keyframes coIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+@keyframes coOut{from{opacity:1}to{opacity:0;transform:translateX(-6px)}}
 </style>
 </head>
 <body>
@@ -141,6 +150,8 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
     <div class="vcol">
       <div class="stage">
         <video id="vid" autoplay playsinline disableRemotePlayback></video>
+        <!-- Floating chat overlay — messages slide in from left, fade after 8s -->
+        <div id="chat-overlay"></div>
         <!-- Camera PIP — separate WebRTC track, single-encode, shown when broadcaster enables camera -->
         <video id="cam-pip" autoplay playsinline muted
           style="display:none;position:absolute;bottom:14px;right:14px;width:20%;max-width:220px;min-width:80px;aspect-ratio:16/9;object-fit:cover;transform:scaleX(-1);z-index:10;border:1px solid rgba(255,255,255,.15);background:#000;box-shadow:0 4px 20px rgba(0,0,0,.7)"></video>
@@ -299,6 +310,17 @@ function addChat(name,text,isHost){
              +'<div class="ct">'+esc(text)+'</div>';
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
+// Floating chat message that slides over the video and fades out after 8s
+function addChatOverlay(name,text,isHost){
+  var el=document.getElementById('chat-overlay');if(!el)return;
+  var m=document.createElement('div');m.className='co-msg';
+  m.innerHTML='<div class="co-name'+(isHost?' h':'')+'">'+esc(name)+'</div>'
+    +'<div class="co-text">'+esc(text)+'</div>';
+  el.appendChild(m);
+  // Keep at most 5 visible at once
+  while(el.children.length>5)el.removeChild(el.firstChild);
+  setTimeout(function(){if(m.parentNode)m.parentNode.removeChild(m);},8000);
+}
 function setLive(on){
   document.getElementById('live-badge').className='live-badge'+(on?' on':'');
   var ns=document.getElementById('navstat');
@@ -355,66 +377,56 @@ function connectToHost(){
     debug:0
   });
 
-  // Broadcaster will call us — only accept from the known host peer ID
+  // Broadcaster sends TWO labeled calls: type:'screen' (main) and type:'cam' (PIP).
+  // Identified by call.metadata.type — can never swap, layout is 100% locked.
   _peer.on('call',function(call){
     if(call.peer!==HOST_PEER_ID){
-      // Reject calls from anyone other than Jacob's broadcaster
       try{call.close();}catch(e){}
       console.warn('[SECURITY] Rejected call from unknown peer:',call.peer);
       return;
     }
-    stat('Stream arriving — answering…');
+    var type=(call.metadata&&call.metadata.type)||'screen';
     call.answer(new MediaStream());
 
-    call.on('stream',function(stream){
-      stat('Stream connected ✅');
-      var vt=stream.getVideoTracks();
-      var at=stream.getAudioTracks();
+    if(type==='cam'){
+      // ── Camera call → always PIP in corner ──
+      call.on('stream',function(stream){
+        var pip=document.getElementById('cam-pip');
+        if(pip){
+          pip.srcObject=stream;pip.muted=true;
+          pip.play().catch(function(){});
+          startPipPoll();
+        }
+      });
+      call.on('close',function(){stopPipPoll();});
 
-      // Track 0 = screen/canvas stream (with audio)
-      var screenStream=new MediaStream();
-      if(vt[0])screenStream.addTrack(vt[0]);
-      at.forEach(function(t){screenStream.addTrack(t);});
-      var v=document.getElementById('vid');
-      v.srcObject=screenStream;
-      v.muted=true;_muted=true;
-      var btn=document.getElementById('mute-btn');
-      if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
-      v.play().catch(function(){});
-
-      // Track 1 = camera raw track — route to PIP overlay.
-      // Visibility is managed by videoWidth polling (startPipPoll), not a data channel message.
-      // Dummy track = 2×2 → hidden. Real cam = 1920×1080 → shown automatically.
-      var pip=document.getElementById('cam-pip');
-      if(pip&&vt[1]){
-        pip.srcObject=new MediaStream([vt[1]]);
-        pip.muted=true;
-        pip.play().catch(function(){});
-        startPipPoll(); // watches pip.videoWidth every 500ms
+    } else {
+      // ── Screen call → always the big picture ──
+      call.on('stream',function(stream){
+        stat('Stream connected ✅');
+        var v=document.getElementById('vid');
+        v.srcObject=stream;v.muted=true;_muted=true;
+        var btn=document.getElementById('mute-btn');
+        if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
+        v.play().catch(function(){});
+        setLive(true);
+        if(_isMobile){document.getElementById('unmute-overlay').classList.add('show');}
+        if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
+      });
+      call.on('close',function(){
+        stat('Stream ended — will reconnect when Jacob goes live again…');
+        setLive(false);_sysShown.live=false;
+        document.getElementById('unmute-overlay').classList.remove('show');
+        document.getElementById('offline-msg').style.display='flex';
+        stopPipPoll();
+        if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
+        scheduleReconnect(5000);
+      });
+      if(call.peerConnection){
+        call.peerConnection.oniceconnectionstatechange=function(){
+          stat('ICE: '+call.peerConnection.iceConnectionState);
+        };
       }
-
-      setLive(true);
-      if(_isMobile){document.getElementById('unmute-overlay').classList.add('show');}
-      if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
-    });
-
-    call.on('close',function(){
-      stat('Stream ended — will reconnect when Jacob goes live again…');
-      setLive(false);
-      _sysShown.live=false;
-      document.getElementById('unmute-overlay').classList.remove('show');
-      document.getElementById('offline-msg').style.display='flex';
-      stopPipPoll(); // clears interval + hides PIP
-      if(!_sysShown.ended){_sysShown.ended=true;addSys('Stream ended — reconnecting automatically.');}
-      scheduleReconnect(5000);
-    });
-
-    if(call.peerConnection){
-      call.peerConnection.oniceconnectionstatechange=function(){
-        var s=call.peerConnection.iceConnectionState;
-        stat('ICE: '+s);
-        console.log('[ICE]',s);
-      };
     }
   });
 
@@ -436,7 +448,7 @@ function connectToHost(){
     dc.on('data',function(raw){
       try{
         var m=JSON.parse(raw);
-        if(m.t==='chat')  addChat(m.n,m.x,m.h);
+        if(m.t==='chat'){addChat(m.n,m.x,m.h);addChatOverlay(m.n,m.x,m.h);}
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
         if(m.t==='cam'){
           // Fast-path: instant show/hide when broadcaster clicks camera button.
