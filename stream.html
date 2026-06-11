@@ -48,7 +48,13 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 #vid::-webkit-media-text-track-container,
 #vid::-webkit-media-text-track-display,
 #vid::cue{display:none!important;visibility:hidden!important}
-#vid{width:100%;height:100%;object-fit:contain;display:block}
+/* GPU compositor layer — eliminates software-decoded choppiness */
+#vid{width:100%;height:100%;object-fit:contain;display:block;will-change:transform;transform:translateZ(0)}
+/* Fullscreen: video fills screen */
+.stage:-webkit-full-screen,
+.stage:fullscreen{width:100vw;height:100vh;background:#000}
+.stage:-webkit-full-screen #vid,
+.stage:fullscreen #vid{width:100%;height:100%;object-fit:contain}
 .offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:32px;background:#030303}
 .offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
 .ot{font-weight:300;font-size:.85rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
@@ -62,8 +68,8 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pp 1.8s infinite}
 @keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
 /* Mute button */
-#mute-btn{height:32px;padding:0 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s;border-radius:2px}
-#mute-btn:hover{background:rgba(255,255,255,.09);color:rgba(240,250,243,.85)}
+#mute-btn,#fs-btn{height:32px;padding:0 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s;border-radius:2px}
+#mute-btn:hover,#fs-btn:hover{background:rgba(255,255,255,.09);color:rgba(240,250,243,.85)}
 #mute-btn.muted{background:rgba(255,59,92,.08);border-color:rgba(255,59,92,.25);color:rgba(255,59,92,.7)}
 /* On mobile, make the bar more compact so it doesn't crowd portrait mode */
 @media(max-width:760px){
@@ -135,8 +141,9 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
           <div class="btitle" id="stream-title">The Greenprint — Live Session</div>
           <div class="bhost">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           <button id="mute-btn" onclick="toggleMute()">🔊 Unmute</button>
+          <button id="fs-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
           <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
         </div>
       </div>
@@ -181,6 +188,34 @@ function toggleMute(){
   if(_muted){btn.textContent='🔇 Muted';btn.classList.add('muted');}
   else{btn.textContent='🔊 Live Audio';btn.classList.remove('muted');}
 }
+
+function toggleFullscreen(){
+  var stage=document.querySelector('.stage');
+  var btn=document.getElementById('fs-btn');
+  var inFs=document.fullscreenElement||document.webkitFullscreenElement;
+  if(!inFs){
+    // Fullscreen the stage div (video fills it via CSS)
+    var req=stage.requestFullscreen||stage.webkitRequestFullscreen||stage.mozRequestFullScreen;
+    if(req)req.call(stage);
+    else{
+      // iOS Safari fallback: fullscreen the video element directly
+      var v=document.getElementById('vid');
+      if(v.webkitEnterFullscreen)v.webkitEnterFullscreen();
+    }
+  } else {
+    var ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen;
+    if(ex)ex.call(document);
+  }
+}
+// Update button label when fullscreen changes
+document.addEventListener('fullscreenchange',function(){
+  var btn=document.getElementById('fs-btn');if(!btn)return;
+  btn.textContent=document.fullscreenElement?'✕ Exit Full':'⛶ Fullscreen';
+});
+document.addEventListener('webkitfullscreenchange',function(){
+  var btn=document.getElementById('fs-btn');if(!btn)return;
+  btn.textContent=document.webkitFullscreenElement?'✕ Exit Full':'⛶ Fullscreen';
+});
 
 // Initialize button state
 (function(){
