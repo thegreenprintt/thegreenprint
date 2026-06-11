@@ -2,921 +2,389 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.googleapis.com https://fonts.gstatic.com data:; connect-src 'self' https://api.clerk.com https://*.clerk.accounts.dev wss:; img-src 'self' data: blob: https:; media-src blob: mediastream:; worker-src blob:;">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Watch Live | The Greenprint</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Greenprint — Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ─────────────────────────────────────────
-   RESET + TOKENS
-───────────────────────────────────────── */
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-:root{
-  --g:#00ff87; --g2:#00c853; --g3:#00a844;
-  --k:#030303; --k2:#070707; --k3:#0a0a0a;
-  --w:#f0faf3; --w2:rgba(240,250,243,.65); --w3:rgba(240,250,243,.28);
-  --glass:rgba(255,255,255,.03);
-  --glass-border:rgba(255,255,255,.07);
-  --green-glow:rgba(0,200,83,.18);
-  --green-border:rgba(0,255,135,.14);
-  --r: #ff3b5c;
-  --ease:cubic-bezier(.16,1,.3,1);
-}
-html,body{height:100%;background:var(--k);color:var(--w);font-family:'Urbanist',sans-serif;overflow-x:hidden;}
-::selection{background:rgba(0,255,135,.2);color:var(--w);}
-::-webkit-scrollbar{width:2px;}
-::-webkit-scrollbar-thumb{background:rgba(0,200,83,.3);}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif;overflow-x:hidden}
 
-/* ─────────────────────────────────────────
-   UNIVERSAL TOPBAR
-───────────────────────────────────────── */
-#topbar{
-  position:fixed;top:0;left:0;right:0;z-index:900;
-  height:58px;
-  background:rgba(3,3,3,.88);
-  backdrop-filter:blur(24px) saturate(180%);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  border-bottom:1px solid var(--glass-border);
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 28px;
-}
-.tb-brand{
-  display:flex;align-items:center;gap:12px;text-decoration:none;
-}
-.tb-wordmark{
-  font-family:'Urbanist',sans-serif;font-weight:700;font-size:.78rem;
-  letter-spacing:.28em;text-transform:uppercase;
-  color:rgba(240,250,243,.92);
-  display:flex;align-items:center;gap:6px;
-}
-.tb-dot{
-  display:inline-block;width:5px;height:5px;border-radius:50%;
-  background:var(--g);flex-shrink:0;margin-left:2px;
-  box-shadow:0 0 8px rgba(0,255,135,.5);
-}
-.tb-right{display:flex;align-items:center;gap:20px;}
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.95);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
+.nav-brand{font-family:'Urbanist',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(240,250,243,.85);display:flex;align-items:center;gap:8px}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.6)}
+.nav-back{font-size:.65rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.3);text-decoration:none}
+.nav-back:hover{color:rgba(0,255,135,.7)}
+#nav-status{font-size:.65rem;font-weight:500;letter-spacing:.12em;text-transform:lowercase;color:rgba(240,250,243,.2)}
+#nav-status.live{color:rgba(255,59,92,.75)}
 
-.tb-back{
-  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:500;
-  letter-spacing:.16em;text-transform:uppercase;
-  color:var(--w3);text-decoration:none;transition:color .2s;
-}
-.tb-back:hover{color:var(--g);}
+/* GATE */
+#gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:80px 20px 20px;z-index:50}
+.gate-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.05) 0%,transparent 65%);pointer-events:none}
+.gate-box{width:100%;max-width:420px;position:relative;z-index:1}
+.gate-label{font-size:.6rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.45);margin-bottom:32px;text-align:center}
+.gate-title{font-family:'Syne',sans-serif;font-size:clamp(2.2rem,6vw,3rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:12px}
+.gate-title span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gate-sub{font-size:.84rem;font-weight:300;color:rgba(240,250,243,.5);line-height:1.75;margin-bottom:32px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.58rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:6px}
+.field input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:300;outline:none;transition:border-color .2s}
+.field input:focus{border-color:rgba(0,255,135,.3)}
+.field input::placeholder{color:rgba(240,250,243,.2)}
+#gate-err{font-size:.7rem;font-weight:500;color:#ff3b5c;margin-bottom:12px;display:none;min-height:20px}
+#continue-btn{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .15s;margin-top:4px}
+#continue-btn:hover{opacity:.9;transform:translateY(-1px)}
+#continue-btn:active{transform:translateY(0)}
+.gate-fine{font-size:.65rem;font-weight:300;color:rgba(240,250,243,.25);text-align:center;margin-top:16px;line-height:1.6}
 
-/* ─────────────────────────────────────────
-   GATE — FULL SCREEN AUTH FLOW
-───────────────────────────────────────── */
-#gate{
-  position:fixed;inset:0;z-index:800;
-  background:var(--k);
-  display:flex;align-items:center;justify-content:center;
-  padding:80px 24px 24px;
-  overflow-y:auto;
-}
-/* Ambient background */
-.gate-ambient{
-  position:absolute;inset:0;pointer-events:none;overflow:hidden;
-}
-.gate-ambient::before{
-  content:'';position:absolute;
-  top:-20%;left:50%;transform:translateX(-50%);
-  width:800px;height:800px;border-radius:50%;
-  background:radial-gradient(circle,rgba(0,200,83,.06) 0%,transparent 65%);
-}
-.gate-ambient::after{
-  content:'';position:absolute;inset:0;
-  background-image:
-    linear-gradient(rgba(0,255,135,.018) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(0,255,135,.018) 1px,transparent 1px);
-  background-size:48px 48px;
-}
+/* MAIN STREAM */
+#main{display:none;padding-top:56px;height:100vh}
+.stream-wrap{display:grid;grid-template-columns:1fr 290px;height:calc(100vh - 56px)}
+@media(max-width:900px){.stream-wrap{grid-template-columns:1fr}}
 
-.gate-wrap{
-  position:relative;z-index:1;
-  width:100%;max-width:440px;
-}
+/* VIDEO */
+.vid-col{display:flex;flex-direction:column;background:#000}
+.vid-stage{flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center}
+#streamVideo{width:100%;height:100%;object-fit:contain;display:block}
 
-/* Brand header above card */
-.gate-brand{
-  text-align:center;margin-bottom:40px;
-}
-.gate-brand-logo{
-  font-family:'Syne',sans-serif;font-size:clamp(1.2rem,3vw,1.5rem);
-  letter-spacing:-.01em;
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  margin-bottom:4px;
-}
-.gate-brand-tag{
-  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:500;
-  letter-spacing:.38em;text-transform:uppercase;color:var(--w3);
-}
+.offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:40px}
+.offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:48px 48px}
+.offline-title{font-family:'Urbanist',sans-serif;font-weight:300;font-size:1rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
+.offline-sub{font-size:.74rem;font-weight:300;color:rgba(240,250,243,.15);line-height:1.8;position:relative;z-index:1}
 
-/* Progress steps */
-.gate-progress{
-  display:flex;align-items:center;justify-content:center;
-  gap:0;margin-bottom:32px;
-}
-.gp-step{
-  display:flex;align-items:center;gap:8px;
-  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--w3);
-  transition:color .3s;
-}
-.gp-step.active{color:var(--g);}
-.gp-step.done{color:rgba(0,255,135,.45);}
-.gp-num{
-  width:20px;height:20px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.08);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.6rem;font-weight:700;transition:all .3s;
-}
-.gp-step.active .gp-num{
-  border-color:var(--g);
-  background:rgba(0,255,135,.1);color:var(--g);
-}
-.gp-step.done .gp-num{
-  background:var(--g);border-color:var(--g);color:#020202;
-}
-.gp-line{
-  width:48px;height:1px;
-  background:rgba(255,255,255,.06);
-  margin:0 8px;transition:background .3s;
-}
-.gp-line.done{background:rgba(0,255,135,.3);}
+.vid-bar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.vid-info-title{font-size:.8rem;font-weight:500;color:rgba(240,250,243,.55);letter-spacing:.04em}
+.vid-info-host{font-size:.68rem;font-weight:300;color:rgba(240,250,243,.25);margin-top:2px}
+.vid-badges{display:flex;align-items:center;gap:14px}
+#liveBadge{display:none;align-items:center;gap:6px;font-size:.6rem;font-weight:600;letter-spacing:.16em;text-transform:lowercase;color:rgba(255,59,92,.7)}
+#liveBadge.show{display:flex}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#ff3b5c;animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
+#viewerBadge{display:none;font-size:.65rem;font-weight:400;color:rgba(240,250,243,.25)}
+#viewerBadge.show{display:flex;align-items:center;gap:5px}
 
-/* The card */
-.gate-card{
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  backdrop-filter:blur(20px);
-  padding:clamp(28px,5vw,44px);
-  position:relative;overflow:hidden;
-}
-.gate-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(0,255,135,.35),transparent);
-}
+/* BROADCASTER CONTROLS */
+#bcStrip{display:none;background:rgba(3,3,3,.99);border-top:1px solid rgba(255,255,255,.04);padding:8px 20px;gap:8px;flex-wrap:wrap;align-items:center}
+#bcStrip.show{display:flex}
+.bc-btn{height:34px;padding:0 14px;font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(240,250,243,.45);transition:all .2s}
+.bc-btn:hover{border-color:rgba(0,255,135,.3);color:rgba(0,255,135,.7)}
+.bc-btn.on{border-color:rgba(0,255,135,.4);color:#00ff87;background:rgba(0,255,135,.06)}
+.bc-btn.danger{border-color:rgba(255,59,92,.35);color:#ff3b5c}
+.bc-btn.go{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-weight:700}
+.bc-btn.go:hover{opacity:.9}
+.bc-spacer{flex:1}
+#bcStatus{font-size:.6rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25)}
 
-.gate-heading{
-  font-family:'Syne',sans-serif;
-  font-size:clamp(2rem,5vw,2.8rem);
-  line-height:.92;letter-spacing:-.03em;
-  margin-bottom:10px;
-}
-.gate-heading em{
-  font-style:normal;
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-}
-.gate-desc{
-  font-size:.82rem;font-weight:300;line-height:1.78;
-  color:var(--w2);margin-bottom:28px;
-}
-
-/* Form fields */
-.field-group{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-.field{
-  position:relative;
-}
-.field-label{
-  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;
-  letter-spacing:.26em;text-transform:uppercase;color:rgba(0,255,135,.4);
-  margin-bottom:6px;display:block;
-}
-.field-input{
-  width:100%;height:48px;
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.08);
-  color:var(--w);padding:0 16px;
-  font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:300;
-  letter-spacing:.02em;
-  outline:none;transition:border-color .25s,background .25s;
-  border-radius:0;-webkit-appearance:none;
-}
-.field-input:focus{
-  border-color:rgba(0,255,135,.35);
-  background:rgba(0,255,135,.02);
-}
-.field-input::placeholder{color:rgba(240,250,243,.18);font-size:.82rem;}
-
-/* Primary button */
-.gate-cta{
-  width:100%;height:50px;
-  background:linear-gradient(135deg,var(--g) 0%,var(--g2) 60%,var(--g3) 100%);
-  background-size:200% auto;
-  color:#020202;border:none;
-  font-family:'Urbanist',sans-serif;font-weight:700;
-  font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
-  cursor:pointer;
-  position:relative;overflow:hidden;
-  transition:background-position .4s,box-shadow .3s,transform .2s;
-}
-.gate-cta::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
-  transform:translateX(-100%);
-  transition:transform .6s;
-}
-.gate-cta:hover{
-  background-position:right center;
-  box-shadow:0 8px 40px rgba(0,200,83,.3),0 2px 8px rgba(0,200,83,.15);
-  transform:translateY(-1px);
-}
-.gate-cta:hover::after{transform:translateX(100%);}
-.gate-cta:active{transform:translateY(0);}
-.gate-cta:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;}
-
-.gate-err{
-  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
-  letter-spacing:.1em;text-transform:uppercase;
-  color:#ff3b5c;margin-top:10px;display:none;
-}
-.gate-fine{
-  font-size:.65rem;font-weight:300;color:var(--w3);
-  line-height:1.65;margin-top:16px;text-align:center;
-}
-.gate-divider{
-  display:flex;align-items:center;gap:14px;margin:20px 0;
-}
-.gate-divider::before,.gate-divider::after{
-  content:'';flex:1;height:1px;background:rgba(255,255,255,.06);
-}
-.gate-divider span{
-  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:500;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--w3);
-}
-
-/* Clerk mount */
-#clerk-mount .cl-rootBox{background:transparent!important;}
-#clerk-fallback{padding:0;}
-
-/* ─────────────────────────────────────────
-   PAYWALL
-───────────────────────────────────────── */
-#paywall{
-  position:fixed;inset:0;z-index:800;
-  background:var(--k);display:none;
-  align-items:center;justify-content:center;
-  padding:80px 24px 24px;overflow-y:auto;
-}
-.pw-wrap{
-  position:relative;z-index:1;
-  width:100%;max-width:520px;text-align:center;
-}
-.pw-eyebrow{
-  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;
-  letter-spacing:.38em;text-transform:uppercase;color:rgba(0,255,135,.4);
-  margin-bottom:14px;
-}
-.pw-heading{
-  font-family:'Syne',sans-serif;
-  font-size:clamp(2.4rem,7vw,4rem);
-  line-height:.9;letter-spacing:-.04em;margin-bottom:14px;
-}
-.pw-heading em{
-  font-style:normal;
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-}
-.pw-sub{
-  font-size:.86rem;font-weight:300;color:var(--w2);
-  line-height:1.78;margin-bottom:36px;max-width:400px;
-  margin-left:auto;margin-right:auto;
-}
-.pw-plans{
-  display:grid;grid-template-columns:1fr 1fr;gap:2px;
-  margin-bottom:24px;
-  background:rgba(0,255,135,.06);
-}
-@media(max-width:480px){.pw-plans{grid-template-columns:1fr;}}
-.pw-plan{
-  background:var(--k2);padding:24px 20px;text-align:left;
-  cursor:pointer;transition:background .25s;position:relative;
-}
-.pw-plan:hover,.pw-plan.sel{background:rgba(0,255,135,.05);}
-.pw-plan.sel::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--g),transparent);
-}
-.pw-plan-label{
-  font-family:'Urbanist',sans-serif;font-size:.54rem;font-weight:700;
-  letter-spacing:.22em;text-transform:uppercase;color:rgba(0,255,135,.45);margin-bottom:6px;
-}
-.pw-plan-name{
-  font-family:'Syne',sans-serif;font-size:1.5rem;
-  letter-spacing:-.02em;color:var(--w);margin-bottom:8px;
-}
-.pw-plan-price{
-  font-family:'Syne',sans-serif;font-size:2.2rem;letter-spacing:-.03em;
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  line-height:1;
-}
-.pw-plan-period{font-size:.7rem;color:var(--w3);letter-spacing:.06em;}
-.pw-cta{
-  display:block;width:100%;height:52px;
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  color:#020202;border:none;
-  font-family:'Urbanist',sans-serif;font-weight:700;
-  font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;
-  cursor:pointer;text-decoration:none;line-height:52px;text-align:center;
-  position:relative;overflow:hidden;
-  transition:box-shadow .3s,transform .2s;
-}
-.pw-cta:hover{box-shadow:0 8px 40px rgba(0,200,83,.3);transform:translateY(-1px);}
-.pw-note{font-size:.62rem;color:var(--w3);margin-top:12px;letter-spacing:.04em;}
-
-/* ─────────────────────────────────────────
-   MAIN STREAM LAYOUT
-───────────────────────────────────────── */
-#main{display:none;padding-top:58px;height:100vh;overflow:hidden;}
-.stream-root{
-  display:grid;
-  grid-template-columns:1fr 300px;
-  height:calc(100vh - 58px);
-}
-@media(max-width:960px){.stream-root{grid-template-columns:1fr;}}
-
-/* ── VIDEO PANE ── */
-.vid-pane{
-  display:flex;flex-direction:column;
-  background:#000;position:relative;
-}
-.vid-stage{
-  flex:1;position:relative;
-  background:#000;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-}
-#streamVideo{
-  width:100%;height:100%;
-  object-fit:contain;display:block;
-  background:#000;
-}
-
-/* Offline state */
-.offline-state{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:18px;text-align:center;padding:40px;
-  background:linear-gradient(160deg,#040404,#070707);
-}
-.offline-grid{
-  position:absolute;inset:0;
-  background-image:
-    linear-gradient(rgba(0,255,135,.015) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(0,255,135,.015) 1px,transparent 1px);
-  background-size:52px 52px;
-}
-.offline-orb{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:400px;height:400px;border-radius:50%;
-  background:radial-gradient(circle,rgba(0,200,83,.05) 0%,transparent 65%);
-  pointer-events:none;
-}
-.offline-icon{
-  width:64px;height:64px;
-  border:1px solid rgba(0,255,135,.1);
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.6rem;position:relative;z-index:1;
-  color:rgba(245,255,248,.15);
-}
-.offline-title{
-  font-family:'Syne',sans-serif;
-  font-size:clamp(1.8rem,4vw,3rem);
-  letter-spacing:-.03em;
-  color:rgba(240,250,243,.15);position:relative;z-index:1;
-}
-.offline-sub{
-  font-size:.8rem;font-weight:300;color:rgba(240,250,243,.2);
-  max-width:280px;line-height:1.7;position:relative;z-index:1;
-}
-.offline-notify{
-  display:flex;align-items:center;gap:8px;
-  border:1px solid rgba(0,255,135,.12);
-  padding:10px 20px;font-family:'Urbanist',sans-serif;
-  font-size:.62rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
-  color:rgba(0,255,135,.45);position:relative;z-index:1;
-  cursor:pointer;transition:all .25s;background:transparent;
-}
-.offline-notify:hover{border-color:rgba(0,255,135,.35);color:var(--g);background:rgba(0,255,135,.04);}
-
-/* Stream bottom bar */
-.vid-bottom{
-  background:rgba(5,5,5,.98);
-  border-top:1px solid rgba(255,255,255,.05);
-  padding:14px 20px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:14px;flex-wrap:wrap;
-}
-.vid-info{}
-.vid-title{
-  font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:600;
-  color:rgba(240,250,243,.9);margin-bottom:3px;
-}
-.vid-host{
-  font-size:.7rem;font-weight:300;color:var(--w3);letter-spacing:.04em;
-}
-.vid-meta{display:flex;align-items:center;gap:16px;}
-.live-badge{
-  display:flex;align-items:center;gap:6px;
-  padding:4px 10px;
-  background:rgba(255,59,92,.1);
-  border:1px solid rgba(255,59,92,.25);
-  font-family:'Urbanist',sans-serif;font-size:.55rem;font-weight:700;
-  letter-spacing:.2em;text-transform:uppercase;color:#ff3b5c;
-  display:none;
-}
-.live-badge-dot{
-  width:5px;height:5px;border-radius:50%;background:#ff3b5c;
-  animation:livering 1.8s infinite;
-}
-.viewer-badge{
-  display:flex;align-items:center;gap:5px;
-  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:500;
-  color:var(--w3);display:none;
-}
-
-/* Broadcaster controls */
-.bc-strip{
-  background:rgba(4,4,4,.99);
-  border-top:1px solid rgba(255,255,255,.04);
-  padding:10px 20px;
-  display:none;align-items:center;gap:8px;flex-wrap:wrap;
-}
-.bc-strip.show{display:flex;}
-.bc-btn{
-  display:inline-flex;align-items:center;gap:6px;
-  height:34px;padding:0 14px;
-  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
-  letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
-  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);
-  color:var(--w3);transition:all .2s;white-space:nowrap;
-}
-.bc-btn:hover{border-color:rgba(0,255,135,.3);color:rgba(0,255,135,.7);background:rgba(0,255,135,.04);}
-.bc-btn.on{border-color:rgba(0,255,135,.4);color:var(--g);background:rgba(0,255,135,.06);}
-.bc-btn.danger{border-color:rgba(255,59,92,.3);color:#ff3b5c;background:rgba(255,59,92,.06);}
-.bc-btn.primary{
-  background:linear-gradient(135deg,var(--g),var(--g2));
-  color:#020202;border:none;font-weight:700;
-}
-.bc-btn.primary:hover{box-shadow:0 4px 20px rgba(0,200,83,.3);}
-.bc-spacer{flex:1;}
-.bc-status{
-  font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;
-  letter-spacing:.16em;text-transform:uppercase;color:var(--w3);
-}
-
-/* ── CHAT SIDEBAR ── */
-.chat-panel{
-  display:flex;flex-direction:column;
-  background:var(--k2);
-  border-left:1px solid rgba(255,255,255,.05);
-}
-@media(max-width:960px){.chat-panel{display:none;}}
-.chat-top{
-  padding:16px 18px;
-  border-bottom:1px solid rgba(255,255,255,.05);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.chat-top-label{
-  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--w3);
-}
-#chatViewerCount{
-  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
-  letter-spacing:.12em;color:rgba(0,255,135,.45);
-}
-.chat-feed{
-  flex:1;overflow-y:auto;padding:16px 14px;
-  display:flex;flex-direction:column;gap:12px;
-}
-.chat-item{display:flex;flex-direction:column;gap:2px;}
-.chat-name{
-  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
-  letter-spacing:.06em;color:rgba(0,255,135,.6);
-}
-.chat-name.host-name{color:var(--g);}
-.chat-name.system-name{color:rgba(255,255,255,.2);}
-.chat-text{
-  font-size:.78rem;font-weight:300;color:rgba(240,250,243,.65);line-height:1.55;
-}
-.chat-text.system-text{color:rgba(255,255,255,.2);font-style:italic;font-size:.72rem;}
-.chat-foot{
-  padding:12px 14px;
-  border-top:1px solid rgba(255,255,255,.05);
-  display:flex;gap:6px;
-}
-.chat-in{
-  flex:1;height:38px;
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.07);
-  color:var(--w);padding:0 13px;
-  font-family:'Urbanist',sans-serif;font-size:.82rem;
-  outline:none;border-radius:0;-webkit-appearance:none;
-  transition:border-color .2s;
-}
-.chat-in:focus{border-color:rgba(0,255,135,.28);}
-.chat-in::placeholder{color:rgba(240,250,243,.16);font-size:.76rem;}
-.chat-go{
-  height:38px;padding:0 14px;
-  background:rgba(0,255,135,.08);
-  border:1px solid rgba(0,255,135,.15);
-  color:rgba(0,255,135,.7);cursor:pointer;
-  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
-  letter-spacing:.1em;text-transform:uppercase;transition:all .2s;
-}
-.chat-go:hover{background:rgba(0,255,135,.15);color:var(--g);}
+/* CHAT */
+.chat-col{display:flex;flex-direction:column;background:#080808;border-left:1px solid rgba(255,255,255,.05)}
+@media(max-width:900px){.chat-col{display:none}}
+.chat-hd{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center}
+.chat-hd-label{font-size:.6rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.25)}
+#chatVC{font-size:.6rem;font-weight:600;letter-spacing:.1em;color:rgba(0,255,135,.4)}
+.chat-feed{flex:1;overflow-y:auto;padding:14px 14px;display:flex;flex-direction:column;gap:10px}
+.chat-feed::-webkit-scrollbar{width:2px}
+.chat-feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.2)}
+.msg{display:flex;flex-direction:column;gap:2px}
+.msg-name{font-size:.62rem;font-weight:600;color:rgba(0,255,135,.55);letter-spacing:.04em}
+.msg-name.host{color:#00ff87}
+.msg-name.sys{color:rgba(255,255,255,.15)}
+.msg-text{font-size:.78rem;font-weight:300;color:rgba(240,250,243,.6);line-height:1.55}
+.msg-text.sys{color:rgba(255,255,255,.2);font-style:italic;font-size:.72rem}
+.chat-ft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
+.chat-in{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s}
+.chat-in:focus{border-color:rgba(0,255,135,.25)}
+.chat-in::placeholder{color:rgba(240,250,243,.15);font-size:.76rem}
+.chat-send{height:36px;padding:0 14px;background:rgba(0,255,135,.07);border:1px solid rgba(0,255,135,.14);color:rgba(0,255,135,.65);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+.chat-send:hover{background:rgba(0,255,135,.14);color:#00ff87}
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
-<div id="topbar">
-  <a href="live.html" class="tb-brand">
-    <div class="tb-wordmark">THE GREENPRINT<span class="tb-dot"></span></div>
-  </a>
-  <div class="tb-right">
-    <div id="tb-status-label">
-      <span id="tb-live-dot-sm"></span>
-      <span id="tb-live-text">offline</span>
-    </div>
-    <a href="index.html" class="tb-back">← Back</a>
+<nav>
+  <div class="nav-brand"><div class="nav-dot"></div>THE GREENPRINT</div>
+  <div style="display:flex;align-items:center;gap:20px">
+    <span id="nav-status">offline</span>
+    <a href="index.html" class="nav-back">← Back</a>
   </div>
-</div>
+</nav>
 
-<!-- ═══════════════════════════════════════════════
-     GATE
-═══════════════════════════════════════════════ -->
+<!-- GATE -->
 <div id="gate">
-  <div class="gate-ambient"></div>
-  <div class="gate-wrap">
+  <div class="gate-bg"></div>
+  <div class="gate-box">
+    <div class="gate-label">Exclusive Live Access</div>
+    <h1 class="gate-title">Watch The<br><span>Greenprint Live.</span></h1>
+    <p class="gate-sub">Enter your details to access live day trading sessions, strategy breakdowns, and real-time Q&amp;A.</p>
 
-    <div class="gate-brand">
-      <div class="gate-brand-logo">The Greenprint</div>
-      <div class="gate-brand-tag">Exclusive Live Access</div>
+    <div class="field">
+      <label for="g-name">Full Name</label>
+      <input type="text" id="g-name" placeholder="Your full name" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="g-email">Email Address</label>
+      <input type="email" id="g-email" placeholder="you@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label for="g-phone">Phone Number</label>
+      <input type="tel" id="g-phone" placeholder="+1 (555) 000-0000" autocomplete="tel">
     </div>
 
-    <div class="gate-progress">
-      <div class="gp-step active" id="gp1">
-        <div class="gp-num" id="gpn1">1</div>
-        <span>Subscribe</span>
-      </div>
-      <div class="gp-line" id="gpl1"></div>
-      <div class="gp-step" id="gp2">
-        <div class="gp-num" id="gpn2">2</div>
-        <span>Sign In</span>
-      </div>
-    </div>
-
-    <div class="gate-card">
-
-      <!-- STEP 1 -->
-      <div id="s1">
-        <h1 class="gate-heading">Watch The<br><em>Greenprint Live.</em></h1>
-        <p class="gate-desc">Enter your details below to unlock access to live day trading sessions, strategy breakdowns, and real-time Q&amp;A.</p>
-
-        <div class="field-group">
-          <div class="field">
-            <label class="field-label" for="f-name">Full Name</label>
-            <input class="field-input" id="f-name" type="text" placeholder="Full Name" autocomplete="name">
-          </div>
-          <div class="field">
-            <label class="field-label" for="f-email">Email Address</label>
-            <input class="field-input" id="f-email" type="email" placeholder="you@example.com" autocomplete="email">
-          </div>
-          <div class="field">
-            <label class="field-label" for="f-phone">Phone Number</label>
-            <input class="field-input" id="f-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel">
-          </div>
-        </div>
-
-        <button class="gate-cta" id="subBtn" onclick="handleSubscribe()">Continue →</button>
-        <div class="gate-err" id="sub-err"></div>
-        <p class="gate-fine">Your information is used only for access verification and will never be shared or sold.</p>
-      </div>
-
-      <!-- STEP 2 -->
-      <div id="s2" style="display:none;">
-        <h2 class="gate-heading" style="font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.03em;margin-bottom:10px;">Create or Sign<br><em>Into Your Account.</em></h2>
-        <p class="gate-desc">Secure your session with a verified account.</p>
-        <div id="clerk-mount"></div>
-        <div id="clerk-fallback" style="display:none;">
-          <div style="background:rgba(0,255,135,.03);border:1px solid rgba(0,255,135,.1);padding:22px;">
-            <p style="font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:10px;">Clerk Not Configured</p>
-            <p style="font-size:.8rem;font-weight:300;color:var(--w2);line-height:1.7;margin-bottom:18px;">Set your <code style="color:var(--g);font-size:.78rem;background:rgba(0,255,135,.06);padding:1px 6px;">CLERK_KEY</code> in live.html to enable full authentication. Access granted via subscription for now.</p>
-            <button onclick="onAuthDone()" style="height:46px;padding:0 24px;background:linear-gradient(135deg,var(--g),var(--g2));color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;width:100%;">Enter Stream →</button>
-          </div>
-        </div>
-      </div>
-
-    </div>
+    <div id="gate-err"></div>
+    <button id="continue-btn" onclick="goLive()">Continue →</button>
+    <p class="gate-fine">Your information is private and will never be shared or sold.</p>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════
-     PAYWALL
-═══════════════════════════════════════════════ -->
-<div id="paywall">
-  <div class="gate-ambient"></div>
-  <div class="pw-wrap">
-    <p class="pw-eyebrow">Members Only</p>
-    <h2 class="pw-heading">Unlock Live<br><em>Access.</em></h2>
-    <p class="pw-sub">Join The Greenprint to access live day trading sessions, strategy breakdowns, and real-time coaching with Jacob.</p>
-    <div class="pw-plans">
-      <div class="pw-plan sel" id="plan-a">
-        <div class="pw-plan-label">Tier 02</div>
-        <div class="pw-plan-name">Day Trader</div>
-        <div class="pw-plan-price">$99</div>
-        <div class="pw-plan-period">/ month</div>
-      </div>
-      <div class="pw-plan" id="plan-b">
-        <div class="pw-plan-label">Tier 03 — Best Value</div>
-        <div class="pw-plan-name">All Access</div>
-        <div class="pw-plan-price">$165</div>
-        <div class="pw-plan-period">/ month + $199 setup</div>
-      </div>
-    </div>
-    <a href="https://subscribe.1houseglobal.com/jay" target="_blank" rel="noopener noreferrer" class="pw-cta">Get Access Now →</a>
-    <p class="pw-note">Delivered through our licensed education partner. Cancel anytime.</p>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════
-     MAIN STREAM VIEW
-═══════════════════════════════════════════════ -->
+<!-- STREAM -->
 <div id="main">
-  <div class="stream-root">
-
-    <!-- VIDEO -->
-    <div class="vid-pane">
+  <div class="stream-wrap">
+    <div class="vid-col">
       <div class="vid-stage">
-        <video id="streamVideo" autoplay muted playsinline></video>
-
-        <!-- Offline overlay -->
-        <div class="offline-state" id="offlineOverlay">
-          <div class="offline-grid"></div>
-          <div class="offline-orb"></div>
+        <video id="streamVideo" autoplay playsinline></video>
+        <div class="offline" id="offlineBox">
           <div class="offline-title">Not Live Yet</div>
           <div class="offline-sub">Jacob will appear here when the session starts.</div>
-          <button class="offline-notify" onclick="addSysMsg('You'll be notified when Jacob goes live.')">Notify me</button>
         </div>
       </div>
 
-      <!-- Bottom info bar -->
-      <div class="vid-bottom">
-        <div class="vid-info">
-          <div class="vid-title" id="streamTitle">The Greenprint — Live Session</div>
-          <div class="vid-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
+      <div class="vid-bar">
+        <div>
+          <div class="vid-info-title">The Greenprint — Live Session</div>
+          <div class="vid-info-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
         </div>
-        <div class="vid-meta">
-          <div class="live-badge" id="liveBadge"><div class="live-badge-dot"></div><span class="live-badge-text">live</span></div>
-          <div class="viewer-badge" id="viewerBadge">
-            <span>👁</span><span id="vcNum">0</span>&nbsp;watching
-          </div>
+        <div class="vid-badges">
+          <div id="liveBadge"><div class="live-dot"></div>live</div>
+          <div id="viewerBadge">👁 <span id="vcNum">0</span>&nbsp;watching</div>
         </div>
       </div>
 
-      <!-- Broadcaster bar -->
-      <div class="bc-strip" id="bcStrip">
-        <button class="bc-btn primary" id="startBtn" onclick="startStream()">🔴 &nbsp;Go Live</button>
-        <button class="bc-btn danger" id="stopBtn" style="display:none;" onclick="stopStream()">⬛ &nbsp;End Stream</button>
-        <button class="bc-btn" id="micBtn" onclick="toggleMic()">🎙 &nbsp;Mic On</button>
-        <button class="bc-btn" id="camBtn" onclick="toggleCam()">📷 &nbsp;Camera</button>
+      <div id="bcStrip">
+        <button class="bc-btn go" id="startBtn" onclick="startStream()">🔴 &nbsp;Go Live</button>
+        <button class="bc-btn danger" id="stopBtn" style="display:none" onclick="stopStream()">⬛ &nbsp;End Stream</button>
+        <button class="bc-btn" id="micBtn" onclick="toggleMic()">🎙 &nbsp;Mic</button>
         <div class="bc-spacer"></div>
-        <div class="bc-status" id="bcStatus">Ready to broadcast</div>
+        <span id="bcStatus"></span>
       </div>
     </div>
 
-    <!-- CHAT -->
-    <div class="chat-panel">
-      <div class="chat-top">
-        <div class="chat-top-label">Live Chat</div>
-        <div id="chatViewerCount">0 viewers</div>
+    <div class="chat-col">
+      <div class="chat-hd">
+        <span class="chat-hd-label">Live Chat</span>
+        <span id="chatVC">0 viewers</span>
       </div>
       <div class="chat-feed" id="chatFeed"></div>
-      <div class="chat-foot">
-        <input class="chat-in" id="chatInput" type="text" placeholder="Say something…" maxlength="200"
-          onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="chat-go" onclick="sendChat()">Send</button>
+      <div class="chat-ft">
+        <input class="chat-in" id="chatIn" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" onclick="sendChat()">Send</button>
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- LOGIC -->
 <script>
-var BC_HASH = '27b5f32f840f41cce3efc3e10a2b3ee76cf7e9413bedc79cf2c7b77f06efab33';
-var GP_PEER_ID = 'greenprint-live';
-var _isBC = false;
-var _peer = null, _displayStream = null, _micStream = null, _micMuted = false;
-var _viewers = 0, _activeCalls = [];
-var _names = ['Marcus T.','Destiny R.','Jordan K.','Amir S.','Tasha W.','Kevin L.','Brianna M.','DeShawn P.'];
-var _quips = ['Let's go! 🔥','Good morning!','Ready to learn','What are we trading?','Already up 2% 💰','NQ or ES?','This community is 🔥','Locked in 👀','Let's get it 💰','Jacob always delivers 🎯'];
-var _qi = 0;
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+var PEER_ID  = 'greenprint-live';
+var BC_HASH  = '27b5f32f840f41cce3efc3e10a2b3ee76cf7e9413bedc79cf2c7b77f06efab33';
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var _isBC=false, _peer=null, _display=null, _mic=null, _muted=false;
+var _viewers=0, _calls=[];
+var _names=['Marcus T.','Destiny R.','Jordan K.','Amir S.','Tasha W.','Kevin L.','Brianna M.','DeShawn P.'];
+var _quips=['Let\'s go! 🔥','Good morning!','Ready to learn 📈','Already up 2% 💰','NQ or ES today?','This community is 🔥','Locked in 👀','Jacob always delivers 🎯','Charts loaded ✅','Let\'s get it 💰'];
+var _qi=0, _userName='You';
 
-// ── CONTINUE BUTTON — pure JS, zero dependencies ──────────────────────────────
-function handleSubscribe(){
-  var name  = document.getElementById('f-name').value.trim();
-  var email = document.getElementById('f-email').value.trim();
-  var phone = document.getElementById('f-phone').value.trim();
-  var err   = document.getElementById('sub-err');
+// ─── CONTINUE BUTTON ─────────────────────────────────────────────────────────
+function goLive(){
+  var name  = document.getElementById('g-name').value.trim();
+  var email = document.getElementById('g-email').value.trim();
+  var phone = document.getElementById('g-phone').value.trim();
+  var err   = document.getElementById('gate-err');
 
-  if(!name) { err.textContent='Enter your name.'; err.style.display='block'; return; }
-  if(!email){ err.textContent='Enter your email.'; err.style.display='block'; return; }
-  if(!phone){ err.textContent='Enter your phone number.'; err.style.display='block'; return; }
+  if(!name) { err.textContent='Please enter your name.'; err.style.display='block'; return; }
+  if(!email){ err.textContent='Please enter your email.'; err.style.display='block'; return; }
+  if(!phone){ err.textContent='Please enter your phone number.'; err.style.display='block'; return; }
 
-  try{ localStorage.setItem('gp_sub', JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()})); }catch(e){}
+  _userName = name.split(' ')[0];
 
-  // Hide gate, show stream — simple, synchronous, always works
+  try{ localStorage.setItem('gp_viewer', JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()})); }catch(e){}
+
   document.getElementById('gate').style.display = 'none';
   document.getElementById('main').style.display = 'block';
 
-  // Now lazy-load PeerJS and set up stream
-  _initStream();
+  loadPeerJS();
 }
 
-// ── LAZY LOAD PeerJS then connect ─────────────────────────────────────────────
-function _initStream(){
+// ─── LOAD PEERJS AFTER GATE ───────────────────────────────────────────────────
+function loadPeerJS(){
   var s = document.createElement('script');
   s.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload = function(){
-    _checkBroadcaster().then(function(){
-      if(_isBC){
-        document.getElementById('bcStrip').classList.add('show');
-        addSysMsg('Broadcaster mode. Click Go Live when ready.');
-      } else {
-        connectAsViewer();
-        fakeViewers();
-      }
-      setTimeout(function(){ addSysMsg('Welcome to The Greenprint Live 🔥'); }, 600);
-    });
-  };
-  s.onerror = function(){
-    addSysMsg('Connection error — please refresh.');
-  };
-  document.head.appendChild(s);
+  s.onload  = afterLoad;
+  s.onerror = function(){ sysMsg('Could not load streaming library. Please refresh.'); };
+  document.body.appendChild(s);
 }
 
-async function _checkBroadcaster(){
-  try{
-    var hash = location.hash;
-    if(hash && hash.startsWith('#bc=')){
-      var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(decodeURIComponent(hash.slice(4))));
-      var ph = [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function afterLoad(){
+  var hash = location.hash;
+  if(hash && hash.startsWith('#bc=')){
+    try{
+      var b  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(decodeURIComponent(hash.slice(4))));
+      var ph = [...new Uint8Array(b)].map(function(x){return x.toString(16).padStart(2,'0');}).join('');
       if(ph === BC_HASH) _isBC = true;
-    }
-  }catch(e){}
+    }catch(e){}
+  }
+
+  if(_isBC){
+    document.getElementById('bcStrip').classList.add('show');
+    sysMsg('Broadcaster mode. Click Go Live when ready.');
+  } else {
+    connectViewer();
+    setTimeout(fakeViewers, 2000);
+  }
+  setTimeout(function(){ sysMsg('Welcome to The Greenprint Live 🔥'); }, 700);
 }
 
-// ── VIEWER ────────────────────────────────────────────────────────────────────
-function connectAsViewer(){
+// ─── VIEWER ───────────────────────────────────────────────────────────────────
+function connectViewer(){
   try{
-    _peer = new Peer(undefined, {debug:0});
-    _peer.on('open', function(){
-      var call = _peer.call(GP_PEER_ID, null);
-      if(!call){ setTimeout(connectAsViewer, 8000); return; }
-      call.on('stream', function(s){
+    var peer = new Peer(undefined,{debug:0});
+    peer.on('open', function(){
+      var call = peer.call(PEER_ID, null);
+      if(!call){ setTimeout(connectViewer,8000); return; }
+      call.on('stream', function(stream){
         var v = document.getElementById('streamVideo');
-        v.srcObject = s; v.play().catch(function(){});
-        document.getElementById('offlineOverlay').style.display = 'none';
-        setLiveUI(true);
+        v.srcObject = stream;
+        v.muted = false;
+        v.play().catch(function(){});
+        document.getElementById('offlineBox').style.display='none';
+        setLive(true);
       });
-      call.on('close', function(){ setLiveUI(false); setTimeout(connectAsViewer,8000); });
-      call.on('error', function(){ setTimeout(connectAsViewer,8000); });
+      call.on('close',  function(){ setLive(false); setTimeout(connectViewer,8000); });
+      call.on('error',  function(){ setTimeout(connectViewer,8000); });
     });
-    _peer.on('error', function(err){
-      if(err.type==='peer-unavailable') setTimeout(connectAsViewer,8000);
-    });
-  }catch(e){ setTimeout(connectAsViewer,10000); }
+    peer.on('error', function(e){ if(e.type==='peer-unavailable') setTimeout(connectViewer,8000); });
+    _peer = peer;
+  }catch(e){ setTimeout(connectViewer,10000); }
 }
 
-// ── BROADCASTER ───────────────────────────────────────────────────────────────
+// ─── BROADCASTER ──────────────────────────────────────────────────────────────
 async function startStream(){
-  var btn = document.getElementById('startBtn');
-  btn.disabled = true; setStatus('Requesting screen…');
+  var btn=document.getElementById('startBtn');
+  btn.disabled=true; setStatus('Requesting screen…');
   try{
-    _displayStream = await navigator.mediaDevices.getDisplayMedia({
-      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},audio:true
+    _display = await navigator.mediaDevices.getDisplayMedia({
+      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
+      audio:true
     });
-    try{ _micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false}); }
-    catch(e){ addSysMsg('Mic not found — screen audio only.'); }
+    try{ _mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false}); }
+    catch(e){ sysMsg('Mic not found — screen audio only.'); }
 
-    var video = document.getElementById('streamVideo');
-    video.srcObject = _displayStream; video.muted = true;
-    document.getElementById('offlineOverlay').style.display = 'none';
+    var v=document.getElementById('streamVideo');
+    v.srcObject=_display; v.muted=true;
+    document.getElementById('offlineBox').style.display='none';
 
-    var tracks = [..._displayStream.getTracks()];
-    if(_micStream) tracks = tracks.concat(_micStream.getAudioTracks());
-    var broadcastStream = new MediaStream(tracks);
+    var tracks=[..._display.getTracks()];
+    if(_mic) tracks=tracks.concat(_mic.getAudioTracks());
+    var bStream=new MediaStream(tracks);
 
     setStatus('Connecting…');
-    _peer = new Peer(GP_PEER_ID, {debug:0});
-    _peer.on('open', function(){
+    var peer=new Peer(PEER_ID,{debug:0});
+    peer.on('open', function(){
       setStatus('🔴 Live');
-      btn.style.display = 'none';
-      document.getElementById('stopBtn').style.display = 'inline-flex';
+      btn.style.display='none';
+      document.getElementById('stopBtn').style.display='inline-flex';
       document.getElementById('micBtn').classList.add('on');
-      document.getElementById('micBtn').textContent = '🎙 Mic On';
-      setLiveUI(true);
-      addSysMsg('You are live! 🚀');
+      setLive(true);
+      sysMsg('You are live! 🚀');
     });
-    _peer.on('call', function(call){
-      call.answer(broadcastStream); _activeCalls.push(call);
-      setViewerCount(_viewers+1);
-      call.on('close', function(){
-        _activeCalls = _activeCalls.filter(function(c){return c!==call;});
-        setViewerCount(Math.max(0,_viewers-1));
-      });
+    peer.on('call', function(call){
+      call.answer(bStream); _calls.push(call);
+      setViewers(_viewers+1);
+      call.on('close', function(){ _calls=_calls.filter(function(c){return c!==call;}); setViewers(Math.max(0,_viewers-1)); });
     });
-    _peer.on('error', function(err){
-      if(err.type==='unavailable-id'){ addSysMsg('Stream ID in use.'); btn.disabled=false; setStatus(''); }
+    peer.on('error', function(e){
+      if(e.type==='unavailable-id'){ sysMsg('Stream ID already in use.'); btn.disabled=false; setStatus(''); }
     });
-    _displayStream.getVideoTracks()[0].addEventListener('ended', stopStream);
+    _display.getVideoTracks()[0].addEventListener('ended', stopStream);
+    _peer=peer;
   }catch(er){
-    btn.disabled = false; setStatus('');
-    addSysMsg(er.name==='NotAllowedError'?'Permission denied.':'Error: '+er.message);
-    if(_displayStream){ _displayStream.getTracks().forEach(function(t){t.stop();}); _displayStream=null; }
-    if(_micStream){ _micStream.getTracks().forEach(function(t){t.stop();}); _micStream=null; }
+    btn.disabled=false; setStatus('');
+    sysMsg(er.name==='NotAllowedError'?'Permission denied.':'Error: '+er.message);
+    if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
+    if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
   }
 }
 
 function stopStream(){
-  _activeCalls.forEach(function(c){c.close();}); _activeCalls=[];
+  _calls.forEach(function(c){c.close();}); _calls=[];
   if(_peer){_peer.destroy();_peer=null;}
-  if(_displayStream){_displayStream.getTracks().forEach(function(t){t.stop();});_displayStream=null;}
-  if(_micStream){_micStream.getTracks().forEach(function(t){t.stop();});_micStream=null;}
+  if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
+  if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
   document.getElementById('streamVideo').srcObject=null;
-  document.getElementById('offlineOverlay').style.display='flex';
+  document.getElementById('offlineBox').style.display='flex';
   var b=document.getElementById('startBtn'); b.style.display='inline-flex'; b.disabled=false;
   document.getElementById('stopBtn').style.display='none';
-  setLiveUI(false); setStatus('Stream ended'); addSysMsg('Stream ended.');
+  setLive(false); setStatus('Stream ended'); sysMsg('Stream ended.');
 }
 
-function setLiveUI(live){
-  document.getElementById('liveBadge').style.display=live?'flex':'none';
-  document.getElementById('viewerBadge').style.display=live?'flex':'none';
-  var pill=document.getElementById('tb-status-label');
-  if(pill){pill.className=live?'live':'';document.getElementById('tb-live-text').textContent=live?'live':'offline';}
-}
 function toggleMic(){
-  _micMuted=!_micMuted;
-  if(_displayStream)_displayStream.getAudioTracks().forEach(function(t){t.enabled=!_micMuted;});
-  if(_micStream)_micStream.getAudioTracks().forEach(function(t){t.enabled=!_micMuted;});
+  _muted=!_muted;
+  if(_display)_display.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
+  if(_mic)_mic.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
   var b=document.getElementById('micBtn');
-  b.textContent=_micMuted?'🔇 Mic Off':'🎙 Mic On';
-  b.classList.toggle('on',!_micMuted); b.classList.toggle('danger',_micMuted);
+  b.textContent=_muted?'🔇 Muted':'🎙 Mic';
+  b.classList.toggle('on',!_muted); b.classList.toggle('danger',_muted);
 }
-function toggleCam(){ addSysMsg('Camera overlay coming soon.'); }
-function setStatus(msg){ var s=document.getElementById('bcStatus'); if(s)s.textContent=msg; }
 
-// ── CHAT ──────────────────────────────────────────────────────────────────────
-function addSysMsg(t){ addChatMsg('',t,true,false); }
-function addChatMsg(name,text,system,host){
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function setLive(on){
+  document.getElementById('liveBadge').className=on?'liveBadge show':'liveBadge';
+  document.getElementById('viewerBadge').className=on?'viewerBadge show':'viewerBadge';
+  var ns=document.getElementById('nav-status');
+  ns.textContent=on?'live':'offline'; ns.className=on?'live':'';
+}
+function setStatus(t){ var s=document.getElementById('bcStatus'); if(s)s.textContent=t; }
+function setViewers(n){
+  _viewers=n;
+  document.getElementById('vcNum').textContent=n;
+  document.getElementById('chatVC').textContent=n+' viewer'+(n!==1?'s':'');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ─── CHAT ─────────────────────────────────────────────────────────────────────
+function sysMsg(t){ addMsg('',t,true,false); }
+function addMsg(name,text,sys,host){
   var feed=document.getElementById('chatFeed');
-  var d=document.createElement('div'); d.className='chat-item';
-  if(system){ d.innerHTML='<div class="chat-text system-text">'+esc(text)+'</div>'; }
-  else{ d.innerHTML='<div class="chat-name'+(host?' host-name':'')+'" >'+esc(name)+'</div><div class="chat-text">'+esc(text)+'</div>'; }
+  var d=document.createElement('div'); d.className='msg';
+  if(sys){ d.innerHTML='<div class="msg-text sys">'+esc(text)+'</div>'; }
+  else{ d.innerHTML='<div class="msg-name'+(host?' host':'')+'" >'+esc(name)+'</div><div class="msg-text">'+esc(text)+'</div>'; }
   feed.appendChild(d); feed.scrollTop=feed.scrollHeight;
 }
 function sendChat(){
-  var inp=document.getElementById('chatInput');
+  var inp=document.getElementById('chatIn');
   var t=inp.value.trim(); if(!t)return;
-  var sub=null; try{sub=JSON.parse(localStorage.getItem('gp_sub'));}catch(e){}
-  var n=sub?sub.name.split(' ')[0]:'You';
-  addChatMsg(n+(_isBC?' 🎙':''),t,false,_isBC);
+  addMsg(_userName+(_isBC?' 🎙':''),t,false,_isBC);
   inp.value='';
-}
-function setViewerCount(n){
-  _viewers=n;
-  document.getElementById('vcNum').textContent=n;
-  document.getElementById('chatViewerCount').textContent=n+' viewer'+(n!==1?'s':'');
 }
 function fakeViewers(){
   var greet=['Hey everyone 👋','Ready for today!','Morning everyone'];
   _names.slice(0,3).forEach(function(nm,j){
-    setTimeout(function(){addChatMsg(nm,greet[j]);setViewerCount(_viewers+1);},2500+j*3200);
+    setTimeout(function(){ addMsg(nm,greet[j],false,false); setViewers(_viewers+1); },1500+j*2800);
   });
+  setInterval(function(){
+    if(Math.random()>.55) addMsg(_names[Math.floor(Math.random()*_names.length)],_quips[_qi++%_quips.length],false,false);
+  },6000);
 }
 
-// ── PLAN CARDS ────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function(){
-  var pa=document.getElementById('plan-a'), pb=document.getElementById('plan-b');
-  if(pa) pa.onclick=function(){pa.classList.add('sel');pb.classList.remove('sel');};
-  if(pb) pb.onclick=function(){pb.classList.add('sel');pa.classList.remove('sel');};
-
-  // Auto-skip gate for returning subscribers
-  try{
-    var stored=JSON.parse(localStorage.getItem('gp_sub'));
-    if(stored&&(Date.now()-stored.ts)<30*24*60*60*1000){
-      document.getElementById('gate').style.display='none';
-      document.getElementById('main').style.display='block';
-      _initStream();
-    }
-  }catch(e){}
-});
+// ─── AUTO-SKIP FOR RETURNING VISITORS ────────────────────────────────────────
+try{
+  var _s=JSON.parse(localStorage.getItem('gp_viewer'));
+  if(_s&&(Date.now()-_s.ts)<30*24*60*60*1000){
+    _userName=_s.name.split(' ')[0];
+    document.getElementById('gate').style.display='none';
+    document.getElementById('main').style.display='block';
+    loadPeerJS();
+  }
+}catch(e){}
 </script>
 </body>
+</html>
