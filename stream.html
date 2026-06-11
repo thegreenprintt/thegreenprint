@@ -8,14 +8,11 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif}
-
-/* NAV */
 nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
 .brand{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
 .dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
 #navstat{font-size:.6rem;font-weight:600;letter-spacing:.18em;color:rgba(240,250,243,.2);transition:color .3s}
 #navstat.on{color:rgba(255,59,92,.7)}
-
 /* GATE */
 #gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:76px 20px 20px;z-index:50}
 .glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.06) 0%,transparent 65%);pointer-events:none}
@@ -33,8 +30,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 #gbtn{width:100%;height:48px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:6px;transition:opacity .15s}
 #gbtn:hover{opacity:.88}
 .fine{font-size:.62rem;font-weight:300;color:rgba(240,250,243,.18);text-align:center;margin-top:13px;line-height:1.6}
-
-/* MAIN STREAM VIEW */
+/* MAIN */
 #main{display:none;padding-top:56px;height:100vh}
 .grid{display:grid;grid-template-columns:1fr 296px;height:calc(100vh - 56px)}
 @media(max-width:860px){.grid{grid-template-columns:1fr}}
@@ -52,7 +48,6 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .live-badge.on{display:flex}
 .live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pp 1.8s infinite}
 @keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-
 /* CHAT */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:860px){.ccol{display:none}}
@@ -64,7 +59,6 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .cm{display:flex;flex-direction:column;gap:2px}
 .cn{font-size:.6rem;font-weight:600;color:rgba(0,255,135,.48)}
 .cn.host{color:#00ff87}
-.cn.sys{color:rgba(255,255,255,.14)}
 .ct{font-size:.76rem;font-weight:300;color:rgba(240,250,243,.55);line-height:1.55}
 .ct.sys{color:rgba(255,255,255,.16);font-style:italic;font-size:.7rem}
 .cfoot{padding:9px 11px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
@@ -82,32 +76,23 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
   <span id="navstat">offline</span>
 </nav>
 
-<!-- ══ GATE ══ -->
+<!-- GATE: always shown, no skip -->
 <div id="gate">
   <div class="glow"></div>
   <div class="box">
     <div class="ey">Exclusive Live Access</div>
     <h1>Watch The<br><em>Greenprint Live.</em></h1>
     <p class="sub">Enter your details for access to live day trading sessions and real-time strategy with Jacob.</p>
-    <div class="f">
-      <label>Full Name</label>
-      <input id="g-name" type="text" placeholder="Your full name" autocomplete="name">
-    </div>
-    <div class="f">
-      <label>Email Address</label>
-      <input id="g-email" type="email" placeholder="you@email.com" autocomplete="email">
-    </div>
-    <div class="f">
-      <label>Phone Number</label>
-      <input id="g-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel">
-    </div>
+    <div class="f"><label>Full Name</label><input id="g-name" type="text" placeholder="Your full name" autocomplete="name"></div>
+    <div class="f"><label>Email Address</label><input id="g-email" type="email" placeholder="you@email.com" autocomplete="email"></div>
+    <div class="f"><label>Phone Number</label><input id="g-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
     <div id="gerr"></div>
     <button id="gbtn" onclick="enterStream()">Get Access →</button>
     <p class="fine">Your information is private and will never be shared.</p>
   </div>
 </div>
 
-<!-- ══ STREAM VIEW ══ -->
+<!-- STREAM VIEW: viewer-only, zero host controls -->
 <div id="main">
   <div class="grid">
     <div class="vcol">
@@ -138,133 +123,119 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 </div>
 
 <script>
-// ── CONFIG ──
-var HOST_PEER_ID = 'gp-stream-2025';
+// Must match PEER_ID in go-live.html exactly
+var HOST_PEER_ID = 'gp-live-host-2025';
 
-// ── STATE ──
 var _name = 'Viewer';
 var _peer = null;
 var _dc   = null;
 
-// ── HELPERS ──
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function addSys(text){
-  var f = document.getElementById('feed');
-  var d = document.createElement('div'); d.className='cm';
-  d.innerHTML = '<div class="ct sys">'+esc(text)+'</div>';
-  f.appendChild(d); f.scrollTop = f.scrollHeight;
+  var f=document.getElementById('feed'), d=document.createElement('div'); d.className='cm';
+  d.innerHTML='<div class="ct sys">'+esc(text)+'</div>';
+  f.appendChild(d); f.scrollTop=f.scrollHeight;
 }
 function addChat(name, text, isHost){
-  var f = document.getElementById('feed');
-  var d = document.createElement('div'); d.className='cm';
-  d.innerHTML = '<div class="cn'+(isHost?' host':'')+'">'+esc(name)+'</div>'
-              + '<div class="ct">'+esc(text)+'</div>';
-  f.appendChild(d); f.scrollTop = f.scrollHeight;
+  var f=document.getElementById('feed'), d=document.createElement('div'); d.className='cm';
+  d.innerHTML='<div class="cn'+(isHost?' host':'')+'">'+esc(name)+'</div>'
+             +'<div class="ct">'+esc(text)+'</div>';
+  f.appendChild(d); f.scrollTop=f.scrollHeight;
 }
 function setLive(on){
-  document.getElementById('live-badge').className = 'live-badge'+(on?' on':'');
-  var ns = document.getElementById('navstat');
-  ns.textContent = on ? 'live' : 'offline';
-  ns.className   = on ? 'on'   : '';
+  document.getElementById('live-badge').className='live-badge'+(on?' on':'');
+  var ns=document.getElementById('navstat');
+  ns.textContent=on?'live':'offline';
+  ns.className=on?'on':'';
 }
 
-// ── GATE SUBMIT ──
+// Gate submit — always required, no bypass
 function enterStream(){
-  var name  = (document.getElementById('g-name').value  || '').trim();
-  var email = (document.getElementById('g-email').value || '').trim();
-  var phone = (document.getElementById('g-phone').value || '').trim();
-  var err   = document.getElementById('gerr');
-
-  if(!name) { err.textContent='Please enter your name.';   err.style.display='block'; return; }
-  if(!email){ err.textContent='Please enter your email.';  err.style.display='block'; return; }
-  if(!phone){ err.textContent='Please enter your phone.';  err.style.display='block'; return; }
-  err.style.display = 'none';
-
-  _name = name.split(' ')[0];
-  try{ localStorage.setItem('gp_viewer', JSON.stringify({name:name, email:email, phone:phone, ts:Date.now()})); }catch(e){}
-
-  document.getElementById('gate').style.display = 'none';
-  document.getElementById('main').style.display = 'block';
+  var name =(document.getElementById('g-name').value ||'').trim();
+  var email=(document.getElementById('g-email').value||'').trim();
+  var phone=(document.getElementById('g-phone').value||'').trim();
+  var err  =document.getElementById('gerr');
+  if(!name) {err.textContent='Please enter your name.';  err.style.display='block';return;}
+  if(!email){err.textContent='Please enter your email.'; err.style.display='block';return;}
+  if(!phone){err.textContent='Please enter your phone.'; err.style.display='block';return;}
+  err.style.display='none';
+  _name=name.split(' ')[0];
+  try{localStorage.setItem('gp_lead',JSON.stringify({name,email,phone,ts:Date.now()}));}catch(e){}
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
   loadPeerJS();
 }
 
-// ── LOAD PEERJS LAZILY ──
 function loadPeerJS(){
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload   = connectToHost;
-  s.onerror  = function(){ addSys('Could not load stream library. Please refresh.'); };
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+  s.onload=connectToHost;
+  s.onerror=function(){addSys('Could not load stream library. Please refresh.');};
   document.body.appendChild(s);
 }
 
-// ── CONNECT TO HOST ──
 function connectToHost(){
   try{
-    _peer = new Peer(undefined, {debug:0});
-    _peer.on('open', function(){
+    _peer=new Peer(undefined,{debug:0});
 
-      // Receive video stream — use empty stream so PeerJS establishes connection properly
-      var call = _peer.call(HOST_PEER_ID, new MediaStream());
-      if(!call){ retry(); return; }
-      call.on('stream', function(stream){
-        var v = document.getElementById('vid');
-        v.srcObject = stream;
-        v.muted = false;
+    // Host will call US — we just answer with an empty stream
+    _peer.on('call',function(call){
+      call.answer(new MediaStream());
+      call.on('stream',function(stream){
+        var v=document.getElementById('vid');
+        v.srcObject=stream;
+        v.muted=false;
         v.play().catch(function(){});
-        document.getElementById('offline-msg').style.display = 'none';
+        document.getElementById('offline-msg').style.display='none';
         setLive(true);
       });
-      call.on('close', function(){ setLive(false); retry(); });
-      call.on('error', function(){ setLive(false); retry(); });
+      call.on('close',function(){setLive(false);});
+    });
 
-      // Data channel for chat
-      var dc = _peer.connect(HOST_PEER_ID, {reliable:true, metadata:{name:_name}});
-      dc.on('open', function(){
-        _dc = dc;
-        dc.send(JSON.stringify({t:'join', n:_name}));
+    _peer.on('open',function(){
+      // Connect data channel so host knows we're here and can push the stream
+      var dc=_peer.connect(HOST_PEER_ID,{reliable:true,metadata:{name:_name}});
+      dc.on('open',function(){
+        _dc=dc;
+        dc.send(JSON.stringify({t:'join',n:_name}));
+        addSys('Connected — waiting for Jacob to go live.');
       });
-      dc.on('data', function(raw){
+      dc.on('data',function(raw){
         try{
-          var m = JSON.parse(raw);
-          if(m.t === 'chat')  addChat(m.n, m.x, m.h);
-          if(m.t === 'title') document.getElementById('stream-title').textContent = m.x;
-          if(m.t === 'kick'){
+          var m=JSON.parse(raw);
+          if(m.t==='chat')  addChat(m.n,m.x,m.h);
+          if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
+          if(m.t==='kick'){
             _peer.destroy();
-            document.getElementById('main').innerHTML =
+            document.getElementById('main').innerHTML=
               '<div style="display:flex;align-items:center;justify-content:center;height:100%;'
               +'color:rgba(240,250,243,.3);font-size:.85rem;letter-spacing:.08em;">'
               +'You have been removed from this stream.</div>';
           }
         }catch(e){}
       });
+      dc.on('error',function(){setTimeout(connectToHost,5000);});
     });
-    _peer.on('error', function(e){
-      if(e.type==='peer-unavailable') retry();
+
+    _peer.on('error',function(e){
+      if(e.type==='peer-unavailable'){
+        // Host not live yet — retry quietly
+        addSys('Waiting for stream to start…');
+        setTimeout(connectToHost,8000);
+      }
     });
-  }catch(e){ retry(); }
+  }catch(e){setTimeout(connectToHost,8000);}
 }
 
-function retry(){
-  setTimeout(connectToHost, 8000);
-}
-
-// ── SEND CHAT ──
 function sendChat(){
-  var inp = document.getElementById('chat-input');
-  var txt = inp.value.trim();
-  if(!txt) return;
-  inp.value = '';
-  addChat(_name, txt, false);
-  if(_dc && _dc.open){
-    _dc.send(JSON.stringify({t:'chat', n:_name, x:txt}));
-  }
+  var inp=document.getElementById('chat-input');
+  var txt=inp.value.trim(); if(!txt)return; inp.value='';
+  addChat(_name,txt,false);
+  if(_dc&&_dc.open) _dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
 
-// Gate always shows — no auto-skip. Every visitor must enter their info.
-
-// Welcome message
-setTimeout(function(){ addSys('Welcome to The Greenprint Live 🔥'); }, 500);
+setTimeout(function(){addSys('Welcome to The Greenprint Live 🔥');},500);
 </script>
 </body>
 </html>
