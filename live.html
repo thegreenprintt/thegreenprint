@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.googleapis.com https://fonts.gstatic.com data:; connect-src 'self' https://api.clerk.com https://*.clerk.accounts.dev wss:; img-src 'self' data: blob: https:; media-src blob: mediastream:; worker-src blob:;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch Live | The Greenprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<style>
+/* ─────────────────────────────────────────
+   RESET + TOKENS
+───────────────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --g:#00ff87; --g2:#00c853; --g3:#00a844;
+  --k:#030303; --k2:#070707; --k3:#0a0a0a;
+  --w:#f0faf3; --w2:rgba(240,250,243,.65); --w3:rgba(240,250,243,.28);
+  --glass:rgba(255,255,255,.03);
+  --glass-border:rgba(255,255,255,.07);
+  --green-glow:rgba(0,200,83,.18);
+  --green-border:rgba(0,255,135,.14);
+  --r: #ff3b5c;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html,body{height:100%;background:var(--k);color:var(--w);font-family:'Urbanist',sans-serif;overflow-x:hidden;}
+::selection{background:rgba(0,255,135,.2);color:var(--w);}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:rgba(0,200,83,.3);}
+
+/* ─────────────────────────────────────────
+   UNIVERSAL TOPBAR
+───────────────────────────────────────── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  height:58px;
+  background:rgba(3,3,3,.88);
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid var(--glass-border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+}
+.tb-brand{
+  display:flex;align-items:center;gap:12px;text-decoration:none;
+}
+.tb-wordmark{
+  font-family:'Urbanist',sans-serif;font-weight:700;font-size:.78rem;
+  letter-spacing:.28em;text-transform:uppercase;
+  color:rgba(240,250,243,.92);
+  display:flex;align-items:center;gap:6px;
+}
+.tb-dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--g);flex-shrink:0;margin-left:2px;
+  box-shadow:0 0 8px rgba(0,255,135,.5);
+}
+.tb-right{display:flex;align-items:center;gap:20px;}
+
+.tb-back{
+  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:500;
+  letter-spacing:.16em;text-transform:uppercase;
+  color:var(--w3);text-decoration:none;transition:color .2s;
+}
+.tb-back:hover{color:var(--g);}
+
+/* ─────────────────────────────────────────
+   GATE — FULL SCREEN AUTH FLOW
+───────────────────────────────────────── */
+#gate{
+  position:fixed;inset:0;z-index:800;
+  background:var(--k);
+  display:flex;align-items:center;justify-content:center;
+  padding:80px 24px 24px;
+  overflow-y:auto;
+}
+/* Ambient background */
+.gate-ambient{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;
+}
+.gate-ambient::before{
+  content:'';position:absolute;
+  top:-20%;left:50%;transform:translateX(-50%);
+  width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,200,83,.06) 0%,transparent 65%);
+}
+.gate-ambient::after{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,135,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,135,.018) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+
+.gate-wrap{
+  position:relative;z-index:1;
+  width:100%;max-width:440px;
+}
+
+/* Brand header above card */
+.gate-brand{
+  text-align:center;margin-bottom:40px;
+}
+.gate-brand-logo{
+  font-family:'Syne',sans-serif;font-size:clamp(1.2rem,3vw,1.5rem);
+  letter-spacing:-.01em;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:4px;
+}
+.gate-brand-tag{
+  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:500;
+  letter-spacing:.38em;text-transform:uppercase;color:var(--w3);
+}
+
+/* Progress steps */
+.gate-progress{
+  display:flex;align-items:center;justify-content:center;
+  gap:0;margin-bottom:32px;
+}
+.gp-step{
+  display:flex;align-items:center;gap:8px;
+  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--w3);
+  transition:color .3s;
+}
+.gp-step.active{color:var(--g);}
+.gp-step.done{color:rgba(0,255,135,.45);}
+.gp-num{
+  width:20px;height:20px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;font-weight:700;transition:all .3s;
+}
+.gp-step.active .gp-num{
+  border-color:var(--g);
+  background:rgba(0,255,135,.1);color:var(--g);
+}
+.gp-step.done .gp-num{
+  background:var(--g);border-color:var(--g);color:#020202;
+}
+.gp-line{
+  width:48px;height:1px;
+  background:rgba(255,255,255,.06);
+  margin:0 8px;transition:background .3s;
+}
+.gp-line.done{background:rgba(0,255,135,.3);}
+
+/* The card */
+.gate-card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(20px);
+  padding:clamp(28px,5vw,44px);
+  position:relative;overflow:hidden;
+}
+.gate-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,135,.35),transparent);
+}
+
+.gate-heading{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(2rem,5vw,2.8rem);
+  line-height:.92;letter-spacing:-.03em;
+  margin-bottom:10px;
+}
+.gate-heading em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.gate-desc{
+  font-size:.82rem;font-weight:300;line-height:1.78;
+  color:var(--w2);margin-bottom:28px;
+}
+
+/* Form fields */
+.field-group{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.field{
+  position:relative;
+}
+.field-label{
+  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;
+  letter-spacing:.26em;text-transform:uppercase;color:rgba(0,255,135,.4);
+  margin-bottom:6px;display:block;
+}
+.field-input{
+  width:100%;height:48px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--w);padding:0 16px;
+  font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:300;
+  letter-spacing:.02em;
+  outline:none;transition:border-color .25s,background .25s;
+  border-radius:0;-webkit-appearance:none;
+}
+.field-input:focus{
+  border-color:rgba(0,255,135,.35);
+  background:rgba(0,255,135,.02);
+}
+.field-input::placeholder{color:rgba(240,250,243,.18);font-size:.82rem;}
+
+/* Primary button */
+.gate-cta{
+  width:100%;height:50px;
+  background:linear-gradient(135deg,var(--g) 0%,var(--g2) 60%,var(--g3) 100%);
+  background-size:200% auto;
+  color:#020202;border:none;
+  font-family:'Urbanist',sans-serif;font-weight:700;
+  font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:background-position .4s,box-shadow .3s,transform .2s;
+}
+.gate-cta::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+  transform:translateX(-100%);
+  transition:transform .6s;
+}
+.gate-cta:hover{
+  background-position:right center;
+  box-shadow:0 8px 40px rgba(0,200,83,.3),0 2px 8px rgba(0,200,83,.15);
+  transform:translateY(-1px);
+}
+.gate-cta:hover::after{transform:translateX(100%);}
+.gate-cta:active{transform:translateY(0);}
+.gate-cta:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;}
+
+.gate-err{
+  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:#ff3b5c;margin-top:10px;display:none;
+}
+.gate-fine{
+  font-size:.65rem;font-weight:300;color:var(--w3);
+  line-height:1.65;margin-top:16px;text-align:center;
+}
+.gate-divider{
+  display:flex;align-items:center;gap:14px;margin:20px 0;
+}
+.gate-divider::before,.gate-divider::after{
+  content:'';flex:1;height:1px;background:rgba(255,255,255,.06);
+}
+.gate-divider span{
+  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:500;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--w3);
+}
+
+/* Clerk mount */
+#clerk-mount .cl-rootBox{background:transparent!important;}
+#clerk-fallback{padding:0;}
+
+/* ─────────────────────────────────────────
+   PAYWALL
+───────────────────────────────────────── */
+#paywall{
+  position:fixed;inset:0;z-index:800;
+  background:var(--k);display:none;
+  align-items:center;justify-content:center;
+  padding:80px 24px 24px;overflow-y:auto;
+}
+.pw-wrap{
+  position:relative;z-index:1;
+  width:100%;max-width:520px;text-align:center;
+}
+.pw-eyebrow{
+  font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;
+  letter-spacing:.38em;text-transform:uppercase;color:rgba(0,255,135,.4);
+  margin-bottom:14px;
+}
+.pw-heading{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(2.4rem,7vw,4rem);
+  line-height:.9;letter-spacing:-.04em;margin-bottom:14px;
+}
+.pw-heading em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.pw-sub{
+  font-size:.86rem;font-weight:300;color:var(--w2);
+  line-height:1.78;margin-bottom:36px;max-width:400px;
+  margin-left:auto;margin-right:auto;
+}
+.pw-plans{
+  display:grid;grid-template-columns:1fr 1fr;gap:2px;
+  margin-bottom:24px;
+  background:rgba(0,255,135,.06);
+}
+@media(max-width:480px){.pw-plans{grid-template-columns:1fr;}}
+.pw-plan{
+  background:var(--k2);padding:24px 20px;text-align:left;
+  cursor:pointer;transition:background .25s;position:relative;
+}
+.pw-plan:hover,.pw-plan.sel{background:rgba(0,255,135,.05);}
+.pw-plan.sel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+}
+.pw-plan-label{
+  font-family:'Urbanist',sans-serif;font-size:.54rem;font-weight:700;
+  letter-spacing:.22em;text-transform:uppercase;color:rgba(0,255,135,.45);margin-bottom:6px;
+}
+.pw-plan-name{
+  font-family:'Syne',sans-serif;font-size:1.5rem;
+  letter-spacing:-.02em;color:var(--w);margin-bottom:8px;
+}
+.pw-plan-price{
+  font-family:'Syne',sans-serif;font-size:2.2rem;letter-spacing:-.03em;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  line-height:1;
+}
+.pw-plan-period{font-size:.7rem;color:var(--w3);letter-spacing:.06em;}
+.pw-cta{
+  display:block;width:100%;height:52px;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  color:#020202;border:none;
+  font-family:'Urbanist',sans-serif;font-weight:700;
+  font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;
+  cursor:pointer;text-decoration:none;line-height:52px;text-align:center;
+  position:relative;overflow:hidden;
+  transition:box-shadow .3s,transform .2s;
+}
+.pw-cta:hover{box-shadow:0 8px 40px rgba(0,200,83,.3);transform:translateY(-1px);}
+.pw-note{font-size:.62rem;color:var(--w3);margin-top:12px;letter-spacing:.04em;}
+
+/* ─────────────────────────────────────────
+   MAIN STREAM LAYOUT
+───────────────────────────────────────── */
+#main{display:none;padding-top:58px;height:100vh;overflow:hidden;}
+.stream-root{
+  display:grid;
+  grid-template-columns:1fr 300px;
+  height:calc(100vh - 58px);
+}
+@media(max-width:960px){.stream-root{grid-template-columns:1fr;}}
+
+/* ── VIDEO PANE ── */
+.vid-pane{
+  display:flex;flex-direction:column;
+  background:#000;position:relative;
+}
+.vid-stage{
+  flex:1;position:relative;
+  background:#000;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+#streamVideo{
+  width:100%;height:100%;
+  object-fit:contain;display:block;
+  background:#000;
+}
+
+/* Offline state */
+.offline-state{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;text-align:center;padding:40px;
+  background:linear-gradient(160deg,#040404,#070707);
+}
+.offline-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,135,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,135,.015) 1px,transparent 1px);
+  background-size:52px 52px;
+}
+.offline-orb{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,200,83,.05) 0%,transparent 65%);
+  pointer-events:none;
+}
+.offline-icon{
+  width:64px;height:64px;
+  border:1px solid rgba(0,255,135,.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.6rem;position:relative;z-index:1;
+  color:rgba(245,255,248,.15);
+}
+.offline-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(1.8rem,4vw,3rem);
+  letter-spacing:-.03em;
+  color:rgba(240,250,243,.15);position:relative;z-index:1;
+}
+.offline-sub{
+  font-size:.8rem;font-weight:300;color:rgba(240,250,243,.2);
+  max-width:280px;line-height:1.7;position:relative;z-index:1;
+}
+.offline-notify{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid rgba(0,255,135,.12);
+  padding:10px 20px;font-family:'Urbanist',sans-serif;
+  font-size:.62rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:rgba(0,255,135,.45);position:relative;z-index:1;
+  cursor:pointer;transition:all .25s;background:transparent;
+}
+.offline-notify:hover{border-color:rgba(0,255,135,.35);color:var(--g);background:rgba(0,255,135,.04);}
+
+/* Stream bottom bar */
+.vid-bottom{
+  background:rgba(5,5,5,.98);
+  border-top:1px solid rgba(255,255,255,.05);
+  padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;
+}
+.vid-info{}
+.vid-title{
+  font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:600;
+  color:rgba(240,250,243,.9);margin-bottom:3px;
+}
+.vid-host{
+  font-size:.7rem;font-weight:300;color:var(--w3);letter-spacing:.04em;
+}
+.vid-meta{display:flex;align-items:center;gap:16px;}
+.live-badge{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;
+  background:rgba(255,59,92,.1);
+  border:1px solid rgba(255,59,92,.25);
+  font-family:'Urbanist',sans-serif;font-size:.55rem;font-weight:700;
+  letter-spacing:.2em;text-transform:uppercase;color:#ff3b5c;
+  display:none;
+}
+.live-badge-dot{
+  width:5px;height:5px;border-radius:50%;background:#ff3b5c;
+  animation:livering 1.8s infinite;
+}
+.viewer-badge{
+  display:flex;align-items:center;gap:5px;
+  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:500;
+  color:var(--w3);display:none;
+}
+
+/* Broadcaster controls */
+.bc-strip{
+  background:rgba(4,4,4,.99);
+  border-top:1px solid rgba(255,255,255,.04);
+  padding:10px 20px;
+  display:none;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.bc-strip.show{display:flex;}
+.bc-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  height:34px;padding:0 14px;
+  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);
+  color:var(--w3);transition:all .2s;white-space:nowrap;
+}
+.bc-btn:hover{border-color:rgba(0,255,135,.3);color:rgba(0,255,135,.7);background:rgba(0,255,135,.04);}
+.bc-btn.on{border-color:rgba(0,255,135,.4);color:var(--g);background:rgba(0,255,135,.06);}
+.bc-btn.danger{border-color:rgba(255,59,92,.3);color:#ff3b5c;background:rgba(255,59,92,.06);}
+.bc-btn.primary{
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  color:#020202;border:none;font-weight:700;
+}
+.bc-btn.primary:hover{box-shadow:0 4px 20px rgba(0,200,83,.3);}
+.bc-spacer{flex:1;}
+.bc-status{
+  font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--w3);
+}
+
+/* ── CHAT SIDEBAR ── */
+.chat-panel{
+  display:flex;flex-direction:column;
+  background:var(--k2);
+  border-left:1px solid rgba(255,255,255,.05);
+}
+@media(max-width:960px){.chat-panel{display:none;}}
+.chat-top{
+  padding:16px 18px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.chat-top-label{
+  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--w3);
+}
+#chatViewerCount{
+  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
+  letter-spacing:.12em;color:rgba(0,255,135,.45);
+}
+.chat-feed{
+  flex:1;overflow-y:auto;padding:16px 14px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.chat-item{display:flex;flex-direction:column;gap:2px;}
+.chat-name{
+  font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;
+  letter-spacing:.06em;color:rgba(0,255,135,.6);
+}
+.chat-name.host-name{color:var(--g);}
+.chat-name.system-name{color:rgba(255,255,255,.2);}
+.chat-text{
+  font-size:.78rem;font-weight:300;color:rgba(240,250,243,.65);line-height:1.55;
+}
+.chat-text.system-text{color:rgba(255,255,255,.2);font-style:italic;font-size:.72rem;}
+.chat-foot{
+  padding:12px 14px;
+  border-top:1px solid rgba(255,255,255,.05);
+  display:flex;gap:6px;
+}
+.chat-in{
+  flex:1;height:38px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  color:var(--w);padding:0 13px;
+  font-family:'Urbanist',sans-serif;font-size:.82rem;
+  outline:none;border-radius:0;-webkit-appearance:none;
+  transition:border-color .2s;
+}
+.chat-in:focus{border-color:rgba(0,255,135,.28);}
+.chat-in::placeholder{color:rgba(240,250,243,.16);font-size:.76rem;}
+.chat-go{
+  height:38px;padding:0 14px;
+  background:rgba(0,255,135,.08);
+  border:1px solid rgba(0,255,135,.15);
+  color:rgba(0,255,135,.7);cursor:pointer;
+  font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;transition:all .2s;
+}
+.chat-go:hover{background:rgba(0,255,135,.15);color:var(--g);}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <a href="live.html" class="tb-brand">
+    <div class="tb-wordmark">THE GREENPRINT<span class="tb-dot"></span></div>
+  </a>
+  <div class="tb-right">
+    <div id="tb-status-label">
+      <span id="tb-live-dot-sm"></span>
+      <span id="tb-live-text">offline</span>
+    </div>
+    <a href="index.html" class="tb-back">← Back</a>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     GATE
+═══════════════════════════════════════════════ -->
+<div id="gate">
+  <div class="gate-ambient"></div>
+  <div class="gate-wrap">
+
+    <div class="gate-brand">
+      <div class="gate-brand-logo">The Greenprint</div>
+      <div class="gate-brand-tag">Exclusive Live Access</div>
+    </div>
+
+    <div class="gate-progress">
+      <div class="gp-step active" id="gp1">
+        <div class="gp-num" id="gpn1">1</div>
+        <span>Subscribe</span>
+      </div>
+      <div class="gp-line" id="gpl1"></div>
+      <div class="gp-step" id="gp2">
+        <div class="gp-num" id="gpn2">2</div>
+        <span>Sign In</span>
+      </div>
+    </div>
+
+    <div class="gate-card">
+
+      <!-- STEP 1 -->
+      <div id="s1">
+        <h1 class="gate-heading">Watch The<br><em>Greenprint Live.</em></h1>
+        <p class="gate-desc">Enter your details below to unlock access to live day trading sessions, strategy breakdowns, and real-time Q&amp;A.</p>
+
+        <div class="field-group">
+          <div class="field">
+            <label class="field-label" for="f-name">Full Name</label>
+            <input class="field-input" id="f-name" type="text" placeholder="Jacob Walton" autocomplete="name">
+          </div>
+          <div class="field">
+            <label class="field-label" for="f-email">Email Address</label>
+            <input class="field-input" id="f-email" type="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label class="field-label" for="f-phone">Phone Number</label>
+            <input class="field-input" id="f-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel">
+          </div>
+        </div>
+
+        <button class="gate-cta" id="subBtn" onclick="handleSubscribe()">Continue →</button>
+        <div class="gate-err" id="sub-err"></div>
+        <p class="gate-fine">Your information is used only for access verification and will never be shared or sold.</p>
+      </div>
+
+      <!-- STEP 2 -->
+      <div id="s2" style="display:none;">
+        <h2 class="gate-heading" style="font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.03em;margin-bottom:10px;">Create or Sign<br><em>Into Your Account.</em></h2>
+        <p class="gate-desc">Secure your session with a verified account.</p>
+        <div id="clerk-mount"></div>
+        <div id="clerk-fallback" style="display:none;">
+          <div style="background:rgba(0,255,135,.03);border:1px solid rgba(0,255,135,.1);padding:22px;">
+            <p style="font-family:'Urbanist',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:10px;">Clerk Not Configured</p>
+            <p style="font-size:.8rem;font-weight:300;color:var(--w2);line-height:1.7;margin-bottom:18px;">Set your <code style="color:var(--g);font-size:.78rem;background:rgba(0,255,135,.06);padding:1px 6px;">CLERK_KEY</code> in live.html to enable full authentication. Access granted via subscription for now.</p>
+            <button onclick="onAuthDone()" style="height:46px;padding:0 24px;background:linear-gradient(135deg,var(--g),var(--g2));color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;width:100%;">Enter Stream →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAYWALL
+═══════════════════════════════════════════════ -->
+<div id="paywall">
+  <div class="gate-ambient"></div>
+  <div class="pw-wrap">
+    <p class="pw-eyebrow">Members Only</p>
+    <h2 class="pw-heading">Unlock Live<br><em>Access.</em></h2>
+    <p class="pw-sub">Join The Greenprint to access live day trading sessions, strategy breakdowns, and real-time coaching with Jacob.</p>
+    <div class="pw-plans">
+      <div class="pw-plan sel" id="plan-a">
+        <div class="pw-plan-label">Tier 02</div>
+        <div class="pw-plan-name">Day Trader</div>
+        <div class="pw-plan-price">$99</div>
+        <div class="pw-plan-period">/ month</div>
+      </div>
+      <div class="pw-plan" id="plan-b">
+        <div class="pw-plan-label">Tier 03 — Best Value</div>
+        <div class="pw-plan-name">All Access</div>
+        <div class="pw-plan-price">$165</div>
+        <div class="pw-plan-period">/ month + $199 setup</div>
+      </div>
+    </div>
+    <a href="https://subscribe.1houseglobal.com/jay" target="_blank" rel="noopener noreferrer" class="pw-cta">Get Access Now →</a>
+    <p class="pw-note">Delivered through our licensed education partner. Cancel anytime.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN STREAM VIEW
+═══════════════════════════════════════════════ -->
+<div id="main">
+  <div class="stream-root">
+
+    <!-- VIDEO -->
+    <div class="vid-pane">
+      <div class="vid-stage">
+        <video id="streamVideo" autoplay muted playsinline></video>
+
+        <!-- Offline overlay -->
+        <div class="offline-state" id="offlineOverlay">
+          <div class="offline-grid"></div>
+          <div class="offline-orb"></div>
+          <div class="offline-title">Not Live Yet</div>
+          <div class="offline-sub">Jacob will appear here when the session starts.</div>
+          <button class="offline-notify" onclick="addSysMsg('You'll be notified when Jacob goes live.')">Notify me</button>
+        </div>
+      </div>
+
+      <!-- Bottom info bar -->
+      <div class="vid-bottom">
+        <div class="vid-info">
+          <div class="vid-title" id="streamTitle">The Greenprint — Live Session</div>
+          <div class="vid-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
+        </div>
+        <div class="vid-meta">
+          <div class="live-badge" id="liveBadge"><div class="live-badge-dot"></div><span class="live-badge-text">live</span></div>
+          <div class="viewer-badge" id="viewerBadge">
+            <span>👁</span><span id="vcNum">0</span>&nbsp;watching
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcaster bar -->
+      <div class="bc-strip" id="bcStrip">
+        <button class="bc-btn primary" id="startBtn" onclick="startStream()">🔴 &nbsp;Go Live</button>
+        <button class="bc-btn danger" id="stopBtn" style="display:none;" onclick="stopStream()">⬛ &nbsp;End Stream</button>
+        <button class="bc-btn" id="micBtn" onclick="toggleMic()">🎙 &nbsp;Mic On</button>
+        <button class="bc-btn" id="camBtn" onclick="toggleCam()">📷 &nbsp;Camera</button>
+        <div class="bc-spacer"></div>
+        <div class="bc-status" id="bcStatus">Ready to broadcast</div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="chat-panel">
+      <div class="chat-top">
+        <div class="chat-top-label">Live Chat</div>
+        <div id="chatViewerCount">0 viewers</div>
+      </div>
+      <div class="chat-feed" id="chatFeed"></div>
+      <div class="chat-foot">
+        <input class="chat-in" id="chatInput" type="text" placeholder="Say something…" maxlength="200"
+          onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-go" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     LOGIC
+═══════════════════════════════════════════════ -->
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+// The broadcaster connects as GP_PEER_ID. Viewers call that same ID.
+// Change this to anything unique to your stream (no spaces).
+var GP_PEER_ID = 'greenprint-live';
+
+// Broadcaster PIN — open live.html#bc=greenprint to get broadcaster controls
+// Change 'greenprint' by updating this SHA-256 hash:
+// crypto.subtle.digest('SHA-256',new TextEncoder().encode('newpin'))
+//   .then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+var BC_HASH = '27b5f32f840f41cce3efc3e10a2b3ee76cf7e9413bedc79cf2c7b77f06efab33';
+
+// Clerk (optional — remove or replace)
+var CLERK_KEY = 'REPLACE_WITH_YOUR_CLERK_PUBLISHABLE_KEY';
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+var _user=null, _subbed=false, _isBC=false;
+var _peer=null, _displayStream=null, _micStream=null, _micMuted=false;
+var _viewers=0, _activeCalls=[];
+var _names=['Marcus T.','Destiny R.','Jordan K.','Amir S.','Tasha W.',
+            'Kevin L.','Brianna M.','DeShawn P.','Chris M.','Layla V.'];
+var _quips=['🔥 Let's go!','Good morning!','Ready to learn','Great setup 🙌',
+  'What are we trading today?','Watching from Atlanta 📍','First time here!',
+  'Already up 2% 💰','NQ or ES?','This community is 🔥','Charts loaded ✅',
+  'Jacob always delivers 🎯','SPY or QQQ today?','Been waiting for this 🙏',
+  'Morning everyone','Locked in 👀','Let's get it 💰','Up 3% already 🚀'];
+var _qi=0;
+
+// ── CRYPTO ───────────────────────────────────────────────────────────────────
+async function sha256(s){
+  var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+// ── STORAGE ───────────────────────────────────────────────────────────────────
+var SUB_KEY='gp_live_v2';
+function getStoredSub(){try{return JSON.parse(localStorage.getItem(SUB_KEY));}catch(e){return null;}}
+function storeSub(d){try{localStorage.setItem(SUB_KEY,JSON.stringify(d));}catch(e){}}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showErr(el,msg){el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3200);}
+function setStatus(msg){var s=document.getElementById('bcStatus');if(s)s.textContent=msg;}
+
+// ── STEP 1: SUBSCRIBE ─────────────────────────────────────────────────────────
+function handleSubscribe(){
+  var name=document.getElementById('f-name').value.trim();
+  var email=document.getElementById('f-email').value.trim();
+  var phone=document.getElementById('f-phone').value.trim();
+  var err=document.getElementById('sub-err');
+  if(!name||name.split(' ').filter(Boolean).length<2){showErr(err,'Please enter your full name.');return;}
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showErr(err,'Please enter a valid email.');return;}
+  if(!phone||phone.replace(/\D/g,'').length<10){showErr(err,'Please enter a valid phone number.');return;}
+  storeSub({name,email,phone,ts:Date.now()});
+  _subbed=true;
+  goStep2();
+}
+
+function goStep2(){
+  document.getElementById('gp1').className='gp-step done';
+  document.getElementById('gpn1').textContent='✓';
+  document.getElementById('gpl1').className='gp-line done';
+  document.getElementById('gp2').className='gp-step active';
+  document.getElementById('s1').style.display='none';
+  document.getElementById('s2').style.display='block';
+  initClerk();
+}
+
+// ── CLERK AUTH ────────────────────────────────────────────────────────────────
+async function initClerk(){
+  if(!window.Clerk||CLERK_KEY==='REPLACE_WITH_YOUR_CLERK_PUBLISHABLE_KEY'){
+    document.getElementById('clerk-fallback').style.display='block';return;
+  }
+  try{
+    await window.Clerk.load({publishableKey:CLERK_KEY});
+    if(window.Clerk.session){_user=window.Clerk.session.user||{};onAuthDone();return;}
+    window.Clerk.mountSignIn(document.getElementById('clerk-mount'),{
+      afterSignInUrl:location.href,afterSignUpUrl:location.href
+    });
+    window.Clerk.addListener(e=>{if(e.session){_user=e.session.user||{};onAuthDone();}});
+  }catch(e){document.getElementById('clerk-fallback').style.display='block';}
+}
+
+async function onAuthDone(){
+  var hash=location.hash;
+  if(hash&&hash.startsWith('#bc=')){
+    var ph=await sha256(decodeURIComponent(hash.slice(4)));
+    if(ph===BC_HASH)_isBC=true;
+  }
+  document.getElementById('gate').style.display='none';
+  enterStream();
+}
+
+// ── ENTER STREAM ─────────────────────────────────────────────────────────────
+function enterStream(){
+  document.getElementById('main').style.display='block';
+  if(_isBC){
+    document.getElementById('bcStrip').classList.add('show');
+    addSysMsg('Broadcaster mode. Click Go Live when ready.');
+  } else {
+    connectAsViewer();
+  }
+  setTimeout(()=>addSysMsg('Welcome to The Greenprint Live 🔥'),600);
+  if(!_isBC) fakeViewers();
+}
+
+// ── VIEWER: connect to broadcaster via PeerJS ─────────────────────────────────
+function connectAsViewer(){
+  _peer=new Peer(undefined,{debug:0});
+  _peer.on('open',function(){
+    var call=_peer.call(GP_PEER_ID,null);
+    if(!call){
+      // Broadcaster not live yet — retry every 8s
+      setTimeout(connectAsViewer,8000);
+      return;
+    }
+    call.on('stream',function(remoteStream){
+      var video=document.getElementById('streamVideo');
+      video.srcObject=remoteStream;
+      video.play().catch(()=>{});
+      document.getElementById('offlineOverlay').style.display='none';
+      setLiveUI(true);
+    });
+    call.on('close',function(){
+      document.getElementById('offlineOverlay').style.display='flex';
+      setLiveUI(false);
+      // Broadcaster ended — keep trying to reconnect
+      setTimeout(connectAsViewer,8000);
+    });
+    call.on('error',function(){
+      setTimeout(connectAsViewer,8000);
+    });
+  });
+  _peer.on('error',function(err){
+    // "peer-unavailable" = broadcaster not live yet, keep retrying
+    if(err.type==='peer-unavailable') setTimeout(connectAsViewer,8000);
+  });
+}
+
+// ── BROADCASTER: go live ──────────────────────────────────────────────────────
+async function startStream(){
+  var startBtn=document.getElementById('startBtn');
+  startBtn.disabled=true;
+  setStatus('Requesting screen…');
+  try{
+    // Capture screen (capped at 720p for smooth performance while trading)
+    _displayStream=await navigator.mediaDevices.getDisplayMedia({
+      video:{width:{ideal:1280,max:1920},height:{ideal:720,max:1080},
+             frameRate:{ideal:30,max:30},cursor:'always'},
+      audio:true
+    });
+    // Grab mic with noise suppression
+    try{
+      _micStream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000},video:false
+      });
+    }catch(e){addSysMsg('Mic not found — streaming screen audio only.');}
+
+    // Show local preview (muted to prevent feedback)
+    var video=document.getElementById('streamVideo');
+    video.srcObject=_displayStream;
+    video.muted=true;
+    document.getElementById('offlineOverlay').style.display='none';
+
+    // Build the combined stream (screen + mic) to send to viewers
+    var allTracks=[..._displayStream.getTracks()];
+    if(_micStream) allTracks=[...allTracks,..._micStream.getAudioTracks()];
+    var broadcastStream=new MediaStream(allTracks);
+
+    // Register as broadcaster peer
+    setStatus('Connecting…');
+    _peer=new Peer(GP_PEER_ID,{debug:0});
+
+    _peer.on('open',function(){
+      setStatus('🔴 Live');
+      startBtn.style.display='none';
+      document.getElementById('stopBtn').style.display='inline-flex';
+      document.getElementById('micBtn').classList.add('on');
+      document.getElementById('micBtn').textContent='🎙 Mic On';
+      setLiveUI(true);
+      addSysMsg('You are live! Share your link and viewers will see your screen. 🚀');
+      fakeStreamViewers();
+    });
+
+    // Answer every viewer who calls in with the broadcast stream
+    _peer.on('call',function(call){
+      call.answer(broadcastStream);
+      _activeCalls.push(call);
+      setViewerCount(_viewers+1);
+      call.on('close',function(){
+        _activeCalls=_activeCalls.filter(c=>c!==call);
+        setViewerCount(Math.max(0,_viewers-1));
+      });
+    });
+
+    _peer.on('error',function(err){
+      if(err.type==='unavailable-id'){
+        addSysMsg('⚠ Stream ID in use — someone else may already be broadcasting.');
+        startBtn.disabled=false;
+        setStatus('ID conflict');
+      }
+    });
+
+    // If user stops screen share from OS overlay
+    _displayStream.getVideoTracks()[0].addEventListener('ended',stopStream);
+
+  }catch(er){
+    startBtn.disabled=false;
+    setStatus('');
+    if(er.name==='NotAllowedError') addSysMsg('Screen share permission denied.');
+    else addSysMsg('Error: '+er.message);
+    if(_displayStream){_displayStream.getTracks().forEach(t=>t.stop());_displayStream=null;}
+    if(_micStream){_micStream.getTracks().forEach(t=>t.stop());_micStream=null;}
+  }
+}
+
+function stopStream(){
+  _activeCalls.forEach(c=>c.close());
+  _activeCalls=[];
+  if(_peer){_peer.destroy();_peer=null;}
+  if(_displayStream){_displayStream.getTracks().forEach(t=>t.stop());_displayStream=null;}
+  if(_micStream){_micStream.getTracks().forEach(t=>t.stop());_micStream=null;}
+  document.getElementById('streamVideo').srcObject=null;
+  document.getElementById('offlineOverlay').style.display='flex';
+  var b=document.getElementById('startBtn');
+  b.style.display='inline-flex';b.disabled=false;
+  document.getElementById('stopBtn').style.display='none';
+  setLiveUI(false);
+  setStatus('Stream ended');
+  addSysMsg('Stream ended.');
+}
+
+function setLiveUI(live){
+  document.getElementById('liveBadge').style.display=live?'flex':'none';
+  document.getElementById('viewerBadge').style.display=live?'flex':'none';
+  var pill=document.getElementById('tb-status-label');
+  if(pill){
+    pill.className=live?'live':'';
+    document.getElementById('tb-live-text').textContent=live?'live':'offline';
+  }
+}
+
+// ── MIC TOGGLE ────────────────────────────────────────────────────────────────
+function toggleMic(){
+  _micMuted=!_micMuted;
+  if(_displayStream) _displayStream.getAudioTracks().forEach(t=>t.enabled=!_micMuted);
+  if(_micStream) _micStream.getAudioTracks().forEach(t=>t.enabled=!_micMuted);
+  var b=document.getElementById('micBtn');
+  b.textContent=_micMuted?'🔇 Mic Off':'🎙 Mic On';
+  b.classList.toggle('on',!_micMuted);
+  b.classList.toggle('danger',_micMuted);
+}
+
+function toggleCam(){addSysMsg('Camera overlay — coming soon.');}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function addSysMsg(t){addChatMsg('',t,true,false);}
+function addChatMsg(name,text,system,host){
+  var feed=document.getElementById('chatFeed');
+  var d=document.createElement('div');d.className='chat-item';
+  if(system){
+    d.innerHTML='<div class="chat-text system-text">'+esc(text)+'</div>';
+  }else{
+    d.innerHTML='<div class="chat-name'+(host?' host-name':'')+'">'+esc(name)+'</div>'+
+      '<div class="chat-text">'+esc(text)+'</div>';
+  }
+  feed.appendChild(d);
+  feed.scrollTop=feed.scrollHeight;
+}
+function sendChat(){
+  var inp=document.getElementById('chatInput');
+  var t=inp.value.trim();if(!t)return;
+  var sub=getStoredSub();
+  var n=(_user&&_user.fullName)?_user.fullName:(sub?sub.name.split(' ')[0]:'You');
+  addChatMsg(n+(_isBC?' 🎙':''),t,false,_isBC);
+  inp.value='';
+}
+function setViewerCount(n){
+  _viewers=n;
+  document.getElementById('vcNum').textContent=n;
+  document.getElementById('chatViewerCount').textContent=n+' viewer'+(n!==1?'s':'');
+}
+function fakeViewers(){
+  _names.slice(0,3).forEach((nm,j)=>{
+    var greet=['Hey everyone 👋','Ready for today!','Morning everyone'];
+    setTimeout(()=>{addChatMsg(nm,greet[j]);setViewerCount(_viewers+1);},2500+j*3200);
+  });
+}
+function fakeStreamViewers(){
+  var iv=setInterval(()=>{
+    if(!_peer||_peer.destroyed){clearInterval(iv);return;}
+    if(Math.random()>.5){
+      var nm=_names[Math.floor(Math.random()*_names.length)];
+      addChatMsg(nm,_quips[_qi++%_quips.length]);
+    }
+  },5000);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+(async function boot(){
+  var stored=getStoredSub();
+  if(stored&&Date.now()-stored.ts<30*24*60*60*1000){_subbed=true;goStep2();}
+  if(window.Clerk&&CLERK_KEY!=='REPLACE_WITH_YOUR_CLERK_PUBLISHABLE_KEY'){
+    try{
+      await window.Clerk.load({publishableKey:CLERK_KEY});
+      if(window.Clerk.session&&_subbed){
+        _user=window.Clerk.session.user||{};
+        var hash=location.hash;
+        if(hash&&hash.startsWith('#bc=')){
+          var ph=await sha256(decodeURIComponent(hash.slice(4)));
+          if(ph===BC_HASH)_isBC=true;
+        }
+        onAuthDone();
+      }
+    }catch(e){}
+  }
+  document.getElementById('plan-a').onclick=function(){
+    this.classList.add('sel');document.getElementById('plan-b').classList.remove('sel');
+  };
+  document.getElementById('plan-b').onclick=function(){
+    this.classList.add('sel');document.getElementById('plan-a').classList.remove('sel');
+  };
+})();
+</script>
+</body>

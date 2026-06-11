@@ -1,0 +1,2957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://assets.calendly.com; font-src https://fonts.googleapis.com https://fonts.gstatic.com data:; frame-src https://calendly.com https://drive.google.com; img-src 'self' data:; connect-src 'self';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Greenprint | Wealth. Strategy. Legacy.</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,200;0,300;0,400;0,500;1,300&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --g:#00ff87;--g2:#00c853;--gd:#003d1a;
+  --k:#050505;--w:#f5fff8;
+  --s1:#080c09;--s2:#0c120d;
+  --glass:rgba(0,255,135,0.04);
+  --gbr:rgba(0,255,135,0.12);
+}
+html{scroll-behavior:smooth;overflow-x:hidden;}
+body{background:var(--k);color:var(--w);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:var(--g2);}
+
+
+
+
+
+/* PROGRESS */
+#progress{position:fixed;top:0;left:0;width:0%;height:1px;background:linear-gradient(90deg,var(--g2),var(--g));z-index:800;box-shadow:0 0 8px var(--g);}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:700;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 5vw;
+  transition:background .4s,backdrop-filter .4s,border-color .4s;
+}
+nav.scrolled{
+  background:rgba(5,5,5,.85);
+  backdrop-filter:blur(24px);
+  border-bottom:1px solid rgba(0,255,135,.07);
+}
+.logo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.6rem;letter-spacing:.12em;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  text-shadow:none;
+}
+.nav-links{display:flex;gap:32px;list-style:none;}
+.nav-links a{
+  font-size:.7rem;font-weight:500;letter-spacing:.2em;
+  text-transform:uppercase;color:rgba(245,255,248,.35);
+  text-decoration:none;transition:color .25s;
+  font-family:'Space Grotesk',sans-serif;
+}
+.nav-links a:hover{color:var(--g);}
+@media(max-width:768px){.nav-links{display:none;}}
+.nav-cta{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.7rem;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;
+  padding:10px 24px;
+  background:transparent;
+  border:1px solid rgba(0,255,135,.35);
+  color:var(--g);cursor:pointer;
+  position:relative;overflow:hidden;transition:all .3s;
+  text-decoration:none;display:inline-block;
+}
+.nav-cta::before{
+  content:'';position:absolute;inset:0;
+  background:var(--g);transform:translateX(-101%);transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+.nav-cta span{position:relative;z-index:1;transition:color .35s;}
+.nav-cta:hover::before{transform:translateX(0);}
+.nav-cta:hover span{color:var(--k);}
+
+/* HERO */
+.hero{
+  min-height:100svh;
+  display:grid;grid-template-columns:1fr 1fr;
+  align-items:center;gap:0;
+  padding:120px 0 80px;
+  position:relative;overflow:hidden;
+}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding:120px 5vw 80px;}}
+.hero-left{padding:0 0 0 5vw;position:relative;z-index:2;}
+.hero-right{height:100%;min-height:500px;position:relative;overflow:hidden;}
+@media(max-width:900px){.hero-right{display:none;}}
+
+/* Animated BG grid */
+.hero-bg-grid{
+  position:absolute;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(0,255,135,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.04) 1px,transparent 1px);
+  background-size:60px 60px;
+  animation:gridScroll 20s linear infinite;
+}
+@keyframes gridScroll{0%{background-position:0 0;}100%{background-position:60px 60px;}}
+.hero-bg-grid::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 100% at 15% 50%,rgba(2,2,2,0.9) 20%,transparent 70%);
+}
+.hero-orb1{
+  position:absolute;right:5%;top:15%;z-index:0;
+  width:min(600px,80vw);height:min(600px,80vw);
+  background:radial-gradient(circle,rgba(0,200,83,0.13) 0%,rgba(0,200,83,0.04) 40%,transparent 70%);
+  pointer-events:none;animation:orbFloat 7s ease-in-out infinite;
+}
+.hero-orb2{
+  position:absolute;left:-5%;bottom:-10%;z-index:0;overflow:hidden;
+  width:450px;height:450px;
+  background:radial-gradient(circle,rgba(0,200,83,0.07) 0%,transparent 65%);
+  pointer-events:none;animation:orbFloat 9s ease-in-out infinite reverse;
+}
+@keyframes orbFloat{0%,100%{transform:scale(1) translate(0,0);}50%{transform:scale(1.08) translate(-12px,12px);}}
+
+#heroCanvas{position:absolute;inset:0;width:100%;height:100%;}
+
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.65rem;font-weight:500;letter-spacing:.35em;text-transform:uppercase;color:var(--g);
+  margin-bottom:28px;animation:slideUp .8s cubic-bezier(.16,1,.3,1) both .5s;
+}
+.hero-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 6px var(--g)}50%{opacity:.3;box-shadow:none}}
+.hero-h1{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(4rem,10vw,9.5rem);
+  line-height:.87;letter-spacing:.02em;
+  animation:slideUp .9s cubic-bezier(.16,1,.3,1) both .65s;
+}
+.hero-h1 .line{display:block;overflow:hidden;}
+.hero-h1 .g{
+  background:linear-gradient(135deg,var(--g) 0%,var(--g2) 60%,#00a844 100%);
+  background-size:200% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:textShimmer 4s linear infinite;
+  filter:drop-shadow(0 0 40px rgba(0,200,83,0.4));
+}
+@keyframes textShimmer{0%{background-position:0% center;}100%{background-position:200% center;}}
+.hero-p{
+  margin-top:22px;max-width:440px;
+  font-size:clamp(.88rem,1.8vw,.98rem);font-weight:300;line-height:1.8;
+  color:rgba(245,255,248,.55);
+  animation:slideUp .8s cubic-bezier(.16,1,.3,1) both .8s;
+}
+.hero-btns{
+  margin-top:44px;display:flex;flex-wrap:wrap;gap:14px;
+  animation:slideUp .8s cubic-bezier(.16,1,.3,1) both .95s;
+}
+.btn-solid{
+  display:inline-flex;align-items:center;gap:10px;height:52px;padding:0 36px;
+  background:linear-gradient(135deg,var(--g),var(--g2));color:var(--k);border:none;
+  font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:.78rem;letter-spacing:.14em;
+  text-transform:uppercase;cursor:pointer;text-decoration:none;position:relative;overflow:hidden;
+  transition:transform .3s,box-shadow .3s;box-shadow:0 4px 20px rgba(0,200,83,0.25);
+}
+.btn-solid::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.15),transparent 60%);}
+.btn-solid::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);transform:translateX(-100%);transition:transform 0s;}
+.btn-solid:hover::after{transform:translateX(100%);transition:transform .5s;}
+.btn-solid:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(0,200,83,.5),0 0 100px rgba(0,200,83,.2);}
+.btn-line{
+  display:inline-flex;align-items:center;gap:10px;height:52px;padding:0 32px;
+  background:transparent;border:1px solid rgba(245,255,248,.15);color:rgba(245,255,248,.65);
+  font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:.78rem;letter-spacing:.14em;
+  text-transform:uppercase;cursor:pointer;text-decoration:none;transition:all .3s;
+}
+.btn-line:hover{border-color:var(--g);color:var(--g);box-shadow:0 0 20px rgba(0,255,135,.08);transform:translateY(-2px);}
+.hero-stats{
+  margin-top:60px;display:flex;gap:48px;
+  animation:slideUp .8s cubic-bezier(.16,1,.3,1) both 1.1s;
+  position:relative;
+}
+.hero-stats::before{
+  content:'';position:absolute;top:-20px;left:0;width:160px;height:1px;
+  background:linear-gradient(90deg,rgba(0,255,135,.5),transparent);
+}
+@media(max-width:500px){.hero-stats{gap:28px;}}
+.stat-v{
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,2.8rem);
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;
+  filter:drop-shadow(0 0 15px rgba(0,200,83,0.4));
+}
+.stat-l{font-size:.6rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,255,248,.28);margin-top:4px;font-family:'Space Grotesk',sans-serif;}
+
+@keyframes slideUp{from{opacity:0;transform:translateY(40px);}to{opacity:1;transform:translateY(0);}}
+
+/* SCROLLING TICKER */
+.ticker-outer{
+  overflow:hidden;
+  border-top:1px solid rgba(0,255,135,.08);
+  border-bottom:1px solid rgba(0,255,135,.08);
+  background:rgba(0,255,135,.02);
+  padding:12px 0;position:relative;
+}
+.ticker-outer::before,.ticker-outer::after{
+  content:'';position:absolute;top:0;bottom:0;width:100px;z-index:2;
+}
+.ticker-outer::before{left:0;background:linear-gradient(90deg,var(--k),transparent);}
+.ticker-outer::after{right:0;background:linear-gradient(-90deg,var(--k),transparent);}
+.ticker-track{display:flex;width:max-content;animation:tickMove 35s linear infinite;}
+.tick-item{
+  display:flex;align-items:center;gap:6px;
+  padding:0 36px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.72rem;font-weight:500;letter-spacing:.1em;
+  color:rgba(245,255,248,.3);white-space:nowrap;
+}
+.tick-up{color:var(--g);font-weight:600;}
+.tick-dn{color:#ff4d6d;font-weight:600;}
+.tick-dot{width:4px;height:4px;border-radius:50%;background:rgba(245,255,248,.15);}
+@keyframes tickMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* SECTION BASE */
+.sec{padding:clamp(80px,12vw,140px) 5vw;position:relative;overflow:hidden;}
+.sec-inner{max-width:1280px;margin:0 auto;overflow:hidden;}
+.sec-eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.62rem;font-weight:600;letter-spacing:.38em;
+  text-transform:uppercase;color:var(--g);
+  margin-bottom:16px;
+}
+.sec-eyebrow::before{content:'';width:24px;height:1px;background:linear-gradient(90deg,transparent,var(--g));}
+.sec-h{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(2.8rem,6vw,5.5rem);
+  line-height:.92;letter-spacing:.025em;margin-bottom:18px;
+}
+.sec-h em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.sec-sub{
+  font-size:clamp(.85rem,1.8vw,.98rem);
+  font-weight:300;line-height:1.82;
+  color:rgba(245,255,248,.45);max-width:560px;
+}
+
+/* WHAT WE DO — 3D CARD GRID */
+.services-sec{background:var(--s1);}
+.services-layout{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(48px,6vw,96px);align-items:center;
+}
+@media(max-width:768px){.services-layout{grid-template-columns:1fr;}}
+.svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+.svc-card{
+  background:var(--k);
+  padding:clamp(28px,4vw,44px) clamp(20px,3vw,32px);
+  position:relative;overflow:hidden;
+  cursor:default;
+  transition:transform .5s cubic-bezier(.16,1,.3,1);
+}
+.svc-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,255,135,.06),transparent 60%);
+  opacity:0;transition:opacity .4s;
+}
+.svc-card:hover{transform:translateY(-4px) scale(1.01);}
+.svc-card:hover::before{opacity:1;}
+.svc-card::after{
+  content:'';position:absolute;
+  bottom:0;left:0;height:1px;width:0;
+  background:linear-gradient(90deg,var(--g),var(--g2));
+  transition:width .5s cubic-bezier(.16,1,.3,1);
+}
+.svc-card:hover::after{width:100%;}
+.svc-ico{font-size:2rem;margin-bottom:18px;display:block;filter:drop-shadow(0 0 12px rgba(0,255,135,.4));}
+.svc-name{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.82rem;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:rgba(245,255,248,.85);
+  margin-bottom:8px;
+}
+.svc-desc{font-size:.78rem;font-weight:300;color:rgba(245,255,248,.38);line-height:1.7;}
+
+/* NUMBERS SECTION */
+.numbers-sec{
+  background:var(--k);
+  overflow:hidden;position:relative;
+}
+.numbers-sec::before{
+  content:'';position:absolute;
+  top:-200px;left:50%;transform:translateX(-50%);
+  width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,200,83,.07) 0%,transparent 70%);
+  pointer-events:none;
+}
+.numbers-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;background:rgba(0,255,135,.06);
+}
+@media(max-width:768px){.numbers-grid{grid-template-columns:repeat(2,1fr);}}
+.num-card{
+  background:var(--k);padding:clamp(36px,5vw,64px) clamp(24px,4vw,48px);
+  position:relative;overflow:hidden;text-align:center;
+}
+.num-card::before{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:60%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,135,.25),transparent);
+}
+.num-v{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(3rem,7vw,5.5rem);
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;line-height:1;margin-bottom:10px;
+  display:block;
+}
+.num-l{font-family:'Space Grotesk',sans-serif;font-size:.65rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:rgba(245,255,248,.28);}
+
+/* PRICING — HORIZONTAL SCROLL CARDS */
+.pricing-sec{background:var(--s2);overflow:hidden;}
+.pkg-scroll{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:2px;background:rgba(0,255,135,.06);
+  margin-top:clamp(40px,6vw,72px);
+}
+@media(max-width:1060px){.pkg-scroll{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.pkg-scroll{grid-template-columns:1fr;}}
+.pkg{
+  background:var(--s1);
+  padding:clamp(32px,4vw,52px) clamp(24px,3vw,36px);
+  position:relative;display:flex;flex-direction:column;
+  transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .5s;
+}
+.pkg:hover{transform:translateY(-6px);box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 0 1px rgba(0,255,135,.08);}
+.pkg.hot{
+  background:linear-gradient(160deg,#071a0d,#050d07);
+  border:1px solid rgba(0,255,135,.15);
+}
+.pkg.hot::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+}
+.pkg-badge{
+  position:absolute;top:-1px;right:32px;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  color:var(--k);font-family:'Space Grotesk',sans-serif;
+  font-size:.58rem;font-weight:700;letter-spacing:.16em;
+  padding:5px 14px;text-transform:uppercase;
+}
+.pkg-tier{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.6rem;font-weight:600;letter-spacing:.28em;
+  text-transform:uppercase;color:rgba(0,255,135,.5);margin-bottom:8px;
+}
+.pkg-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:.04em;
+  margin-bottom:24px;color:rgba(245,255,248,.95);
+}
+.pkg-price{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(3rem,5vw,4rem);
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;line-height:1;
+}
+.pkg-price.free-p{font-size:clamp(2rem,4vw,2.8rem);}
+.pkg-price.app-p{font-size:clamp(1rem,2vw,1.3rem);margin-top:6px;}
+.pkg-price sup{font-size:1.4rem;vertical-align:top;margin-top:10px;}
+.pkg-period{font-size:.7rem;color:rgba(245,255,248,.28);margin-bottom:28px;letter-spacing:.08em;}
+.pkg-divider{width:32px;height:1px;background:linear-gradient(90deg,var(--g2),transparent);margin-bottom:24px;opacity:.4;}
+.pkg-feats{list-style:none;flex:1;margin-bottom:32px;}
+.pkg-feats li{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:.8rem;font-weight:300;
+  color:rgba(245,255,248,.6);
+  padding:9px 0;border-bottom:1px solid rgba(245,255,248,.04);
+  line-height:1.5;
+}
+.pkg-feats li .y{color:var(--g);font-weight:700;font-size:.72rem;margin-top:2px;flex-shrink:0;}
+.pkg-feats li .n{color:rgba(245,255,248,.15);font-size:.72rem;margin-top:2px;flex-shrink:0;}
+.pkg-feats li.dim{opacity:.25;}
+.pkg-action{
+  display:flex;align-items:center;justify-content:center;
+  height:46px;
+  background:transparent;
+  border:1px solid rgba(0,255,135,.2);
+  color:rgba(0,255,135,.75);
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;font-size:.74rem;letter-spacing:.16em;
+  text-transform:uppercase;cursor:pointer;
+  text-decoration:none;margin-top:auto;
+  position:relative;overflow:hidden;transition:all .35s;
+}
+.pkg-action::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  transform:translateY(101%);transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+.pkg-action span{position:relative;z-index:1;transition:color .35s;}
+.pkg-action:hover::before{transform:translateY(0);}
+.pkg-action:hover span{color:var(--k);}
+.pkg.hot .pkg-action{background:linear-gradient(135deg,var(--g),var(--g2));border:none;}
+.pkg.hot .pkg-action span{color:var(--k);}
+.pkg.hot .pkg-action::before{display:none;}
+.pkg.hot .pkg-action:hover{opacity:.85;}
+.aff-note{
+  margin-top:20px;text-align:center;
+  font-size:.62rem;color:rgba(245,255,248,.18);letter-spacing:.06em;
+}
+.aff-note a{color:rgba(0,255,135,.3);text-decoration:none;}
+
+/* BOOK A CALL */
+.book-sec{background:var(--k);position:relative;overflow:hidden;}
+.book-sec::before{
+  content:'';position:absolute;
+  top:-300px;right:-300px;
+  width:700px;height:700px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,200,83,.06) 0%,transparent 70%);
+  pointer-events:none;
+}
+.book-layout{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(48px,6vw,96px);align-items:start;
+}
+@media(max-width:900px){.book-layout{grid-template-columns:1fr;}}
+.book-text{}
+.cal-container{
+  border:1px solid rgba(0,255,135,.1);
+  background:rgba(5,5,5,.8);
+  position:relative;overflow:hidden;
+}
+.cal-container::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+  z-index:1;
+}
+
+/* LOANS */
+.loans-sec{background:var(--s1);position:relative;overflow:hidden;}
+.loans-top{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(48px,6vw,96px);align-items:center;
+  margin-bottom:clamp(56px,8vw,96px);
+}
+@media(max-width:768px){.loans-top{grid-template-columns:1fr;}}
+.loans-body p{
+  font-size:clamp(.84rem,1.8vw,.96rem);
+  font-weight:300;line-height:1.85;
+  color:rgba(245,255,248,.48);margin-bottom:16px;
+}
+.loans-body strong{color:rgba(245,255,248,.78);font-weight:500;}
+.loans-quote{overflow:hidden;word-break:break-word;
+  border-left:2px solid var(--g2);
+  padding:16px 20px;
+  background:linear-gradient(90deg,rgba(0,255,135,.06),transparent);
+  margin:28px 0;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:clamp(.95rem,2vw,1.1rem);
+  font-weight:400;color:rgba(245,255,248,.8);line-height:1.5;
+  font-style:italic;
+}
+.loans-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px;}
+.qualify-stack{display:flex;flex-direction:column;gap:2px;background:rgba(0,255,135,.06);}
+.q-item{
+  background:var(--s1);padding:22px 26px;
+  border-left:2px solid transparent;
+  transition:all .35s cubic-bezier(.16,1,.3,1);
+}
+.q-item:hover{background:#0a1a0c;border-left-color:var(--g);}
+.q-lbl{font-family:'Space Grotesk',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:5px;}
+.q-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.04em;color:rgba(245,255,248,.85);margin-bottom:6px;}
+.q-desc{font-size:.78rem;font-weight:300;color:rgba(245,255,248,.38);line-height:1.65;}
+.loans-cards{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px;background:rgba(0,255,135,.06);
+}
+@media(max-width:768px){.loans-cards{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:480px){.loans-cards{grid-template-columns:1fr;}}
+.loan-card{
+  background:var(--k);
+  padding:clamp(24px,3vw,36px) clamp(18px,3vw,28px);
+  position:relative;overflow:hidden;
+  transition:all .4s cubic-bezier(.16,1,.3,1);
+}
+.loan-card:hover{background:#0a1a0c;transform:translateY(-3px);box-shadow:0 12px 50px rgba(0,0,0,.4);}
+.loan-card::after{
+  content:'';position:absolute;
+  bottom:0;left:0;width:0;height:1px;
+  background:linear-gradient(90deg,var(--g),var(--g2));
+  transition:width .4s;
+}
+.loan-card:hover::after{width:100%;}
+.loan-n{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:rgba(0,255,135,.15);line-height:1;margin-bottom:10px;}
+.loan-name{font-family:'Space Grotesk',sans-serif;font-size:.84rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(245,255,248,.8);margin-bottom:7px;}
+.loan-desc{font-size:.76rem;font-weight:300;color:rgba(245,255,248,.38);line-height:1.65;}
+.loans-metrics{
+  display:flex;flex-wrap:wrap;gap:clamp(28px,5vw,60px);
+  margin-top:clamp(48px,7vw,80px);
+  padding-top:clamp(36px,5vw,56px);
+  border-top:1px solid rgba(0,255,135,.07);
+}
+.lm-v{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(2.2rem,5vw,3.2rem);
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;line-height:1;
+}
+.lm-l{font-family:'Space Grotesk',sans-serif;font-size:.6rem;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:rgba(245,255,248,.25);margin-top:5px;}
+
+/* ABOUT */
+.about-sec{background:var(--k);position:relative;overflow:hidden;}
+.about-layout{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(48px,7vw,100px);align-items:center;
+}
+@media(max-width:768px){.about-layout{grid-template-columns:1fr;}}
+.about-visual{
+  position:relative;height:clamp(320px,45vw,560px);
+}
+.about-bg{
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,255,135,.05),rgba(0,200,83,.02));
+  border:1px solid rgba(0,255,135,.1);
+}
+.about-bg2{
+  position:absolute;
+  top:28px;left:28px;right:-28px;bottom:-28px;
+  border:1px solid rgba(0,255,135,.04);
+  z-index:-1;
+}
+.about-center{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+}
+.about-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(6rem,16vw,10rem);
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;line-height:1;
+  animation:numglow 4s ease-in-out infinite;
+}
+@keyframes numglow{
+  0%,100%{filter:drop-shadow(0 0 20px rgba(0,200,83,.4));}
+  50%{filter:drop-shadow(0 0 50px rgba(0,200,83,.7));}
+}
+.about-num-sub{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.65rem;font-weight:500;letter-spacing:.3em;
+  text-transform:uppercase;color:rgba(245,255,248,.3);text-align:center;
+}
+.about-p{font-size:clamp(.84rem,1.8vw,.96rem);font-weight:300;line-height:1.85;color:rgba(245,255,248,.5);margin-bottom:16px;}
+.about-p strong{color:rgba(245,255,248,.78);font-weight:500;}
+.about-quote{
+  border-left:2px solid var(--g2);
+  padding:16px 20px;
+  background:linear-gradient(90deg,rgba(0,255,135,.06),transparent);
+  margin:24px 0;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:clamp(.95rem,2vw,1.08rem);
+  font-weight:400;color:rgba(245,255,248,.78);line-height:1.5;
+  font-style:italic;
+}
+
+/* TESTIMONIALS */
+.testi-sec{background:var(--s2);}
+.testi-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px;background:rgba(0,255,135,.06);
+  margin-top:clamp(40px,6vw,72px);
+}
+@media(max-width:768px){.testi-grid{grid-template-columns:1fr;}}
+.testi{
+  background:var(--s1);
+  padding:clamp(28px,4vw,44px) clamp(22px,3vw,36px);
+  position:relative;overflow:hidden;
+  transition:all .4s cubic-bezier(.16,1,.3,1);
+}
+.testi:hover{background:#0a1a0c;transform:translateY(-3px);}
+.testi::before{
+  content:open-quote;
+  position:absolute;top:-10px;right:24px;
+  font-size:8rem;line-height:1;
+  color:rgba(0,255,135,.06);
+  font-family:'Bebas Neue',sans-serif;
+  pointer-events:none;
+}
+.testi-stars{
+  display:flex;gap:2px;margin-bottom:18px;
+}
+.testi-star{
+  width:12px;height:12px;
+  background:var(--g2);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  filter:drop-shadow(0 0 4px rgba(0,200,83,.4));
+}
+.testi-txt{
+  font-size:clamp(.82rem,1.8vw,.9rem);font-weight:300;
+  line-height:1.8;color:rgba(245,255,248,.58);
+  margin-bottom:24px;
+}
+.testi-author{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.76rem;font-weight:600;letter-spacing:.08em;
+  color:rgba(245,255,248,.82);
+}
+.testi-role{font-size:.68rem;font-weight:300;color:rgba(245,255,248,.28);margin-top:3px;}
+
+/* CTA BANNER */
+.cta-sec{
+  position:relative;overflow:hidden;
+  padding:clamp(80px,12vw,140px) 5vw;
+  text-align:center;
+  background:linear-gradient(135deg,#020d05,#041a09,#020d05);
+}
+.cta-sec::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 50%,rgba(0,200,83,.12) 0%,transparent 70%);
+  pointer-events:none;
+}
+.cta-bg-text{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(15vw,20vw,22vw);
+  background:linear-gradient(135deg,rgba(0,255,135,.06),rgba(0,200,83,.03));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  white-space:nowrap;pointer-events:none;letter-spacing:.05em;
+}
+.cta-inner{position:relative;z-index:1;}
+.cta-h{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(3rem,8vw,7rem);
+  line-height:.9;letter-spacing:.02em;
+  margin-bottom:20px;
+}
+.cta-h em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.cta-p{
+  font-size:clamp(.85rem,2vw,1.02rem);
+  font-weight:300;line-height:1.8;
+  color:rgba(245,255,248,.45);
+  max-width:500px;margin:0 auto 44px;
+}
+.cta-btns{display:flex;justify-content:center;flex-wrap:wrap;gap:14px;}
+
+/* MEMBER ONBOARDING */
+.member-sec{
+  background:var(--s1);
+  border-top:1px solid rgba(0,255,135,.07);
+}
+.member-layout{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:clamp(48px,6vw,96px);align-items:center;
+}
+@media(max-width:680px){.member-layout{grid-template-columns:1fr;}}
+.member-form-wrap{
+  background:var(--k);
+  border:1px solid rgba(0,255,135,.1);
+  padding:clamp(32px,4vw,52px);
+  position:relative;overflow:hidden;
+}
+.member-form-wrap::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+}
+.form-label{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.58rem;font-weight:600;letter-spacing:.28em;
+  text-transform:uppercase;color:rgba(0,255,135,.5);
+  margin-bottom:10px;
+}
+.form-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.6rem,3vw,2.2rem);
+  letter-spacing:.04em;margin-bottom:24px;
+}
+.form-input{
+  width:100%;height:48px;
+  background:rgba(0,255,135,.03);
+  border:1px solid rgba(0,255,135,.12);
+  color:var(--w);padding:0 18px;
+  font-family:'DM Sans',sans-serif;font-size:.9rem;
+  letter-spacing:.04em;outline:none;
+  transition:border-color .25s,box-shadow .25s;
+  margin-bottom:12px;
+  -webkit-appearance:none;border-radius:0;display:block;
+}
+.form-input:focus{border-color:rgba(0,255,135,.4);box-shadow:0 0 0 3px rgba(0,255,135,.05);}
+.form-input::placeholder{color:rgba(245,255,248,.2);font-size:.8rem;letter-spacing:.08em;}
+.form-btn{
+  width:100%;height:48px;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  color:var(--k);border:none;
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:700;font-size:.74rem;letter-spacing:.2em;
+  text-transform:uppercase;cursor:pointer;
+  position:relative;overflow:hidden;transition:all .3s;
+}
+.form-btn:hover{box-shadow:0 8px 30px rgba(0,200,83,.3);transform:translateY(-1px);}
+.form-err{display:none;color:#ff4d6d;font-size:.68rem;font-family:'Space Grotesk',sans-serif;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-top:10px;}
+.form-hint{font-size:.68rem;font-weight:300;color:rgba(245,255,248,.2);line-height:1.6;margin-top:14px;}
+
+/* FOOTER */
+footer{
+  background:#020202;
+  border-top:1px solid rgba(0,255,135,.06);
+  padding:clamp(52px,7vw,80px) 5vw 40px;
+}
+.footer-inner{
+  max-width:1280px;margin:0 auto;
+  display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
+  gap:clamp(32px,5vw,64px);
+  margin-bottom:clamp(44px,6vw,72px);
+}
+@media(max-width:768px){.footer-inner{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.footer-inner{grid-template-columns:1fr;}}
+.footer-brand{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:2rem;letter-spacing:.12em;
+  background:linear-gradient(135deg,var(--g),var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:14px;
+}
+.footer-desc{font-size:.78rem;font-weight:300;color:rgba(245,255,248,.25);line-height:1.75;max-width:240px;}
+.footer-col-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.58rem;font-weight:600;letter-spacing:.3em;
+  text-transform:uppercase;color:rgba(0,255,135,.45);
+  margin-bottom:20px;
+}
+.footer-links{list-style:none;}
+.footer-links li{margin-bottom:12px;}
+.footer-links a{font-size:.78rem;color:rgba(245,255,248,.25);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--g);}
+.footer-bottom{
+  max-width:1280px;margin:0 auto;
+  padding-top:28px;border-top:1px solid rgba(0,255,135,.05);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;
+}
+.footer-copy{font-size:.64rem;color:rgba(245,255,248,.14);letter-spacing:.06em;}
+.socials{display:flex;gap:10px;}
+.social{
+  width:34px;height:34px;
+  border:1px solid rgba(0,255,135,.12);
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(245,255,248,.25);text-decoration:none;
+  font-size:.68rem;font-weight:700;
+  font-family:'Space Grotesk',sans-serif;
+  transition:all .25s;
+}
+.social:hover{border-color:var(--g);color:var(--g);box-shadow:0 0 16px rgba(0,255,135,.15);}
+.disclaimer{
+  font-size:.58rem;color:rgba(245,255,248,.12);
+  text-align:center;padding:16px 5vw 0;
+  line-height:1.7;max-width:900px;margin:0 auto;
+}
+
+/* EXTRA ANIMATIONS */
+/* Morphing orbs */
+.hero::before{
+  content:'';position:absolute;
+  top:-20%;left:-10%;
+  width:60%;height:120%;
+  background:radial-gradient(ellipse at 30% 50%,rgba(0,200,83,0.06) 0%,transparent 60%);
+  animation:morphOrb 8s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+@keyframes morphOrb{
+  0%{transform:scale(1) rotate(0deg);}
+  100%{transform:scale(1.2) rotate(15deg);}
+}
+/* Glitch on logo hover */
+.logo:hover{animation:glitch .4s steps(2,end) 1;}
+@keyframes glitch{
+  0%{text-shadow:2px 0 #00ff87,-2px 0 rgba(0,200,83,.5);}
+  25%{text-shadow:-2px 0 #00ff87,2px 0 rgba(0,200,83,.5);}
+  50%{text-shadow:2px 2px #00ff87,-2px -2px rgba(0,200,83,.5);}
+  75%{text-shadow:-2px 2px #00ff87,2px -2px rgba(0,200,83,.5);}
+  100%{text-shadow:none;}
+}
+/* Section entrance — stagger children */
+.svc-grid .svc-card{transition-delay:0s;}
+.svc-grid .svc-card:nth-child(2){transition-delay:.08s;}
+.svc-grid .svc-card:nth-child(3){transition-delay:.16s;}
+.svc-grid .svc-card:nth-child(4){transition-delay:.24s;}
+/* Shimmer on cta bg text */
+.cta-bg-text{
+  animation:ctaShimmer 6s ease-in-out infinite;
+}
+@keyframes ctaShimmer{
+  0%,100%{opacity:1;}
+  50%{opacity:0.6;}
+}
+/* Pulsing border on featured package */
+.pkg.hot{
+  animation:pkgPulse 4s ease-in-out infinite;
+}
+@keyframes pkgPulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(0,255,135,.08),0 0 30px rgba(0,200,83,.04);}
+  50%{box-shadow:0 0 0 1px rgba(0,255,135,.25),0 0 60px rgba(0,200,83,.1);}
+}
+/* Number cards hover glow */
+.num-card{transition:all .4s cubic-bezier(.16,1,.3,1);}
+.num-card:hover{background:rgba(0,255,135,.03);transform:translateY(-4px);}
+/* Floating animation on about visual */
+.about-visual{animation:float 6s ease-in-out infinite;}
+@keyframes float{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-12px);}
+}
+/* Hero headline text shimmer */
+.hero-h1 .g{
+  background-size:200% auto;
+  animation:textShimmer 4s linear infinite;
+}
+@keyframes textShimmer{
+  0%{background-position:0% center;}
+  100%{background-position:200% center;}
+}
+/* Scan line effect on cal container */
+.cal-container::after{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,135,.4),transparent);
+  animation:scan 3s linear infinite;
+  z-index:1;pointer-events:none;
+}
+@keyframes scan{
+  0%{top:0;opacity:1;}
+  90%{opacity:.5;}
+  100%{top:100%;opacity:0;}
+}
+/* Testi card entrance */
+.testi{animation:none;}
+.testi:hover .testi-stars .testi-star{
+  animation:starPop .3s cubic-bezier(.16,1,.3,1) both;
+}
+.testi:hover .testi-stars .testi-star:nth-child(2){animation-delay:.05s;}
+.testi:hover .testi-stars .testi-star:nth-child(3){animation-delay:.1s;}
+.testi:hover .testi-stars .testi-star:nth-child(4){animation-delay:.15s;}
+.testi:hover .testi-stars .testi-star:nth-child(5){animation-delay:.2s;}
+@keyframes starPop{
+  0%{transform:scale(1);}
+  50%{transform:scale(1.4);}
+  100%{transform:scale(1);}
+}
+/* Btn solid ripple */
+.btn-solid:active::before{
+  animation:ripple .5s ease-out;
+}
+@keyframes ripple{
+  0%{transform:scale(0);opacity:.5;}
+  100%{transform:scale(4);opacity:0;}
+}
+/* Loader bar gradient animation */
+.loader-bar{background:linear-gradient(90deg,#00c853,#00ff87,#69f0ae,#00c853);background-size:200% auto;animation:barShine 1.5s linear infinite;}
+@keyframes barShine{0%{background-position:0% center;}100%{background-position:200% center;}}
+
+.reveal{
+  opacity:1;transform:translateY(0);
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);
+}
+.reveal.in{opacity:1;transform:translateY(0);}
+.reveal-left{
+  opacity:1;transform:translateX(0);
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);
+}
+.reveal-left.in{opacity:1;transform:translateX(0);}
+.reveal-right{
+  opacity:1;transform:translateX(0);
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);
+}
+.reveal-right.in{opacity:1;transform:translateX(0);}
+.d1{transition-delay:.1s!important;}
+.d2{transition-delay:.2s!important;}
+.d3{transition-delay:.3s!important;}
+.d4{transition-delay:.4s!important;}
+.d5{transition-delay:.5s!important;}
+
+/* ── MOBILE FIXES ── */
+@media(max-width:768px){
+  .hero{grid-template-columns:1fr!important;padding:100px 5vw 60px!important;min-height:auto!important;}
+  .hero-right{display:none!important;}
+  .hero-h1{font-size:clamp(3rem,14vw,5rem)!important;}
+  .hero-stats{gap:24px!important;margin-top:40px!important;}
+  .stat-v{font-size:1.8rem!important;}
+  .stat-l{font-size:.55rem!important;}
+  .btn-solid,.btn-line{height:46px!important;padding:0 24px!important;font-size:.75rem!important;}
+  .hero-btns{gap:10px!important;margin-top:32px!important;}
+  .hero-p{font-size:.88rem!important;margin-top:16px!important;}
+  .sec-h{font-size:clamp(2rem,9vw,3.5rem)!important;}
+  .pkg-grid{grid-template-columns:1fr!important;}
+  .svc-grid{grid-template-columns:1fr!important;}
+  .testi-grid{grid-template-columns:1fr!important;}
+  .loans-top{grid-template-columns:1fr!important;}
+  .about-layout{grid-template-columns:1fr!important;}
+  .about-visual{height:220px!important;}
+  .book-layout{grid-template-columns:1fr!important;}
+  .footer-inner{grid-template-columns:1fr 1fr!important;}
+  nav{padding:14px 5vw!important;}
+  .nav-btn{height:32px!important;padding:0 14px!important;font-size:.65rem!important;}
+  /* Fix cut off — all sections get safe padding */
+  .sec{padding:clamp(52px,8vw,88px) 5vw!important;overflow:hidden!important;}
+  .loans-sec,.about-sec,.services-sec,.pricing-sec,.testi-sec,.book-sec,.member-sec{overflow:hidden!important;}
+  .sec-inner{max-width:100%!important;overflow:hidden!important;}
+  .sec-h{overflow:hidden!important;word-break:break-word!important;}
+  .loans-body p,.sec-sub,.about-p,.cta-p{padding-right:0!important;max-width:100%!important;}
+  .loans-btns{flex-direction:column!important;}
+  .loans-btns a{width:100%!important;text-align:center!important;justify-content:center!important;}
+  .qualify-stack{margin-top:32px!important;}
+  .cta-sec{padding:clamp(52px,8vw,80px) 5vw!important;}
+  .cta-bg-text{font-size:25vw!important;}
+}
+@media(max-width:480px){.book-feat-grid{grid-template-columns:1fr!important;}}
+
+  .numbers-grid{grid-template-columns:1fr 1fr!important;}
+  .hero-tag{font-size:.58rem!important;}
+  .hero-p{max-width:100%!important;}
+}
+/* ── BILL / PARTICLE ANIMATIONS ── */
+.bill{position:absolute;font-size:clamp(1.1rem,2vw,1.7rem);opacity:0;animation:bfloat linear infinite;filter:drop-shadow(0 0 10px rgba(0,255,135,.55));user-select:none;pointer-events:none;}
+@keyframes bfloat{0%{transform:translateY(108vh) rotate(-15deg);opacity:0}5%{opacity:0.6}85%{opacity:0.3}100%{transform:translateY(-12vh) rotate(22deg);opacity:0}}
+.particle{position:absolute;border-radius:50%;pointer-events:none;animation:pdrift linear infinite;}
+@keyframes pdrift{0%{transform:translateY(100vh) scale(0);opacity:0}5%{opacity:1}95%{opacity:0.3}100%{transform:translateY(-15vh) scale(0.6);opacity:0}}
+.dline{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,135,0.4),transparent);animation:dstream linear infinite;opacity:0;pointer-events:none;}
+@keyframes dstream{0%{transform:translateX(-100%);opacity:0}10%{opacity:1}90%{opacity:0.4}100%{transform:translateX(200%);opacity:0}}
+</style>
+<style>
+html{overflow-x:hidden!important;max-width:100vw!important;}
+body{overflow-x:hidden!important;max-width:100vw!important;}
+.hero-orb1,.hero-orb2{display:none!important;}
+.hero-bg-grid::after{display:none!important;}
+@media(max-width:768px){
+  .sec-h{font-size:clamp(1.8rem,8vw,3rem)!important;word-break:break-word!important;hyphens:auto!important;}
+  .loans-quote{font-size:.88rem!important;word-break:break-word!important;}
+  h1,h2,h3,h4,p,div{max-width:100%!important;}
+  .cta-bg-text{display:none!important;}
+  .services-sec::before{display:none!important;}
+  .about-sec,.numbers-sec,.pricing-sec,.loans-sec,.testi-sec,.book-sec,.member-sec,.cta-sec,.services-sec{
+    overflow:hidden!important;
+    padding-left:5vw!important;
+    padding-right:5vw!important;
+  }
+  .sec-inner{
+    padding:0!important;
+    overflow:hidden!important;
+    width:100%!important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- QUIZ OVERLAY -->
+<div id="qz" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#020202;z-index:8000;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:32px 20px;overflow-y:auto;">
+
+  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.025) 1px,transparent 1px);background-size:52px 52px;pointer-events:none;"></div>
+
+  <button onclick="skipQ()" style="position:absolute;top:24px;right:24px;background:none;border:none;color:rgba(245,255,248,0.25);font-family:sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;">SKIP</button>
+
+  <div id="qz-dots" style="display:flex;gap:8px;margin-bottom:48px;position:relative;z-index:1;"></div>
+  <div id="qz-body" style="max-width:600px;width:100%;text-align:center;position:relative;z-index:1;"></div>
+</div>
+
+<style>
+.qz-label{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:rgba(0,255,135,0.5);margin-bottom:20px;}
+.qz-q{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,6vw,4.5rem);line-height:0.92;letter-spacing:0.03em;color:#f5fff8;margin-bottom:40px;}
+.qz-q em{font-style:normal;color:#00ff87;}
+.qz-opts{display:flex;flex-direction:column;gap:10px;}
+.qz-btn{
+  display:flex;align-items:center;gap:16px;
+  width:100%;padding:16px 22px;
+  background:rgba(0,255,135,0.03);
+  border:1px solid rgba(0,255,135,0.12);
+  color:rgba(245,255,248,0.75);
+  font-family:'Space Grotesk',sans-serif;
+  font-size:15px;font-weight:400;
+  text-align:left;cursor:pointer;
+  transition:all 0.2s ease;
+}
+.qz-btn:hover{background:rgba(0,255,135,0.08);border-color:rgba(0,255,135,0.4);color:#f5fff8;transform:translateX(4px);}
+.qz-btn-ico{font-size:20px;width:38px;height:38px;border:1px solid rgba(0,255,135,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.qz-btn-title{font-weight:600;font-size:14px;letter-spacing:0.04em;margin-bottom:2px;}
+.qz-btn-sub{font-size:12px;font-weight:300;color:rgba(245,255,248,0.35);}
+.qz-final-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,3.8rem);line-height:0.92;letter-spacing:0.03em;color:#f5fff8;margin-bottom:14px;}
+.qz-final-title em{font-style:normal;color:#00ff87;}
+.qz-final-sub{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:300;color:rgba(245,255,248,0.45);line-height:1.7;margin-bottom:36px;max-width:480px;margin-left:auto;margin-right:auto;}
+.qz-enter{
+  display:inline-flex;align-items:center;gap:10px;
+  height:52px;padding:0 40px;
+  background:linear-gradient(135deg,#00ff87,#00c853);
+  color:#020202;border:none;
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:700;font-size:13px;letter-spacing:3px;
+  text-transform:uppercase;cursor:pointer;
+  transition:all 0.25s;
+}
+.qz-enter:hover{box-shadow:0 0 40px rgba(0,200,83,0.4);transform:translateY(-2px);}
+.qz-dot{width:24px;height:2px;background:rgba(0,255,135,0.15);transition:all 0.3s;}
+.qz-dot.on{background:#00ff87;width:32px;box-shadow:0 0 8px rgba(0,255,135,0.5);}
+.qz-dot.done{background:rgba(0,255,135,0.4);}
+#qz{transition:opacity 0.6s ease;}
+#qz.gone{opacity:0;pointer-events:none;}
+</style>
+
+<script>
+(function(){
+  var step = 0;
+  var a1 = null;
+
+  var qs = [
+    {
+      label: 'Welcome to The Greenprint',
+      q: 'What brings you here <em>today?</em>',
+      opts: [
+        {ico:'&#x1F4C8;', title:'I want to learn how to trade', sub:'Stocks, options & futures. I want in.', val:'trading'},
+        {ico:'&#x1F3E6;', title:'I need a commercial loan', sub:'Real estate financing for my next deal.', val:'loans'},
+        {ico:'&#x1F9E0;', title:'I want 1-on-1 mentorship', sub:'A real coach with a clear roadmap.', val:'coaching'},
+        {ico:'&#x1F680;', title:"I'm ready for onboarding", sub:'I already have access. Take me inside.', val:'onboarding'},
+        {ico:'&#x1F440;', title:'Just exploring', sub:'Show me everything The Greenprint offers.', val:'explore'}
+      ]
+    },
+    {
+      label: 'Good. One more thing.',
+      q: 'Where are you <em>right now?</em>',
+      opts: [
+        {ico:'&#x1F331;', title:'Complete beginner', sub:"Never placed a trade in my life.", val:'beginner'},
+        {ico:'&#x1F4CA;', title:'Some experience', sub:"I know the basics but I'm not profitable yet.", val:'intermediate'},
+        {ico:'&#x26A1;', title:'Already trading', sub:'I need a better strategy and real edge.', val:'advanced'},
+        {ico:'&#x1F3E2;', title:'Investor / business owner', sub:"I'm focused on assets and capital.", val:'business'}
+      ]
+    }
+  ];
+
+  var body = document.getElementById('qz-body');
+  var dotsEl = document.getElementById('qz-dots');
+
+  function buildDots(){
+    dotsEl.innerHTML = '';
+    for(var i=0;i<qs.length;i++){
+      var d = document.createElement('div');
+      d.className = 'qz-dot' + (i===step?' on':(i<step?' done':''));
+      dotsEl.appendChild(d);
+    }
+  }
+
+  function render(){
+    buildDots();
+    if(step >= qs.length) return;
+    var q = qs[step];
+    var html = '<div class="qz-label">'+q.label+'</div>';
+    html += '<div class="qz-q">'+q.q+'</div>';
+    html += '<div class="qz-opts">';
+    for(var i=0;i<q.opts.length;i++){
+      var o = q.opts[i];
+      html += '<button class="qz-btn" data-val="'+o.val+'">';
+      html += '<div class="qz-btn-ico">'+o.ico+'</div>';
+      html += '<div><div class="qz-btn-title">'+o.title+'</div>';
+      html += '<div class="qz-btn-sub">'+o.sub+'</div></div>';
+      html += '</button>';
+    }
+    html += '</div>';
+    body.innerHTML = html;
+    // Attach click handlers
+    var btns = body.querySelectorAll('.qz-btn');
+    for(var j=0;j<btns.length;j++){
+      btns[j].addEventListener('click', (function(v){ return function(){ pick(v); }; })(btns[j].getAttribute('data-val')));
+    }
+  }
+
+  function pick(val){
+    if(step === 0){
+      a1 = val;
+      if(val === 'onboarding'){
+        // Just close quiz and scroll to the member/onboarding section
+        var qz = document.getElementById('qz');
+        if(qz){ qz.style.opacity='0'; setTimeout(function(){ qz.style.display='none'; }, 400); }
+        setTimeout(function(){
+          var el = document.getElementById('member');
+          if(el) el.scrollIntoView({behavior:'smooth'});
+        }, 450);
+        return;
+      }
+      if(val === 'loans' || val === 'explore'){
+        showFinal(val);
+        return;
+      }
+    }
+    step++;
+    if(step >= qs.length){
+      showFinal(a1);
+    } else {
+      render();
+    }
+  }
+
+  function showFinal(ans){
+    buildDots();
+    var titles = {
+      trading: 'Welcome, <em>Trader.</em>',
+      loans: "Let's Talk <em>Capital.</em>",
+      coaching: 'You Need a <em>Mentor.</em>',
+      explore: 'Welcome to <em>The Greenprint.</em>'
+    };
+    var subs = {
+      trading: "You're in the right place. Let's get you set up with a program that matches where you are and where you're going.",
+      loans: "Real estate financing without the W-2 requirement. Our lending partner is ready for your deal.",
+      coaching: "1-on-1 coaching from someone actively doing it. Book your first call and let's map out your path.",
+      explore: "Day trading, investing, real estate. The full financial ecosystem. Explore everything we offer."
+    };
+    var dests = {
+      trading: '#packages',
+      loans: '#loans',
+      coaching: '#book',
+      explore: '#services'
+    };
+    var dest = dests[ans] || '#services';
+    var html = '<div class="qz-final-title">'+(titles[ans]||'Welcome to <em>The Greenprint.</em>')+'</div>';
+    html += '<div class="qz-final-sub">'+(subs[ans]||subs.explore)+'</div>';
+    html += '<button id="qz-enter-btn" class="qz-enter">Enter The Greenprint &rarr;</button>';
+    body.innerHTML = html;
+    document.getElementById('qz-enter-btn').addEventListener('click', function(){ enter(dest); });
+  }
+
+  function enter(dest){
+    var el = document.getElementById('qz');
+    el.style.opacity = '0';
+    setTimeout(function(){
+      el.style.display = 'none';
+      var target = document.querySelector(dest);
+      if(target) target.scrollIntoView({behavior:'smooth'});
+    }, 600);
+  }
+
+  window.skipQ = function(){
+    var el = document.getElementById('qz');
+    el.style.opacity = '0';
+    setTimeout(function(){ el.style.display='none'; }, 600);
+  };
+
+  // Init
+  render();
+})();
+</script>
+
+
+
+
+
+<div id="loader" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9000;background:#020202;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;">
+  <!-- Logo mark -->
+  <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;">
+    <div style="width:64px;height:64px;border:1px solid rgba(0,255,135,.25);display:flex;align-items:center;justify-content:center;position:relative;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:.08em;background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;">GP</div>
+      <div style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid #00ff87;border-left:2px solid #00ff87;"></div>
+      <div style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-top:2px solid #00ff87;border-right:2px solid #00ff87;"></div>
+      <div style="position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-bottom:2px solid #00ff87;border-left:2px solid #00ff87;"></div>
+      <div style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:2px solid #00ff87;border-right:2px solid #00ff87;"></div>
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.8rem,5vw,2.8rem);letter-spacing:.2em;background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">THE GREENPRINT</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:.55rem;font-weight:600;letter-spacing:.45em;text-transform:uppercase;color:rgba(0,255,135,.4);">Wealth. Strategy. Legacy.</div>
+  </div>
+  <div style="width:160px;height:1px;background:rgba(0,255,135,.12);">
+    <div id="loaderBar" style="height:100%;width:0%;background:linear-gradient(90deg,#00c853,#00ff87);box-shadow:0 0 8px #00ff87;transition:width 1.5s ease;"></div>
+  </div>
+</div>
+
+<script>
+setTimeout(function(){
+  var b=document.getElementById('loaderBar');
+  if(b) b.style.width='100%';
+},50);
+setTimeout(function(){
+  var l=document.getElementById('loader');
+  if(l){l.style.transition='opacity 0.5s';l.style.opacity='0';setTimeout(function(){if(l)l.style.display='none';},550);}
+},1600);
+setTimeout(function(){
+  var l = document.getElementById('loader');
+  if(l){ l.style.opacity='0'; l.style.transition='opacity 0.5s'; }
+  setTimeout(function(){
+    var l2 = document.getElementById('loader');
+    if(l2) l2.style.display='none';
+  }, 550);
+}, 2000);
+</script>
+
+
+
+<div id="progress"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="logo">The Greenprint</a>
+  <ul class="nav-links">
+    <li><a href="#services">What We Do</a></li>
+    <li><a href="#packages">Programs</a></li>
+    <li><a href="#book">Book a Call</a></li>
+    <li><a href="#loans">Real Estate</a></li>
+    <li><a href="#member" style="color:rgba(0,255,135,.6)">Members</a></li>
+    <li><a href="live.html" style="color:rgba(0,255,135,.45)">Watch Live</a></li>
+  </ul>
+  <a href="#packages" class="nav-cta"><span>Get Access</span></a>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="hero-bg-grid"></div>
+  <div class="hero-orb1"></div>
+  <div class="hero-orb2"></div>
+  <div class="hero-left">
+    <div class="hero-tag">
+      <div class="hero-tag-dot"></div>
+      Est. 2025 &mdash; The Movement
+    </div>
+    <h1 class="hero-h1">
+      <span class="line">Build Your</span>
+      <span class="line g">Wealth.</span>
+      <span class="line">Own Your</span>
+      <span class="line g">Future.</span>
+    </h1>
+    <p class="hero-p">Day trading, investing, and commercial real estate &mdash; mastered. The strategies, systems, and mindset that create generational wealth. All in one place.</p>
+    <div class="hero-btns">
+      <a href="#packages" class="btn-solid">
+        <span>Access Mentorship</span>
+        <span style="font-size:.9rem">&rarr;</span>
+      </a>
+      <a href="#loans" class="btn-line">
+        <span>Commercial Loans</span>
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="stat-v" data-target="500" data-suffix="+">500+</div>
+        <div class="stat-l">Students</div>
+      </div>
+      <div>
+        <div class="stat-v" id="vstat">$847K+</div>
+        <div class="stat-l">Volume</div>
+      </div>
+      <div>
+        <div class="stat-v" data-target="85" data-suffix="%">85%</div>
+        <div class="stat-l">Win Rate</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-right" style="position:relative;">
+    <canvas id="heroCanvas"></canvas>
+    <div id="moneyAnim" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-outer">
+  <div class="ticker-track">
+    <span class="tick-item">SPY <span class="tick-up">+1.24%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">NVDA <span class="tick-up">+3.87%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">TSLA <span class="tick-dn">-0.63%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AAPL <span class="tick-up">+0.95%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AMD <span class="tick-up">+2.41%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">QQQ <span class="tick-up">+1.56%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AMZN <span class="tick-up">+0.78%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">META <span class="tick-dn">-1.02%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">MSFT <span class="tick-up">+1.33%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">SPY <span class="tick-up">+1.24%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">NVDA <span class="tick-up">+3.87%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">TSLA <span class="tick-dn">-0.63%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AAPL <span class="tick-up">+0.95%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AMD <span class="tick-up">+2.41%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">QQQ <span class="tick-up">+1.56%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">AMZN <span class="tick-up">+0.78%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">META <span class="tick-dn">-1.02%</span></span>
+    <span class="tick-item"><span class="tick-dot"></span></span>
+    <span class="tick-item">MSFT <span class="tick-up">+1.33%</span></span>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section class="sec services-sec" id="services">
+  <div class="sec-inner">
+    <div class="services-layout">
+      <div class="reveal-left">
+        <div class="sec-eyebrow">What We Do</div>
+        <h2 class="sec-h">More Than<br><em>Trading.</em></h2>
+        <p class="sec-sub">We built a full financial ecosystem &mdash; from your first trade to your first commercial deal. Day trading, investing, and real estate. The full picture.</p>
+      </div>
+      <div class="svc-grid reveal-right">
+        <div class="svc-card"><span class="svc-ico">📈</span><div class="svc-name">Day Trading</div><p class="svc-desc">Stocks, options &amp; futures. Real setups. Real results every session.</p></div>
+        <div class="svc-card d1"><span class="svc-ico">💹</span><div class="svc-name">Investing</div><p class="svc-desc">Long-term portfolio building through disciplined asset selection.</p></div>
+        <div class="svc-card d2"><span class="svc-ico">🏦</span><div class="svc-name">Commercial Loans</div><p class="svc-desc">Capital structured around your deal, not your W-2.</p></div>
+        <div class="svc-card d3"><span class="svc-ico">🧠</span><div class="svc-name">Mentorship</div><p class="svc-desc">Coached by someone who is actively doing it. Not just teaching it.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NUMBERS -->
+<section class="sec numbers-sec">
+  <div class="sec-inner">
+    <div class="numbers-grid">
+      <div class="num-card reveal d1">
+        <span class="num-v" data-target="500" data-suffix="+">500+</span>
+        <div class="num-l">Members Mentored</div>
+      </div>
+      <div class="num-card reveal d2">
+        <span class="num-v" id="vstat2">$847K+</span>
+        <div class="num-l">Trading Volume</div>
+      </div>
+      <div class="num-card reveal d3">
+        <span class="num-v" data-target="85" data-suffix="%">85%</span>
+        <div class="num-l">Win Rate</div>
+      </div>
+      <div class="num-card reveal d4">
+        <span class="num-v" data-target="19" data-suffix="">19</span>
+        <div class="num-l">Years Old &amp; Building</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="sec pricing-sec" id="packages">
+  <div class="sec-inner">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px;">
+      <div class="reveal-left">
+        <div class="sec-eyebrow">Programs</div>
+        <h2 class="sec-h">Choose Your<br><em>Level.</em></h2>
+      </div>
+      <p class="sec-sub reveal-right" style="max-width:300px;">Every tier gets you moving. Start free, scale up. The results follow the work.</p>
+    </div>
+    <div class="pkg-scroll">
+
+      <div class="pkg reveal d1">
+        <div class="pkg-tier">Tier 01</div>
+        <div class="pkg-name">Free Intro</div>
+        <div class="pkg-price free-p">FREE</div>
+        <div class="pkg-period">Get started today</div>
+        <div class="pkg-divider"></div>
+        <ul class="pkg-feats">
+          <li><span class="y">✓</span>Account setup &amp; onboarding</li>
+          <li><span class="y">✓</span>1-on-1 intro call with us</li>
+          <li><span class="y">✓</span>Access to trading community</li>
+          <li class="dim"><span class="n">—</span>Trade ideas &amp; live alerts</li>
+          <li class="dim"><span class="n">—</span>Live day trading streams</li>
+          <li class="dim"><span class="n">—</span>On-demand training library</li>
+          <li class="dim"><span class="n">—</span>Full platform &amp; mobile app</li>
+        </ul>
+        <button class="pkg-action" onclick="document.getElementById('book').scrollIntoView({behavior:'smooth'})"><span>Book Free Call &darr;</span></button>
+      </div>
+
+      <div class="pkg reveal d2">
+        <div class="pkg-tier">Tier 02</div>
+        <div class="pkg-name">Day Trader</div>
+        <div class="pkg-price"><sup>$</sup>99</div>
+        <div class="pkg-period">/ month</div>
+        <div class="pkg-divider"></div>
+        <ul class="pkg-feats">
+          <li><span class="y">✓</span>All trade ideas &amp; live alerts</li>
+          <li><span class="y">✓</span>Live day trading streams</li>
+          <li><span class="y">✓</span>On-demand training replays</li>
+          <li><span class="y">✓</span>Full platform access</li>
+          <li><span class="y">✓</span>Mobile app included</li>
+          <li><span class="y">✓</span>Trading community access</li>
+          <li class="dim"><span class="n">—</span>Inner circle coaching</li>
+        </ul>
+        <a href="https://subscribe.1houseglobal.com/jay" target="_blank" rel="noopener noreferrer" class="pkg-action"><span>Get Started</span></a>
+      </div>
+
+      <div class="pkg hot reveal d3">
+        <div class="pkg-badge">Most Popular</div>
+        <div class="pkg-tier">Tier 03</div>
+        <div class="pkg-name">All Access</div>
+        <div class="pkg-price"><sup>$</sup>165</div>
+        <div class="pkg-period">/ month + <span style="opacity:.5;font-size:.9em;">$199 setup</span></div>
+        <div class="pkg-divider"></div>
+        <ul class="pkg-feats">
+          <li><span class="y">✓</span>Everything in Day Trader</li>
+          <li><span class="y">✓</span>Inner circle group coaching</li>
+          <li><span class="y">✓</span>Advanced strategy sessions</li>
+          <li><span class="y">✓</span>Live Q&amp;A with educators</li>
+          <li><span class="y">✓</span>Full on-demand library</li>
+          <li><span class="y">✓</span>Priority community access</li>
+          <li><span class="y">✓</span>Early access to new content</li>
+        </ul>
+        <a href="https://subscribe.1houseglobal.com/jay" target="_blank" rel="noopener noreferrer" class="pkg-action"><span>Get Started</span></a>
+      </div>
+
+      <div class="pkg reveal d4">
+        <div class="pkg-tier">Tier 04</div>
+        <div class="pkg-name">Private Coaching</div>
+        <div class="pkg-price app-p">By Application</div>
+        <div class="pkg-period">1-on-1 with us</div>
+        <div class="pkg-divider"></div>
+        <ul class="pkg-feats">
+          <li><span class="y">✓</span>Personalized trading plan</li>
+          <li><span class="y">✓</span>Direct access to mentor</li>
+          <li><span class="y">✓</span>Live screen-share sessions</li>
+          <li><span class="y">✓</span>Portfolio &amp; risk review</li>
+          <li><span class="y">✓</span>Custom strategy building</li>
+          <li><span class="y">✓</span>Accountability check-ins</li>
+          <li><span class="y">✓</span>Everything in All Access</li>
+        </ul>
+        <button class="pkg-action" onclick="document.getElementById('book').scrollIntoView({behavior:'smooth'})"><span>Book a Call &darr;</span></button>
+      </div>
+
+    </div>
+    <p class="aff-note">Tiers 02 &amp; 03 delivered through a licensed streaming education partner. <a href="https://subscribe.1houseglobal.com/jay" target="_blank" rel="noopener noreferrer">Learn more &rarr;</a></p>
+  </div>
+</section>
+
+<!-- BOOK A CALL -->
+<section class="sec book-sec" id="book">
+  <div class="sec-inner">
+    <div style="text-align:center;margin-bottom:clamp(36px,5vw,56px);">
+      <div class="sec-eyebrow" style="justify-content:center;">Private Coaching</div>
+      <h2 class="sec-h reveal">Book a 1-on-1 Call<br><em>with Us.</em></h2>
+      <p class="sec-sub reveal" style="margin:0 auto;max-width:480px;">Pick a time that works for you. Every session is personal — no scripts, no fluff. Just real strategy built around your goals.</p>
+    </div>
+
+    <!-- Feature row -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(0,255,135,.08);margin-bottom:clamp(32px,5vw,52px);" class="reveal book-feat-grid">
+      <div style="background:#070707;padding:clamp(20px,3vw,32px);text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:12px;">📞</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,255,248,.8);margin-bottom:6px;">Discovery Call</div>
+        <div style="font-size:.78rem;font-weight:300;color:rgba(245,255,248,.35);line-height:1.6;">Free 15-min intro. No commitment needed.</div>
+      </div>
+      <div style="background:rgba(0,255,135,.03);border-top:1px solid rgba(0,255,135,.25);padding:clamp(20px,3vw,32px);text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:12px;">📊</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#00ff87;margin-bottom:6px;">Strategy Session</div>
+        <div style="font-size:.78rem;font-weight:300;color:rgba(245,255,248,.35);line-height:1.6;">Custom plan built around your exact goals.</div>
+      </div>
+      <div style="background:#070707;padding:clamp(20px,3vw,32px);text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:12px;">🎯</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,255,248,.8);margin-bottom:6px;">Private Coaching</div>
+        <div style="font-size:.78rem;font-weight:300;color:rgba(245,255,248,.35);line-height:1.6;">Ongoing mentorship for serious members.</div>
+      </div>
+    </div>
+
+    <!-- Calendly widget — clean container -->
+    <div class="reveal" style="
+      border:1px solid rgba(0,255,135,.12);
+      background:#020202;
+      position:relative;
+      overflow:hidden;
+    ">
+      <!-- top accent line -->
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#00ff87,transparent);z-index:1;"></div>
+      <!-- header bar -->
+      <div style="padding:18px 24px;border-bottom:1px solid rgba(0,255,135,.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:rgba(0,255,135,.5);margin-bottom:4px;">Schedule Your Session</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.06em;color:#f5fff8;">Book a 1-on-1 Session</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px #00ff87;animation:blink 2s infinite;"></div>
+          <span style="font-family:'Space Grotesk',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,255,135,.7);">Available Now</span>
+        </div>
+      </div>
+      <!-- Calendly embed -->
+      <div class="calendly-inline-widget"
+        data-url="https://calendly.com/waltonjacob300/one-on-one-with-jacob?hide_gdpr_banner=1&background_color=020202&text_color=f5fff8&primary_color=00c853"
+        style="min-width:320px;height:700px;"></div>
+    </div>
+
+  </div>
+</section>
+<link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+<script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript"></script>
+
+
+<!-- LOANS -->
+<section class="sec loans-sec" id="loans">
+  <div class="sec-inner">
+    <div class="loans-top">
+      <div class="reveal-left">
+        <div class="sec-eyebrow">Commercial Lending</div>
+        <h2 class="sec-h">Ready to Own<br><em>Real Property?</em></h2>
+        <div class="loans-body">
+          <p>Trading builds income. <strong>Real estate builds legacy.</strong> Whether you&rsquo;re buying your first investment property or scaling a portfolio &mdash; we connect you to the right capital.</p>
+          <p>Through our lending partner, access <strong>DSCR loans, fix &amp; flip financing, SBA programs, and more</strong> &mdash; structured around your deal, not your W-2.</p>
+          <div class="loans-quote">&ldquo;No W-2 required. Same-day pre-qualification available.&rdquo;</div>
+        </div>
+        <div class="loans-btns">
+          <a href="https://www.equitynestcapital.com/contact.html" target="_blank" rel="noopener noreferrer" class="btn-solid" style="height:46px;padding:0 28px;font-size:.76rem;"><span>Start Application</span><span>&rarr;</span></a>
+          <a href="https://www.equitynestcapital.com/loans.html" target="_blank" rel="noopener noreferrer" class="btn-line" style="height:46px;padding:0 24px;font-size:.76rem;">View Loan Products</a>
+        </div>
+      </div>
+      <div class="qualify-stack reveal-right">
+        <div class="q-item"><div class="q-lbl">Who Qualifies</div><div class="q-title">Real Estate Investors</div><p class="q-desc">Qualify on rental income, not tax returns. Scale your portfolio without the W-2.</p></div>
+        <div class="q-item"><div class="q-lbl">Who Qualifies</div><div class="q-title">Business Owners</div><p class="q-desc">SBA and bank statement programs for acquiring or refinancing commercial properties.</p></div>
+        <div class="q-item"><div class="q-lbl">Who Qualifies</div><div class="q-title">First-Time Investors</div><p class="q-desc">Guided from product selection through closing on your first investment.</p></div>
+      </div>
+    </div>
+    <div class="loans-cards">
+      <div class="loan-card reveal d1"><div class="loan-n">01</div><div class="loan-name">DSCR Loans</div><p class="loan-desc">Qualify on your rental property&rsquo;s cash flow, not your personal income.</p></div>
+      <div class="loan-card reveal d2"><div class="loan-n">02</div><div class="loan-name">Fix &amp; Flip</div><p class="loan-desc">Short-term bridge financing for renovation and resale projects.</p></div>
+      <div class="loan-card reveal d3"><div class="loan-n">03</div><div class="loan-name">Commercial RE</div><p class="loan-desc">Multifamily, mixed-use, office, and industrial investment loans.</p></div>
+      <div class="loan-card reveal d1"><div class="loan-n">04</div><div class="loan-name">SBA 7(a) &amp; 504</div><p class="loan-desc">Government-backed programs for business owners acquiring commercial real estate.</p></div>
+      <div class="loan-card reveal d2"><div class="loan-n">05</div><div class="loan-name">Cash-Out Refi</div><p class="loan-desc">Access equity in investment properties to fund your next acquisition.</p></div>
+      <div class="loan-card reveal d3"><div class="loan-n">06</div><div class="loan-name">Hard Money &amp; Bridge</div><p class="loan-desc">Asset-based lending when speed matters more than conventional timelines.</p></div>
+    </div>
+    <div class="loans-metrics">
+      <div class="reveal d1"><div class="lm-v">38</div><div class="lm-l">States Served</div></div>
+      <div class="reveal d2"><div class="lm-v">8+</div><div class="lm-l">Loan Programs</div></div>
+      <div class="reveal d3"><div class="lm-v">21</div><div class="lm-l">Day Avg. Close</div></div>
+      <div class="reveal d4"><div class="lm-v">100%</div><div class="lm-l">Business Purpose</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="sec about-sec" id="about">
+  <div class="sec-inner">
+    <div class="about-layout">
+      <div class="about-visual reveal-left">
+        <div class="about-bg"></div>
+        <div class="about-bg2"></div>
+        <div class="about-center">
+          <div class="about-num">GP</div>
+          <div class="about-num-sub">The Greenprint</div>
+        </div>
+      </div>
+      <div class="reveal-right">
+        <div class="sec-eyebrow">The Founder</div>
+        <h2 class="sec-h">Real Experience.<br><em>Real Results.</em></h2>
+        <p class="about-p">The Greenprint wasn&rsquo;t built in a classroom. It was built in the market &mdash; <strong>through real trades, real losses, and real wins.</strong> No theory. No fluff.</p>
+        <div class="about-quote">&ldquo;I don&rsquo;t teach what I read. I teach what I&rsquo;ve done &mdash; and I&rsquo;m 19 doing it.&rdquo;</div>
+        <p class="about-p">From day trading to breaking into commercial lending &mdash; The Greenprint is a full ecosystem built for people who refuse to wait for permission to build wealth.</p>
+        <br>
+        <a href="#packages" class="btn-solid" style="height:46px;padding:0 28px;font-size:.76rem;text-decoration:none;"><span>Join The Movement</span><span>&rarr;</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="sec testi-sec" id="community">
+  <div class="sec-inner">
+    <div style="text-align:center;margin-bottom:clamp(40px,6vw,72px);">
+      <div class="sec-eyebrow" style="justify-content:center;">Community</div>
+      <h2 class="sec-h reveal">Students Are <em>Winning.</em></h2>
+      <p class="sec-sub reveal" style="margin:0 auto;text-align:center;">Real people. Real results. The Greenprint community grows every single day.</p>
+    </div>
+    <div class="testi-grid">
+      <div class="testi reveal d1">
+        <div class="testi-stars"><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div></div>
+        <p class="testi-txt">&ldquo;In 3 weeks I went from clueless to confidently executing my own trades. The alerts and live sessions changed everything for me.&rdquo;</p>
+        <div class="testi-author">Marcus T.</div><div class="testi-role">Member</div>
+      </div>
+      <div class="testi reveal d2">
+        <div class="testi-stars"><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div></div>
+        <p class="testi-txt">&ldquo;Profitable in my first month. This is different &mdash; it&rsquo;s not just signals, it&rsquo;s real education that actually sticks with you.&rdquo;</p>
+        <div class="testi-author">Destiny R.</div><div class="testi-role">Member</div>
+      </div>
+      <div class="testi reveal d3">
+        <div class="testi-stars"><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div><div class="testi-star"></div></div>
+        <p class="testi-txt">&ldquo;Private coaching is worth every dollar. He walks you through his actual thought process on live trades. Nothing else compares.&rdquo;</p>
+        <div class="testi-author">Jordan K.</div><div class="testi-role">Private Member</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-sec">
+  <div class="cta-bg-text">GREENPRINT</div>
+  <div class="cta-inner reveal">
+    <h2 class="cta-h">Ready to Build<br>Your <em>Greenprint?</em></h2>
+    <p class="cta-p">Stop watching others win. Get in the room. Start building. The only thing between you and financial freedom is the decision to start.</p>
+    <div class="cta-btns">
+      <a href="#packages" class="btn-solid" style="font-size:.8rem;">Access Mentorship &rarr;</a>
+      <a href="#book" class="btn-line" style="font-size:.8rem;">Book a Free Call</a>
+    </div>
+  </div>
+</section>
+
+<!-- MEMBER ONBOARDING -->
+<!-- Member Portal -->
+<section class="sec member-sec" id="member">
+  <div class="sec-inner">
+    <div style="max-width:600px;margin:0 auto;text-align:center;">
+      <p style="font-family:'Space Grotesk',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#00ff87;margin-bottom:12px;">Member Access</p>
+      <h2 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,7vw,4rem);line-height:.93;margin-bottom:16px;">Just Got Access?<br><span style="color:#00ff87;">Start Here.</span></h2>
+      <p style="font-size:.9rem;font-weight:300;color:rgba(245,255,248,.5);line-height:1.8;margin-bottom:32px;">Enter your password to access the full onboarding guide.</p>
+      <input id="ob-pw-input" type="password" placeholder="Enter password" autocomplete="off"
+        style="width:100%;max-width:400px;display:block;margin:0 auto 12px;height:52px;background:rgba(0,255,135,.04);border:1px solid rgba(0,255,135,.2);color:#f5fff8;padding:0 18px;font-size:1rem;outline:none;-webkit-appearance:none;border-radius:0;letter-spacing:.08em;font-family:sans-serif;" />
+      <button id="ob-unlock-btn" style="width:100%;max-width:400px;display:block;margin:0 auto;height:52px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:sans-serif;font-weight:700;font-size:.9rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;">ACCESS ONBOARDING →</button>
+      <div id="ob-err" style="display:none;color:#ff4d6d;font-size:.75rem;margin-top:10px;font-family:sans-serif;letter-spacing:.1em;text-transform:uppercase;">Incorrect password — try again.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="contact">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">The Greenprint</div>
+      <p class="footer-desc">Day trading. Investing. Commercial lending. The full blueprint for financial freedom &mdash; built for people who refuse to wait.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Navigate</div>
+      <ul class="footer-links">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#services">What We Do</a></li>
+        <li><a href="#packages">Programs</a></li>
+        <li><a href="#community">Community</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Programs</div>
+      <ul class="footer-links">
+        <li><a href="#packages">Free Intro</a></li>
+        <li><a href="#packages">Day Trader &mdash; $99/mo</a></li>
+        <li><a href="#packages">All Access &mdash; $165/mo</a></li>
+        <li><a href="#book">Private Coaching</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Connect</div>
+      <ul class="footer-links">
+        <li><a href="#">Instagram</a></li>
+        <li><a href="#">Twitter / X</a></li>
+        <li><a href="#">YouTube</a></li>
+        <li><a href="#">Discord</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-copy">&copy; 2024 The Greenprint. All rights reserved.</p>
+    <div class="socials">
+      <a href="#" class="social">IG</a>
+      <a href="#" class="social">X</a>
+      <a href="#" class="social">YT</a>
+    </div>
+  </div>
+  <p class="disclaimer">I am not a licensed financial advisor. All content provided by The Greenprint is for educational and informational purposes only. Trading and investing involve significant risk of loss and are not suitable for all individuals. Past performance is not indicative of future results. Always consult a qualified financial professional before making any investment decisions.</p>
+</footer>
+
+<script>
+// LOADER
+
+
+
+  document.querySelectorAll('a,button').forEach(function(el){
+    el.addEventListener('mouseenter', function(){
+      ring.style.width='54px'; ring.style.height='54px';
+      ring.style.borderColor='rgba(0,255,135,.8)';
+      dot.style.transform='translate(-50%,-50%) scale(2)';
+    });
+    el.addEventListener('mouseleave', function(){
+      ring.style.width='36px'; ring.style.height='36px';
+      ring.style.borderColor='rgba(0,255,135,.4)';
+      dot.style.transform='translate(-50%,-50%) scale(1)';
+    });
+  });
+})();
+
+// NAV SCROLL
+window.addEventListener('scroll', function(){
+  var nav = document.getElementById('nav');
+  if(window.scrollY > 60) nav.classList.add('scrolled');
+  else nav.classList.remove('scrolled');
+  // progress
+  var tot = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('progress').style.width = (window.scrollY/tot*100)+'%';
+}, {passive:true});
+
+// SMOOTH SCROLL
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click', function(e){
+    var t = document.querySelector(a.getAttribute('href'));
+    if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth'}); }
+  });
+});
+
+// SCROLL REVEAL
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); obs.unobserve(e.target); }
+    });
+  }, {threshold:0.08, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(function(el){
+    obs.observe(el);
+  });
+})();
+
+// COUNTERS
+(function(){
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var els = e.target.querySelectorAll('[data-target]');
+      els.forEach(function(el){
+        var tgt = +el.dataset.target, sfx = el.dataset.suffix||'';
+        var start = performance.now(), dur = 2000;
+        (function step(now){
+          var p = Math.min((now-start)/dur, 1);
+          var eased = 1 - Math.pow(1-p, 3);
+          el.textContent = Math.floor(eased*tgt)+sfx;
+          if(p<1) requestAnimationFrame(step);
+        })(performance.now());
+      });
+      // vol stats
+      ['vstat','vstat2'].forEach(function(id){
+        var el = e.target.querySelector('#'+id) || document.getElementById(id);
+        if(el && el.textContent.includes('$')){
+          var start = performance.now(), dur = 2000;
+          (function step(now){
+            var p = Math.min((now-start)/dur, 1);
+            var eased = 1 - Math.pow(1-p, 3);
+            el.textContent = '$'+(eased*847).toFixed(0)+'K+';
+            if(p<1) requestAnimationFrame(step);
+          })(performance.now());
+        }
+      });
+      obs.unobserve(e.target);
+    });
+  }, {threshold:0.4});
+  document.querySelectorAll('.numbers-grid,.hero-stats').forEach(function(el){ obs.observe(el); });
+})();
+
+// HERO CANVAS — Live trading chart animation
+(function(){
+  var canvas = document.getElementById('heroCanvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W, H, frame = 0;
+
+  function resize(){
+    W = canvas.width = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#020202';
+    ctx.fillRect(0,0,W,H);
+
+    // Animated grid
+    ctx.strokeStyle = 'rgba(0,255,135,0.04)';
+    ctx.lineWidth = 1;
+    var gridSize = 55;
+    for(var x=0;x<W;x+=gridSize){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+    for(var y=0;y<H;y+=gridSize){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+
+    frame++;
+
+    // Animated chart line
+    var pts = [];
+    for(var i=0;i<=60;i++){
+      var x = (i/60)*W;
+      var wave = Math.sin((i*0.3)+frame*0.02)*15 + Math.sin((i*0.12)+frame*0.015)*25 + Math.sin((i*0.05)+frame*0.008)*40;
+      pts.push({x:x, y:H*0.55+wave});
+    }
+
+    // Fill
+    var grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'rgba(0,200,83,0.2)');
+    grad.addColorStop(0.5,'rgba(0,200,83,0.05)');
+    grad.addColorStop(1,'rgba(0,200,83,0)');
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(var i=1;i<pts.length;i++){
+      var cp=pts[i-1],np=pts[i];
+      ctx.quadraticCurveTo(cp.x,cp.y,(cp.x+np.x)/2,(cp.y+np.y)/2);
+    }
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle=grad; ctx.fill();
+
+    // Line
+    var lg = ctx.createLinearGradient(0,0,W,0);
+    lg.addColorStop(0,'rgba(0,255,135,0.2)');
+    lg.addColorStop(0.7,'rgba(0,255,135,0.9)');
+    lg.addColorStop(1,'#69f0ae');
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(var i=1;i<pts.length;i++){
+      var cp=pts[i-1],np=pts[i];
+      ctx.quadraticCurveTo(cp.x,cp.y,(cp.x+np.x)/2,(cp.y+np.y)/2);
+    }
+    ctx.strokeStyle=lg; ctx.lineWidth=2.5;
+    ctx.shadowColor='#00ff87'; ctx.shadowBlur=12;
+    ctx.stroke(); ctx.shadowBlur=0;
+
+    // Live dot
+    var last=pts[pts.length-1];
+    var pulse=Math.sin(frame*0.08)*0.5+0.5;
+    ctx.beginPath(); ctx.arc(last.x,last.y,4,0,Math.PI*2);
+    ctx.fillStyle='#69f0ae'; ctx.shadowColor='#00ff87'; ctx.shadowBlur=20; ctx.fill(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(last.x,last.y,8+pulse*8,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,255,135,'+(0.4-pulse*0.35)+')'; ctx.lineWidth=1; ctx.stroke();
+
+    // Portfolio widget
+    var bw=Math.min(220,W*0.55), bh=100, bx=W-bw-16, by=20;
+    ctx.fillStyle='rgba(2,2,2,0.88)'; ctx.strokeStyle='rgba(0,255,135,0.2)'; ctx.lineWidth=1;
+    ctx.fillRect(bx,by,bw,bh); ctx.strokeRect(bx,by,bw,bh);
+    // top accent
+    ctx.fillStyle='rgba(0,255,135,0.7)'; ctx.fillRect(bx,by,bw,1.5);
+    // label
+    ctx.font='600 9px "Space Grotesk",sans-serif';
+    ctx.fillStyle='rgba(0,255,135,0.5)'; ctx.textAlign='left';
+    ctx.fillText('PORTFOLIO VALUE', bx+12, by+18);
+    // price
+    ctx.font='600 26px "Bebas Neue",sans-serif';
+    ctx.fillStyle='#f5fff8'; ctx.fillText('$24,891.50', bx+12, by+48);
+    // change
+    ctx.font='700 12px "Space Grotesk",sans-serif';
+    ctx.fillStyle='#00ff87';
+    ctx.shadowColor='#00ff87'; ctx.shadowBlur=6;
+    ctx.fillText('▲ +5.27%  TODAY', bx+12, by+68);
+    ctx.shadowBlur=0;
+    // live dot
+    if(Math.floor(frame/20)%2===0){
+      ctx.beginPath(); ctx.arc(bx+bw-14,by+14,4,0,Math.PI*2);
+      ctx.fillStyle='#00ff87'; ctx.shadowColor='#00ff87'; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+    }
+    // tickers at bottom
+    ctx.font='600 10px "Space Grotesk",sans-serif';
+    var ticks=[['SPY','+1.2%'],['NVDA','+3.9%'],['AMD','+2.4%']];
+    ticks.forEach(function(t,i){
+      var tx=bx+12+(i*(bw-24)/3);
+      ctx.fillStyle='rgba(245,255,248,0.35)'; ctx.fillText(t[0],tx,by+86);
+      ctx.fillStyle='#00ff87'; ctx.fillText(t[1],tx,by+98);
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize',function(){ resize(); });
+  resize(); draw();
+})();
+
+// MONEY ANIMATION
+(function(){
+  var C = document.getElementById('moneyAnim');
+  if(!C) return;
+
+  // Data stream lines
+  for(var d=0;d<5;d++){
+    (function(d){
+      var l=document.createElement('div');
+      l.className='dline';
+      l.style.cssText='top:'+(15+d*16)+'%;width:'+(60+Math.random()*100)+'px;animation-duration:'+(2+Math.random()*3)+'s;animation-delay:'+(Math.random()*4)+'s;left:0;';
+      C.appendChild(l);
+    })(d);
+  }
+
+  // Floating particles
+  for(var p=0;p<18;p++){
+    (function(p){
+      var pt=document.createElement('div');
+      pt.className='particle';
+      var sz=1+Math.random()*3;
+      var green=Math.random()>0.4;
+      pt.style.cssText='width:'+sz+'px;height:'+sz+'px;right:'+(5+Math.random()*88)+'%;animation-duration:'+(7+Math.random()*12)+'s;animation-delay:'+(Math.random()*15)+'s;background:'+(green?'rgba(0,255,135,'+(0.3+Math.random()*0.5)+')':'rgba(240,247,241,'+(0.04+Math.random()*0.08)+')')+';box-shadow:0 0 '+(sz*3)+'px '+(green?'rgba(0,255,135,0.5)':'rgba(240,247,241,0.15)')+';';
+      C.appendChild(pt);
+    })(p);
+  }
+
+  // Floating bills
+  var syms=['💵','💸','📈','💵','💹','💸','💵','📊'];
+  for(var i=0;i<10;i++){
+    (function(i){
+      var b=document.createElement('div');
+      b.className='bill';
+      b.textContent=syms[i%syms.length];
+      b.style.cssText='right:'+(8+Math.random()*80)+'%;animation-duration:'+(9+Math.random()*11)+'s;animation-delay:'+(Math.random()*16)+'s;font-size:'+(1.0+Math.random()*0.7)+'rem;';
+      C.appendChild(b);
+    })(i);
+  }
+})();
+
+// ACCORDION
+window.toggle = function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); };
+window.goTo = function(id){ var el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth'}); };
+
+// ONBOARDING UNLOCK - redirects to separate page
+
+  } else {
+    var e=document.getElementById('ob-err');
+    e.style.display='block';
+    document.getElementById('ob2-pw-input').value='';
+    document.getElementById('ob2-pw-input').focus();
+    setTimeout(function(){e.style.display='none';},2500);
+  }
+}
+
+
+
+</div>
+<script>
+
+
+document.addEventListener('DOMContentLoaded',function(){
+  var inp=document.getElementById('ob2-pw-input');
+  if(inp) inp.addEventListener('keydown',function(e){if(e.key==='Enter')unlockOB();});
+});
+
+window.goTo=function(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});};
+window.toggle=function(id){var el=document.getElementById(id);if(el)el.classList.toggle('open');};
+
+</script>
+
+
+<!-- ONBOARDING OVERLAY -->
+
+
+
+<!-- ====== ONBOARDING OVERLAY ====== -->
+<div id="ob-page" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:7000;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+<style>
+#ob-page{background:#040404;}
+#ob-page *{box-sizing:border-box;}
+
+
+:root{
+  --green:#00c853;--green-dark:#007c32;--green-glow:rgba(0,200,83,0.25);
+  --black:#040404;--surface:#0e0e0e;--surface2:#111;
+  --border:rgba(0,200,83,0.18);--text:#eaf5eb;--muted:#6b8f72;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--black);color:var(--text);font-family:'Barlow',sans-serif;overflow-x:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-track{background:var(--black);}
+::-webkit-scrollbar-thumb{background:var(--green-dark);}
+
+/* ── GATE ── */
+#ob-internal-gate{
+  min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  padding:32px 24px;text-align:center;
+  position:relative;overflow:hidden;
+}
+#ob-internal-gate::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 55%,rgba(0,200,83,0.1) 0%,rgba(0,200,83,0.03) 40%,transparent 70%);
+  pointer-events:none;
+}
+.gate-inner{position:relative;z-index:1;max-width:380px;width:100%;}
+.gate-logo{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:0.1em;color:var(--green);text-shadow:0 0 20px var(--green-glow);margin-bottom:3px;}
+.gate-logo span{color:var(--text);}
+.gate-tag{font-family:'Barlow Condensed',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:rgba(0,200,83,0.5);margin-bottom:52px;}
+.gate-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.6rem,8vw,3.4rem);line-height:0.93;letter-spacing:0.02em;margin-bottom:12px;}
+.gate-title span{color:var(--green);display:block;text-shadow:0 0 30px rgba(0,200,83,0.35);}
+.gate-desc{font-size:0.83rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;margin-bottom:36px;}
+.gate-input{
+  width:100%;background:rgba(0,200,83,0.03);
+  border:1px solid rgba(0,200,83,0.22);
+  color:var(--text);padding:14px 18px;
+  font-family:'Barlow',sans-serif;font-size:0.92rem;
+  letter-spacing:0.06em;outline:none;
+  transition:border-color 0.2s;margin-bottom:10px;
+  -webkit-appearance:none;border-radius:0;
+}
+.gate-input:focus{border-color:rgba(0,200,83,0.65);}
+.gate-input::placeholder{color:rgba(234,245,235,0.45);font-size:0.78rem;letter-spacing:0.12em;}
+.gate-btn{
+  width:100%;padding:14px;
+  background:var(--green);color:var(--black);border:none;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;font-size:0.84rem;
+  letter-spacing:0.18em;text-transform:uppercase;
+  cursor:pointer;-webkit-appearance:none;border-radius:0;
+}
+.gate-err{color:#c0392b;font-size:0.7rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.12em;text-transform:uppercase;margin-top:12px;font-weight:600;display:none;}
+
+/* ── MAIN ── */
+#ob-internal-main{display:none;}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(4,4,4,0.97);backdrop-filter:blur(10px);border-bottom:1px solid rgba(0,200,83,0.12);padding:15px 5vw;display:flex;justify-content:space-between;align-items:center;}
+.tb-logo{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.1em;color:var(--green);}
+.tb-logo span{color:rgba(234,245,235,0.6);}
+.tb-badge{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--black);background:var(--green);padding:5px 13px;}
+
+/* ── STEP NAV ── */
+.steps-nav{background:var(--surface);border-bottom:1px solid rgba(0,200,83,0.12);overflow-x:auto;display:flex;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 5vw;}
+.steps-nav::-webkit-scrollbar{display:none;}
+.sni{flex-shrink:0;padding:15px 18px;font-family:'Barlow Condensed',sans-serif;font-size:0.66rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:rgba(234,245,235,0.5);cursor:pointer;border-bottom:1px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.sni:hover{color:rgba(234,245,235,0.75);}
+.sni.active{color:var(--green);border-bottom-color:var(--green);}
+.sni-n{font-family:'Bebas Neue',sans-serif;font-size:0.88rem;color:rgba(0,200,83,0.6);margin-right:5px;}
+.sni.active .sni-n{color:rgba(0,200,83,0.55);}
+
+/* ── PROGRESS ── */
+.prog-wrap{position:fixed;top:0;left:0;right:0;z-index:300;height:1px;background:rgba(0,200,83,0.14);}
+.prog-fill{height:100%;background:var(--green);width:0%;}
+
+/* ── HERO ── */
+.ob-hero{min-height:60vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:80px 5vw 52px;position:relative;overflow:hidden;}
+.hero-orb{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(600px,90vw);height:min(600px,90vw);background:radial-gradient(circle,rgba(0,200,83,0.12) 0%,transparent 65%);pointer-events:none;}
+.ob-eyebrow{font-family:'Barlow Condensed',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.32em;text-transform:uppercase;color:var(--green);margin-bottom:18px;position:relative;}
+.ob-headline{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.4rem,12vw,7.5rem);line-height:0.9;letter-spacing:0.02em;position:relative;}
+.ob-headline span{color:var(--green);display:block;text-shadow:0 0 60px rgba(0,200,83,0.5),0 0 120px rgba(0,200,83,0.18);}
+.ob-sub{margin-top:20px;max-width:460px;font-size:clamp(0.84rem,2vw,0.94rem);font-weight:300;line-height:1.78;color:rgba(234,245,235,0.68);position:relative;}
+
+/* ── SECTIONS ── */
+.ob-sec{padding:clamp(52px,8vw,88px) 5vw;border-bottom:1px solid rgba(0,200,83,0.12);}
+.ob-in{max-width:960px;margin:0 auto;}
+.sec-label{font-family:'Barlow Condensed',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.32em;text-transform:uppercase;color:var(--green);margin-bottom:10px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,6vw,3.8rem);line-height:0.95;letter-spacing:0.02em;margin-bottom:14px;}
+.sec-title span{color:var(--green);}
+.sec-sub{font-size:clamp(0.82rem,2vw,0.92rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.78;max-width:540px;}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(0,200,83,0.14);}
+@media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+.gcol{background:var(--surface);padding:clamp(20px,3vw,32px) clamp(16px,3vw,26px);}
+.gcol.lit{background:rgba(0,200,83,0.06);border-top:1px solid rgba(0,200,83,0.35);}
+
+/* ── LABELS / TITLES ── */
+.col-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:7px;}
+.col-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.65rem);letter-spacing:0.04em;margin-bottom:9px;}
+.col-title.g{color:var(--green);}
+.col-body{font-size:clamp(0.78rem,2vw,0.86rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.75;margin-bottom:16px;}
+
+/* ── BUTTONS ── */
+.btn-g{display:inline-block;background:var(--green);color:var(--black);padding:11px 24px;border:none;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:box-shadow 0.2s;}
+.btn-g:hover{box-shadow:0 0 20px rgba(0,200,83,0.6);}
+.btn-o{display:inline-block;background:transparent;border:1px solid rgba(0,200,83,0.5);color:rgba(0,200,83,0.7);padding:10px 20px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:all 0.2s;}
+.btn-o:hover{background:var(--green);color:var(--black);border-color:var(--green);}
+
+/* ── APPS ── */
+.app-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(24px,4vw,40px);}
+@media(max-width:500px){.app-grid{grid-template-columns:repeat(2,1fr);}}
+.app-c{background:var(--surface);padding:clamp(18px,3vw,28px) clamp(12px,2vw,18px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;}
+.app-c.feat{background:rgba(0,200,83,0.06);border-top:2px solid var(--green);}
+.app-ico{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.45rem;background:rgba(0,200,83,0.05);border:1px solid rgba(0,200,83,0.18);}
+.app-n{font-family:'Barlow Condensed',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text);}
+.app-d{font-size:0.68rem;font-weight:300;color:rgba(234,245,235,0.6);line-height:1.45;}
+.app-btns{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+.abt{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid rgba(0,200,83,0.35);color:rgba(0,200,83,0.55);padding:4px 8px;text-decoration:none;transition:all 0.2s;display:inline-block;}
+.abt:hover{background:var(--green);color:var(--black);border-color:var(--green);}
+
+/* ── STEPS / ACCORDION ── */
+.acc{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.acc-row{background:var(--surface);border-left:2px solid transparent;transition:all 0.2s;}
+.acc-row.open,.acc-row:hover{background:rgba(0,200,83,0.05);border-left-color:var(--green);}
+.acc-head{padding:clamp(16px,3vw,24px) clamp(16px,3vw,24px);display:flex;align-items:center;gap:16px;cursor:pointer;}
+.acc-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);color:rgba(0,200,83,0.35);line-height:1;flex-shrink:0;width:36px;}
+.acc-row.open .acc-num{color:rgba(0,200,83,0.6);}
+.acc-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.86rem,2vw,1rem);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.9);flex:1;}
+.acc-row.open .acc-title{color:var(--text);}
+.acc-arrow{color:rgba(0,200,83,0.6);font-size:0.75rem;flex-shrink:0;transition:transform 0.25s;}
+.acc-row.open .acc-arrow{transform:rotate(90deg);color:var(--green);}
+.acc-body{display:none;padding:4px clamp(16px,3vw,24px) clamp(16px,3vw,22px) calc(36px + 16px + clamp(16px,3vw,24px));}
+.acc-row.open .acc-body{display:block;}
+.acc-desc{font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.75;margin-bottom:12px;}
+.acc-list{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.acc-list li{font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.78);line-height:1.65;padding-left:18px;position:relative;}
+.acc-list li::before{content:'→';color:var(--green);font-weight:600;position:absolute;left:0;top:0;font-size:0.7rem;margin-top:3px;}
+.acc-list li strong{color:rgba(234,245,235,0.78);font-weight:600;}
+.acc-list li .hl{color:var(--green);font-weight:600;}
+.acc-note{margin-top:14px;padding:12px 16px;background:rgba(0,200,83,0.04);border-left:2px solid rgba(0,200,83,0.2);font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.65;}
+.acc-note strong{color:rgba(0,200,83,0.7);}
+.acc-link{display:inline-block;margin-top:14px;background:var(--green);color:var(--black);padding:10px 22px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;transition:box-shadow 0.2s;}
+.acc-link:hover{box-shadow:0 0 18px rgba(0,200,83,0.28);}
+
+/* ── NOTICE ── */
+.notice{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:rgba(0,200,83,0.03);border:1px solid rgba(0,200,83,0.18);margin-top:clamp(14px,3vw,22px);}
+.notice p{font-size:0.82rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;}
+.notice p strong{color:rgba(234,245,235,0.65);}
+
+/* ── BROKER BANNER ── */
+.broker-wrap{margin-top:clamp(20px,3vw,30px);padding:clamp(18px,3vw,28px);background:rgba(0,200,83,0.04);border:1px solid rgba(0,200,83,0.35);border-left:3px solid var(--green);display:flex;align-items:center;gap:clamp(14px,3vw,24px);flex-wrap:wrap;}
+.b-icon{font-size:1.8rem;flex-shrink:0;}
+.b-text{flex:1;min-width:160px;}
+.b-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:4px;}
+.b-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,3vw,1.8rem);letter-spacing:0.04em;color:var(--green);margin-bottom:5px;text-shadow:0 0 20px rgba(0,200,83,0.35);}
+.b-desc{font-size:0.82rem;font-weight:300;color:rgba(234,245,235,0.9);line-height:1.65;}
+
+/* ── LEVERAGE ── */
+.lev{display:flex;align-items:center;gap:14px;padding:16px 20px;background:rgba(0,200,83,0.07);border:1px solid rgba(0,200,83,0.28);margin:clamp(14px,3vw,22px) 0;flex-wrap:wrap;}
+.lev-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:3px;}
+.lev-val{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--green);line-height:1;}
+.lev-note{font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.68);line-height:1.6;flex:1;min-width:140px;}
+.lev-note strong{color:rgba(0,200,83,0.65);}
+
+/* ── VIDEO EMBED ── */
+.vid-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(24px,4vw,40px);}
+@media(max-width:620px){.vid-grid{grid-template-columns:1fr;}}
+.vid-card{background:var(--surface);padding:clamp(20px,3vw,30px) clamp(16px,3vw,24px);}
+.vid-card.feat{border-top:2px solid var(--green);}
+.vid-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:rgba(0,200,83,0.18);line-height:1;margin-bottom:6px;}
+.vid-badge{font-family:'Barlow Condensed',sans-serif;font-size:0.56rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(0,200,83,0.7);margin-bottom:8px;display:block;}
+.vid-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:5px;}
+.vid-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:0.04em;color:var(--text);margin-bottom:9px;}
+.vid-desc{font-size:clamp(0.76rem,2vw,0.84rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;margin-bottom:14px;}
+.vid-embed{width:100%;aspect-ratio:16/9;background:#000;margin-bottom:12px;}
+.vid-embed iframe{width:100%;height:100%;border:none;display:block;}
+
+/* ── EXPLORE LIST ── */
+.exp-list{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.exp-item{background:var(--surface);padding:clamp(15px,3vw,22px) clamp(16px,3vw,24px);display:flex;align-items:flex-start;gap:14px;}
+.exp-ico{font-size:1.2rem;flex-shrink:0;margin-top:1px;}
+.exp-title{font-family:'Barlow Condensed',sans-serif;font-size:0.86rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.92);margin-bottom:4px;}
+.exp-desc{font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.65);line-height:1.65;}
+
+/* ── CHECKLIST ── */
+.chk{list-style:none;display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);}
+.chk li{background:var(--surface);padding:13px 16px;display:flex;align-items:center;gap:12px;font-size:0.84rem;font-weight:400;color:rgba(234,245,235,0.8);}
+.chk-n{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:rgba(0,200,83,0.5);flex-shrink:0;width:22px;line-height:1;}
+
+/* ── QUOTE ── */
+.quote{border-left:2px solid var(--green);padding:14px 18px;background:rgba(0,200,83,0.05);margin-top:18px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.9rem,2vw,1.06rem);font-weight:600;color:rgba(234,245,235,0.85);line-height:1.5;}
+
+/* ── CHAT CARDS ── */
+.chat-wrap{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.chat-c{background:var(--surface);padding:clamp(22px,4vw,34px) clamp(16px,3vw,26px);border-left:2px solid rgba(0,200,83,0.6);}
+.chat-c.prim{border-left-color:var(--green);background:rgba(0,200,83,0.06);}
+.chat-sub{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);}
+@media(max-width:580px){.chat-sub{grid-template-columns:1fr;}}
+.chat-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:6px;}
+.chat-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.75rem);letter-spacing:0.04em;color:var(--green);margin-bottom:9px;text-shadow:0 0 18px rgba(0,200,83,0.3);}
+.chat-body{font-size:clamp(0.76rem,2vw,0.84rem);font-weight:300;line-height:1.72;color:rgba(234,245,235,0.72);margin-bottom:16px;}
+
+/* ── BOARDS STEPS ── */
+.brd-steps{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(16px,3vw,26px);}
+.brd-row{background:var(--surface);padding:clamp(16px,3vw,24px);display:flex;gap:16px;align-items:flex-start;}
+.brd-n{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);color:rgba(0,200,83,0.35);line-height:1;flex-shrink:0;width:34px;}
+.brd-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.86rem,2vw,0.98rem);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.9);margin-bottom:5px;}
+.brd-desc{font-size:clamp(0.76rem,2vw,0.83rem);font-weight:300;line-height:1.68;color:rgba(234,245,235,0.72);}
+.brd-desc strong{color:rgba(0,200,83,0.65);}
+
+/* ── ARIN SECTION ── */
+.arin-card{background:rgba(0,200,83,0.03);border:1px solid rgba(0,200,83,0.35);border-left:3px solid var(--green);padding:clamp(24px,4vw,38px) clamp(18px,3vw,30px);margin-top:clamp(20px,3vw,32px);}
+
+/* ── CONGRATS ── */
+.cg-wrap{text-align:center;padding:clamp(52px,9vw,92px) 5vw;position:relative;overflow:hidden;}
+.cg-wrap::before{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:38vw;color:rgba(0,200,83,0.02);pointer-events:none;line-height:1;}
+.cg-emoji{font-size:2.6rem;display:block;margin-bottom:14px;position:relative;}
+.cg-h{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,8vw,5rem);line-height:0.93;letter-spacing:0.02em;margin-bottom:16px;position:relative;}
+.cg-h span{color:var(--green);display:block;}
+.cg-p{max-width:500px;margin:0 auto 34px;font-size:clamp(0.82rem,2vw,0.92rem);font-weight:300;line-height:1.8;color:rgba(234,245,235,0.9);position:relative;}
+.cg-p strong{color:rgba(234,245,235,0.65);}
+.support{display:inline-block;border:1px solid rgba(0,200,83,0.28);padding:18px 30px;}
+.support-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.56rem;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:rgba(0,200,83,0.32);margin-bottom:6px;}
+.support-email{font-family:'Bebas Neue',sans-serif;font-size:clamp(0.9rem,2.5vw,1.3rem);letter-spacing:0.06em;color:var(--green);text-decoration:none;}
+
+/* Override fonts to match main site */
+body{font-family:'DM Sans',sans-serif!important;background:#050505!important;}
+.gate-logo{font-family:'Bebas Neue',sans-serif!important;background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gate-title{font-family:'Bebas Neue',sans-serif!important;}
+.gate-title span{color:#00ff87!important;}
+.gate-btn{background:linear-gradient(135deg,#00ff87,#00c853)!important;letter-spacing:.18em!important;}
+.gate-field,.gate-input{border-color:rgba(0,255,135,.15)!important;}
+.gate-field:focus,.gate-input:focus{border-color:rgba(0,255,135,.45)!important;}
+.tb-logo{font-family:'Bebas Neue',sans-serif!important;background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sec-label,.s-label,.sec-eyebrow,.sni-n{color:#00ff87!important;}
+.sec-title,.sec-h,.s-title,.sni.active{color:#00ff87!important;}
+/* Back button */
+.back-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:.7rem;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(0,255,135,.6);
+  text-decoration:none;padding:8px 0;
+  transition:color .2s;
+}
+.back-btn:hover{color:#00ff87;}
+
+/* back button */
+#ob-back{position:fixed;top:16px;right:16px;z-index:8000;background:rgba(4,4,4,0.9);border:1px solid rgba(0,200,83,0.3);color:rgba(0,200,83,0.8);font-family:sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:8px 16px;cursor:pointer;}
+</style>
+<button id="ob-back">✕ Close</button>
+<div id="onboarding-section" style="background:var(--surface);border-top:1px solid rgba(0,200,83,0.1);position:relative;">
+
+  
+  <div id="ob-gate" style="padding:clamp(64px,10vw,110px) 5vw;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 50% 50%,rgba(0,200,83,0.06) 0%,transparent 70%);pointer-events:none;"></div>
+    <div style="max-width:900px;margin:0 auto;position:relative;display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,80px);align-items:center;" class="ob-gate-grid">
+      <div>
+        <p style="font-family:'Barlow Condensed',sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:0.32em;text-transform:uppercase;color:var(--green);margin-bottom:12px;">Member Access</p>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,7vw,4.2rem);line-height:0.93;letter-spacing:0.02em;margin-bottom:16px;">Just Got<br>Access?<br><span style="color:var(--green);">Start Here.</span></h2>
+        <p style="font-size:clamp(0.84rem,2vw,0.96rem);font-weight:300;color:rgba(234,245,235,0.55);line-height:1.8;margin-bottom:24px;">Your step-by-step onboarding guide is ready. Everything you need to get fully set up &mdash; apps, broker, chats, and your first trades &mdash; all in one place.</p>
+        <div style="display:flex;align-items:center;gap:10px;font-size:0.78rem;font-weight:300;color:rgba(234,245,235,0.38);">
+          <span style="color:var(--green);">🔒</span> Password protected &mdash; members only
+        </div>
+      </div>
+      <div style="background:var(--black);border:1px solid rgba(0,200,83,0.18);padding:clamp(28px,4vw,44px);">
+        <p style="font-family:'Barlow Condensed',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:rgba(0,200,83,0.6);margin-bottom:10px;">Onboarding Guide</p>
+        <h3 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.5rem,3vw,2rem);letter-spacing:0.04em;margin-bottom:20px;">Enter Your<br><span style="color:var(--green);">Access Password</span></h3>
+        <input id="ob-pw-input-gate" type="password" placeholder="Enter password" autocomplete="off"
+          style="width:100%;background:rgba(0,200,83,0.04);border:1px solid rgba(0,200,83,0.18);color:#eaf5eb;padding:13px 16px;font-family:'Barlow',sans-serif;font-size:0.9rem;letter-spacing:0.06em;outline:none;margin-bottom:10px;-webkit-appearance:none;border-radius:0;transition:border-color 0.2s;display:block;"
+          onfocus="this.style.borderColor='rgba(0,200,83,0.5)'" onblur="this.style.borderColor='rgba(0,200,83,0.18)'" />
+        <button onclick="unlockOBgate()" style="width:100%;padding:13px;background:var(--green);color:var(--black);border:none;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:0.82rem;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;">Access Onboarding &rarr;</button>
+        <div id="ob-err-gate" style="display:none;color:#c0392b;font-size:0.7rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;margin-top:10px;">Incorrect password &mdash; try again.</div>
+        <p style="font-size:0.72rem;font-weight:300;color:rgba(234,245,235,0.25);line-height:1.6;margin-top:14px;">Your password was provided when you enrolled. Check your welcome message or ask in the community chat.</p>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="ob-content" style="display:none;">
+
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+
+  <div class="topbar">
+    <div class="tb-logo">The <span>Green</span>print</div>
+    <div class="tb-badge">Member Onboarding</div>
+  </div>
+
+  <div class="steps-nav">
+    <div class="sni active" onclick="goTo('s-1house')"><span class="sni-n">01</span>1House.TV</div>
+    <div class="sni" onclick="goTo('s-welcome')"><span class="sni-n">02</span>Welcome</div>
+    <div class="sni" onclick="goTo('s-apps')"><span class="sni-n">03</span>Apps</div>
+    <div class="sni" onclick="goTo('s-chats')"><span class="sni-n">04</span>Chats</div>
+    <div class="sni" onclick="goTo('s-demo')"><span class="sni-n">05</span>Demo Account</div>
+    <div class="sni" onclick="goTo('s-login')"><span class="sni-n">06</span>Log In</div>
+    <div class="sni" onclick="goTo('s-videos')"><span class="sni-n">07</span>First Videos</div>
+    <div class="sni" onclick="goTo('s-arin')"><span class="sni-n">08</span>Arin Long</div>
+    <div class="sni" onclick="goTo('s-congrats')"><span class="sni-n">09</span>All Set</div>
+  </div>
+
+  <div class="ob-hero">
+    <div class="hero-orb"></div>
+    <p class="ob-eyebrow">Your Journey Starts Here</p>
+    <h1 class="ob-headline">The<span>Onboarding.</span></h1>
+    <p class="ob-sub">Follow every step in order. 9 steps and you&rsquo;ll be fully set up and ready to trade.</p>
+  </div>
+
+  
+  <div class="ob-sec" id="s-1house">
+    <div class="ob-in">
+      <p class="sec-label">Step 01 &mdash; The Fun Part</p>
+      <h2 class="sec-title">Log Into<br><span>1House.TV.</span></h2>
+      <p class="sec-sub">Apps downloaded. Chats joined. Now it&rsquo;s time to actually step inside the building. Log in and look around &mdash; this is your new home.</p>
+      <div class="g2" style="margin-top:clamp(20px,3vw,36px);">
+        <div class="gcol lit">
+          <div class="col-lbl">On Your Phone</div>
+          <div class="col-title g">Open the 1House App</div>
+          <p class="col-body">Log in with the account you created when you subscribed. Everything lives right here in your pocket.</p>
+          <a href="https://apps.apple.com/us/app/1house/id6754260060" target="_blank" rel="noopener noreferrer" class="btn-o">Download App &rarr;</a>
+        </div>
+        <div class="gcol">
+          <div class="col-lbl">On Desktop or Browser</div>
+          <div class="col-title">Visit 1House.TV</div>
+          <p class="col-body">Log in at 1House.TV from any browser. Same account, same content &mdash; bigger screen.</p>
+          <a href="https://1house.tv" target="_blank" rel="noopener noreferrer" class="btn-o">Go to 1House.TV &rarr;</a>
+        </div>
+      </div>
+      <div style="margin-top:clamp(28px,4vw,44px);">
+        <h3 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,4vw,1.9rem);letter-spacing:0.04em;margin-bottom:8px;">Explore. <span style="color:var(--green);">Take a Look Around.</span></h3>
+        <p style="font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.9);line-height:1.75;margin-bottom:18px;max-width:520px;">Don&rsquo;t just log in and close it. Give yourself 10 minutes to get familiar. Here&rsquo;s what to look for:</p>
+        <div class="exp-list">
+          <div class="exp-item"><span class="exp-ico">📺</span><div><div class="exp-title">Find the Live Stream Schedule</div><div class="exp-desc">See what&rsquo;s live now or coming up. Cross-reference with the schedule in your Boards app and set your alarms. No excuses for missing a session.</div></div></div>
+          <div class="exp-item"><span class="exp-ico">🎬</span><div><div class="exp-title">Browse the On-Demand Library</div><div class="exp-desc">Replays, trainings, strategy sessions &mdash; all saved. You&rsquo;re never going to run out of things to learn. This is what you&rsquo;re here for.</div></div></div>
+          <div class="exp-item"><span class="exp-ico">👀</span><div><div class="exp-title">Find Arin Long &amp; Richard Hall&rsquo;s Content</div><div class="exp-desc">Search for their sessions. Day Trading Basics with Arin Long and Market Bully with Richard Hall are your two main focuses. Bookmark them.</div></div></div>
+          <div class="exp-item"><span class="exp-ico">🔔</span><div><div class="exp-title">Turn On Notifications</div><div class="exp-desc">Enable notifications so you never miss when your educators go live. Head to your profile settings and flip it on right now.</div></div></div>
+        </div>
+        <div class="notice" style="margin-top:clamp(14px,3vw,22px);">
+          <span style="font-size:1rem;flex-shrink:0;">💬</span>
+          <p>Questions about navigating the platform? Drop them in the community chat. <strong>That&rsquo;s literally what it&rsquo;s there for.</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-welcome" style="background:var(--surface2);">
+    <div class="ob-in">
+      <p class="sec-label">Step 02</p>
+      <h2 class="sec-title">Welcome to<br><span>The Platform.</span></h2>
+      <div class="g2" style="margin-top:clamp(22px,4vw,40px);">
+        <div>
+          <p style="font-size:clamp(0.83rem,2vw,0.93rem);font-weight:300;line-height:1.8;color:rgba(234,245,235,0.75);margin-bottom:14px;">You&rsquo;ve made a real decision today. <strong style="color:rgba(234,245,235,0.75);">Welcome to The Greenprint community</strong> &mdash; built around financial advancement, personal growth, and real education that moves the needle.</p>
+          <p style="font-size:clamp(0.83rem,2vw,0.93rem);font-weight:300;line-height:1.8;color:rgba(234,245,235,0.75);">This guide walks you through <strong style="color:rgba(234,245,235,0.75);">everything you need to do</strong> from start to finish. Follow each step in order.</p>
+          <div class="quote">&ldquo;Stay active, show up consistently, and the results will follow. We&rsquo;re glad you&rsquo;re here.&rdquo;</div>
+        </div>
+        <ul class="chk">
+          <li><span class="chk-n">01</span>Log into 1House &amp; explore the platform</li>
+          <li><span class="chk-n">02</span>Download all required apps</li>
+          <li><span class="chk-n">03</span>Join all community chats</li>
+          <li><span class="chk-n">04</span>Create your GenesisFX demo account</li>
+          <li><span class="chk-n">05</span>Log into TradeLocker with broker credentials</li>
+          <li><span class="chk-n">06</span>Watch both foundation videos</li>
+          <li><span class="chk-n">07</span>Start Arin Long&rsquo;s recordings</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-apps">
+    <div class="ob-in">
+      <p class="sec-label">Step 03</p>
+      <h2 class="sec-title">Download<br><span>Your Apps.</span></h2>
+      <p class="sec-sub">Download all six before moving on. These are your daily tools.</p>
+      <div class="app-grid">
+        <div class="app-c">
+          <div class="app-ico">🏠</div>
+          <div class="app-n">1House App</div>
+          <div class="app-d">Live streams, education &amp; community.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/1house/id6754260060" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/search?q=1house&c=apps" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+        <div class="app-c">
+          <div class="app-ico">📊</div>
+          <div class="app-n">TradingView</div>
+          <div class="app-d">Charts, real-time data &amp; analysis.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/tradingview-stock-market/id1205990992" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/apps/details?id=com.tradingview.tradingviewapp" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+        <div class="app-c">
+          <div class="app-ico">🔒</div>
+          <div class="app-n">TradeLocker</div>
+          <div class="app-d">Execute demo &amp; live trades.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/apps/details?id=com.tradelocker.mobile" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+        <div class="app-c">
+          <div class="app-ico">📹</div>
+          <div class="app-n">Zoom</div>
+          <div class="app-d">Live coaching &amp; group sessions.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/zoom-one-platform-to-connect/id546505307" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/apps/details?id=us.zoom.videomeetings" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+        <div class="app-c">
+          <div class="app-ico">✈️</div>
+          <div class="app-n">Telegram</div>
+          <div class="app-d">Community chats &amp; alerts.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/telegram-messenger/id686449807" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/apps/details?id=org.telegram.messenger" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+        <div class="app-c feat">
+          <div class="app-ico" style="background:rgba(0,200,83,0.14);border-color:rgba(0,200,83,0.25);">📋</div>
+          <div class="app-n" style="color:var(--green);">Boards App</div>
+          <div class="app-d">Track trades &amp; stay accountable.</div>
+          <div class="app-btns"><a href="https://apps.apple.com/us/app/boards-com/id1507677341" target="_blank" rel="noopener noreferrer" class="abt">iOS</a><a href="https://play.google.com/store/search?q=boards+kanban&c=apps" target="_blank" rel="noopener noreferrer" class="abt">Android</a></div>
+        </div>
+      </div>
+
+      <!-- BOARDS SETUP -->
+      <div style="margin-top:clamp(28px,4vw,44px);">
+        <h3 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,4vw,1.8rem);letter-spacing:0.04em;margin-bottom:5px;">Setting Up <span style="color:var(--green);">Boards</span></h3>
+        <p style="font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.9);line-height:1.75;margin-bottom:16px;max-width:520px;">After downloading, follow these steps to join the Greenprint board and start your onboarding checklist inside the app.</p>
+        <div class="brd-steps">
+          <div class="brd-row"><div class="brd-n">01</div><div><div class="brd-title">Download &amp; Create Your Account</div><div class="brd-desc">Open Boards and sign up with the same email you joined The Greenprint with.</div></div></div>
+          <div class="brd-row"><div class="brd-n">02</div><div><div class="brd-title">Join the Greenprint Board</div><div class="brd-desc">Tap the link below to join the official board. Your onboarding checklist lives here.<br><br><a href="https://app.boards.com/boards/H1e7F.U9cDvO" target="_blank" rel="noopener noreferrer" class="abt" style="padding:7px 14px;font-size:0.66rem;">&rarr; Join The Greenprint Board</a></div></div></div>
+          <div class="brd-row"><div class="brd-n">03</div><div><div class="brd-title">Select Trading Roadmap &rarr; Your First 72 Hours</div><div class="brd-desc">Once inside, tap <strong>Trading Roadmap</strong> then select <strong>Your First 72 Hours</strong>. This is your starting point &mdash; everything you need in your first 3 days is laid out there.</div></div></div>
+          <div class="brd-row"><div class="brd-n">04</div><div><div class="brd-title">Come Back Here After You&rsquo;re Fully Set Up</div><div class="brd-desc">Once your demo account is live and chats are joined &mdash; <strong>come back to this board.</strong> Phase 1 and Phase 2 will be waiting for you there.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-chats" style="background:var(--surface2);">
+    <div class="ob-in">
+      <p class="sec-label">Step 04</p>
+      <h2 class="sec-title">Join the<br><span>Community Chats.</span></h2>
+      <p class="sec-sub">Telegram must be downloaded and your account set up. Join all three chats immediately.</p>
+      <div class="chat-wrap">
+        <div class="chat-c prim">
+          <div class="chat-lbl">Telegram &mdash; Chat 01 &mdash; Primary</div>
+          <div class="chat-name">The Greenprint Chat</div>
+          <p class="chat-body">The official Greenprint home base. Connect with members, share wins, ask questions, and stay updated on everything happening inside the platform.</p>
+          <a href="https://t.me/+Hz_sp0s32jVjNDQx" target="_blank" rel="noopener noreferrer" class="btn-o">Join Now &rarr;</a>
+        </div>
+        <div class="chat-sub">
+          <div class="chat-c">
+            <div class="chat-lbl">Telegram &mdash; Chat 02</div>
+            <div class="chat-name">Accountability Chat</div>
+            <p class="chat-body">This is <strong style="color:rgba(234,245,235,0.9);">exclusive access</strong> to two of the top educators on the platform. <strong style="color:rgba(234,245,235,0.9);">Arin Long</strong>, our Day Trading Basics educator, and <strong style="color:rgba(234,245,235,0.9);">Richard Hall</strong>, creator of the Market Bully strategy, are both active here. Ask questions, join exclusive calls, and learn directly from the people who built the system.</p>
+            <a href="https://t.me/+YWTm8JXX7ec5OGVh" target="_blank" rel="noopener noreferrer" class="btn-o">Join Now &rarr;</a>
+          </div>
+          <div class="chat-c">
+            <div class="chat-lbl">Telegram &mdash; Chat 03</div>
+            <div class="chat-name">Market Bully Chat</div>
+            <p class="chat-body">Real trade ideas and live market moves. Spot opportunities fast and trade alongside the team.</p>
+            <a href="https://t.me/+lDDFpv_6goQ5ZTQx" target="_blank" rel="noopener noreferrer" class="btn-o">Join Now &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-demo">
+    <div class="ob-in">
+      <p class="sec-label">Step 05</p>
+      <h2 class="sec-title">Create Your<br><span>Demo Account.</span></h2>
+      <p class="sec-sub">You&rsquo;ll create your demo account through <strong style="color:rgba(234,245,235,0.9);">GenesisFX</strong> &mdash; our recommended broker. Register using the link below.</p>
+
+      <div class="broker-wrap">
+        <div class="b-icon">🏦</div>
+        <div class="b-text">
+          <div class="b-lbl">Our Recommended Broker</div>
+          <div class="b-name">GenesisFX Markets</div>
+          <div class="b-desc">Create your free account here. This is the broker we use on the platform &mdash; all demo and live trading happens here.</div>
+        </div>
+        <a href="https://dashboard.genesisfxmarkets.com/auth/register?ref=JACWAL843" target="_blank" rel="noopener noreferrer" class="btn-g">Register Now &rarr;</a>
+      </div>
+
+      <div class="lev">
+        <span style="font-size:1.2rem;flex-shrink:0;">⚡</span>
+        <div><div class="lev-lbl">Required Leverage Setting</div><div class="lev-val">1 : 500</div></div>
+        <div class="lev-note">Set leverage to <strong>1:500</strong> when creating your demo. This is the required setting. Do not change it.</div>
+      </div>
+
+      <p style="font-family:'Barlow Condensed',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:rgba(234,245,235,0.2);margin-bottom:10px;margin-top:clamp(20px,3vw,30px);">Tap each step to expand</p>
+      <div class="acc">
+        <div class="acc-row open" id="sec1">
+          <div class="acc-head" onclick="toggle('sec1')"><div class="acc-num">01</div><div class="acc-title">Register Your GenesisFX Account</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <p class="acc-desc">Create your broker account in under 2 minutes.</p>
+            <ul class="acc-list">
+              <li>Tap the button above to open the GenesisFX registration page</li>
+              <li>Fill in your full name, email address, and create a password</li>
+              <li>Verify your email when prompted</li>
+              <li>Complete any identity verification steps required</li>
+              <li>Once verified, you&rsquo;ll land on your <span class="hl">GenesisFX Dashboard</span></li>
+            </ul>
+            <a href="https://dashboard.genesisfxmarkets.com/auth/register?ref=JACWAL843" target="_blank" rel="noopener noreferrer" class="acc-link">Register on GenesisFX &rarr;</a>
+          </div>
+        </div>
+        <div class="acc-row" id="sec2">
+          <div class="acc-head" onclick="toggle('sec2')"><div class="acc-num">02</div><div class="acc-title">Navigate to TradeLocker Inside GenesisFX</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <p class="acc-desc">Once logged into your GenesisFX dashboard, here&rsquo;s how to get to TradeLocker.</p>
+            <ul class="acc-list">
+              <li>You&rsquo;ll be on the main <span class="hl">Dashboard</span> screen</li>
+              <li>On mobile, tap the <strong>three lines (&#9776;) at the top left</strong> to open the menu</li>
+              <li>Find and tap <strong>TradeLocker</strong></li>
+              <li>This opens TradeLocker directly connected to your GenesisFX account</li>
+            </ul>
+            <div class="acc-note">On desktop, TradeLocker will appear in the left sidebar or as a direct button on your dashboard.</div>
+          </div>
+        </div>
+        <div class="acc-row" id="sec3">
+          <div class="acc-head" onclick="toggle('sec3')"><div class="acc-num">03</div><div class="acc-title">Create a New Demo Account</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <p class="acc-desc">Inside TradeLocker, create your demo with these exact settings.</p>
+            <ul class="acc-list">
+              <li>Tap <strong>New Account</strong></li>
+              <li>Change account type from <strong>Live Account</strong> to <span class="hl">Demo Account</span></li>
+              <li>Name your account: <span class="hl">DEMO</span></li>
+              <li>Keep account at <strong>GenFX</strong> (default &mdash; do not change)</li>
+              <li>Account Type: <strong>Standard</strong></li>
+              <li>Leverage: <span class="hl">1:500</span> (required)</li>
+              <li>Demo Balance: $1,000 or your preferred amount</li>
+              <li>Tap <strong>Create Account</strong></li>
+            </ul>
+            <div class="acc-note"><strong>Important:</strong> Leverage must be set to <strong>1:500</strong>. Do not leave it at the default.</div>
+          </div>
+        </div>
+        <div class="acc-row" id="sec4">
+          <div class="acc-head" onclick="toggle('sec4')"><div class="acc-num">04</div><div class="acc-title">Check Your Email for TradeLocker Credentials</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <p class="acc-desc">GenesisFX will automatically email your TradeLocker login details. Save all of these:</p>
+            <ul class="acc-list">
+              <li>Login Email</li>
+              <li>Account Number</li>
+              <li>Server Name</li>
+              <li>TradeLocker Password</li>
+            </ul>
+            <div class="acc-note">Can&rsquo;t find it? Check your spam folder. If it&rsquo;s still not there after 5 minutes, log back into your GenesisFX dashboard and look for your account credentials there.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-login" style="background:var(--surface2);">
+    <div class="ob-in">
+      <p class="sec-label">Step 06</p>
+      <h2 class="sec-title">Log Into<br><span>TradeLocker.</span></h2>
+      <p class="sec-sub">Your demo account is created. Now log into TradeLocker using the credentials GenesisFX emailed you.</p>
+
+      <div class="notice">
+        <span style="font-size:1.1rem;flex-shrink:0;">📧</span>
+        <p>Have the email from <strong>GenesisFX</strong> ready before starting this step. It was sent automatically after creating your demo account in Step 5 and contains your account number, server, and password.</p>
+      </div>
+
+      <div class="acc" style="margin-top:clamp(18px,3vw,28px);">
+        <div class="acc-row open" id="sec5">
+          <div class="acc-head" onclick="toggle('sec5')"><div class="acc-num">01</div><div class="acc-title">Open the TradeLocker App</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <ul class="acc-list">
+              <li>Open the <strong>TradeLocker app</strong> on your phone</li>
+              <li>On the login screen, tap <span class="hl">Log In with Broker</span> or <span class="hl">Connect Broker</span></li>
+              <li>Search for or select <strong>GenesisFX</strong> as your broker</li>
+            </ul>
+          </div>
+        </div>
+        <div class="acc-row" id="sec6">
+          <div class="acc-head" onclick="toggle('sec6')"><div class="acc-num">02</div><div class="acc-title">Enter Your Credentials from the GenesisFX Email</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <p class="acc-desc">Use the credentials GenesisFX emailed you after creating your demo account.</p>
+            <ul class="acc-list">
+              <li>Enter your <strong>Login Email</strong> (from the GenesisFX email)</li>
+              <li>Enter the <span class="hl">password from the email</span> &mdash; this is a TradeLocker password, not your GenesisFX login password</li>
+              <li>For <strong>Server</strong>, enter: <span class="hl">GENFX</span></li>
+              <li>Tap <strong>Log In</strong></li>
+            </ul>
+            <div class="acc-note"><strong>Use the password from the email</strong>, not your GenesisFX account password. They are two different passwords. Server is <strong>GENFX</strong>.</div>
+          </div>
+        </div>
+        <div class="acc-row" id="sec7">
+          <div class="acc-head" onclick="toggle('sec7')"><div class="acc-num">03</div><div class="acc-title">You&rsquo;re In &mdash; Confirm Your Demo Account</div><div class="acc-arrow">&#9654;</div></div>
+          <div class="acc-body">
+            <ul class="acc-list">
+              <li>You should see your <span class="hl">DEMO account</span> with your virtual balance</li>
+              <li>Confirm leverage shows <strong>1:500</strong></li>
+              <li>Tap a chart to explore the platform</li>
+              <li>You&rsquo;re set up &mdash; complete the videos before placing any trades</li>
+            </ul>
+            <div class="acc-note">If you see your demo balance and charts are loading, you&rsquo;re fully set up. Move on to the next step.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-videos">
+    <div class="ob-in">
+      <p class="sec-label">Step 07 &mdash; Final Step</p>
+      <h2 class="sec-title">You&rsquo;re Set Up.<br><span>Now Watch These.</span></h2>
+      <p class="sec-sub">Apps downloaded. Chats joined. Demo live. TradeLocker ready. Good. Now sit down and watch both videos before you touch a single trade.</p>
+      <div class="vid-grid">
+        <div class="vid-card feat">
+          <div class="vid-num">01</div>
+          <span class="vid-badge">Watch within 72 hours</span>
+          <div class="vid-lbl">Step One &mdash; Platform</div>
+          <div class="vid-title">TradeLocker Phone Overview</div>
+          <p class="vid-desc">A full walkthrough of TradeLocker on your phone &mdash; charts, demo setup, and executing your first trade step by step.</p>
+          <div class="vid-embed"><iframe src="https://drive.google.com/file/d/1SSj2GDTgDe44drywp6A-Wh-K2940qYqV/preview" allow="autoplay" allowfullscreen></iframe></div>
+          <a href="https://drive.google.com/file/d/1SSj2GDTgDe44drywp6A-Wh-K2940qYqV/view" target="_blank" rel="noopener noreferrer" class="btn-o">Open Full Screen &rarr;</a>
+        </div>
+        <div class="vid-card">
+          <div class="vid-num">02</div>
+          <span class="vid-badge">Watch within 72 hours</span>
+          <div class="vid-lbl">Phase One &mdash; Foundation</div>
+          <div class="vid-title">Terms &amp; Meanings</div>
+          <p class="vid-desc">All the foundational terms and vocabulary you need before taking trades. Learn the language of the market.</p>
+          <div class="vid-embed"><iframe src="https://drive.google.com/file/d/1UvdAJfbOupQ20zyHATDk_6AW8DoI0JnS/preview" allow="autoplay" allowfullscreen></iframe></div>
+          <a href="https://drive.google.com/file/d/1UvdAJfbOupQ20zyHATDk_6AW8DoI0JnS/view" target="_blank" rel="noopener noreferrer" class="btn-o">Open Full Screen &rarr;</a>
+        </div>
+      </div>
+      <div class="notice">
+        <span style="font-size:1rem;flex-shrink:0;">📌</span>
+        <p><strong>Watch Phase 1 first, then Phase 2.</strong> These bridge onboarding into actually knowing what you&rsquo;re doing. Once done, you&rsquo;re ready. Bring questions to the community chat.</p>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-arin" style="background:var(--surface2);">
+    <div class="ob-in">
+      <p class="sec-label">One More Thing</p>
+      <h2 class="sec-title">Go Watch<br><span>Arin Long&rsquo;s Clips.</span></h2>
+      <p class="sec-sub">Before you call yourself ready, head to Arin Long&rsquo;s Clips section on 1House and start watching her recordings from the beginning. This is your homework.</p>
+      <div class="arin-card">
+        <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+          <span style="font-size:1.6rem;flex-shrink:0;">🎯</span>
+          <div style="flex:1;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,3vw,1.8rem);letter-spacing:0.04em;color:var(--green);margin-bottom:8px;">Arin Long &mdash; Day Trading Basics</div>
+            <p style="font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.75;margin-bottom:16px;">Arin Long is one of the top educators on the 1House platform. Her recordings are your foundation. Every concept, every setup, every piece of vocabulary you need is in there.</p>
+            <ul class="acc-list" style="margin-bottom:18px;">
+              <li>Open 1House on your phone or at 1House.TV</li>
+              <li>Search for <strong>Arin Long</strong> or navigate to her educator page</li>
+              <li>Go to her <strong>Clips</strong> section</li>
+              <li>Start from the <strong>earliest recording</strong> and work your way forward</li>
+              <li>Take notes. Revisit sessions. Ask questions in the chat.</li>
+            </ul>
+            <a href="https://1house.tv" target="_blank" rel="noopener noreferrer" class="btn-o">Open 1House Now &rarr;</a>
+          </div>
+        </div>
+      </div>
+      <div class="notice">
+        <span style="font-size:1rem;flex-shrink:0;">💡</span>
+        <p><strong>The more sessions you watch, the faster you progress.</strong> The people winning on this platform show up to live sessions AND go back through recordings. Both. Not one or the other.</p>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="ob-sec" id="s-congrats">
+    <div class="ob-in">
+      <div class="cg-wrap">
+        <span class="cg-emoji">🎉</span>
+        <h2 class="cg-h">Congratulations.<span>You&rsquo;re All Set.</span></h2>
+        <p class="cg-p">You&rsquo;ve completed onboarding and taken a real step toward <strong>building peace and wealth.</strong> Stay active in the chats, engage with the community, and show up to the sessions. <strong>Consistency is how you grow, learn, and put yourself in position to get paid.</strong> Let&rsquo;s build together.</p>
+        <div class="support">
+          <div class="support-lbl">Need More Help?</div>
+          <a href="mailto:support@1houseglobal.com" class="support-email">support@1houseglobal.com</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  </div>
+
+</div>
+
+<style>
+
+
+:root{
+  --green:#00c853;--green-dark:#007c32;--green-glow:rgba(0,200,83,0.25);
+  --black:#040404;--surface:#0e0e0e;--surface2:#111;
+  --border:rgba(0,200,83,0.18);--text:#eaf5eb;--muted:#6b8f72;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--black);color:var(--text);font-family:'Barlow',sans-serif;overflow-x:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-track{background:var(--black);}
+::-webkit-scrollbar-thumb{background:var(--green-dark);}
+
+/* ── GATE ── */
+#ob-internal-gate{
+  min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  padding:32px 24px;text-align:center;
+  position:relative;overflow:hidden;
+}
+#ob-internal-gate::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 55%,rgba(0,200,83,0.1) 0%,rgba(0,200,83,0.03) 40%,transparent 70%);
+  pointer-events:none;
+}
+.gate-inner{position:relative;z-index:1;max-width:380px;width:100%;}
+.gate-logo{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:0.1em;color:var(--green);text-shadow:0 0 20px var(--green-glow);margin-bottom:3px;}
+.gate-logo span{color:var(--text);}
+.gate-tag{font-family:'Barlow Condensed',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:rgba(0,200,83,0.5);margin-bottom:52px;}
+.gate-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.6rem,8vw,3.4rem);line-height:0.93;letter-spacing:0.02em;margin-bottom:12px;}
+.gate-title span{color:var(--green);display:block;text-shadow:0 0 30px rgba(0,200,83,0.35);}
+.gate-desc{font-size:0.83rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;margin-bottom:36px;}
+.gate-input{
+  width:100%;background:rgba(0,200,83,0.03);
+  border:1px solid rgba(0,200,83,0.22);
+  color:var(--text);padding:14px 18px;
+  font-family:'Barlow',sans-serif;font-size:0.92rem;
+  letter-spacing:0.06em;outline:none;
+  transition:border-color 0.2s;margin-bottom:10px;
+  -webkit-appearance:none;border-radius:0;
+}
+.gate-input:focus{border-color:rgba(0,200,83,0.65);}
+.gate-input::placeholder{color:rgba(234,245,235,0.45);font-size:0.78rem;letter-spacing:0.12em;}
+.gate-btn{
+  width:100%;padding:14px;
+  background:var(--green);color:var(--black);border:none;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;font-size:0.84rem;
+  letter-spacing:0.18em;text-transform:uppercase;
+  cursor:pointer;-webkit-appearance:none;border-radius:0;
+}
+.gate-err{color:#c0392b;font-size:0.7rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.12em;text-transform:uppercase;margin-top:12px;font-weight:600;display:none;}
+
+/* ── MAIN ── */
+#ob-internal-main{display:none;}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(4,4,4,0.97);backdrop-filter:blur(10px);border-bottom:1px solid rgba(0,200,83,0.12);padding:15px 5vw;display:flex;justify-content:space-between;align-items:center;}
+.tb-logo{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.1em;color:var(--green);}
+.tb-logo span{color:rgba(234,245,235,0.6);}
+.tb-badge{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--black);background:var(--green);padding:5px 13px;}
+
+/* ── STEP NAV ── */
+.steps-nav{background:var(--surface);border-bottom:1px solid rgba(0,200,83,0.12);overflow-x:auto;display:flex;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 5vw;}
+.steps-nav::-webkit-scrollbar{display:none;}
+.sni{flex-shrink:0;padding:15px 18px;font-family:'Barlow Condensed',sans-serif;font-size:0.66rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:rgba(234,245,235,0.5);cursor:pointer;border-bottom:1px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.sni:hover{color:rgba(234,245,235,0.75);}
+.sni.active{color:var(--green);border-bottom-color:var(--green);}
+.sni-n{font-family:'Bebas Neue',sans-serif;font-size:0.88rem;color:rgba(0,200,83,0.6);margin-right:5px;}
+.sni.active .sni-n{color:rgba(0,200,83,0.55);}
+
+/* ── PROGRESS ── */
+.prog-wrap{position:fixed;top:0;left:0;right:0;z-index:300;height:1px;background:rgba(0,200,83,0.14);}
+.prog-fill{height:100%;background:var(--green);width:0%;}
+
+/* Hero */
+.ob-hero{min-height:60vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:80px 5vw 52px;position:relative;overflow:hidden;}
+.hero-orb{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(600px,90vw);height:min(600px,90vw);background:radial-gradient(circle,rgba(0,200,83,0.12) 0%,transparent 65%);pointer-events:none;}
+.ob-eyebrow{font-family:'Barlow Condensed',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.32em;text-transform:uppercase;color:var(--green);margin-bottom:18px;position:relative;}
+.ob-headline{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.4rem,12vw,7.5rem);line-height:0.9;letter-spacing:0.02em;position:relative;}
+.ob-headline span{color:var(--green);display:block;text-shadow:0 0 60px rgba(0,200,83,0.5),0 0 120px rgba(0,200,83,0.18);}
+.ob-sub{margin-top:20px;max-width:460px;font-size:clamp(0.84rem,2vw,0.94rem);font-weight:300;line-height:1.78;color:rgba(234,245,235,0.68);position:relative;}
+
+/* Sections */
+.ob-sec{padding:clamp(52px,8vw,88px) 5vw;border-bottom:1px solid rgba(0,200,83,0.12);}
+.ob-in{max-width:960px;margin:0 auto;}
+.sec-label{font-family:'Barlow Condensed',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.32em;text-transform:uppercase;color:var(--green);margin-bottom:10px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,6vw,3.8rem);line-height:0.95;letter-spacing:0.02em;margin-bottom:14px;}
+.sec-title span{color:var(--green);}
+.sec-sub{font-size:clamp(0.82rem,2vw,0.92rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.78;max-width:540px;}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(0,200,83,0.14);}
+@media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+.gcol{background:var(--surface);padding:clamp(20px,3vw,32px) clamp(16px,3vw,26px);}
+.gcol.lit{background:rgba(0,200,83,0.06);border-top:1px solid rgba(0,200,83,0.35);}
+
+/* ── LABELS / TITLES ── */
+.col-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:7px;}
+.col-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.65rem);letter-spacing:0.04em;margin-bottom:9px;}
+.col-title.g{color:var(--green);}
+.col-body{font-size:clamp(0.78rem,2vw,0.86rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.75;margin-bottom:16px;}
+
+/* ── BUTTONS ── */
+.btn-g{display:inline-block;background:var(--green);color:var(--black);padding:11px 24px;border:none;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:box-shadow 0.2s;}
+.btn-g:hover{box-shadow:0 0 20px rgba(0,200,83,0.6);}
+.btn-o{display:inline-block;background:transparent;border:1px solid rgba(0,200,83,0.5);color:rgba(0,200,83,0.7);padding:10px 20px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:all 0.2s;}
+.btn-o:hover{background:var(--green);color:var(--black);border-color:var(--green);}
+
+/* ── APPS ── */
+.app-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(24px,4vw,40px);}
+@media(max-width:500px){.app-grid{grid-template-columns:repeat(2,1fr);}}
+.app-c{background:var(--surface);padding:clamp(18px,3vw,28px) clamp(12px,2vw,18px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;}
+.app-c.feat{background:rgba(0,200,83,0.06);border-top:2px solid var(--green);}
+.app-ico{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.45rem;background:rgba(0,200,83,0.05);border:1px solid rgba(0,200,83,0.18);}
+.app-n{font-family:'Barlow Condensed',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text);}
+.app-d{font-size:0.68rem;font-weight:300;color:rgba(234,245,235,0.6);line-height:1.45;}
+.app-btns{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+.abt{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid rgba(0,200,83,0.35);color:rgba(0,200,83,0.55);padding:4px 8px;text-decoration:none;transition:all 0.2s;display:inline-block;}
+.abt:hover{background:var(--green);color:var(--black);border-color:var(--green);}
+
+/* ── STEPS / ACCORDION ── */
+.acc{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.acc-row{background:var(--surface);border-left:2px solid transparent;transition:all 0.2s;}
+.acc-row.open,.acc-row:hover{background:rgba(0,200,83,0.05);border-left-color:var(--green);}
+.acc-head{padding:clamp(16px,3vw,24px) clamp(16px,3vw,24px);display:flex;align-items:center;gap:16px;cursor:pointer;}
+.acc-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);color:rgba(0,200,83,0.35);line-height:1;flex-shrink:0;width:36px;}
+.acc-row.open .acc-num{color:rgba(0,200,83,0.6);}
+.acc-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.86rem,2vw,1rem);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.9);flex:1;}
+.acc-row.open .acc-title{color:var(--text);}
+.acc-arrow{color:rgba(0,200,83,0.6);font-size:0.75rem;flex-shrink:0;transition:transform 0.25s;}
+.acc-row.open .acc-arrow{transform:rotate(90deg);color:var(--green);}
+.acc-body{display:none;padding:4px clamp(16px,3vw,24px) clamp(16px,3vw,22px) calc(36px + 16px + clamp(16px,3vw,24px));}
+.acc-row.open .acc-body{display:block;}
+.acc-desc{font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.75;margin-bottom:12px;}
+.acc-list{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.acc-list li{font-size:0.84rem;font-weight:300;color:rgba(234,245,235,0.78);line-height:1.65;padding-left:18px;position:relative;}
+.acc-list li::before{content:'→';color:var(--green);font-weight:600;position:absolute;left:0;top:0;font-size:0.7rem;margin-top:3px;}
+.acc-list li strong{color:rgba(234,245,235,0.78);font-weight:600;}
+.acc-list li .hl{color:var(--green);font-weight:600;}
+.acc-note{margin-top:14px;padding:12px 16px;background:rgba(0,200,83,0.04);border-left:2px solid rgba(0,200,83,0.2);font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.65;}
+.acc-note strong{color:rgba(0,200,83,0.7);}
+.acc-link{display:inline-block;margin-top:14px;background:var(--green);color:var(--black);padding:10px 22px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;transition:box-shadow 0.2s;}
+.acc-link:hover{box-shadow:0 0 18px rgba(0,200,83,0.28);}
+
+/* ── NOTICE ── */
+.notice{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:rgba(0,200,83,0.03);border:1px solid rgba(0,200,83,0.18);margin-top:clamp(14px,3vw,22px);}
+.notice p{font-size:0.82rem;font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;}
+.notice p strong{color:rgba(234,245,235,0.65);}
+
+/* ── BROKER BANNER ── */
+.broker-wrap{margin-top:clamp(20px,3vw,30px);padding:clamp(18px,3vw,28px);background:rgba(0,200,83,0.04);border:1px solid rgba(0,200,83,0.35);border-left:3px solid var(--green);display:flex;align-items:center;gap:clamp(14px,3vw,24px);flex-wrap:wrap;}
+.b-icon{font-size:1.8rem;flex-shrink:0;}
+.b-text{flex:1;min-width:160px;}
+.b-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:4px;}
+.b-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,3vw,1.8rem);letter-spacing:0.04em;color:var(--green);margin-bottom:5px;text-shadow:0 0 20px rgba(0,200,83,0.35);}
+.b-desc{font-size:0.82rem;font-weight:300;color:rgba(234,245,235,0.9);line-height:1.65;}
+
+/* ── LEVERAGE ── */
+.lev{display:flex;align-items:center;gap:14px;padding:16px 20px;background:rgba(0,200,83,0.07);border:1px solid rgba(0,200,83,0.28);margin:clamp(14px,3vw,22px) 0;flex-wrap:wrap;}
+.lev-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:3px;}
+.lev-val{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--green);line-height:1;}
+.lev-note{font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.68);line-height:1.6;flex:1;min-width:140px;}
+.lev-note strong{color:rgba(0,200,83,0.65);}
+
+/* ── VIDEO EMBED ── */
+.vid-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(24px,4vw,40px);}
+@media(max-width:620px){.vid-grid{grid-template-columns:1fr;}}
+.vid-card{background:var(--surface);padding:clamp(20px,3vw,30px) clamp(16px,3vw,24px);}
+.vid-card.feat{border-top:2px solid var(--green);}
+.vid-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:rgba(0,200,83,0.18);line-height:1;margin-bottom:6px;}
+.vid-badge{font-family:'Barlow Condensed',sans-serif;font-size:0.56rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(0,200,83,0.7);margin-bottom:8px;display:block;}
+.vid-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:5px;}
+.vid-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.6rem);letter-spacing:0.04em;color:var(--text);margin-bottom:9px;}
+.vid-desc{font-size:clamp(0.76rem,2vw,0.84rem);font-weight:300;color:rgba(234,245,235,0.72);line-height:1.7;margin-bottom:14px;}
+.vid-embed{width:100%;aspect-ratio:16/9;background:#000;margin-bottom:12px;}
+.vid-embed iframe{width:100%;height:100%;border:none;display:block;}
+
+/* ── EXPLORE LIST ── */
+.exp-list{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.exp-item{background:var(--surface);padding:clamp(15px,3vw,22px) clamp(16px,3vw,24px);display:flex;align-items:flex-start;gap:14px;}
+.exp-ico{font-size:1.2rem;flex-shrink:0;margin-top:1px;}
+.exp-title{font-family:'Barlow Condensed',sans-serif;font-size:0.86rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.92);margin-bottom:4px;}
+.exp-desc{font-size:0.8rem;font-weight:300;color:rgba(234,245,235,0.65);line-height:1.65;}
+
+/* ── CHECKLIST ── */
+.chk{list-style:none;display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);}
+.chk li{background:var(--surface);padding:13px 16px;display:flex;align-items:center;gap:12px;font-size:0.84rem;font-weight:400;color:rgba(234,245,235,0.8);}
+.chk-n{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:rgba(0,200,83,0.5);flex-shrink:0;width:22px;line-height:1;}
+
+/* ── QUOTE ── */
+.quote{border-left:2px solid var(--green);padding:14px 18px;background:rgba(0,200,83,0.05);margin-top:18px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.9rem,2vw,1.06rem);font-weight:600;color:rgba(234,245,235,0.85);line-height:1.5;}
+
+/* ── CHAT CARDS ── */
+.chat-wrap{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(20px,3vw,32px);}
+.chat-c{background:var(--surface);padding:clamp(22px,4vw,34px) clamp(16px,3vw,26px);border-left:2px solid rgba(0,200,83,0.6);}
+.chat-c.prim{border-left-color:var(--green);background:rgba(0,200,83,0.06);}
+.chat-sub{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(0,200,83,0.14);}
+@media(max-width:580px){.chat-sub{grid-template-columns:1fr;}}
+.chat-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(0,200,83,0.65);margin-bottom:6px;}
+.chat-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.75rem);letter-spacing:0.04em;color:var(--green);margin-bottom:9px;text-shadow:0 0 18px rgba(0,200,83,0.3);}
+.chat-body{font-size:clamp(0.76rem,2vw,0.84rem);font-weight:300;line-height:1.72;color:rgba(234,245,235,0.72);margin-bottom:16px;}
+
+/* ── BOARDS STEPS ── */
+.brd-steps{display:flex;flex-direction:column;gap:1px;background:rgba(0,200,83,0.14);margin-top:clamp(16px,3vw,26px);}
+.brd-row{background:var(--surface);padding:clamp(16px,3vw,24px);display:flex;gap:16px;align-items:flex-start;}
+.brd-n{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.6rem,4vw,2.2rem);color:rgba(0,200,83,0.35);line-height:1;flex-shrink:0;width:34px;}
+.brd-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.86rem,2vw,0.98rem);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:rgba(234,245,235,0.9);margin-bottom:5px;}
+.brd-desc{font-size:clamp(0.76rem,2vw,0.83rem);font-weight:300;line-height:1.68;color:rgba(234,245,235,0.72);}
+.brd-desc strong{color:rgba(0,200,83,0.65);}
+
+/* ── ARIN SECTION ── */
+.arin-card{background:rgba(0,200,83,0.03);border:1px solid rgba(0,200,83,0.35);border-left:3px solid var(--green);padding:clamp(24px,4vw,38px) clamp(18px,3vw,30px);margin-top:clamp(20px,3vw,32px);}
+
+/* ── CONGRATS ── */
+.cg-wrap{text-align:center;padding:clamp(52px,9vw,92px) 5vw;position:relative;overflow:hidden;}
+.cg-wrap::before{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:38vw;color:rgba(0,200,83,0.02);pointer-events:none;line-height:1;}
+.cg-emoji{font-size:2.6rem;display:block;margin-bottom:14px;position:relative;}
+.cg-h{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,8vw,5rem);line-height:0.93;letter-spacing:0.02em;margin-bottom:16px;position:relative;}
+.cg-h span{color:var(--green);display:block;}
+.cg-p{max-width:500px;margin:0 auto 34px;font-size:clamp(0.82rem,2vw,0.92rem);font-weight:300;line-height:1.8;color:rgba(234,245,235,0.9);position:relative;}
+.cg-p strong{color:rgba(234,245,235,0.65);}
+.support{display:inline-block;border:1px solid rgba(0,200,83,0.28);padding:18px 30px;}
+.support-lbl{font-family:'Barlow Condensed',sans-serif;font-size:0.56rem;font-weight:700;letter-spacing:0.3em;text-transform:uppercase;color:rgba(0,200,83,0.32);margin-bottom:6px;}
+.support-email{font-family:'Bebas Neue',sans-serif;font-size:clamp(0.9rem,2.5vw,1.3rem);letter-spacing:0.06em;color:var(--green);text-decoration:none;}
+
+
+@media(max-width:680px){.ob-gate-grid{grid-template-columns:1fr!important;}}
+</style>
+
+
+</div>
+
+<script>
+// ── ONBOARDING UNLOCK (SHA-256 secured, rate-limited) ──
+// SHA-256 of 'legacy' — change this hash if you change the password
+var _OB_HASH = 'c49fea7425fa7f8699897a97c159c6690267d9003bb78c53fafa8fc15c325d84';
+var _ob_attempts = 0;
+var _ob_locked_until = 0;
+
+async function _sha256(str){
+  var enc = new TextEncoder();
+  var buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+function _openOnboarding(){
+  var obPage = document.getElementById('ob-page');
+  var obGate = document.getElementById('ob-gate');
+  var obContent = document.getElementById('ob-content');
+  var memberSec = document.getElementById('member');
+  if(memberSec) memberSec.style.display = 'none';
+  if(obPage){
+    obPage.style.cssText = 'display:block!important;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#040404;opacity:1;visibility:visible;';
+    document.body.style.overflow = 'hidden';
+    obPage.scrollTop = 0;
+  }
+  if(obGate) obGate.style.display = 'none';
+  if(obContent) obContent.style.cssText = 'display:block!important;opacity:1;visibility:visible;';
+  var qz = document.getElementById('qz');
+  if(qz) qz.style.display = 'none';
+  if(obPage){
+    var ids=['s-1house','s-welcome','s-apps','s-chats','s-demo','s-login','s-videos','s-arin','s-congrats'];
+    var navs=document.querySelectorAll('.sni');
+    obPage.addEventListener('scroll', function(){
+      var sy=obPage.scrollTop;
+      var tot=obPage.scrollHeight-obPage.clientHeight;
+      var pf=document.getElementById('progFill');
+      if(pf&&tot>0) pf.style.width=(sy/tot*100)+'%';
+      var cur=0;
+      ids.forEach(function(id,i){
+        var el=document.getElementById(id);
+        if(el){var rect=el.getBoundingClientRect();if(rect.top<=140)cur=i;}
+      });
+      navs.forEach(function(n,i){n.classList.toggle('active',i===cur);});
+    },{passive:true});
+  }
+}
+
+async function _tryUnlock(inputEl, errEl){
+  if(!inputEl) return;
+  var now = Date.now();
+  if(now < _ob_locked_until){
+    var secs = Math.ceil((_ob_locked_until - now)/1000);
+    if(errEl){ errEl.textContent = 'Too many attempts. Wait ' + secs + 's.'; errEl.style.display='block'; }
+    return;
+  }
+  var val = inputEl.value.trim().toLowerCase();
+  var hash = await _sha256(val);
+  if(hash === _OB_HASH){
+    _ob_attempts = 0;
+    _openOnboarding();
+  } else {
+    _ob_attempts++;
+    if(_ob_attempts >= 5){ _ob_locked_until = Date.now() + 30000; _ob_attempts = 0; }
+    if(errEl){ errEl.textContent = 'Incorrect password — try again.'; errEl.style.display='block'; setTimeout(function(){errEl.style.display='none';},2500); }
+    inputEl.value = '';
+    inputEl.focus();
+  }
+}
+
+// Shared unlockOBgate for the gate inside the overlay
+window.unlockOBgate = async function(){
+  var inp = document.getElementById('ob-pw-input-gate');
+  var err = document.getElementById('ob-err-gate');
+  await _tryUnlock(inp, err);
+};
+
+document.addEventListener('DOMContentLoaded', function(){
+  var btn = document.getElementById('ob-unlock-btn');
+  var inp = document.getElementById('ob-pw-input');
+  var err = document.getElementById('ob-err');
+
+  if(btn) btn.addEventListener('click', function(){ _tryUnlock(inp, err); });
+  if(inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter') _tryUnlock(inp, err); });
+
+  // Also wire up the gate inside the overlay
+  var gateInp = document.getElementById('ob-pw-input-gate');
+  if(gateInp) gateInp.addEventListener('keydown', function(e){ if(e.key==='Enter') window.unlockOBgate(); });
+
+  // Close button
+  var closeBtn = document.getElementById('ob-back');
+  if(closeBtn) closeBtn.addEventListener('click', function(){
+    var obPage = document.getElementById('ob-page');
+    if(obPage) obPage.style.display = 'none';
+    document.body.style.overflow = '';
+    var memberSec = document.getElementById('member');
+    if(memberSec) memberSec.style.display = '';
+  });
+});
+</script>
+
+</body>
+</html>
