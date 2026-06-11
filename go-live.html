@@ -106,6 +106,16 @@ body{padding-top:56px}
 .mt.s{color:rgba(255,255,255,.22);font-style:italic;font-size:.8rem}
 .kbtn{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.28);cursor:pointer;font-size:.85rem;padding:1px 3px;line-height:1;margin-top:1px}
 .kbtn:hover{color:rgba(255,59,92,.75)}
+.cobtn{color:rgba(0,255,135,.28)!important}
+.cobtn:hover{color:rgba(0,255,135,.85)!important}
+/* ── Cohost on-air panel ── */
+#cohost-panel{display:none;padding:6px 12px;border-top:1px solid rgba(0,255,135,.1);background:rgba(0,255,135,.03);flex-shrink:0}
+#cohost-panel.show{display:block}
+.cohost-hd{font-size:.5rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,255,135,.35);margin-bottom:5px}
+.cohost-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0}
+.cohost-name{font-size:.7rem;color:rgba(0,255,135,.7)}
+.cohost-rm{background:none;border:none;color:rgba(255,59,92,.4);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1}
+.cohost-rm:hover{color:rgba(255,59,92,.85)}
 .cft{padding:8px 10px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:5px}
 .cin{flex:1;height:34px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:#f0faf3;padding:0 10px;font-family:'Urbanist',sans-serif;font-size:.78rem;outline:none;border-radius:0}
 .cin:focus{border-color:rgba(0,255,135,.2)}
@@ -216,6 +226,11 @@ body{padding-top:56px}
         <input class="cin" id="ci" placeholder="Reply to viewers…" maxlength="200" onkeydown="if(event.key==='Enter')hostChat()">
         <button class="csnd" onclick="hostChat()">Send</button>
       </div>
+    </div>
+    <!-- Cohost on-air panel -->
+    <div id="cohost-panel">
+      <div class="cohost-hd">📡 On Stage</div>
+      <div id="cohost-list"></div>
     </div>
     <!-- Leads panel -->
     <div id="leads-panel">
@@ -331,6 +346,7 @@ var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null;
 var _dummyCamTrack=null; // invisible 2×2 black placeholder sent when cam is off
 var _viewers={}, _banned=[];
+var _cohostInvited={}, _cohosts={}; // cohost state: invited viewers + active cohosts
 var _canvas=document.getElementById('cv');
 // desynchronized: bypasses compositor sync → GPU-accelerated compositing
 // alpha: false → no transparency blending overhead
@@ -486,7 +502,19 @@ function addMsg(name,text,type,pid){
   var l=document.createElement('div');l.className='ml';
   l.innerHTML='<div class="mn'+(type==='host'?' h':'')+'">'+esc(name)+'</div><div class="mt">'+esc(text)+'</div>';
   d.appendChild(l);
-  if(pid){var k=document.createElement('button');k.className='kbtn';k.textContent='✕';k.onclick=(function(id){return function(){kick(id);};})(pid);d.appendChild(k);}
+  if(pid){
+    // Kick button
+    var k=document.createElement('button');k.className='kbtn';k.textContent='✕';k.title='Kick viewer';
+    k.onclick=(function(id){return function(){kick(id);};})(pid);d.appendChild(k);
+    // Cohost button: ⬆ invite (if not cohost) or ⬇ remove (if already cohost)
+    if(_cohosts[pid]){
+      var rb=document.createElement('button');rb.className='kbtn cobtn';rb.textContent='⬇';rb.title='Remove from stage';
+      rb.onclick=(function(id){return function(){removeCohost(id);};})(pid);d.appendChild(rb);
+    } else {
+      var cb=document.createElement('button');cb.className='kbtn cobtn';cb.textContent='⬆';cb.title='Invite on stage';
+      cb.onclick=(function(id){return function(){inviteCohost(id);};})(pid);d.appendChild(cb);
+    }
+  }
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 function setVC(n){
@@ -514,10 +542,10 @@ function createDummyCamTrack(){
 function initCanvas(){
   var settings=_screenStream.getVideoTracks()[0].getSettings();
   // Camera is now a separate track so the canvas only carries screen share.
-  // Cap at 2560×1440 (2K) — dramatically sharper than 1080p for reading text/charts,
-  // without the full 4K GPU encoder cost. Viewers see crisp screen content.
-  _SW=Math.min(settings.width||1920,2560);
-  _SH=Math.min(settings.height||1080,1440);
+  // Cap at 1920×1080 — halves pixel count vs 2K, cuts encoder CPU load significantly,
+  // resulting in smoother framerate without sacrificing readability.
+  _SW=Math.min(settings.width||1920,1920);
+  _SH=Math.min(settings.height||1080,1080);
   _canvas.width=_SW;
   _canvas.height=_SH;
   // Disable smoothing — screen share has text/charts that look sharper
@@ -536,6 +564,30 @@ function initCanvas(){
     // Draw screen
     if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
     else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
+    // Draw cohost cameras as small PIP boxes stacked in bottom-left
+    var cohostPids=Object.keys(_cohosts);
+    if(cohostPids.length>0){
+      var boxW=Math.round(_SW*0.18);
+      var boxH=Math.round(boxW*9/16);
+      var pad=12;
+      cohostPids.forEach(function(cpid,i){
+        var vid=_cohosts[cpid].video;
+        if(!vid||vid.readyState<2)return;
+        var x=pad;
+        var y=_SH-pad-(i+1)*(boxH+pad);
+        // Background
+        _ctx.fillStyle='#000';
+        _ctx.fillRect(x,y,boxW,boxH);
+        // Video frame
+        _ctx.drawImage(vid,x,y,boxW,boxH);
+        // Name bar
+        _ctx.fillStyle='rgba(0,0,0,.75)';
+        _ctx.fillRect(x,y+boxH-18,boxW,18);
+        _ctx.fillStyle='#00ff87';
+        _ctx.font='bold 11px sans-serif';
+        _ctx.fillText((_cohosts[cpid].name||'Cohost').slice(0,22),x+5,y+boxH-5);
+      });
+    }
     // Camera is sent as a separate WebRTC track — NOT drawn on canvas.
     // This eliminates double-encoding (canvas compress → WebRTC compress)
     // and gives viewers a clean single-encode hardware-accelerated camera.
@@ -598,6 +650,7 @@ function goLive(){
         log('Mic only — check "Share audio" in screen picker for system sound');
       }
       _mixedStream=dest.stream;
+      _audioDest=dest; // stored so cohost audio can be mixed in later
     }catch(e){log('AudioContext unavailable — mic only');_mixedStream=_micStream;}
 
     _live=true;
@@ -829,6 +882,52 @@ function startPeer(){
     dc.on('close',function(){rmViewer(pid);});
   });
 
+  // ── Incoming call from a cohost (viewer calling US with their camera) ──
+  _peer.on('call',function(inCall){
+    var cpid=inCall.peer;
+    // Only accept calls from viewers we explicitly invited
+    if(!_cohostInvited[cpid]){
+      console.warn('[COHOST] Rejected uninvited call from',cpid);
+      try{inCall.close();}catch(e){}
+      return;
+    }
+    inCall.answer(new MediaStream()); // answer with empty — we only need their stream
+    inCall.on('stream',function(stream){
+      // Hidden video element for compositing their camera onto the canvas
+      var vid=document.createElement('video');
+      vid.autoplay=true;vid.muted=true;vid.playsInline=true;
+      vid.srcObject=stream;vid.style.display='none';
+      document.body.appendChild(vid);
+      var cname=(_viewers[cpid]&&_viewers[cpid].name)||'Cohost';
+      _cohosts[cpid]={call:inCall,video:vid,name:cname};
+      delete _cohostInvited[cpid];
+      sys('⬆ '+cname+' is now on stage!');
+      // Mix their audio into the outgoing stream so viewers hear them
+      if(_audioCtx&&_audioDest){
+        try{
+          var src=_audioCtx.createMediaStreamSource(stream);
+          src.connect(_audioDest);
+          _cohosts[cpid].audioSrc=src;
+        }catch(e){}
+      }
+      renderCohostPanel();
+    });
+    inCall.on('close',function(){
+      if(_cohosts[cpid]){
+        var n=_cohosts[cpid].name;
+        if(_cohosts[cpid].audioSrc)try{_cohosts[cpid].audioSrc.disconnect();}catch(e){}
+        if(_cohosts[cpid].video){
+          try{_cohosts[cpid].video.srcObject=null;}catch(e){}
+          if(_cohosts[cpid].video.parentNode)_cohosts[cpid].video.parentNode.removeChild(_cohosts[cpid].video);
+        }
+        delete _cohosts[cpid];
+        sys('⬇ '+n+' left the stage.');
+        renderCohostPanel();
+      }
+    });
+    inCall.on('error',function(e){log('Cohost call error: '+e.message);});
+  });
+
   _peer.on('error',function(e){
     log('Peer error: '+e.type);
     if(e.type==='unavailable-id'){
@@ -844,11 +943,51 @@ function startPeer(){
 
 function rmViewer(pid){
   if(_viewers[pid]){
+    // If they were a cohost, clean that up too
+    if(_cohosts[pid]){try{_cohosts[pid].call.close();}catch(e){}}
+    if(_cohostInvited[pid])delete _cohostInvited[pid];
     closeViewerCalls(pid);
     sys((_viewers[pid].name||'Viewer')+' left.');
     delete _viewers[pid];
   }
   setVC(Object.keys(_viewers).length);
+}
+
+// ── Cohost: invite a viewer to share their camera on the stream ──
+function inviteCohost(pid){
+  if(!_viewers[pid]||!_viewers[pid].dc||!_viewers[pid].dc.open)return;
+  if(_cohosts[pid]||_cohostInvited[pid])return; // already cohost or pending invite
+  _cohostInvited[pid]=true;
+  try{_viewers[pid].dc.send(JSON.stringify({t:'cohost_invite'}));}catch(e){}
+  sys('📨 Cohost invite sent to '+(_viewers[pid].name||'Viewer')+'…');
+}
+
+// ── Remove a cohost from stage ──
+function removeCohost(pid){
+  if(!_cohosts[pid])return;
+  // Notify viewer they've been removed
+  if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+    try{_viewers[pid].dc.send(JSON.stringify({t:'cohost_remove'}));}catch(e){}
+  }
+  try{_cohosts[pid].call.close();}catch(e){} // triggers call.on('close') for cleanup
+}
+
+// ── Re-render the on-air cohost panel in the sidebar ──
+function renderCohostPanel(){
+  var panel=document.getElementById('cohost-panel');
+  var list=document.getElementById('cohost-list');
+  if(!panel||!list)return;
+  var pids=Object.keys(_cohosts);
+  panel.className=pids.length>0?'show':'';
+  list.innerHTML='';
+  pids.forEach(function(pid){
+    var row=document.createElement('div');row.className='cohost-row';
+    var nm=document.createElement('span');nm.className='cohost-name';nm.textContent='📡 '+(_cohosts[pid].name||'Cohost');
+    var btn=document.createElement('button');btn.className='cohost-rm';btn.textContent='⬇ Remove';
+    btn.onclick=(function(id){return function(){removeCohost(id);};})(pid);
+    row.appendChild(nm);row.appendChild(btn);
+    list.appendChild(row);
+  });
 }
 function broadcast(obj,excludePid){
   Object.keys(_viewers).forEach(function(pid){

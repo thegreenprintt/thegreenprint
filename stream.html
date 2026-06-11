@@ -36,13 +36,14 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .grid{display:grid;grid-template-columns:1fr 296px;height:calc(100vh - 56px);height:calc(100dvh - 56px)}
 /* Mobile: stacked — video top, chat bottom */
 @media(max-width:760px){
-  .grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:calc(100dvh - 56px)}
+  /* Fill full dvh, video expands to fill remaining space after chat */
+  .grid{grid-template-columns:1fr;grid-template-rows:1fr auto;height:calc(100dvh - 56px);min-height:0}
 }
 .vcol{display:flex;flex-direction:column;background:#000}
 .stage{flex:1;position:relative;background:#030303;overflow:hidden;min-height:0}
-/* On mobile the video shrinks to fit aspect ratio */
+/* On mobile: stage flexes to fill — no forced aspect ratio so portrait works naturally */
 @media(max-width:760px){
-  .stage{aspect-ratio:16/9;flex:none}
+  .stage{flex:1;aspect-ratio:unset}
 }
 /* Hide browser auto-captions / live-caption overlays */
 #vid::-webkit-media-text-track-container,
@@ -86,7 +87,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 /* Mobile: chat sits below video, full width, taller for easy typing */
 @media(max-width:760px){
-  .ccol{border-left:none;border-top:1px solid rgba(255,255,255,.05);height:280px;flex-shrink:0}
+  .ccol{border-left:none;border-top:1px solid rgba(255,255,255,.05);height:160px;flex-shrink:0}
 }
 /* Mobile chat input row — bigger send button */
 @media(max-width:760px){
@@ -119,6 +120,23 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .co-text{font-size:.78rem;color:#fff;line-height:1.45;word-break:break-word;text-align:right}
 @keyframes coSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes coFadeOut{from{opacity:1}to{opacity:0}}
+/* ── Cohost invite modal ── */
+#cohost-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100;align-items:center;justify-content:center;padding:20px}
+#cohost-modal.show{display:flex}
+.cohost-box{background:#0c0c0c;border:1px solid rgba(0,255,135,.18);max-width:320px;width:100%;padding:28px 24px;text-align:center}
+.cohost-icon{font-size:2rem;margin-bottom:10px}
+.cohost-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;margin-bottom:8px}
+.cohost-sub{font-size:.75rem;font-weight:300;color:rgba(240,250,243,.4);margin-bottom:22px;line-height:1.6}
+.cohost-btns{display:flex;gap:8px;justify-content:center}
+.cohost-btn{height:40px;padding:0 22px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase}
+#cohost-accept{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202}
+#cohost-accept:hover{opacity:.88}
+#cohost-decline{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55)}
+#cohost-decline:hover{background:rgba(255,255,255,.1)}
+/* ── Cohost "on stage" floating button ── */
+#cohost-status{display:none;position:fixed;bottom:80px;right:14px;background:rgba(0,0,0,.88);border:1px solid rgba(0,255,135,.25);padding:9px 16px;font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#00ff87;z-index:60;cursor:pointer;backdrop-filter:blur(6px)}
+#cohost-status.show{display:block}
+#cohost-status:hover{background:rgba(255,59,92,.15);border-color:rgba(255,59,92,.3);color:rgba(255,59,92,.8)}
 </style>
 </head>
 <body>
@@ -188,6 +206,21 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
   </div>
 </div>
 
+<!-- Cohost invite modal — shown when broadcaster sends cohost_invite -->
+<div id="cohost-modal">
+  <div class="cohost-box">
+    <div class="cohost-icon">🎙</div>
+    <div class="cohost-title">You're Invited On Stage!</div>
+    <div class="cohost-sub">Jacob wants to bring you on as a cohost. Your camera and mic will be shared with everyone watching.</div>
+    <div class="cohost-btns">
+      <button class="cohost-btn" id="cohost-accept" onclick="acceptCohost()">Go Live</button>
+      <button class="cohost-btn" id="cohost-decline" onclick="declineCohost()">Decline</button>
+    </div>
+  </div>
+</div>
+<!-- On-stage floating indicator -->
+<div id="cohost-status" onclick="endCohost()">📡 On Stage — Tap to Leave</div>
+
 <script>
 // ── Must exactly match PEER_ID in go-live.html ──
 var HOST_PEER_ID = 'gp-greenprint-live';
@@ -210,6 +243,7 @@ var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null, _rec
 var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
 var _pipPollTimer=null; // polls pip.videoWidth to auto-show/hide camera PIP
+var _cohostCall=null, _cohostStream=null; // cohost: outgoing call + local stream
 
 // Auto-show/hide camera PIP based on actual decoded frame dimensions.
 // Dummy track = 2×2 px → hidden. Real camera = 1920×1080 → shown.
@@ -486,6 +520,13 @@ function connectToHost(){
             +'color:rgba(240,250,243,.3);font-size:.85rem;letter-spacing:.08em">'
             +'You have been removed from this stream.</div>';
         }
+        if(m.t==='cohost_invite'){
+          document.getElementById('cohost-modal').classList.add('show');
+        }
+        if(m.t==='cohost_remove'){
+          endCohost(true);
+          addSys('You have been removed from the stage.');
+        }
       }catch(e){}
     });
 
@@ -536,6 +577,39 @@ function sendChat(){
   addChat(_name,txt,false);
   addChatOverlay(_name,txt,false); // show own messages in overlay too
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
+}
+
+// ── Cohost: accept the invite — get camera+mic and call broadcaster ──
+function acceptCohost(){
+  document.getElementById('cohost-modal').classList.remove('show');
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},
+    audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000}
+  }).then(function(stream){
+    _cohostStream=stream;
+    // Call the broadcaster — they receive it via _peer.on('call') on go-live.html
+    var call=_peer.call(HOST_PEER_ID,stream,{config:ICE,metadata:{type:'cohost',n:_name}});
+    _cohostCall=call;
+    document.getElementById('cohost-status').classList.add('show');
+    addSys('🎙 You are on stage! Tap "On Stage" to leave.');
+    call.on('close',function(){endCohost(true);});
+    call.on('error',function(){endCohost(true);});
+  }).catch(function(e){
+    addSys('⚠ Could not access camera/mic: '+e.message);
+  });
+}
+
+// ── Cohost: decline the invite ──
+function declineCohost(){
+  document.getElementById('cohost-modal').classList.remove('show');
+}
+
+// ── Cohost: leave the stage voluntarily or when removed ──
+function endCohost(silent){
+  if(_cohostStream){_cohostStream.getTracks().forEach(function(t){t.stop();});_cohostStream=null;}
+  if(_cohostCall){try{_cohostCall.close();}catch(e){}_cohostCall=null;}
+  document.getElementById('cohost-status').classList.remove('show');
+  if(!silent)addSys('Left the stage.');
 }
 
 </script>
