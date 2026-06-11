@@ -81,6 +81,26 @@ body{padding-top:56px}
 .cin::placeholder{color:rgba(240,250,243,.14)}
 .csnd{height:34px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.1);color:rgba(0,255,135,.52);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .csnd:hover{background:rgba(0,255,135,.1);color:#00ff87}
+/* ── Stream Recap Modal ── */
+#recap-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center;padding:20px}
+#recap-overlay.show{display:flex}
+#recap-box{background:#0c0c0c;border:1px solid rgba(255,255,255,.08);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:32px 28px;position:relative}
+.rc-eyebrow{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:16px}
+.rc-title{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.rc-date{font-size:.65rem;font-weight:300;color:rgba(240,250,243,.3);margin-bottom:28px}
+.rc-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+.rc-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);padding:14px 16px}
+.rc-stat-n{font-size:1.6rem;font-weight:700;color:#00ff87;line-height:1}
+.rc-stat-l{font-size:.52rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25);margin-top:4px}
+.rc-section-label{font-size:.52rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2);margin-bottom:8px}
+.rc-viewers{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:24px}
+.rc-viewer-tag{font-size:.68rem;padding:3px 9px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.55)}
+.rc-btns{display:flex;gap:8px;margin-top:4px}
+.rc-btn{height:38px;padding:0 16px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
+#rc-copy{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55)}
+#rc-copy:hover{background:rgba(255,255,255,.1)}
+#rc-close{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202}
+#rc-close:hover{opacity:.88}
 </style>
 </head>
 <body>
@@ -136,6 +156,27 @@ body{padding-top:56px}
   </div>
 </div>
 
+<!-- Stream Recap Modal -->
+<div id="recap-overlay">
+  <div id="recap-box">
+    <div class="rc-eyebrow">Stream Recap</div>
+    <div class="rc-title" id="rc-title">Session Complete</div>
+    <div class="rc-date" id="rc-date"></div>
+    <div class="rc-stats">
+      <div class="rc-stat"><div class="rc-stat-n" id="rc-duration">0:00</div><div class="rc-stat-l">Duration</div></div>
+      <div class="rc-stat"><div class="rc-stat-n" id="rc-peak">0</div><div class="rc-stat-l">Peak Viewers</div></div>
+      <div class="rc-stat"><div class="rc-stat-n" id="rc-unique">0</div><div class="rc-stat-l">Unique Viewers</div></div>
+      <div class="rc-stat"><div class="rc-stat-n" id="rc-msgs">0</div><div class="rc-stat-l">Chat Messages</div></div>
+    </div>
+    <div class="rc-section-label">Viewers Who Joined</div>
+    <div class="rc-viewers" id="rc-viewer-list"></div>
+    <div class="rc-btns">
+      <button class="rc-btn" id="rc-copy" onclick="copyReport()">📋 Copy Report</button>
+      <button class="rc-btn" id="rc-close" onclick="closeReport()">Done</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="cv" style="display:none"></canvas>
 
 <script>
@@ -163,6 +204,48 @@ var _viewers={}, _banned=[];
 var _canvas=document.getElementById('cv'), _ctx=_canvas.getContext('2d');
 var _SW=1920, _SH=1080; // actual captured screen dimensions
 
+// ── Stream stats tracking ──
+var _stats={start:null,peak:0,unique:{},chatCount:0,title:'The Greenprint — Live Session'};
+function statPeakCheck(){var n=Object.keys(_viewers).length;if(n>_stats.peak)_stats.peak=n;}
+function fmtDur(ms){var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?(h+':'+(m<10?'0':'')+m+':'+(sc<10?'0':'')+sc):(m+':'+(sc<10?'0':'')+sc);}
+function showReport(){
+  var dur=_stats.start?(Date.now()-_stats.start):0;
+  var dt=_stats.start?new Date(_stats.start).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
+  document.getElementById('rc-title').textContent=_stats.title;
+  document.getElementById('rc-date').textContent=dt;
+  document.getElementById('rc-duration').textContent=fmtDur(dur);
+  document.getElementById('rc-peak').textContent=_stats.peak;
+  var unames=Object.values(_stats.unique);
+  document.getElementById('rc-unique').textContent=unames.length;
+  document.getElementById('rc-msgs').textContent=_stats.chatCount;
+  var vl=document.getElementById('rc-viewer-list');vl.innerHTML='';
+  if(unames.length===0){vl.innerHTML='<span style="font-size:.68rem;color:rgba(240,250,243,.18)">No viewers joined this session</span>';}
+  else{unames.forEach(function(n){var t=document.createElement('span');t.className='rc-viewer-tag';t.textContent=n;vl.appendChild(t);});}
+  document.getElementById('recap-overlay').className='show';
+}
+function closeReport(){document.getElementById('recap-overlay').className='';}
+function copyReport(){
+  var dur=_stats.start?fmtDur(Date.now()-_stats.start):'—';
+  var dt=_stats.start?new Date(_stats.start).toLocaleString():'—';
+  var unames=Object.values(_stats.unique);
+  var txt=[
+    '📊 THE GREENPRINT — STREAM RECAP',
+    '───────────────────────────────',
+    'Title:          '+_stats.title,
+    'Date:           '+dt,
+    'Duration:       '+dur,
+    'Peak viewers:   '+_stats.peak,
+    'Unique viewers: '+unames.length,
+    'Chat messages:  '+_stats.chatCount,
+    '',
+    'Viewers: '+(unames.length?unames.join(', '):'(none)'),
+  ].join('\n');
+  navigator.clipboard.writeText(txt).then(function(){
+    var btn=document.getElementById('rc-copy');
+    btn.textContent='✅ Copied!';setTimeout(function(){btn.textContent='📋 Copy Report';},2000);
+  }).catch(function(){});
+}
+
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function log(t){document.getElementById('slogtxt').textContent=t;console.log('[HOST]',t);}
 function sys(t){
@@ -183,6 +266,7 @@ function setVC(n){
   document.getElementById('cvc').textContent=n+' viewer'+(n===1?'':'s');
   document.getElementById('nvcn').textContent=n;
   document.getElementById('nvc').className=n>0?'on':'';
+  if(_live)statPeakCheck();
 }
 
 // ── Canvas compositor: dynamically sized to match captured screen ──
@@ -273,6 +357,12 @@ function goLive(){
       _mixedStream=_micStream;
     }
     _live=true;
+    // Start stats for this session
+    _stats.start=Date.now();_stats.peak=0;_stats.unique={};_stats.chatCount=0;
+    _stats.title=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
+    // Seed unique viewers already waiting
+    Object.keys(_viewers).forEach(function(pid){if(_viewers[pid].name)_stats.unique[pid]=_viewers[pid].name;});
+    statPeakCheck();
     initCanvas();
     // Show LIVE status
     document.getElementById('ndot').className='dot live';
@@ -358,6 +448,8 @@ function startPeer(){
     dc.on('open',function(){
       var vname=(dc.metadata&&dc.metadata.name)?dc.metadata.name:'Viewer';
       _viewers[pid].name=vname;
+      // Track unique viewers for recap
+      if(_live){_stats.unique[pid]=vname;statPeakCheck();}
       setVC(Object.keys(_viewers).length);
       sys(vname+(_live?' joined.':' is waiting for stream to start.'));
       pushTitle();
@@ -367,8 +459,9 @@ function startPeer(){
     dc.on('data',function(raw){
       try{
         var m=JSON.parse(raw);
-        if(m.t==='join')_viewers[pid].name=m.n||'Viewer';
+        if(m.t==='join'){_viewers[pid].name=m.n||'Viewer';if(_live)_stats.unique[pid]=_viewers[pid].name;}
         if(m.t==='chat'){
+          _stats.chatCount++;
           addMsg(_viewers[pid].name||'Viewer',m.x,'viewer',pid);
           broadcast({t:'chat',n:_viewers[pid].name||'Viewer',x:m.x,h:false},pid);
         }
@@ -417,6 +510,7 @@ function pushTitle(){
 }
 function hostChat(){
   var inp=document.getElementById('ci'),txt=inp.value.trim();if(!txt)return;inp.value='';
+  _stats.chatCount++;
   addMsg('Jacob (Host)',txt,'host',null);
   broadcast({t:'chat',n:'Jacob (Host)',x:txt,h:true});
 }
@@ -495,6 +589,8 @@ function endStream(){
   document.getElementById('bGo').disabled=false;
   // Keep _peer alive — connected viewers stay and will receive next session instantly
   log('Stream ended. '+Object.keys(_viewers).length+' viewer(s) still connected and waiting.');
+  // Show the recap report
+  showReport();
 }
 
 // Load PeerJS then immediately register peer — viewers can connect before you go live
