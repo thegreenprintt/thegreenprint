@@ -313,13 +313,15 @@ nav{
 .live-badge.on{display:flex}
 .live-dot{width:4px;height:4px;border-radius:50%;background:var(--red);animation:nlPulse 1.8s infinite}
 
-/* Mobile bar */
+/* Mobile bar — icon-only, no title, uniform buttons */
 @media(max-width:760px){
-  .bar{padding:7px 10px;gap:6px;flex-wrap:wrap}
-  .btitle{font-size:.7rem}
-  .bhost{display:none}
-  .rbtn{width:36px;height:36px;font-size:1rem}
-  #mute-btn,#fs-btn{height:36px;padding:0 10px;font-size:.56rem}
+  .bar{padding:8px 12px;gap:8px;flex-wrap:nowrap;justify-content:space-between}
+  .bar-left{display:none}                 /* title hidden — brand already in nav */
+  .live-badge{display:none!important}     /* live status shown in nav */
+  .bar-mid{gap:7px;flex:1;justify-content:center}
+  .bar-right{gap:7px}
+  .rbtn{width:42px;height:42px;font-size:1.15rem;border-radius:8px}
+  #mute-btn,#fs-btn{width:42px;height:42px;padding:0;border-radius:8px;font-size:1.2rem;letter-spacing:0}
 }
 
 /* ─── Chat panel ─── */
@@ -592,7 +594,7 @@ var _isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 
 function mobileTapUnmute(){
   document.getElementById('unmute-overlay').classList.remove('show');
-  if(_muted)toggleMute();
+  if(_muted)toggleMute(); // toggleMute handles icon vs text based on _isMobile
 }
 
 function toggleMute(){
@@ -600,8 +602,8 @@ function toggleMute(){
   var btn=document.getElementById('mute-btn');
   _muted=!_muted;
   vid.muted=_muted;
-  if(_muted){btn.textContent='🔇 Muted';btn.classList.add('muted');}
-  else{btn.textContent='🔊 Live';btn.classList.remove('muted');}
+  if(_muted){btn.textContent=_isMobile?'🔇':'🔇 Muted';btn.classList.add('muted');}
+  else{btn.textContent=_isMobile?'🔊':'🔊 Live';btn.classList.remove('muted');}
 }
 
 function toggleFullscreen(){
@@ -618,11 +620,11 @@ function toggleFullscreen(){
 }
 document.addEventListener('fullscreenchange',function(){
   var btn=document.getElementById('fs-btn');if(!btn)return;
-  btn.textContent=document.fullscreenElement?'✕ Exit':'⛶ Full';
+  btn.textContent=document.fullscreenElement?(_isMobile?'✕':'✕ Exit'):(_isMobile?'⛶':'⛶ Full');
 });
 document.addEventListener('webkitfullscreenchange',function(){
   var btn=document.getElementById('fs-btn');if(!btn)return;
-  btn.textContent=document.webkitFullscreenElement?'✕ Exit':'⛶ Full';
+  btn.textContent=document.webkitFullscreenElement?(_isMobile?'✕':'✕ Exit'):(_isMobile?'⛶':'⛶ Full');
 });
 
 // ── Reactions ──
@@ -653,10 +655,12 @@ document.addEventListener('visibilitychange',function(){
   },2000);
 });
 
-// Initialize mute button
+// Initialize buttons — icon-only on mobile
 (function(){
-  var btn=document.getElementById('mute-btn');
-  if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
+  var mb=document.getElementById('mute-btn');
+  var fb=document.getElementById('fs-btn');
+  if(mb){mb.textContent=_isMobile?'🔇':'🔇 Muted';mb.classList.add('muted');}
+  if(fb&&_isMobile)fb.textContent='⛶';
 })();
 
 // Auto-skip gate if logged in within last 24 hours
