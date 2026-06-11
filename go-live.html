@@ -153,6 +153,7 @@ body{padding-top:56px}
 #rc-copy:hover{background:rgba(255,255,255,.1)}
 #rc-close{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202}
 #rc-close:hover{opacity:.88}
+@keyframes hreact{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:.9;transform:translateY(-120px) scale(1.3)}100%{opacity:0;transform:translateY(-220px) scale(.8)}}
 </style>
 </head>
 <body>
@@ -239,6 +240,7 @@ body{padding-top:56px}
       </div>
       <div class="leads-actions">
         <button class="leads-action-btn" id="copy-all-btn" onclick="copyAllLeads()">📋 Copy All</button>
+        <button class="leads-action-btn" id="copy-emails-btn" onclick="copyEmails()">📧 Copy Emails</button>
         <button class="leads-action-btn" onclick="exportLeads()">⬇ CSV</button>
       </div>
       <div id="leads-list" style="flex:1;overflow-y:auto"><div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div></div>
@@ -411,6 +413,16 @@ function renderLeads(){
     d.appendChild(info);d.appendChild(btn);
     list.appendChild(d);
   });
+}
+
+function copyEmails(){
+  var emails=_leads.map(function(l){return(l.email||'').trim();}).filter(Boolean);
+  if(!emails.length){sys('No emails to copy yet.');return;}
+  var btn=document.getElementById('copy-emails-btn');
+  navigator.clipboard.writeText(emails.join('\n')).then(function(){
+    btn.textContent='✅ '+emails.length+' Copied!';
+    setTimeout(function(){btn.textContent='📧 Copy Emails';},2500);
+  }).catch(function(){});
 }
 
 function copyAllLeads(){
@@ -630,8 +642,8 @@ function goLive(){
   });
 
   navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:2560},height:{ideal:1440},frameRate:{ideal:30,max:30},cursor:'always'},
-    audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000}
+    video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:60,max:60},cursor:'always'},
+    audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000,channelCount:2}
   }).then(function(scrn){
     _screenStream=scrn;
     var sv=document.getElementById('scrnv');
@@ -737,7 +749,7 @@ function recallCam(pid){
           if(!s.track||s.track.kind!=='video')return;
           var p=s.getParameters();
           if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
+          p.encodings[0].maxBitrate=5000000;p.encodings[0].maxFramerate=60;
           s.setParameters(p).catch(function(){});
           if(_viewers[pid])_viewers[pid].camSender=s;
           // Tell this viewer the current cam state immediately after ICE connects.
@@ -802,8 +814,8 @@ function callViewer(pid){
           if(!s.track)return;
           var p=s.getParameters();
           if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          if(s.track.kind==='video'){p.encodings[0].maxBitrate=8000000;p.encodings[0].maxFramerate=30;}
-          if(s.track.kind==='audio'){p.encodings[0].maxBitrate=192000;}
+          if(s.track.kind==='video'){p.encodings[0].maxBitrate=12000000;p.encodings[0].maxFramerate=60;p.encodings[0].priority='high';p.encodings[0].networkPriority='high';}
+          if(s.track.kind==='audio'){p.encodings[0].maxBitrate=256000;}
           s.setParameters(p).catch(function(){});
         });
       } else if(st==='failed'){
@@ -830,7 +842,7 @@ function callViewer(pid){
             if(!s.track||s.track.kind!=='video')return;
             var p=s.getParameters();
             if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-            p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
+            p.encodings[0].maxBitrate=5000000;p.encodings[0].maxFramerate=60;
             s.setParameters(p).catch(function(){});
             _viewers[pid].camSender=s; // store for replaceTrack on cam toggle
             // Tell this viewer the current cam state — if cam was already on before they
@@ -935,6 +947,13 @@ function startPeer(){
         addMsg(vname,safeMsg,'viewer',pid);
         addHostChatOverlay(vname,safeMsg,false);
         broadcast({t:'chat',n:vname,x:safeMsg,h:false},pid);
+      }
+      if(m.t==='react'){
+        var allowedEmojis=['🔥','💰','📈','💎','🚀'];
+        if(allowedEmojis.indexOf(m.e)>-1){
+          broadcast({t:'react',e:m.e},pid); // relay to all other viewers (sender already spawned it)
+          showHostReaction(m.e);            // show on broadcaster's preview
+        }
       }
     });
     dc.on('close',function(){rmViewer(pid);});
@@ -1051,6 +1070,18 @@ function renderCohostPanel(){
     list.appendChild(row);
   });
 }
+function showHostReaction(emoji){
+  var stage=document.querySelector('.stage');
+  if(!stage)return;
+  var el=document.createElement('div');
+  el.textContent=emoji;
+  el.style.cssText='position:absolute;pointer-events:none;z-index:50;font-size:2rem;line-height:1;'
+    +'bottom:'+(40+Math.random()*100)+'px;left:'+(5+Math.random()*74)+'%;'
+    +'animation:hreact 2.6s ease-out forwards;';
+  stage.appendChild(el);
+  setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},2700);
+}
+
 function broadcast(obj,excludePid){
   Object.keys(_viewers).forEach(function(pid){
     if(pid===excludePid)return; // don't echo back to sender
@@ -1094,7 +1125,7 @@ function toggleMic(){
 function toggleCam(){_camOn?camOff():camOn();}
 function camOn(){
   navigator.mediaDevices.getUserMedia({
-    video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},
+    video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:60,max:60},aspectRatio:{ideal:16/9}},
     audio:false
   }).then(function(s){
     _camStream=s;_camOn=true;
