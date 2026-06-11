@@ -230,8 +230,11 @@ function goLive(){
     audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000}
   }).then(function(scrn){
     _screenStream=scrn;
-    document.getElementById('scrnv').srcObject=scrn;
-    document.getElementById('scrnv').style.display='block';
+    var sv=document.getElementById('scrnv');
+    sv.srcObject=scrn;
+    sv.muted=true; // never play screen audio back through local speakers
+    sv.volume=0;
+    sv.style.display='block';
     document.getElementById('ph').style.display='none';
     var hasScreenAudio=scrn.getAudioTracks().length>0;
     log('Screen captured'+(hasScreenAudio?' + audio':'')+'— requesting mic…');
@@ -253,8 +256,18 @@ function goLive(){
     _mixedStream=new MediaStream(mixedTracks);
     _live=true;
     initCanvas();
-    log('Starting peer connection…');
-    setTimeout(startPeer,1000);
+    // Show LIVE status
+    document.getElementById('ndot').className='dot live';
+    document.getElementById('nstat').textContent='live';
+    document.getElementById('nstat').className='on';
+    document.getElementById('bGo').style.display='none';
+    document.getElementById('bEnd').style.display='block';
+    sys('🔴 You are live!');
+    log('🔴 LIVE — calling '+Object.keys(_viewers).length+' waiting viewer(s)…');
+    // Give canvas 500ms to draw first frame, then call all waiting viewers instantly
+    setTimeout(function(){
+      Object.keys(_viewers).forEach(function(pid){callViewer(pid);});
+    },500);
   }).catch(function(e){
     if(e.name==='NotAllowedError'){
       log('Permission denied. On Mac: System Settings → Privacy → Screen Recording → allow Chrome');
@@ -265,28 +278,59 @@ function goLive(){
   });
 }
 
-// ── PeerJS signaling + push model (broadcaster calls each viewer) ──
-function startPeer(){
-  // Destroy any existing peer first
-  if(_peer){try{_peer.destroy();}catch(e){}_peer=null;}
+// ── Call one viewer — used when Go Live fires AND when a new viewer joins mid-stream ──
+function callViewer(pid){
+  if(!_viewers[pid]||_viewers[pid].call)return; // already called
+  var audioSrc=_mixedStream||_micStream;
+  var aTracks=audioSrc?audioSrc.getAudioTracks():[];
+  var vTracks=_outStream?_outStream.getVideoTracks():[];
+  if(!vTracks.length){log('No video tracks yet for '+pid);return;}
+  var vname=_viewers[pid].name||'Viewer';
+  log('Calling '+vname+'…');
+  var call=_peer.call(pid,new MediaStream([].concat(vTracks).concat(aTracks)),{config:ICE});
+  _viewers[pid].call=call;
+  if(call.peerConnection){
+    call.peerConnection.oniceconnectionstatechange=function(){
+      var st=call.peerConnection.iceConnectionState;
+      log('ICE→'+vname+': '+st);
+      if(st==='connected'||st==='completed'){
+        sys('✅ '+vname+' is watching.');
+        // 15 Mbps video + 192k audio for maximum quality
+        call.peerConnection.getSenders().forEach(function(s){
+          if(s.track&&s.track.kind==='video'){
+            var p=s.getParameters();
+            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+            p.encodings[0].maxBitrate=15000000;
+            p.encodings[0].maxFramerate=60;
+            s.setParameters(p).catch(function(){});
+          }
+          if(s.track&&s.track.kind==='audio'){
+            var p=s.getParameters();
+            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+            p.encodings[0].maxBitrate=192000;
+            s.setParameters(p).catch(function(){});
+          }
+        });
+      } else if(st==='failed'){
+        sys('⚠ Connection issue with '+vname+' — retrying…');
+        delete _viewers[pid].call;
+        setTimeout(function(){callViewer(pid);},2000);
+      }
+    };
+  }
+  call.on('close',function(){rmViewer(pid);});
+  call.on('error',function(e){log('Call error: '+e.message);});
+}
 
-  _peer=new Peer(PEER_ID,{
-    host:'0.peerjs.com',port:443,path:'/',secure:true,
-    config:ICE,
-    debug:0
-  });
+// ── PeerJS: register peer on page load so viewers can connect immediately ──
+function startPeer(){
+  if(_peer){try{_peer.destroy();}catch(e){}_peer=null;}
+  _peer=new Peer(PEER_ID,{host:'0.peerjs.com',port:443,path:'/',secure:true,config:ICE,debug:0});
 
   _peer.on('open',function(id){
-    log('🔴 LIVE — Peer registered as: '+id);
-    document.getElementById('ndot').className='dot live';
-    document.getElementById('nstat').textContent='live';
-    document.getElementById('nstat').className='on';
-    document.getElementById('bGo').style.display='none';
-    document.getElementById('bEnd').style.display='block';
-    sys('🔴 You are live! Viewers opening stream.html will connect automatically.');
+    log('Ready — click Go Live. (Peer: '+id+')');
   });
 
-  // Viewer opens data channel → broadcaster calls them back with the stream
   _peer.on('connection',function(dc){
     var pid=dc.peer;
     if(_banned.indexOf(pid)>-1){dc.close();return;}
@@ -297,56 +341,11 @@ function startPeer(){
       var vname=(dc.metadata&&dc.metadata.name)?dc.metadata.name:'Viewer';
       _viewers[pid].name=vname;
       setVC(Object.keys(_viewers).length);
-      sys(vname+' joined the stream.');
+      sys(vname+(_live?' joined.':' is waiting for stream to start.'));
       pushTitle();
-
-      // Call the viewer with canvas video + mixed audio (mic + screen)
-      var audioSrc=_mixedStream||_micStream;
-      var aTracks=audioSrc?audioSrc.getAudioTracks():[];
-      var vTracks=_outStream?_outStream.getVideoTracks():[];
-
-      if(vTracks.length===0){
-        log('Warning: no video tracks on canvas stream yet');
-        sys('⚠ No video tracks yet. Canvas may need more time.');
-        return;
-      }
-
-      log('Calling '+vname+' ('+vTracks.length+' video, '+aTracks.length+' audio tracks)…');
-      var callStream=new MediaStream([].concat(vTracks).concat(aTracks));
-      var call=_peer.call(pid,callStream,{config:ICE});
-      _viewers[pid].call=call;
-
-      if(call.peerConnection){
-        call.peerConnection.oniceconnectionstatechange=function(){
-          var s=call.peerConnection.iceConnectionState;
-          log('ICE→'+vname+': '+s);
-          if(s==='connected'||s==='completed'){
-            sys('✅ '+vname+' is watching.');
-            // Boost bitrate to 4 Mbps for sharp quality
-            call.peerConnection.getSenders().forEach(function(sender){
-              if(sender.track&&sender.track.kind==='video'){
-                var p=sender.getParameters();
-                if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-                p.encodings[0].maxBitrate=8000000; // 8 Mbps — crisp 1080p
-                p.encodings[0].maxFramerate=30;
-                sender.setParameters(p).catch(function(){});
-              }
-              if(sender.track&&sender.track.kind==='audio'){
-                var p=sender.getParameters();
-                if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-                p.encodings[0].maxBitrate=128000;
-                sender.setParameters(p).catch(function(){});
-              }
-            });
-          } else if(s==='failed'){
-            sys('❌ ICE failed for '+vname+' — TURN relay may be needed');
-          }
-        };
-      }
-      call.on('close',function(){rmViewer(pid);});
-      call.on('error',function(e){log('Call error: '+e.message);});
+      // If already live, call immediately — otherwise they wait until Go Live
+      if(_live)callViewer(pid);
     });
-
     dc.on('data',function(raw){
       try{
         var m=JSON.parse(raw);
@@ -361,29 +360,16 @@ function startPeer(){
   });
 
   _peer.on('error',function(e){
-    log('Peer error: '+e.type+' — '+e.message);
+    log('Peer error: '+e.type);
     if(e.type==='unavailable-id'){
-      // ID is taken from a prior session — wait 5s and retry
-      log('ID in use. Retrying in 5s…');
-      sys('⚠ Peer ID was busy — reconnecting in 5s…');
-      setTimeout(function(){
-        if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;
-        startPeer();
-      },5000);
+      log('ID busy — retrying in 4s…');
+      setTimeout(function(){if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;startPeer();},4000);
     }
     if(e.type==='server-error'||e.type==='network'){
-      log('Server error — retrying in 8s…');
-      setTimeout(function(){
-        if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;
-        startPeer();
-      },8000);
+      setTimeout(function(){if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;startPeer();},6000);
     }
   });
-
-  _peer.on('disconnected',function(){
-    log('Signaling disconnected — reconnecting…');
-    try{_peer.reconnect();}catch(e){}
-  });
+  _peer.on('disconnected',function(){try{_peer.reconnect();}catch(e){}});
 }
 
 function rmViewer(pid){
@@ -429,7 +415,8 @@ function camOn(){
   navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:false})
   .then(function(s){
     _camStream=s;_camOn=true;
-    document.getElementById('camv').srcObject=s;
+    var cv=document.getElementById('camv');
+    cv.srcObject=s;cv.muted=true;cv.volume=0;
     document.getElementById('campip').className='show';
     document.getElementById('bCam').textContent='📷 Cam On';
     document.getElementById('bCam').className='btn on';
@@ -463,31 +450,37 @@ function endStream(){
   if(!confirm('End the stream?'))return;
   broadcast({t:'ended'});
   clearInterval(_drawInterval);_live=false;
+  // Close all active calls but keep data channels — viewers stay connected and waiting
+  Object.keys(_viewers).forEach(function(pid){
+    var call=_viewers[pid].call;
+    if(call)try{call.close();}catch(e){}
+    delete _viewers[pid].call;
+  });
   [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
     if(s)s.getTracks().forEach(function(t){t.stop();});
   });
-  _mixedStream=null;
-  if(_peer)try{_peer.destroy();}catch(e){}
-  _peer=null;
+  _screenStream=null;_micStream=null;_camStream=null;_mixedStream=null;
+  _outStream=null;
   document.getElementById('scrnv').style.display='none';
   document.getElementById('campip').className='';
   document.getElementById('ph').style.display='flex';
-  document.getElementById('ph').querySelector('.ph-t').textContent='Stream Ended';
-  document.getElementById('ph').querySelector('.ph-s').textContent='Reload the page to go live again.';
+  document.getElementById('ph').querySelector('.ph-t').textContent='Stream Paused';
+  document.getElementById('ph').querySelector('.ph-s').textContent='Click Go Live to start the next session.';
   document.getElementById('ndot').className='dot';
   document.getElementById('nstat').textContent='offline';
   document.getElementById('nstat').className='';
   document.getElementById('bEnd').style.display='none';
   document.getElementById('bGo').style.display='block';
   document.getElementById('bGo').disabled=false;
-  setVC(0);log('Stream ended.');
+  // Keep _peer alive — connected viewers stay and will receive next session instantly
+  log('Stream ended. '+Object.keys(_viewers).length+' viewer(s) still connected and waiting.');
 }
 
-// Load PeerJS from CDN
+// Load PeerJS then immediately register peer — viewers can connect before you go live
 (function(){
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload=function(){log('Ready — click Go Live.');};
+  s.onload=function(){startPeer();};
   s.onerror=function(){log('Failed to load PeerJS. Check your internet connection.');};
   document.body.appendChild(s);
 })();
