@@ -343,7 +343,7 @@ var ICE = {
 
 var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null;
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
-var _drawInterval=null, _outStream=null;
+var _drawInterval=null, _outStream=null, _hbInterval=null;
 var _dummyCamTrack=null; // invisible 2×2 black placeholder sent when cam is off
 var _viewers={}, _banned=[];
 var _cohostInvited={}, _cohosts={}; // cohost state: invited viewers + active cohosts
@@ -538,33 +538,17 @@ function createDummyCamTrack(){
   }catch(e){_dummyCamTrack=null;console.warn('[CAM] Dummy track failed:',e);}
 }
 
-// ── Canvas compositor: GPU-accelerated, frame-perfect rendering ──
-function initCanvas(){
-  var settings=_screenStream.getVideoTracks()[0].getSettings();
-  // Camera is now a separate track so the canvas only carries screen share.
-  // Cap at 1920×1080 — halves pixel count vs 2K, cuts encoder CPU load significantly,
-  // resulting in smoother framerate without sacrificing readability.
-  _SW=Math.min(settings.width||1920,1920);
-  _SH=Math.min(settings.height||1080,1080);
-  _canvas.width=_SW;
-  _canvas.height=_SH;
-  // Disable smoothing — screen share has text/charts that look sharper
-  // without interpolation. Smoothing blurs pixel edges on downscale.
-  _ctx.imageSmoothingEnabled=false;
-  _outStream=_canvas.captureStream(30);
-  var vt=_outStream.getVideoTracks()[0];
-  if(vt&&'contentHint' in vt)vt.contentHint='detail';
-  log('Canvas: '+_SW+'×'+_SH+' — GPU compositing active');
-
+// ── Canvas compositor: only active when cohosts are on stage ──
+// When no cohosts: raw screen track passes directly to WebRTC (no re-encoding overhead)
+// When cohost joins: enableCanvas() switches all senders to canvas stream
+// When last cohost leaves: disableCanvas() restores direct passthrough
+function _runDrawLoop(){
   _drawActive=true;
   var sv=document.getElementById('scrnv');
-
   function drawFrame(){
     if(!_drawActive)return;
-    // Draw screen
     if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
     else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
-    // Draw cohost cameras as small PIP boxes stacked in bottom-left
     var cohostPids=Object.keys(_cohosts);
     if(cohostPids.length>0){
       var boxW=Math.round(_SW*0.18);
@@ -573,40 +557,61 @@ function initCanvas(){
       cohostPids.forEach(function(cpid,i){
         var vid=_cohosts[cpid].video;
         if(!vid||vid.readyState<2)return;
-        var x=pad;
-        var y=_SH-pad-(i+1)*(boxH+pad);
-        // Background
-        _ctx.fillStyle='#000';
-        _ctx.fillRect(x,y,boxW,boxH);
-        // Video frame
+        var x=pad,y=_SH-pad-(i+1)*(boxH+pad);
+        _ctx.fillStyle='#000';_ctx.fillRect(x,y,boxW,boxH);
         _ctx.drawImage(vid,x,y,boxW,boxH);
-        // Name bar
-        _ctx.fillStyle='rgba(0,0,0,.75)';
-        _ctx.fillRect(x,y+boxH-18,boxW,18);
-        _ctx.fillStyle='#00ff87';
-        _ctx.font='bold 11px sans-serif';
+        _ctx.fillStyle='rgba(0,0,0,.75)';_ctx.fillRect(x,y+boxH-18,boxW,18);
+        _ctx.fillStyle='#00ff87';_ctx.font='bold 11px sans-serif';
         _ctx.fillText((_cohosts[cpid].name||'Cohost').slice(0,22),x+5,y+boxH-5);
       });
     }
-    // Camera is sent as a separate WebRTC track — NOT drawn on canvas.
-    // This eliminates double-encoding (canvas compress → WebRTC compress)
-    // and gives viewers a clean single-encode hardware-accelerated camera.
-    // requestVideoFrameCallback fires exactly when a new decoded screen frame
-    // arrives — frame-perfect, no polling lag, hardware-accelerated
-    if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
-      sv.requestVideoFrameCallback(drawFrame);
-    }
+    if('requestVideoFrameCallback' in HTMLVideoElement.prototype)sv.requestVideoFrameCallback(drawFrame);
   }
+  if('requestVideoFrameCallback' in HTMLVideoElement.prototype)sv.requestVideoFrameCallback(drawFrame);
+  else _drawInterval=setInterval(drawFrame,33);
+}
 
-  if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
-    // Modern path: frame-perfect, GPU-driven
-    sv.requestVideoFrameCallback(drawFrame);
-    log('Renderer: requestVideoFrameCallback (frame-perfect)');
-  } else {
-    // Fallback: interval-based (older browsers)
-    _drawInterval=setInterval(drawFrame,33);
-    log('Renderer: setInterval fallback');
-  }
+// Switch to canvas when first cohost joins — replaces track on all active viewers
+function enableCanvas(){
+  if(_drawActive||!_screenStream)return;
+  var settings=_screenStream.getVideoTracks()[0].getSettings();
+  _SW=Math.min(settings.width||1920,1920);
+  _SH=Math.min(settings.height||1080,1080);
+  _canvas.width=_SW;_canvas.height=_SH;
+  _ctx.imageSmoothingEnabled=false;
+  _outStream=_canvas.captureStream(30);
+  var vt=_outStream.getVideoTracks()[0];
+  if(vt&&'contentHint' in vt)vt.contentHint='detail';
+  _runDrawLoop();
+  // Push new canvas track to all currently-connected viewers
+  var newVT=_outStream.getVideoTracks()[0];
+  Object.keys(_viewers).forEach(function(pid){
+    var sc=_viewers[pid].screenCall;
+    if(sc&&sc.peerConnection){
+      sc.peerConnection.getSenders().forEach(function(s){
+        if(s.track&&s.track.kind==='video')s.replaceTrack(newVT).catch(function(){});
+      });
+    }
+  });
+  log('Canvas enabled: '+_SW+'×'+_SH+' (cohost compositing)');
+}
+
+// Restore direct passthrough when last cohost leaves
+function disableCanvas(){
+  if(!_drawActive)return;
+  _drawActive=false;clearInterval(_drawInterval);
+  var rawVT=_screenStream?_screenStream.getVideoTracks()[0]:null;
+  if(!rawVT)return;
+  _outStream=new MediaStream([rawVT]);
+  Object.keys(_viewers).forEach(function(pid){
+    var sc=_viewers[pid].screenCall;
+    if(sc&&sc.peerConnection){
+      sc.peerConnection.getSenders().forEach(function(s){
+        if(s.track&&s.track.kind==='video')s.replaceTrack(rawVT).catch(function(){});
+      });
+    }
+  });
+  log('Canvas disabled — direct screen passthrough restored (max quality)');
 }
 
 // ── Go Live ──
@@ -658,7 +663,16 @@ function goLive(){
     _stats.title=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
     Object.keys(_viewers).forEach(function(pid){if(_viewers[pid].name)_stats.unique[pid]=_viewers[pid].name;});
     statPeakCheck();
-    initCanvas();
+
+    // Direct passthrough — raw screen track goes straight to WebRTC, no canvas re-encoding.
+    // Canvas is only enabled on-demand if a cohost joins (enableCanvas).
+    // This eliminates the double-encode pipeline and gives viewers hardware-quality video.
+    var sFT=_screenStream.getVideoTracks()[0];
+    var sFSettings=sFT.getSettings();
+    _SW=sFSettings.width||1920;_SH=sFSettings.height||1080;
+    _outStream=new MediaStream([sFT]);
+    if(sFT&&'contentHint' in sFT)sFT.contentHint='detail';
+    log('Direct passthrough: '+_SW+'×'+_SH+' — no canvas overhead');
 
     document.getElementById('ndot').className='dot live';
     document.getElementById('nstat').textContent='live';
@@ -668,9 +682,23 @@ function goLive(){
     sys('🔴 You are live!');
     log('🔴 LIVE — calling '+Object.keys(_viewers).length+' waiting viewer(s)…');
 
-    // Call viewers immediately — WebRTC negotiation takes 1-3s anyway,
-    // canvas will have frames long before the connection is ready
-    Object.keys(_viewers).forEach(function(pid){callViewer(pid);});
+    // Stagger callViewer calls — avoids simultaneous ICE candidate storms
+    // when many viewers are waiting. 80ms apart is imperceptible but reduces load.
+    var vpids=Object.keys(_viewers);
+    vpids.forEach(function(pid,i){setTimeout(function(){callViewer(pid);},i*80);});
+
+    // Tell ALL viewers Jacob just went live — viewer uses this to start an 8s
+    // stream-expectation timer and auto-reconnects if WebRTC call never arrives.
+    // Sent AFTER calls are initiated so viewer's timer starts when call is in flight.
+    setTimeout(function(){broadcast({t:'live'});},vpids.length*80+200);
+
+    // Heartbeat every 20s while live — viewers use this to detect stale connections.
+    // If a viewer has a DC open but no video, heartbeat triggers auto-reconnect.
+    if(_hbInterval)clearInterval(_hbInterval);
+    _hbInterval=setInterval(function(){
+      if(!_live){clearInterval(_hbInterval);_hbInterval=null;return;}
+      broadcast({t:'hb'});
+    },20000);
 
     // Auto-start camera when going live
     if(!_camOn)camOn();
@@ -705,6 +733,14 @@ function recallCam(pid){
           p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
           s.setParameters(p).catch(function(){});
           if(_viewers[pid])_viewers[pid].camSender=s;
+          // Tell this viewer the current cam state immediately after ICE connects.
+          // Fixes race: recallCam reconnects AFTER cam was already toggled on,
+          // so viewer never got the broadcast message.
+          setTimeout(function(){
+            if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+              try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:_camOn}));}catch(e){}
+            }
+          },600);
         });
       }
     };
@@ -759,7 +795,7 @@ function callViewer(pid){
           if(!s.track)return;
           var p=s.getParameters();
           if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          if(s.track.kind==='video'){p.encodings[0].maxBitrate=20000000;p.encodings[0].maxFramerate=30;}
+          if(s.track.kind==='video'){p.encodings[0].maxBitrate=8000000;p.encodings[0].maxFramerate=30;}
           if(s.track.kind==='audio'){p.encodings[0].maxBitrate=192000;}
           s.setParameters(p).catch(function(){});
         });
@@ -790,6 +826,13 @@ function callViewer(pid){
             p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
             s.setParameters(p).catch(function(){});
             _viewers[pid].camSender=s; // store for replaceTrack on cam toggle
+            // Tell this viewer the current cam state — if cam was already on before they
+            // connected, they need this explicit message or the PIP stays hidden
+            setTimeout(function(){
+              if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+                try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:_camOn}));}catch(e){}
+              }
+            },600);
           });
         }
       };
@@ -837,8 +880,16 @@ function startPeer(){
           }
         },1200);
       }
-      // If already live, call immediately — otherwise they wait until Go Live
-      if(_live)callViewer(pid);
+      // If already live, call immediately then send {t:'live'} so their 8s expectation
+      // timer starts — if the WebRTC call fails they'll auto-reconnect within 8s
+      if(_live){
+        callViewer(pid);
+        setTimeout(function(){
+          if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
+            try{_viewers[pid].dc.send(JSON.stringify({t:'live'}));}catch(e){}
+          }
+        },1000);
+      }
     });
     dc.on('data',function(raw){
       // ── Security: strict validation ──
@@ -893,6 +944,8 @@ function startPeer(){
     }
     inCall.answer(new MediaStream()); // answer with empty — we only need their stream
     inCall.on('stream',function(stream){
+      // First cohost joining → switch from direct passthrough to canvas compositing
+      if(!_drawActive)enableCanvas();
       // Hidden video element for compositing their camera onto the canvas
       var vid=document.createElement('video');
       vid.autoplay=true;vid.muted=true;vid.playsInline=true;
@@ -923,6 +976,8 @@ function startPeer(){
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
         renderCohostPanel();
+        // Last cohost gone → disable canvas, restore direct passthrough for max quality
+        if(Object.keys(_cohosts).length===0&&_live)disableCanvas();
       }
     });
     inCall.on('error',function(e){log('Cohost call error: '+e.message);});
@@ -1090,7 +1145,9 @@ function switchScreen(){
 }
 function endStream(){
   broadcast({t:'ended'});
-  _drawActive=false;clearInterval(_drawInterval);_live=false;
+  _drawActive=false;clearInterval(_drawInterval);
+  if(_hbInterval){clearInterval(_hbInterval);_hbInterval=null;}
+  _live=false;
   // Close all active calls but keep data channels — viewers stay connected and waiting
   Object.keys(_viewers).forEach(function(pid){closeViewerCalls(pid);});
   [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){

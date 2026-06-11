@@ -243,17 +243,46 @@ var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null, _rec
 var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
 var _pipPollTimer=null; // polls pip.videoWidth to auto-show/hide camera PIP
+var _camShouldShow=false; // tracks broadcaster's cam on/off state independently of srcObject
 var _cohostCall=null, _cohostStream=null; // cohost: outgoing call + local stream
+var _streamTimer=null; // expectStream() countdown — reconnects if stream never arrives
 
-// Auto-show/hide camera PIP based on actual decoded frame dimensions.
-// Dummy track = 2×2 px → hidden. Real camera = 1920×1080 → shown.
-// No data channel dependency — self-healing and reconnect-safe.
+// ── Stream expectation timer ──
+// Called when broadcaster signals they are live ({t:'live'} or heartbeat {t:'hb'}).
+// If no video arrives within 8 seconds, we reconnect our peer — this gives Jacob a
+// fresh connection and he immediately calls us again via dc.on('open') → callViewer.
+// Self-healing: as soon as stream arrives, clearStreamTimer() cancels it.
+function expectStream(){
+  if(_streamTimer)clearTimeout(_streamTimer);
+  // Update the offline message so viewer knows stream IS coming, not still waiting
+  var cs=document.getElementById('connstat');
+  if(cs)cs.textContent='Stream starting — connecting…';
+  _streamTimer=setTimeout(function(){
+    _streamTimer=null;
+    var v=document.getElementById('vid');
+    // Only reconnect if we genuinely have no video — not if stream already arrived
+    if(v&&v.srcObject&&v.videoWidth>0)return;
+    stat('Stream expected but not received — reconnecting peer…');
+    // Destroy + recreate peer — gives Jacob a brand-new connection ID to call
+    if(_reconnecting)return;
+    connectToHost();
+  },8000);
+}
+function clearStreamTimer(){
+  if(_streamTimer){clearTimeout(_streamTimer);_streamTimer=null;}
+}
+
+// Auto-show/hide camera PIP.
+// Combines two signals: broadcaster cam state (_camShouldShow) AND actual frame size.
+// Dummy track = 2×2 px (videoWidth≤4) → hidden even if cam "on" signal sent.
+// Real camera = 1920×1080 → shown only when broadcaster has cam on.
+// Self-healing after recallCam reconnects — no single point of failure.
 function startPipPoll(){
   if(_pipPollTimer)clearInterval(_pipPollTimer);
   _pipPollTimer=setInterval(function(){
     var pip=document.getElementById('cam-pip');
     if(!pip||!pip.srcObject)return;
-    pip.style.display=(pip.videoWidth>4)?'block':'none';
+    pip.style.display=(_camShouldShow&&pip.videoWidth>4)?'block':'none';
   },500);
 }
 function stopPipPoll(){
@@ -305,6 +334,26 @@ document.addEventListener('fullscreenchange',function(){
 document.addEventListener('webkitfullscreenchange',function(){
   var btn=document.getElementById('fs-btn');if(!btn)return;
   btn.textContent=document.webkitFullscreenElement?'✕ Exit Full':'⛶ Fullscreen';
+});
+
+// ── Mobile reconnect: screen lock / app switch detection ──
+// When the phone screen unlocks and the tab becomes visible again, WebRTC connections
+// that silently died (common on iOS Safari after ~30s of background) won't auto-recover.
+// We check if DC is actually alive and reconnect if not.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible')return;
+  // Wait 2 seconds for mobile to re-establish Wi-Fi/cellular before checking
+  setTimeout(function(){
+    if(_reconnecting)return; // already in the middle of connecting
+    var dcDead=!_dc||!_dc.open;
+    var peerDead=!_peer||_peer.destroyed||_peer.disconnected;
+    if(dcDead||peerDead){
+      stat('Reconnecting after background pause…');
+      scheduleReconnect(500);
+    }
+    // Note: if DC is open we don't disturb it — a false reconnect would kick viewers
+    // from the host's viewer list unnecessarily
+  },2000);
 });
 
 // Initialize button state
@@ -437,13 +486,17 @@ function connectToHost(){
           pip.srcObject=stream;pip.muted=true;
           pip.play().catch(function(){});
           startPipPoll();
+          // Apply current known cam state in case the data channel message
+          // already arrived before this cam call reconnected (recallCam race fix)
+          if(_camShouldShow)pip.style.display='block';
         }
       });
-      call.on('close',function(){stopPipPoll();});
+      call.on('close',function(){stopPipPoll();_camShouldShow=false;});
 
     } else {
       // ── Screen call → always the big picture ──
       call.on('stream',function(stream){
+        clearStreamTimer(); // stream arrived — cancel expectation timer
         stat('Stream connected ✅');
         var v=document.getElementById('vid');
         v.srcObject=stream;v.muted=true;_muted=true;
@@ -499,13 +552,31 @@ function connectToHost(){
         var m=JSON.parse(raw);
         if(m.t==='chat'){addChat(m.n,m.x,m.h);addChatOverlay(m.n,m.x,m.h);}
         if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
+        if(m.t==='live'){
+          // Broadcaster just went live — start expectation timer.
+          // If no WebRTC stream arrives within 8s, we reconnect our peer so Jacob re-calls us.
+          var v=document.getElementById('vid');
+          var alreadyLive=v&&v.srcObject&&v.videoWidth>0;
+          if(!alreadyLive)expectStream();
+        }
+        if(m.t==='hb'){
+          // Heartbeat from broadcaster every 20s — if we have no video, we're stale.
+          // Reconnect peer to get a fresh connection Jacob can call into.
+          var v2=document.getElementById('vid');
+          var hasVideo=v2&&v2.srcObject&&v2.videoWidth>0;
+          if(!hasVideo)expectStream();
+        }
         if(m.t==='cam'){
-          // Fast-path: instant show/hide when broadcaster clicks camera button.
-          // The videoWidth poll (startPipPoll) backs this up — no single point of failure.
+          // Store cam state — used by poll and cam call stream handler.
+          // If srcObject is already set (normal case), fast-path show/hide immediately.
+          // If srcObject is null (recallCam in progress), the state is stored and
+          // applied by call.on('stream') + startPipPoll once the call reconnects.
+          _camShouldShow=m.on;
           var pip=document.getElementById('cam-pip');
           if(pip&&pip.srcObject)pip.style.display=m.on?'block':'none';
         }
         if(m.t==='ended'){
+          clearStreamTimer(); // stream ended intentionally — don't auto-reconnect via timer
           setLive(false);
           _sysShown.live=false;
           document.getElementById('offline-msg').style.display='flex';
@@ -545,8 +616,8 @@ function connectToHost(){
     console.log('[PEER ERROR]',e.type,e.message);
     if(e.type==='peer-unavailable'){
       // Host isn't live yet — keep waiting silently
-      var delay=3000; // check every 3s — catches go-live within seconds
-      stat('Waiting for Jacob to go live… (checking in 3s)');
+      var delay=2000; // check every 2s — snappier live detection
+      stat('Waiting for Jacob to go live…');
       scheduleReconnect(delay);
     } else if(e.type==='network'||e.type==='server-error'){
       stat('Network issue — retrying in 10s…');
