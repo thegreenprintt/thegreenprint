@@ -56,6 +56,41 @@ nav.scrolled{
 }
 .nav-links a:hover{color:var(--g);}
 @media(max-width:768px){.nav-links{display:none;}}
+/* ── Hamburger button ── */
+.ham{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:4px;background:none;border:none;cursor:pointer;z-index:900;-webkit-tap-highlight-color:transparent}
+.ham span{display:block;height:1.5px;background:var(--g);border-radius:2px;transition:transform .3s,opacity .3s,width .3s}
+.ham span:nth-child(2){width:70%;margin-left:auto}
+.ham.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.ham.open span:nth-child(2){opacity:0;width:0}
+.ham.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+@media(max-width:768px){.ham{display:flex}}
+/* ── Mobile full-screen drawer ── */
+#mob-menu{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:800;
+  background:rgba(5,5,5,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:80px 0 40px;
+}
+#mob-menu.open{display:flex}
+#mob-menu a{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:1.5rem;font-weight:500;letter-spacing:.04em;
+  color:rgba(245,255,248,.55);text-decoration:none;
+  padding:16px 0;width:80%;text-align:center;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  transition:color .2s;-webkit-tap-highlight-color:transparent;
+}
+#mob-menu a:first-of-type{border-top:1px solid rgba(255,255,255,.05)}
+#mob-menu a:hover,#mob-menu a:active{color:var(--g)}
+#mob-menu a.m-live{color:rgba(0,255,135,.75);font-weight:600}
+#mob-menu a.m-cta{
+  margin-top:28px;border:none;
+  font-size:.82rem;letter-spacing:.2em;font-weight:600;text-transform:uppercase;
+  color:var(--k);background:linear-gradient(135deg,var(--g),var(--g2));
+  padding:16px 40px;width:auto;
+}
+/* Hide desktop CTA button on mobile (replaced by drawer CTA) */
+@media(max-width:768px){.nav-cta{display:none}}
 .nav-cta{
   font-family:'Space Grotesk',sans-serif;
   font-size:.7rem;font-weight:600;letter-spacing:.16em;
@@ -1013,6 +1048,24 @@ body{overflow-x:hidden!important;max-width:100vw!important;}
 </style>
 
 <script>
+// ── Mobile menu ──
+function toggleMenu(){
+  var ham=document.getElementById('ham');
+  var menu=document.getElementById('mob-menu');
+  var open=ham.classList.toggle('open');
+  menu.classList.toggle('open',open);
+  document.body.style.overflow=open?'hidden':'';
+}
+function closeMenu(){
+  document.getElementById('ham').classList.remove('open');
+  document.getElementById('mob-menu').classList.remove('open');
+  document.body.style.overflow='';
+}
+// Close on escape key
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMenu();});
+</script>
+
+<script>
 (function(){
   var step = 0;
   var a1 = null;
@@ -1209,7 +1262,22 @@ setTimeout(function(){
     <li><a href="stream.html" style="color:rgba(0,255,135,.45)">Watch Live</a></li>
   </ul>
   <a href="#packages" class="nav-cta"><span>Get Access</span></a>
+  <!-- Hamburger — mobile only -->
+  <button class="ham" id="ham" aria-label="Menu" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- Mobile drawer menu -->
+<div id="mob-menu">
+  <a href="#services"  onclick="closeMenu()">What We Do</a>
+  <a href="#packages"  onclick="closeMenu()">Programs</a>
+  <a href="#book"      onclick="closeMenu()">Book a Call</a>
+  <a href="#loans"     onclick="closeMenu()">Real Estate</a>
+  <a href="#member"    onclick="closeMenu()">Members</a>
+  <a href="stream.html" class="m-live">🔴 Watch Live</a>
+  <a href="#packages"  class="m-cta" onclick="closeMenu()">Get Access →</a>
+</div>
 
 <!-- HERO -->
 <section class="hero" id="home">
