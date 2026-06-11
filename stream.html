@@ -111,14 +111,14 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .csend{height:38px;padding:0 14px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.11);color:rgba(0,255,135,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .csend:hover{background:rgba(0,255,135,.11);color:#00ff87}
 /* ── Floating chat overlay on video ── */
-#chat-overlay{position:absolute;bottom:80px;left:14px;width:270px;pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:6px}
-@media(max-width:760px){#chat-overlay{bottom:56px;left:8px;width:195px}}
-.co-msg{background:rgba(0,0,0,.54);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 10px 6px;border-left:2px solid rgba(0,255,135,.45);animation:coIn .22s ease,coOut .35s ease 7.65s forwards}
-.co-name{font-size:.56rem;font-weight:700;color:rgba(0,255,135,.8);margin-bottom:2px}
+#chat-overlay{position:absolute;top:14px;right:14px;width:270px;pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:6px}
+@media(max-width:760px){#chat-overlay{top:8px;right:8px;width:195px}}
+.co-msg{background:rgba(0,0,0,.54);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 10px 6px;border-right:2px solid rgba(0,255,135,.45);border-left:none;animation:coIn .22s ease,coOut .35s ease 7.65s forwards}
+.co-name{font-size:.56rem;font-weight:700;color:rgba(0,255,135,.8);margin-bottom:2px;text-align:right}
 .co-name.h{color:#00ff87}
-.co-text{font-size:.73rem;color:rgba(255,255,255,.82);line-height:1.4;word-break:break-word}
-@keyframes coIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
-@keyframes coOut{from{opacity:1}to{opacity:0;transform:translateX(-6px)}}
+.co-text{font-size:.73rem;color:rgba(255,255,255,.82);line-height:1.4;word-break:break-word;text-align:right}
+@keyframes coIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+@keyframes coOut{from{opacity:1}to{opacity:0;transform:translateX(6px)}}
 </style>
 </head>
 <body>

@@ -609,6 +609,38 @@ function goLive(){
   });
 }
 
+// ── Re-establish cam call for a viewer (auto-called when cam call drops) ──
+// This prevents viewers from having to refresh when the cam WebRTC connection times out.
+function recallCam(pid){
+  if(!_viewers[pid]||!_live)return;
+  if(!_viewers[pid].dc||!_viewers[pid].dc.open)return;
+  var camTrack=(_camOn&&_camStream)?_camStream.getVideoTracks()[0]:_dummyCamTrack;
+  if(!camTrack)return;
+  var cc=_peer.call(pid,new MediaStream([camTrack]),{config:ICE,metadata:{type:'cam'}});
+  _viewers[pid].camCall=cc;
+  if(cc.peerConnection){
+    cc.peerConnection.oniceconnectionstatechange=function(){
+      var st=cc.peerConnection.iceConnectionState;
+      if(st==='connected'||st==='completed'){
+        cc.peerConnection.getSenders().forEach(function(s){
+          if(!s.track||s.track.kind!=='video')return;
+          var p=s.getParameters();
+          if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+          p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=30;
+          s.setParameters(p).catch(function(){});
+          if(_viewers[pid])_viewers[pid].camSender=s;
+        });
+      }
+    };
+  }
+  cc.on('error',function(e){log('Cam call error (retry): '+e.message);});
+  cc.on('close',function(){
+    if(!_viewers[pid])return;
+    delete _viewers[pid].camCall;delete _viewers[pid].camSender;
+    if(_live&&_viewers[pid].dc&&_viewers[pid].dc.open)setTimeout(function(){recallCam(pid);},2000);
+  });
+}
+
 // ── Close both calls for a viewer (screen + cam) ──
 function closeViewerCalls(pid){
   if(!_viewers[pid])return;
@@ -684,6 +716,12 @@ function callViewer(pid){
       };
     }
     cc.on('error',function(e){log('Cam call error: '+e.message);});
+    cc.on('close',function(){
+      if(!_viewers[pid])return;
+      delete _viewers[pid].camCall;delete _viewers[pid].camSender;
+      // Auto re-call cam if viewer is still connected and stream is live
+      if(_live&&_viewers[pid].dc&&_viewers[pid].dc.open)setTimeout(function(){recallCam(pid);},2000);
+    });
   }
 }
 
