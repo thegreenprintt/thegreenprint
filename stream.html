@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Greenprint — Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif;overflow-x:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.95);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
+.nav-brand{font-family:'Urbanist',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(240,250,243,.85);display:flex;align-items:center;gap:8px}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.6)}
+.nav-back{font-size:.65rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.3);text-decoration:none}
+.nav-back:hover{color:rgba(0,255,135,.7)}
+#nav-status{font-size:.65rem;font-weight:500;letter-spacing:.12em;text-transform:lowercase;color:rgba(240,250,243,.2)}
+#nav-status.live{color:rgba(255,59,92,.75)}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;padding:80px 20px 20px;z-index:50}
+.gate-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(0,200,83,.05) 0%,transparent 65%);pointer-events:none}
+.gate-box{width:100%;max-width:420px;position:relative;z-index:1}
+.gate-label{font-size:.6rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.45);margin-bottom:32px;text-align:center}
+.gate-title{font-family:'Syne',sans-serif;font-size:clamp(2.2rem,6vw,3rem);font-weight:800;line-height:.92;letter-spacing:-.03em;margin-bottom:12px}
+.gate-title span{background:linear-gradient(135deg,#00ff87,#00c853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gate-sub{font-size:.84rem;font-weight:300;color:rgba(240,250,243,.5);line-height:1.75;margin-bottom:32px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.58rem;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:6px}
+.field input{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:.88rem;font-weight:300;outline:none;transition:border-color .2s}
+.field input:focus{border-color:rgba(0,255,135,.3)}
+.field input::placeholder{color:rgba(240,250,243,.2)}
+#gate-err{font-size:.7rem;font-weight:500;color:#ff3b5c;margin-bottom:12px;display:none;min-height:20px}
+#continue-btn{width:100%;height:50px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .15s;margin-top:4px}
+#continue-btn:hover{opacity:.9;transform:translateY(-1px)}
+#continue-btn:active{transform:translateY(0)}
+.gate-fine{font-size:.65rem;font-weight:300;color:rgba(240,250,243,.25);text-align:center;margin-top:16px;line-height:1.6}
+
+/* MAIN STREAM */
+#main{display:none;padding-top:56px;height:100vh}
+.stream-wrap{display:grid;grid-template-columns:1fr 290px;height:calc(100vh - 56px)}
+@media(max-width:900px){.stream-wrap{grid-template-columns:1fr}}
+
+/* VIDEO */
+.vid-col{display:flex;flex-direction:column;background:#000}
+.vid-stage{flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center}
+#streamVideo{width:100%;height:100%;object-fit:contain;display:block}
+
+.offline{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:40px}
+.offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:48px 48px}
+.offline-title{font-family:'Urbanist',sans-serif;font-weight:300;font-size:1rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
+.offline-sub{font-size:.74rem;font-weight:300;color:rgba(240,250,243,.15);line-height:1.8;position:relative;z-index:1}
+
+.vid-bar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.vid-info-title{font-size:.8rem;font-weight:500;color:rgba(240,250,243,.55);letter-spacing:.04em}
+.vid-info-host{font-size:.68rem;font-weight:300;color:rgba(240,250,243,.25);margin-top:2px}
+.vid-badges{display:flex;align-items:center;gap:14px}
+#liveBadge{display:none;align-items:center;gap:6px;font-size:.6rem;font-weight:600;letter-spacing:.16em;text-transform:lowercase;color:rgba(255,59,92,.7)}
+#liveBadge.show{display:flex}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#ff3b5c;animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
+#viewerBadge{display:none;font-size:.65rem;font-weight:400;color:rgba(240,250,243,.25)}
+#viewerBadge.show{display:flex;align-items:center;gap:5px}
+
+/* BROADCASTER CONTROLS */
+#bcStrip{display:none;background:rgba(3,3,3,.99);border-top:1px solid rgba(255,255,255,.04);padding:8px 20px;gap:8px;flex-wrap:wrap;align-items:center}
+#bcStrip.show{display:flex}
+.bc-btn{height:34px;padding:0 14px;font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(240,250,243,.45);transition:all .2s}
+.bc-btn:hover{border-color:rgba(0,255,135,.3);color:rgba(0,255,135,.7)}
+.bc-btn.on{border-color:rgba(0,255,135,.4);color:#00ff87;background:rgba(0,255,135,.06)}
+.bc-btn.danger{border-color:rgba(255,59,92,.35);color:#ff3b5c}
+.bc-btn.go{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-weight:700}
+.bc-btn.go:hover{opacity:.9}
+.bc-spacer{flex:1}
+#bcStatus{font-size:.6rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25)}
+
+/* CHAT */
+.chat-col{display:flex;flex-direction:column;background:#080808;border-left:1px solid rgba(255,255,255,.05)}
+@media(max-width:900px){.chat-col{display:none}}
+.chat-hd{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center}
+.chat-hd-label{font-size:.6rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.25)}
+#chatVC{font-size:.6rem;font-weight:600;letter-spacing:.1em;color:rgba(0,255,135,.4)}
+.chat-feed{flex:1;overflow-y:auto;padding:14px 14px;display:flex;flex-direction:column;gap:10px}
+.chat-feed::-webkit-scrollbar{width:2px}
+.chat-feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.2)}
+.msg{display:flex;flex-direction:column;gap:2px}
+.msg-name{font-size:.62rem;font-weight:600;color:rgba(0,255,135,.55);letter-spacing:.04em}
+.msg-name.host{color:#00ff87}
+.msg-name.sys{color:rgba(255,255,255,.15)}
+.msg-text{font-size:.78rem;font-weight:300;color:rgba(240,250,243,.6);line-height:1.55}
+.msg-text.sys{color:rgba(255,255,255,.2);font-style:italic;font-size:.72rem}
+.chat-ft{padding:10px 12px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:6px}
+.chat-in{flex:1;height:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 12px;font-family:'Urbanist',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s}
+.chat-in:focus{border-color:rgba(0,255,135,.25)}
+.chat-in::placeholder{color:rgba(240,250,243,.15);font-size:.76rem}
+.chat-send{height:36px;padding:0 14px;background:rgba(0,255,135,.07);border:1px solid rgba(0,255,135,.14);color:rgba(0,255,135,.65);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .2s}
+.chat-send:hover{background:rgba(0,255,135,.14);color:#00ff87}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand"><div class="nav-dot"></div>THE GREENPRINT</div>
+  <div style="display:flex;align-items:center;gap:20px">
+    <span id="nav-status">offline</span>
+    <a href="index.html" class="nav-back">← Back</a>
+  </div>
+</nav>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-bg"></div>
+  <div class="gate-box">
+    <div class="gate-label">Exclusive Live Access</div>
+    <h1 class="gate-title">Watch The<br><span>Greenprint Live.</span></h1>
+    <p class="gate-sub">Enter your details to access live day trading sessions, strategy breakdowns, and real-time Q&amp;A.</p>
+
+    <div class="field">
+      <label for="g-name">Full Name</label>
+      <input type="text" id="g-name" placeholder="Your full name" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="g-email">Email Address</label>
+      <input type="email" id="g-email" placeholder="you@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label for="g-phone">Phone Number</label>
+      <input type="tel" id="g-phone" placeholder="+1 (555) 000-0000" autocomplete="tel">
+    </div>
+
+    <div id="gate-err"></div>
+    <button id="continue-btn" onclick="goLive()">Continue →</button>
+    <p class="gate-fine">Your information is private and will never be shared or sold.</p>
+  </div>
+</div>
+
+<!-- STREAM -->
+<div id="main">
+  <div class="stream-wrap">
+    <div class="vid-col">
+      <div class="vid-stage">
+        <video id="streamVideo" autoplay playsinline></video>
+        <div class="offline" id="offlineBox">
+          <div class="offline-title">Not Live Yet</div>
+          <div class="offline-sub">Jacob will appear here when the session starts.</div>
+        </div>
+      </div>
+
+      <div class="vid-bar">
+        <div>
+          <div class="vid-info-title">The Greenprint — Live Session</div>
+          <div class="vid-info-host">Jacob Walton &nbsp;·&nbsp; Day Trading &amp; Strategy</div>
+        </div>
+        <div class="vid-badges">
+          <div id="liveBadge"><div class="live-dot"></div>live</div>
+          <div id="viewerBadge">👁 <span id="vcNum">0</span>&nbsp;watching</div>
+        </div>
+      </div>
+
+      <div id="bcStrip">
+        <button class="bc-btn go" id="startBtn" onclick="startStream()">🔴 &nbsp;Go Live</button>
+        <button class="bc-btn danger" id="stopBtn" style="display:none" onclick="stopStream()">⬛ &nbsp;End Stream</button>
+        <button class="bc-btn" id="micBtn" onclick="toggleMic()">🎙 &nbsp;Mic</button>
+        <div class="bc-spacer"></div>
+        <span id="bcStatus"></span>
+      </div>
+    </div>
+
+    <div class="chat-col">
+      <div class="chat-hd">
+        <span class="chat-hd-label">Live Chat</span>
+        <span id="chatVC">0 viewers</span>
+      </div>
+      <div class="chat-feed" id="chatFeed"></div>
+      <div class="chat-ft">
+        <input class="chat-in" id="chatIn" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+var PEER_ID  = 'greenprint-live';
+var BC_HASH  = '27b5f32f840f41cce3efc3e10a2b3ee76cf7e9413bedc79cf2c7b77f06efab33';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var _isBC=false, _peer=null, _display=null, _mic=null, _muted=false;
+var _viewers=0, _calls=[];
+var _names=['Marcus T.','Destiny R.','Jordan K.','Amir S.','Tasha W.','Kevin L.','Brianna M.','DeShawn P.'];
+var _quips=['Let\'s go! 🔥','Good morning!','Ready to learn 📈','Already up 2% 💰','NQ or ES today?','This community is 🔥','Locked in 👀','Jacob always delivers 🎯','Charts loaded ✅','Let\'s get it 💰'];
+var _qi=0, _userName='You';
+
+// ─── CONTINUE BUTTON ─────────────────────────────────────────────────────────
+function goLive(){
+  var name  = document.getElementById('g-name').value.trim();
+  var email = document.getElementById('g-email').value.trim();
+  var phone = document.getElementById('g-phone').value.trim();
+  var err   = document.getElementById('gate-err');
+
+  if(!name) { err.textContent='Please enter your name.'; err.style.display='block'; return; }
+  if(!email){ err.textContent='Please enter your email.'; err.style.display='block'; return; }
+  if(!phone){ err.textContent='Please enter your phone number.'; err.style.display='block'; return; }
+
+  _userName = name.split(' ')[0];
+
+  try{ localStorage.setItem('gp_viewer', JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()})); }catch(e){}
+
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+
+  loadPeerJS();
+}
+
+// ─── LOAD PEERJS AFTER GATE ───────────────────────────────────────────────────
+function loadPeerJS(){
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+  s.onload  = afterLoad;
+  s.onerror = function(){ sysMsg('Could not load streaming library. Please refresh.'); };
+  document.body.appendChild(s);
+}
+
+async function afterLoad(){
+  var hash = location.hash;
+  if(hash && hash.startsWith('#bc=')){
+    try{
+      var b  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(decodeURIComponent(hash.slice(4))));
+      var ph = [...new Uint8Array(b)].map(function(x){return x.toString(16).padStart(2,'0');}).join('');
+      if(ph === BC_HASH) _isBC = true;
+    }catch(e){}
+  }
+
+  if(_isBC){
+    document.getElementById('bcStrip').classList.add('show');
+    sysMsg('Broadcaster mode. Click Go Live when ready.');
+  } else {
+    connectViewer();
+    setTimeout(fakeViewers, 2000);
+  }
+  setTimeout(function(){ sysMsg('Welcome to The Greenprint Live 🔥'); }, 700);
+}
+
+// ─── VIEWER ───────────────────────────────────────────────────────────────────
+function connectViewer(){
+  try{
+    var peer = new Peer(undefined,{debug:0});
+    peer.on('open', function(){
+      var call = peer.call(PEER_ID, null);
+      if(!call){ setTimeout(connectViewer,8000); return; }
+      call.on('stream', function(stream){
+        var v = document.getElementById('streamVideo');
+        v.srcObject = stream;
+        v.muted = false;
+        v.play().catch(function(){});
+        document.getElementById('offlineBox').style.display='none';
+        setLive(true);
+      });
+      call.on('close',  function(){ setLive(false); setTimeout(connectViewer,8000); });
+      call.on('error',  function(){ setTimeout(connectViewer,8000); });
+    });
+    peer.on('error', function(e){ if(e.type==='peer-unavailable') setTimeout(connectViewer,8000); });
+    _peer = peer;
+  }catch(e){ setTimeout(connectViewer,10000); }
+}
+
+// ─── BROADCASTER ──────────────────────────────────────────────────────────────
+async function startStream(){
+  var btn=document.getElementById('startBtn');
+  btn.disabled=true; setStatus('Requesting screen…');
+  try{
+    _display = await navigator.mediaDevices.getDisplayMedia({
+      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
+      audio:true
+    });
+    try{ _mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false}); }
+    catch(e){ sysMsg('Mic not found — screen audio only.'); }
+
+    var v=document.getElementById('streamVideo');
+    v.srcObject=_display; v.muted=true;
+    document.getElementById('offlineBox').style.display='none';
+
+    var tracks=[..._display.getTracks()];
+    if(_mic) tracks=tracks.concat(_mic.getAudioTracks());
+    var bStream=new MediaStream(tracks);
+
+    setStatus('Connecting…');
+    var peer=new Peer(PEER_ID,{debug:0});
+    peer.on('open', function(){
+      setStatus('🔴 Live');
+      btn.style.display='none';
+      document.getElementById('stopBtn').style.display='inline-flex';
+      document.getElementById('micBtn').classList.add('on');
+      setLive(true);
+      sysMsg('You are live! 🚀');
+    });
+    peer.on('call', function(call){
+      call.answer(bStream); _calls.push(call);
+      setViewers(_viewers+1);
+      call.on('close', function(){ _calls=_calls.filter(function(c){return c!==call;}); setViewers(Math.max(0,_viewers-1)); });
+    });
+    peer.on('error', function(e){
+      if(e.type==='unavailable-id'){ sysMsg('Stream ID already in use.'); btn.disabled=false; setStatus(''); }
+    });
+    _display.getVideoTracks()[0].addEventListener('ended', stopStream);
+    _peer=peer;
+  }catch(er){
+    btn.disabled=false; setStatus('');
+    sysMsg(er.name==='NotAllowedError'?'Permission denied.':'Error: '+er.message);
+    if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
+    if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
+  }
+}
+
+function stopStream(){
+  _calls.forEach(function(c){c.close();}); _calls=[];
+  if(_peer){_peer.destroy();_peer=null;}
+  if(_display){_display.getTracks().forEach(function(t){t.stop();});_display=null;}
+  if(_mic){_mic.getTracks().forEach(function(t){t.stop();});_mic=null;}
+  document.getElementById('streamVideo').srcObject=null;
+  document.getElementById('offlineBox').style.display='flex';
+  var b=document.getElementById('startBtn'); b.style.display='inline-flex'; b.disabled=false;
+  document.getElementById('stopBtn').style.display='none';
+  setLive(false); setStatus('Stream ended'); sysMsg('Stream ended.');
+}
+
+function toggleMic(){
+  _muted=!_muted;
+  if(_display)_display.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
+  if(_mic)_mic.getAudioTracks().forEach(function(t){t.enabled=!_muted;});
+  var b=document.getElementById('micBtn');
+  b.textContent=_muted?'🔇 Muted':'🎙 Mic';
+  b.classList.toggle('on',!_muted); b.classList.toggle('danger',_muted);
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function setLive(on){
+  document.getElementById('liveBadge').className=on?'liveBadge show':'liveBadge';
+  document.getElementById('viewerBadge').className=on?'viewerBadge show':'viewerBadge';
+  var ns=document.getElementById('nav-status');
+  ns.textContent=on?'live':'offline'; ns.className=on?'live':'';
+}
+function setStatus(t){ var s=document.getElementById('bcStatus'); if(s)s.textContent=t; }
+function setViewers(n){
+  _viewers=n;
+  document.getElementById('vcNum').textContent=n;
+  document.getElementById('chatVC').textContent=n+' viewer'+(n!==1?'s':'');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ─── CHAT ─────────────────────────────────────────────────────────────────────
+function sysMsg(t){ addMsg('',t,true,false); }
+function addMsg(name,text,sys,host){
+  var feed=document.getElementById('chatFeed');
+  var d=document.createElement('div'); d.className='msg';
+  if(sys){ d.innerHTML='<div class="msg-text sys">'+esc(text)+'</div>'; }
+  else{ d.innerHTML='<div class="msg-name'+(host?' host':'')+'" >'+esc(name)+'</div><div class="msg-text">'+esc(text)+'</div>'; }
+  feed.appendChild(d); feed.scrollTop=feed.scrollHeight;
+}
+function sendChat(){
+  var inp=document.getElementById('chatIn');
+  var t=inp.value.trim(); if(!t)return;
+  addMsg(_userName+(_isBC?' 🎙':''),t,false,_isBC);
+  inp.value='';
+}
+function fakeViewers(){
+  var greet=['Hey everyone 👋','Ready for today!','Morning everyone'];
+  _names.slice(0,3).forEach(function(nm,j){
+    setTimeout(function(){ addMsg(nm,greet[j],false,false); setViewers(_viewers+1); },1500+j*2800);
+  });
+  setInterval(function(){
+    if(Math.random()>.55) addMsg(_names[Math.floor(Math.random()*_names.length)],_quips[_qi++%_quips.length],false,false);
+  },6000);
+}
+
+// ─── AUTO-SKIP FOR RETURNING VISITORS ────────────────────────────────────────
+try{
+  var _s=JSON.parse(localStorage.getItem('gp_viewer'));
+  if(_s&&(Date.now()-_s.ts)<30*24*60*60*1000){
+    _userName=_s.name.split(' ')[0];
+    document.getElementById('gate').style.display='none';
+    document.getElementById('main').style.display='block';
+    loadPeerJS();
+  }
+}catch(e){}
+</script>
+</body>
+</html>
