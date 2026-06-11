@@ -111,14 +111,14 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .csend{height:38px;padding:0 14px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.11);color:rgba(0,255,135,.55);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .csend:hover{background:rgba(0,255,135,.11);color:#00ff87}
 /* ── Floating chat overlay on video ── */
-#chat-overlay{position:absolute;top:14px;right:14px;width:270px;pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:6px}
-@media(max-width:760px){#chat-overlay{top:8px;right:8px;width:195px}}
-.co-msg{background:rgba(0,0,0,.54);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 10px 6px;border-right:2px solid rgba(0,255,135,.45);border-left:none;animation:coIn .22s ease,coOut .35s ease 7.65s forwards}
-.co-name{font-size:.56rem;font-weight:700;color:rgba(0,255,135,.8);margin-bottom:2px;text-align:right}
-.co-name.h{color:#00ff87}
-.co-text{font-size:.73rem;color:rgba(255,255,255,.82);line-height:1.4;word-break:break-word;text-align:right}
-@keyframes coIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
-@keyframes coOut{from{opacity:1}to{opacity:0;transform:translateX(6px)}}
+#chat-overlay{position:absolute;top:14px;right:14px;width:280px;pointer-events:none;z-index:30;display:flex;flex-direction:column;gap:5px}
+@media(max-width:760px){#chat-overlay{top:8px;right:8px;width:200px}}
+.co-msg{background:rgba(0,0,0,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:6px 12px 7px;border-right:3px solid #00ff87;animation:coSlideIn .25s ease forwards,coFadeOut .4s ease 7.6s forwards}
+.co-name{font-size:.6rem;font-weight:700;color:#00ff87;margin-bottom:2px;text-align:right;letter-spacing:.04em}
+.co-name.h{color:#00ff87;text-shadow:0 0 8px rgba(0,255,135,.5)}
+.co-text{font-size:.78rem;color:#fff;line-height:1.45;word-break:break-word;text-align:right}
+@keyframes coSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes coFadeOut{from{opacity:1}to{opacity:0}}
 </style>
 </head>
 <body>
@@ -206,7 +206,7 @@ var ICE = {
   ]
 };
 
-var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null;
+var _name='Viewer', _peer=null, _dc=null, _retries=0, _reconnectTimer=null, _reconnecting=false;
 var _sysShown={}; // prevent duplicate system messages
 var _muted=true; // start muted so autoplay policy lets video play
 var _pipPollTimer=null; // polls pip.videoWidth to auto-show/hide camera PIP
@@ -358,13 +358,18 @@ function loadPeerJS(){
 }
 
 function scheduleReconnect(ms){
-  // Prevent duplicate timers
+  // Block if already in the middle of connecting — prevents cascade loops
+  // when _peer.destroy() fires close events on old DC/calls
+  if(_reconnecting)return;
   if(_reconnectTimer)clearTimeout(_reconnectTimer);
   _reconnectTimer=setTimeout(function(){_reconnectTimer=null;connectToHost();},ms);
 }
 
 function connectToHost(){
-  // Clean up any previous peer
+  _reconnecting=true; // block scheduleReconnect until new peer opens
+  if(_reconnectTimer){clearTimeout(_reconnectTimer);_reconnectTimer=null;}
+  // Clean up any previous peer — this fires async close events on old DC/calls,
+  // but _reconnecting=true above ensures they don't trigger another reconnect loop
   if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
   _sysShown.ended=false; // allow next ended message to show
 
@@ -431,6 +436,7 @@ function connectToHost(){
   });
 
   _peer.on('open',function(myId){
+    _reconnecting=false; // new peer is live — allow reconnects again if needed
     stat('Connected — finding Jacob\'s stream…');
     // Open data channel to broadcaster so they know we're here
     var dc=_peer.connect(HOST_PEER_ID,{reliable:true,metadata:{name:_name}});
@@ -485,6 +491,7 @@ function connectToHost(){
   });
 
   _peer.on('error',function(e){
+    _reconnecting=false; // allow retry on error
     console.log('[PEER ERROR]',e.type,e.message);
     if(e.type==='peer-unavailable'){
       // Host isn't live yet — keep waiting silently
@@ -518,8 +525,18 @@ function sendChat(){
   }
   inp.value='';
   addChat(_name,txt,false);
+  addChatOverlay(_name,txt,false); // show own messages in overlay too
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
+
+// Reconnect when phone screen unlocks or tab comes back into view (iOS Safari)
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&!_reconnecting&&!_reconnectTimer){
+    var peerBad=!_peer||_peer.disconnected||_peer.destroyed;
+    var dcBad=!_dc||!_dc.open;
+    if(peerBad||dcBad)scheduleReconnect(500);
+  }
+});
 </script>
 </body>
 </html>
