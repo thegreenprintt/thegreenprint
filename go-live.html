@@ -599,6 +599,9 @@ function goLive(){
     // canvas will have frames long before the connection is ready
     Object.keys(_viewers).forEach(function(pid){callViewer(pid);});
 
+    // Auto-start camera when going live
+    if(!_camOn)camOn();
+
   }).catch(function(e){
     if(e.name==='NotAllowedError'){
       log('Permission denied. On Mac: System Settings → Privacy → Screen Recording → allow Chrome');
@@ -645,6 +648,8 @@ function recallCam(pid){
 function closeViewerCalls(pid){
   if(!_viewers[pid])return;
   var sc=_viewers[pid].screenCall,cc=_viewers[pid].camCall;
+  // Strip the close handler before explicitly closing so recallCam doesn't fire
+  if(cc)try{cc.off('close');}catch(e){}
   if(sc)try{sc.close();}catch(e){}
   if(cc)try{cc.close();}catch(e){}
   delete _viewers[pid].screenCall;
