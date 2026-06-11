@@ -639,6 +639,13 @@ function goLive(){
     sv.muted=true;sv.volume=0;
     sv.style.display='block';
     document.getElementById('ph').style.display='none';
+    // Lock stage aspect ratio to actual screenshare dimensions — eliminates black bars
+    sv.addEventListener('loadedmetadata',function(){
+      if(sv.videoWidth&&sv.videoHeight){
+        var stage=document.querySelector('.stage');
+        if(stage)stage.style.aspectRatio=sv.videoWidth+'/'+sv.videoHeight;
+      }
+    },{once:true});
     var hasScreenAudio=scrn.getAudioTracks().length>0;
     log('Screen captured'+(hasScreenAudio?' + audio':'')+' — finishing setup…');
     return micPromise.then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
@@ -1158,6 +1165,7 @@ function endStream(){
   _screenStream=null;_micStream=null;_camStream=null;_mixedStream=null;
   _outStream=null;
   document.getElementById('scrnv').style.display='none';
+  document.querySelector('.stage').style.aspectRatio=''; // reset so next session re-locks
   document.getElementById('campip').className='';
   document.getElementById('ph').style.display='flex';
   document.getElementById('ph').querySelector('.ph-t').textContent='Stream Paused';

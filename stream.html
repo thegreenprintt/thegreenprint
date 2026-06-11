@@ -246,27 +246,24 @@ var _pipPollTimer=null; // polls pip.videoWidth to auto-show/hide camera PIP
 var _camShouldShow=false; // tracks broadcaster's cam on/off state independently of srcObject
 var _cohostCall=null, _cohostStream=null; // cohost: outgoing call + local stream
 var _streamTimer=null; // expectStream() countdown — reconnects if stream never arrives
+var _callReceived=false; // true once _peer.on('call') fires — prevents timer killing active ICE
 
 // ── Stream expectation timer ──
-// Called when broadcaster signals they are live ({t:'live'} or heartbeat {t:'hb'}).
-// If no video arrives within 8 seconds, we reconnect our peer — this gives Jacob a
-// fresh connection and he immediately calls us again via dc.on('open') → callViewer.
-// Self-healing: as soon as stream arrives, clearStreamTimer() cancels it.
+// Called when broadcaster signals live ({t:'live'} or heartbeat {t:'hb'}).
+// If no video arrives within 20s AND no call is actively in progress, we reconnect.
+// Key: _callReceived flag prevents killing a WebRTC call that's still negotiating ICE
+// (ICE over TURN can take 6-12s — must not interrupt it).
 function expectStream(){
   if(_streamTimer)clearTimeout(_streamTimer);
-  // Update the offline message so viewer knows stream IS coming, not still waiting
-  var cs=document.getElementById('connstat');
-  if(cs)cs.textContent='Stream starting — connecting…';
   _streamTimer=setTimeout(function(){
     _streamTimer=null;
     var v=document.getElementById('vid');
-    // Only reconnect if we genuinely have no video — not if stream already arrived
-    if(v&&v.srcObject&&v.videoWidth>0)return;
-    stat('Stream expected but not received — reconnecting peer…');
-    // Destroy + recreate peer — gives Jacob a brand-new connection ID to call
-    if(_reconnecting)return;
+    if(v&&v.srcObject&&v.videoWidth>0)return; // stream is flowing — all good
+    if(_callReceived)return; // call arrived but ICE still negotiating — don't kill it
+    if(_reconnecting)return; // already reconnecting
+    stat('Stream not received — reconnecting peer to force fresh call…');
     connectToHost();
-  },8000);
+  },20000);
 }
 function clearStreamTimer(){
   if(_streamTimer){clearTimeout(_streamTimer);_streamTimer=null;}
@@ -456,6 +453,7 @@ function connectToHost(){
   // Clean up any previous peer — this fires async close events on old DC/calls,
   // but _reconnecting=true above ensures they don't trigger another reconnect loop
   if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
+  _callReceived=false; // new peer = new call cycle
   _sysShown.ended=false; // allow next ended message to show
 
   _retries++;
@@ -477,6 +475,10 @@ function connectToHost(){
     }
     var type=(call.metadata&&call.metadata.type)||'screen';
     call.answer(new MediaStream());
+
+    // Mark that Jacob's call arrived — prevents expectStream timer from
+    // destroying this peer while ICE is still negotiating
+    if(type==='screen'){_callReceived=true;clearStreamTimer();}
 
     if(type==='cam'){
       // ── Camera call → always PIP in corner ──
@@ -515,6 +517,7 @@ function connectToHost(){
         if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
       });
       call.on('close',function(){
+        _callReceived=false; // call ended — timer can reconnect again if needed
         stat('Stream ended — will reconnect when Jacob goes live again…');
         setLive(false);_sysShown.live=false;
         document.getElementById('unmute-overlay').classList.remove('show');
