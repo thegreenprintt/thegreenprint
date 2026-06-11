@@ -739,12 +739,16 @@ function handleSubscribe(){
 }
 
 // ── SHOW STREAM PAGE ──────────────────────────────────────────────────────────
-async function showStream(){
+function showStream(){
+  // Hide gate immediately — synchronous, always works
   document.getElementById('gate').style.display = 'none';
   document.getElementById('paywall').style.display = 'none';
   document.getElementById('main').style.display = 'block';
+  // Do async parts after gate is already hidden
+  _afterShowStream();
+}
 
-  // Check broadcaster mode
+async function _afterShowStream(){
   try{
     var hash = location.hash;
     if(hash && hash.startsWith('#bc=')){
@@ -923,7 +927,7 @@ function fakeViewers(){
 function fakeStreamViewers(){
   var iv = setInterval(function(){
     if(!_peer || _peer.destroyed){ clearInterval(iv); return; }
-    if(Math.random() > 0.5){ addChatMsg(_names[Math.floor(Math.random()*_names.length)], _quints[_qi++ % _quints.length]); }
+    if(Math.random() > 0.5){ addChatMsg(_names[Math.floor(Math.random()*_names.length)], _quips[_qi++ % _quips.length]); }
   }, 5000);
 }
 
