@@ -26,7 +26,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .f input{width:100%;height:46px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:#f0faf3;padding:0 15px;font-family:'Urbanist',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s;-webkit-appearance:none;border-radius:0}
 .f input:focus{border-color:rgba(0,255,135,.28)}
 .f input::placeholder{color:rgba(240,250,243,.16)}
-#gerr{font-size:.7rem;color:#ff3b5c;margin:5px 0 2px;display:none;min-height:18px}
+#gerr{font-size:.7rem;color:#ff3b5c;margin:5px 0 2px;display:none}
 #gbtn{width:100%;height:48px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-top:6px;transition:opacity .15s}
 #gbtn:hover{opacity:.88}
 .fine{font-size:.62rem;font-weight:300;color:rgba(240,250,243,.18);text-align:center;margin-top:13px;line-height:1.6}
@@ -41,6 +41,8 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .offline::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
 .ot{font-weight:300;font-size:.88rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
 .os{font-size:.7rem;font-weight:300;color:rgba(240,250,243,.12);line-height:1.8;position:relative;z-index:1}
+/* status bar below offline message */
+#connstat{font-size:.6rem;font-weight:400;color:rgba(0,255,135,.28);position:relative;z-index:1;margin-top:8px;font-family:monospace}
 .bar{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .btitle{font-size:.78rem;font-weight:500;color:rgba(240,250,243,.45)}
 .bhost{font-size:.63rem;font-weight:300;color:rgba(240,250,243,.18);margin-top:2px}
@@ -48,7 +50,6 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 .live-badge.on{display:flex}
 .live-dot{width:4px;height:4px;border-radius:50%;background:#ff3b5c;animation:pp 1.8s infinite}
 @keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 6px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-/* CHAT */
 .ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
 @media(max-width:860px){.ccol{display:none}}
 .chd{padding:11px 15px;border-bottom:1px solid rgba(255,255,255,.05)}
@@ -76,23 +77,23 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
   <span id="navstat">offline</span>
 </nav>
 
-<!-- GATE: always shown, no skip -->
+<!-- GATE: always shown, no bypass -->
 <div id="gate">
   <div class="glow"></div>
   <div class="box">
     <div class="ey">Exclusive Live Access</div>
     <h1>Watch The<br><em>Greenprint Live.</em></h1>
     <p class="sub">Enter your details for access to live day trading sessions and real-time strategy with Jacob.</p>
-    <div class="f"><label>Full Name</label><input id="g-name" type="text" placeholder="Your full name" autocomplete="name"></div>
-    <div class="f"><label>Email Address</label><input id="g-email" type="email" placeholder="you@email.com" autocomplete="email"></div>
-    <div class="f"><label>Phone Number</label><input id="g-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
+    <div class="f"><label>Full Name</label><input id="g-name"  type="text"  placeholder="Your full name"      autocomplete="name"></div>
+    <div class="f"><label>Email Address</label><input id="g-email" type="email" placeholder="you@email.com"      autocomplete="email"></div>
+    <div class="f"><label>Phone Number</label><input id="g-phone" type="tel"   placeholder="+1 (555) 000-0000"  autocomplete="tel"></div>
     <div id="gerr"></div>
     <button id="gbtn" onclick="enterStream()">Get Access →</button>
     <p class="fine">Your information is private and will never be shared.</p>
   </div>
 </div>
 
-<!-- STREAM VIEW: viewer-only, zero host controls -->
+<!-- STREAM VIEW: viewer only, no broadcast controls -->
 <div id="main">
   <div class="grid">
     <div class="vcol">
@@ -101,6 +102,7 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
         <div class="offline" id="offline-msg">
           <div class="ot">Not Live Yet</div>
           <div class="os">Jacob will appear here when the session starts.<br>Stay on this page — it connects automatically.</div>
+          <div id="connstat">Connecting…</div>
         </div>
       </div>
       <div class="bar">
@@ -123,119 +125,190 @@ h1 em{font-style:normal;background:linear-gradient(135deg,#00ff87,#00c853);-webk
 </div>
 
 <script>
-// Must match PEER_ID in go-live.html exactly
-var HOST_PEER_ID = 'gp-live-host-2025';
+// ── Must exactly match PEER_ID in go-live.html ──
+var HOST_PEER_ID = 'gp-greenprint-live';
 
-var _name = 'Viewer';
-var _peer = null;
-var _dc   = null;
+// ── Same ICE config as go-live.html ──
+var ICE = {
+  iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun2.l.google.com:19302'},
+    {urls:'stun:stun3.l.google.com:19302'},
+    {urls:'stun:stun4.l.google.com:19302'},
+    {urls:'turn:openrelay.metered.ca:80',   username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',  username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turns:openrelay.metered.ca:443', username:'openrelayproject',credential:'openrelayproject'}
+  ]
+};
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+var _name='Viewer', _peer=null, _dc=null, _retries=0;
 
-function addSys(text){
-  var f=document.getElementById('feed'), d=document.createElement('div'); d.className='cm';
-  d.innerHTML='<div class="ct sys">'+esc(text)+'</div>';
-  f.appendChild(d); f.scrollTop=f.scrollHeight;
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function stat(t){
+  var el=document.getElementById('connstat');
+  if(el)el.textContent=t;
+  console.log('[VIEWER]',t);
 }
-function addChat(name, text, isHost){
-  var f=document.getElementById('feed'), d=document.createElement('div'); d.className='cm';
+function addSys(text){
+  var f=document.getElementById('feed'),d=document.createElement('div');d.className='cm';
+  d.innerHTML='<div class="ct sys">'+esc(text)+'</div>';
+  f.appendChild(d);f.scrollTop=f.scrollHeight;
+}
+function addChat(name,text,isHost){
+  var f=document.getElementById('feed'),d=document.createElement('div');d.className='cm';
   d.innerHTML='<div class="cn'+(isHost?' host':'')+'">'+esc(name)+'</div>'
              +'<div class="ct">'+esc(text)+'</div>';
-  f.appendChild(d); f.scrollTop=f.scrollHeight;
+  f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 function setLive(on){
   document.getElementById('live-badge').className='live-badge'+(on?' on':'');
   var ns=document.getElementById('navstat');
   ns.textContent=on?'live':'offline';
   ns.className=on?'on':'';
+  if(on){
+    document.getElementById('offline-msg').style.display='none';
+  }
 }
 
-// Gate submit — always required, no bypass
+// Gate — always required, no bypass possible
 function enterStream(){
-  var name =(document.getElementById('g-name').value ||'').trim();
+  var name =(document.getElementById('g-name').value||'').trim();
   var email=(document.getElementById('g-email').value||'').trim();
   var phone=(document.getElementById('g-phone').value||'').trim();
   var err  =document.getElementById('gerr');
-  if(!name) {err.textContent='Please enter your name.';  err.style.display='block';return;}
-  if(!email){err.textContent='Please enter your email.'; err.style.display='block';return;}
-  if(!phone){err.textContent='Please enter your phone.'; err.style.display='block';return;}
+  if(!name) {err.textContent='Please enter your name.';err.style.display='block';return;}
+  if(!email||email.indexOf('@')<1){err.textContent='Please enter a valid email.';err.style.display='block';return;}
+  if(!phone){err.textContent='Please enter your phone number.';err.style.display='block';return;}
   err.style.display='none';
-  _name=name.split(' ')[0];
-  try{localStorage.setItem('gp_lead',JSON.stringify({name,email,phone,ts:Date.now()}));}catch(e){}
+  _name=name.split(' ')[0]||'Viewer';
+  try{localStorage.setItem('gp_lead',JSON.stringify({name:name,email:email,phone:phone,ts:Date.now()}));}catch(e){}
   document.getElementById('gate').style.display='none';
   document.getElementById('main').style.display='block';
   loadPeerJS();
 }
 
 function loadPeerJS(){
+  stat('Loading stream library…');
   var s=document.createElement('script');
   s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload=connectToHost;
-  s.onerror=function(){addSys('Could not load stream library. Please refresh.');};
+  s.onload=function(){stat('Library loaded — connecting…');connectToHost();};
+  s.onerror=function(){stat('Failed to load stream library. Refresh the page.');};
   document.body.appendChild(s);
 }
 
 function connectToHost(){
-  try{
-    _peer=new Peer(undefined,{debug:0});
+  // Clean up any previous peer
+  if(_peer){try{_peer.destroy();}catch(e){}_peer=null;_dc=null;}
 
-    // Host will call US — we just answer with an empty stream
-    _peer.on('call',function(call){
-      call.answer(new MediaStream());
-      call.on('stream',function(stream){
-        var v=document.getElementById('vid');
-        v.srcObject=stream;
-        v.muted=false;
-        v.play().catch(function(){});
-        document.getElementById('offline-msg').style.display='none';
-        setLive(true);
+  _retries++;
+  stat('Connecting… (attempt '+_retries+')');
+
+  _peer=new Peer(undefined,{
+    host:'0.peerjs.com',port:443,path:'/',secure:true,
+    config:ICE,
+    debug:0
+  });
+
+  // Broadcaster will call us — register handler immediately
+  _peer.on('call',function(call){
+    stat('Stream arriving — answering…');
+    call.answer(new MediaStream());
+
+    call.on('stream',function(stream){
+      stat('Stream connected ✅');
+      var v=document.getElementById('vid');
+      v.srcObject=stream;
+      v.muted=false;
+      v.play().catch(function(){
+        // Autoplay blocked — create unmute overlay
+        var btn=document.createElement('button');
+        btn.textContent='▶ Tap to watch';
+        btn.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.65);color:#fff;border:none;font-size:1.2rem;cursor:pointer;width:100%;height:100%;z-index:5;font-family:Urbanist,sans-serif';
+        btn.onclick=function(){v.play();btn.remove();};
+        document.querySelector('.stage').appendChild(btn);
       });
-      call.on('close',function(){setLive(false);});
+      setLive(true);
+      addSys('🔴 Stream is live!');
     });
 
-    _peer.on('open',function(){
-      // Connect data channel so host knows we're here and can push the stream
-      var dc=_peer.connect(HOST_PEER_ID,{reliable:true,metadata:{name:_name}});
-      dc.on('open',function(){
-        _dc=dc;
-        dc.send(JSON.stringify({t:'join',n:_name}));
-        addSys('Connected — waiting for Jacob to go live.');
-      });
-      dc.on('data',function(raw){
-        try{
-          var m=JSON.parse(raw);
-          if(m.t==='chat')  addChat(m.n,m.x,m.h);
-          if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
-          if(m.t==='kick'){
-            _peer.destroy();
-            document.getElementById('main').innerHTML=
-              '<div style="display:flex;align-items:center;justify-content:center;height:100%;'
-              +'color:rgba(240,250,243,.3);font-size:.85rem;letter-spacing:.08em;">'
-              +'You have been removed from this stream.</div>';
-          }
-        }catch(e){}
-      });
-      dc.on('error',function(){setTimeout(connectToHost,5000);});
+    call.on('close',function(){
+      stat('Stream ended.');
+      setLive(false);
+      document.getElementById('offline-msg').style.display='flex';
+      addSys('Stream ended.');
     });
 
-    _peer.on('error',function(e){
-      if(e.type==='peer-unavailable'){
-        // Host not live yet — retry quietly
-        addSys('Waiting for stream to start…');
-        setTimeout(connectToHost,8000);
-      }
+    if(call.peerConnection){
+      call.peerConnection.oniceconnectionstatechange=function(){
+        var s=call.peerConnection.iceConnectionState;
+        stat('ICE: '+s);
+        console.log('[ICE]',s);
+      };
+    }
+  });
+
+  _peer.on('open',function(myId){
+    stat('Connected — finding Jacob\'s stream…');
+    // Open data channel to broadcaster so they know we're here
+    var dc=_peer.connect(HOST_PEER_ID,{reliable:true,metadata:{name:_name}});
+
+    dc.on('open',function(){
+      _dc=dc;
+      dc.send(JSON.stringify({t:'join',n:_name}));
+      stat('Joined — waiting for Jacob to go live…');
+      addSys('Connected ✅ — waiting for Jacob to go live.');
     });
-  }catch(e){setTimeout(connectToHost,8000);}
+
+    dc.on('data',function(raw){
+      try{
+        var m=JSON.parse(raw);
+        if(m.t==='chat')  addChat(m.n,m.x,m.h);
+        if(m.t==='title') document.getElementById('stream-title').textContent=m.x;
+        if(m.t==='ended'){setLive(false);document.getElementById('offline-msg').style.display='flex';addSys('Stream ended by host.');}
+        if(m.t==='kick'){
+          if(_peer)try{_peer.destroy();}catch(e){}
+          document.getElementById('main').innerHTML=
+            '<div style="display:flex;align-items:center;justify-content:center;height:100%;'
+            +'color:rgba(240,250,243,.3);font-size:.85rem;letter-spacing:.08em">'
+            +'You have been removed from this stream.</div>';
+        }
+      }catch(e){}
+    });
+
+    dc.on('error',function(e){
+      stat('Data channel error — retrying in 8s…');
+      setTimeout(connectToHost,8000);
+    });
+    dc.on('close',function(){
+      stat('Disconnected — reconnecting in 8s…');
+      setTimeout(connectToHost,8000);
+    });
+  });
+
+  _peer.on('error',function(e){
+    console.log('[PEER ERROR]',e.type,e.message);
+    if(e.type==='peer-unavailable'){
+      // Host isn't live yet — keep waiting silently
+      var delay=_retries<5?8000:15000;
+      stat('Stream not started yet — checking again in '+(delay/1000)+'s…');
+      setTimeout(connectToHost,delay);
+    } else if(e.type==='network'||e.type==='server-error'){
+      stat('Network issue — retrying in 10s…');
+      setTimeout(connectToHost,10000);
+    } else {
+      stat('Error ('+e.type+') — retrying in 10s…');
+      setTimeout(connectToHost,10000);
+    }
+  });
 }
 
 function sendChat(){
-  var inp=document.getElementById('chat-input');
-  var txt=inp.value.trim(); if(!txt)return; inp.value='';
+  var inp=document.getElementById('chat-input'),txt=inp.value.trim();
+  if(!txt)return;inp.value='';
   addChat(_name,txt,false);
-  if(_dc&&_dc.open) _dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
+  if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
-
-setTimeout(function(){addSys('Welcome to The Greenprint Live 🔥');},500);
 </script>
 </body>
 </html>
