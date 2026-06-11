@@ -126,7 +126,12 @@ nav{
 #main{display:none;height:100vh;height:100dvh;padding-top:52px}
 .grid{display:grid;grid-template-columns:1fr 296px;height:calc(100dvh - 52px)}
 @media(max-width:760px){
-  .grid{grid-template-columns:1fr;grid-template-rows:1fr auto auto;height:calc(100dvh - 52px)}
+  /* vcol shrinks to natural height; ccol (chat) fills remaining space */
+  .grid{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:calc(100dvh - 52px)}
+  /* Stage: fixed to actual aspect ratio — no more vertical dead space */
+  .stage{flex:none;width:100%;aspect-ratio:16/9;min-height:unset}
+  /* Chat fills all space below the video+bar */
+  .ccol{border-left:none;border-top:1px solid var(--border);height:auto;flex-shrink:1;min-height:80px}
 }
 
 /* ─── Video column ─── */
@@ -323,9 +328,7 @@ nav{
   background:rgba(5,7,14,.97);
   border-left:1px solid var(--border)
 }
-@media(max-width:760px){
-  .ccol{border-left:none;border-top:1px solid var(--border);height:160px;flex-shrink:0}
-}
+/* ccol mobile handled by grid block above */
 .chd{
   padding:11px 14px;border-bottom:1px solid var(--border);
   flex-shrink:0;display:flex;align-items:center;justify-content:space-between
