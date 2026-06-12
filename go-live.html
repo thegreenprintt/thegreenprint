@@ -997,20 +997,9 @@ function startPeer(){
       _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];
       sys('⬆ '+cname+' is now on stage!');
-      // Give the connection 400ms to settle, then replace the cohost's audio track with
-      // the base stream (mic+screen only, no cohost audio) so they don't hear themselves
-      ;(function(id){
-        setTimeout(function(){
-          if(!_baseDest||!_viewers[id]||!_viewers[id].screenCall)return;
-          var pc=_viewers[id].screenCall.peerConnection;
-          if(!pc)return;
-          var baseTrack=_baseDest.stream.getAudioTracks()[0];
-          if(!baseTrack)return;
-          pc.getSenders().forEach(function(s){
-            if(s.track&&s.track.kind==='audio')s.replaceTrack(baseTrack).catch(function(e){log('replaceTrack err: '+e);});
-          });
-        },400);
-      })(cpid);
+      // Re-open their screen call with base audio (mic+screen only — no cohost audio)
+      // so they don't hear themselves. replaceTrack is unreliable mid-call; re-calling is definitive.
+      if(_baseDest)setTimeout(function(){recallScreenWithAudio(cpid,_baseDest.stream);},300);
       // Mix their audio into the outgoing stream so viewers hear them
       if(_audioCtx&&_audioDest){
         try{
@@ -1032,15 +1021,8 @@ function startPeer(){
         if(_cohosts[cpid].monitor){try{_cohosts[cpid].monitor.srcObject=null;_cohosts[cpid].monitor.remove();}catch(e){}}
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
-        // Restore full mixed audio for this viewer now they're no longer a cohost
-        if(_mixedStream&&_viewers[cpid]&&_viewers[cpid].screenCall&&_viewers[cpid].screenCall.peerConnection){
-          var mixedTrack=_mixedStream.getAudioTracks()[0];
-          if(mixedTrack){
-            _viewers[cpid].screenCall.peerConnection.getSenders().forEach(function(s){
-              if(s.track&&s.track.kind==='audio')s.replaceTrack(mixedTrack).catch(function(){});
-            });
-          }
-        }
+        // Restore full mixed audio now they're off stage
+        if(_mixedStream&&_viewers[cpid])setTimeout(function(){recallScreenWithAudio(cpid,_mixedStream);},300);
         renderCohostPanel();
         // Last cohost gone → disable canvas, restore direct passthrough for max quality
         if(Object.keys(_cohosts).length===0&&_live)disableCanvas();
@@ -1063,6 +1045,7 @@ function startPeer(){
 }
 
 function rmViewer(pid){
+  if(_viewers[pid]&&_viewers[pid]._recalling)return; // mid screen-call restart, ignore
   if(_viewers[pid]){
     // If they were a cohost, clean that up too
     if(_cohosts[pid]){try{_cohosts[pid].call.close();}catch(e){}}
@@ -1072,6 +1055,42 @@ function rmViewer(pid){
     delete _viewers[pid];
   }
   setVC(Object.keys(_viewers).length);
+}
+
+// ── Re-call a specific viewer's screen call with a different audio stream ──
+// Used when viewer becomes/leaves cohost — avoids replaceTrack which fails silently.
+function recallScreenWithAudio(cpid, audioStream){
+  if(!_viewers[cpid]||!audioStream)return;
+  var oldSc=_viewers[cpid].screenCall;
+  _viewers[cpid]._recalling=true; // prevent rmViewer from firing on the close event
+  if(oldSc){try{oldSc.close();}catch(e){}}
+  _viewers[cpid].screenCall=null;
+  setTimeout(function(){
+    if(!_viewers[cpid]){return;}
+    _viewers[cpid]._recalling=false;
+    var aTracks=audioStream.getAudioTracks();
+    var vTracks=_outStream?_outStream.getVideoTracks():(_screenStream?_screenStream.getVideoTracks():[]);
+    if(!vTracks.length||!aTracks.length){log('recallScreen: no tracks for '+cpid);return;}
+    var sc=_peer.call(cpid,new MediaStream(vTracks.concat(aTracks)),{config:ICE,metadata:{type:'screen'}});
+    _viewers[cpid].screenCall=sc;
+    sc.on('close',function(){rmViewer(cpid);});
+    sc.on('error',function(e){log('Screen recall error: '+e.message);});
+    if(sc.peerConnection){
+      sc.peerConnection.oniceconnectionstatechange=function(){
+        var st=sc.peerConnection.iceConnectionState;
+        if(st==='connected'||st==='completed'){
+          sc.peerConnection.getSenders().forEach(function(s){
+            if(!s.track)return;
+            var p=s.getParameters();if(!p.encodings||!p.encodings.length)p.encodings=[{}];
+            if(s.track.kind==='video'){p.encodings[0].maxBitrate=12000000;p.encodings[0].maxFramerate=60;p.encodings[0].priority='high';p.encodings[0].networkPriority='high';}
+            if(s.track.kind==='audio'){p.encodings[0].maxBitrate=256000;}
+            s.setParameters(p).catch(function(){});
+          });
+        }
+      };
+    }
+    log('Screen recall done for '+cpid+' (echo-free: '+(audioStream===_baseDest.stream)+')');
+  },500);
 }
 
 // ── Cohost: invite a viewer to share their camera on the stream ──

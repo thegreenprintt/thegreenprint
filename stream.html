@@ -950,8 +950,8 @@ function startCohostGate(micStream){
     var gate=_cohostGateCtx.createGain();
     gate.gain.value=1;
     inSrc.connect(gate);gate.connect(_cohostGateCtx.destination);
-    // Mute the video element — audio now plays via AudioContext
-    vid.muted=true;
+    // Silence video element — volume=0 (not muted) keeps audio track decoded for AudioContext
+    vid.volume=0;
     // Poll mic level; duck incoming audio while cohost is speaking
     var buf=new Uint8Array(analyser.frequencyBinCount);
     var raf;
@@ -966,7 +966,7 @@ function startCohostGate(micStream){
     tick();
     _cohostGateStop=function(){
       cancelAnimationFrame(raf);
-      vid.muted=false;
+      vid.volume=1;
       try{_cohostGateCtx.close();}catch(e){}
       _cohostGateCtx=null;_cohostGateStop=null;
     };
