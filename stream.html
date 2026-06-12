@@ -408,13 +408,15 @@ nav{
 }
 .rfloat{
   position:absolute;pointer-events:none;
-  font-size:1.8rem;line-height:1;
-  animation:rfloatUp 3.2s ease-out forwards
+  font-size:1.6rem;line-height:1;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));
+  animation:rfloatUp 3s cubic-bezier(.22,.61,.36,1) forwards
 }
 @keyframes rfloatUp{
-  0%{opacity:1;transform:translateY(0) scale(1) rotate(-5deg)}
-  30%{opacity:.95;transform:translateY(-140px) scale(1.22) rotate(8deg)}
-  100%{opacity:0;transform:translateY(-340px) scale(.6) rotate(-2deg)}
+  0%  {opacity:0;transform:translateY(0)    scale(.7)}
+  8%  {opacity:1;transform:translateY(-18px) scale(1.08)}
+  60% {opacity:.9;transform:translateY(-200px) scale(.95)}
+  100%{opacity:0;transform:translateY(-340px) scale(.8)}
 }
 
 /* ─── Floating pill control bar (inside stage) ─── */
@@ -482,17 +484,24 @@ nav{
 
 /* Reaction buttons */
 .rbtn{
-  width:36px;height:36px;
+  width:34px;height:34px;
   display:flex;align-items:center;justify-content:center;
-  font-size:.98rem;cursor:pointer;
-  background:rgba(255,255,255,.045);
-  border:1px solid rgba(255,255,255,.07);
+  font-size:.92rem;cursor:pointer;
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.1);
   border-radius:100px;flex-shrink:0;
-  transition:all .12s;touch-action:manipulation;
-  user-select:none;-webkit-user-select:none
+  transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
+  touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)
 }
-.rbtn:hover{background:rgba(0,255,135,.1);border-color:rgba(0,255,135,.22);transform:scale(1.15)}
-.rbtn:active{transform:scale(.84)}
+.rbtn:hover{
+  background:rgba(0,255,135,.12);
+  border-color:rgba(0,255,135,.3);
+  transform:scale(1.12);
+  box-shadow:0 0 12px rgba(0,255,135,.15),inset 0 1px 0 rgba(255,255,255,.1)
+}
+.rbtn:active{transform:scale(.88);transition-duration:.06s}
 
 /* Control buttons */
 #mute-btn,#fs-btn{

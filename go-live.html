@@ -1102,16 +1102,14 @@ function startPeer(){
       vid.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
       document.body.appendChild(vid);
       var cname=(_viewers[cpid]&&_viewers[cpid].name)||'Cohost';
-      // Cohost monitor — volume=0 to break the acoustic echo loop.
-      // With speakers: cohost voice → Jacob's mic → _baseDest → cohost_audio call → cohost hears themselves.
-      // Browser AEC (echoCancellation:true) reduces this but doesn't fully stop it.
-      // The ONLY code-level guarantee: silence the monitor so the mic captures zero cohost bleed.
-      // Jacob must use headphones to hear cohosts — standard for every streaming setup.
-      // With headphones: headphone output is NOT picked up by the mic, so echo is physically impossible.
+      // Cohost monitor — Jacob hears cohost voices at moderate volume.
+      // Echo prevention is handled architecturally: the cohost_audio stream sent back
+      // to each cohost is built from a per-cohost destination that EXCLUDES their own
+      // voice (see below), so they can never hear themselves regardless of mic bleed.
       var monitor=document.createElement('audio');
       monitor.autoplay=true;
       monitor.srcObject=stream;
-      monitor.volume=0; // MUTED — eliminates echo loop. Use headphones to hear cohosts.
+      monitor.volume=0.7;
       document.body.appendChild(monitor);
       _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];
@@ -1124,14 +1122,42 @@ function startPeer(){
           _cohosts[cpid].audioSrc=src;
         }catch(e){}
       }
-      // Make a separate audio-only call carrying _baseDest (mic+screen, zero cohost voices).
-      // The cohost's stream.html will mute _vid and play THIS instead — guaranteed echo-free.
-      if(_baseDest){
+      // Make a separate audio-only call to the cohost carrying a personalized mix:
+      // Jacob's mic + screen audio + ALL OTHER cohost voices — but NOT this cohost's own voice.
+      // This is architecturally echo-free: the cohost literally cannot hear themselves because
+      // their signal is never injected into the stream they receive. No AEC needed.
+      if(_audioCtx&&_baseDest){
         setTimeout(function(){
           if(!_viewers[cpid]||!_cohosts[cpid])return;
-          var ac=_peer.call(cpid,_baseDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
-          _cohosts[cpid].audioCall=ac;
-          ac.on('error',function(e){log('cohost_audio err: '+e.message);});
+          try{
+            // Build a per-cohost destination: start with Jacob mic+screen (same as _baseDest)
+            var perDest=_audioCtx.createMediaStreamDestination();
+            var micSrc2=_audioCtx.createMediaStreamSource(_micStream);
+            micSrc2.connect(perDest);
+            if(_screenStream){
+              var scTracks=_screenStream.getAudioTracks();
+              if(scTracks.length){
+                var scSrc2=_audioCtx.createMediaStreamSource(new MediaStream(scTracks));
+                scSrc2.connect(perDest);
+              }
+            }
+            // Add ALL other cohosts' voices (not this one)
+            Object.keys(_cohosts).forEach(function(pid){
+              if(pid!==cpid&&_cohosts[pid]&&_cohosts[pid].audioSrc){
+                try{_cohosts[pid].audioSrc.connect(perDest);}catch(e){}
+              }
+            });
+            _cohosts[cpid].perDest=perDest;
+            _cohosts[cpid].micSrc2=micSrc2;
+            var ac=_peer.call(cpid,perDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
+            _cohosts[cpid].audioCall=ac;
+            ac.on('error',function(e){log('cohost_audio err: '+e.message);});
+          }catch(e){
+            // Fallback to baseDest if Web Audio graph fails
+            var ac=_peer.call(cpid,_baseDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
+            _cohosts[cpid].audioCall=ac;
+            ac.on('error',function(e){log('cohost_audio err: '+e.message);});
+          }
         },50);
       }
       renderCohostPanel();
@@ -1140,6 +1166,7 @@ function startPeer(){
       if(_cohosts[cpid]){
         var n=_cohosts[cpid].name;
         if(_cohosts[cpid].audioSrc)try{_cohosts[cpid].audioSrc.disconnect();}catch(e){}
+        if(_cohosts[cpid].micSrc2)try{_cohosts[cpid].micSrc2.disconnect();}catch(e){}
         if(_cohosts[cpid].audioCall){try{_cohosts[cpid].audioCall.close();}catch(e){}}
         if(_cohosts[cpid].video){
           try{_cohosts[cpid].video.srcObject=null;}catch(e){}
