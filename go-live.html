@@ -159,6 +159,23 @@ body{padding-top:56px}
 #rc-close{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202}
 #rc-close:hover{opacity:.88}
 @keyframes hreact{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:.9;transform:translateY(-120px) scale(1.3)}100%{opacity:0;transform:translateY(-220px) scale(.8)}}
+/* ── Notify Preview Modal ── */
+#notify-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center;padding:20px}
+#notify-overlay.show{display:flex}
+#notify-box{background:#0c0c0c;border:1px solid rgba(255,255,255,.08);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:28px;position:relative}
+.nv-eyebrow{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:12px}
+.nv-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:4px}
+.nv-sub{font-size:.68rem;color:rgba(240,250,243,.3);margin-bottom:20px}
+.nv-meta{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.nv-chip{background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.15);padding:5px 12px;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,255,135,.65)}
+.nv-preview-label{font-size:.5rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2);margin-bottom:8px}
+#nv-iframe{width:100%;height:280px;border:1px solid rgba(255,255,255,.07);background:#fff;border-radius:4px}
+.nv-btns{display:flex;gap:8px;margin-top:20px}
+#nv-cancel{flex:1;height:40px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.45);cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
+#nv-cancel:hover{border-color:rgba(255,59,92,.3);color:rgba(255,59,92,.6)}
+#nv-send{flex:2;height:40px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}
+#nv-send:hover{opacity:.88}
+#nv-send:disabled{opacity:.4;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -273,6 +290,25 @@ body{padding-top:56px}
     <div class="rc-btns">
       <button class="rc-btn" id="rc-copy" onclick="copyReport()">📋 Copy Report</button>
       <button class="rc-btn" id="rc-close" onclick="closeReport()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notify Preview Modal -->
+<div id="notify-overlay">
+  <div id="notify-box">
+    <div class="nv-eyebrow">Email Preview</div>
+    <div class="nv-title">🔔 Notify Community</div>
+    <div class="nv-sub">Review before sending — this will go out to everyone on your list.</div>
+    <div class="nv-meta">
+      <div class="nv-chip">📧 <span id="nv-count">—</span> recipients</div>
+      <div class="nv-chip">Subject: 🔴 Jacob is LIVE on The Greenprint right now!</div>
+    </div>
+    <div class="nv-preview-label">Email Preview</div>
+    <iframe id="nv-iframe" frameborder="0" scrolling="auto"></iframe>
+    <div class="nv-btns">
+      <button id="nv-cancel" onclick="closeNotifyPreview()">✕ Cancel</button>
+      <button id="nv-send" onclick="confirmSendNotify()">📤 Send to All →</button>
     </div>
   </div>
 </div>
@@ -634,21 +670,43 @@ function disableCanvas(){
   log('Canvas disabled — direct screen passthrough restored (max quality)');
 }
 
-// ── Go Live ──
+// ── Notify Leads ──
 function notifyLeads(){
-  var btn=document.getElementById('bNotify');
-  if(btn){btn.disabled=true;btn.textContent='📧 Sending…';}
+  // First fetch lead count, then show preview modal
+  var streamUrl=window.location.origin+'/stream.html';
+  fetch('/api/notify-live',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({url:streamUrl,preview:true})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.error){sys('❌ '+d.error);return;}
+    // Populate preview modal
+    document.getElementById('nv-count').textContent=d.total;
+    var iframe=document.getElementById('nv-iframe');
+    iframe.srcdoc=d.html;
+    document.getElementById('notify-overlay').classList.add('show');
+  }).catch(function(){sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');});
+}
+function closeNotifyPreview(){
+  document.getElementById('notify-overlay').classList.remove('show');
+}
+function confirmSendNotify(){
+  var btn=document.getElementById('nv-send');
+  btn.disabled=true;btn.textContent='📧 Sending…';
   var streamUrl=window.location.origin+'/stream.html';
   fetch('/api/notify-live',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({url:streamUrl})
   }).then(function(r){return r.json();}).then(function(d){
+    closeNotifyPreview();
     if(d.error){sys('❌ Notify failed: '+d.error);}
     else{sys('✅ Notified '+d.sent+'/'+d.total+' community leads!');}
-  }).catch(function(e){sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');
+  }).catch(function(){
+    closeNotifyPreview();
+    sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');
   }).finally(function(){
-    if(btn){btn.disabled=false;btn.textContent='🔔 Notify';}
+    btn.disabled=false;btn.textContent='📤 Send to All →';
   });
 }
 
