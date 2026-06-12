@@ -566,6 +566,8 @@ var _pipPollTimer=null;
 var _camShouldShow=false;
 var _cohostCall=null, _cohostStream=null, _cohostGateCtx=null, _cohostGateStop=null;
 var _cohostAudioEl=null; // <audio> element playing echo-free cohost_audio call
+var _cohostVidFull=null; // saved full stream (with audio) while cohost mode strips it
+var _acceptingCohost=false; // true from acceptCohost() until call is established
 var _streamTimer=null;
 var _callReceived=false;
 
@@ -786,13 +788,12 @@ function connectToHost(){
     if(type==='screen'){_callReceived=true;clearStreamTimer();}
 
     // ── Echo-free audio call received while cohost ──────────────────────────
-    // go-live.html sends _baseDest (mic+screen only, no cohost voices) as a
-    // dedicated audio call. We mute _vid and play THIS instead so the cohost
-    // never hears their own voice reflected back.
+    // go-live.html sends _baseDest (mic+screen only, NO cohost voices) here.
+    // We strip ALL audio from _vid (nuclear) and play THIS instead, so the
+    // cohost physically cannot hear themselves regardless of browser behavior.
     if(type==='cohost_audio'){
       call.on('stream',function(stream){
-        var v=document.getElementById('vid');
-        if(v)v.volume=0; // silence the echo-y main stream
+        _stripVidAudio(); // nuclear: replace _vid.srcObject with video-only
         if(_cohostAudioEl){try{_cohostAudioEl.srcObject=null;_cohostAudioEl.remove();}catch(e){}}
         _cohostAudioEl=document.createElement('audio');
         _cohostAudioEl.autoplay=true;
@@ -804,8 +805,6 @@ function connectToHost(){
       call.on('close',function(){
         if(_cohostAudioEl){try{_cohostAudioEl.srcObject=null;_cohostAudioEl.remove();}catch(e){}}
         _cohostAudioEl=null;
-        var v=document.getElementById('vid');
-        if(v)v.volume=_muted?0:1; // restore whatever the user had
       });
       return;
     }
@@ -828,8 +827,8 @@ function connectToHost(){
         stat('Stream connected ✅');
         var v=document.getElementById('vid');
         v.srcObject=stream;
-        // If currently cohosting, keep audio disabled on new stream
-        if(_cohostCall){_disableVidAudio();}else{v.muted=true;_muted=true;}
+        // If currently cohosting (or accepting), strip audio from new stream too
+        if(_cohostCall||_acceptingCohost){_cohostVidFull=null;_stripVidAudio();}else{v.muted=true;_muted=true;}
         var btn=document.getElementById('mute-btn');
         if(btn){btn.textContent='🔇 Muted';btn.classList.add('muted');}
         v.play().catch(function(){});
@@ -961,24 +960,41 @@ function sendChat(){
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
 
-function _disableVidAudio(){
-  // Disable audio tracks at source level — zero possible echo path
+function _stripVidAudio(){
+  // Nuclear echo fix: replace _vid.srcObject with a video-only MediaStream.
+  // Zero audio tracks = zero possible playback = echo physically impossible.
+  // Saves the full stream to _cohostVidFull for restoration on endCohost.
   var v=document.getElementById('vid');
   if(!v)return;
   v.volume=0;v.muted=true;
-  if(v.srcObject){v.srcObject.getAudioTracks().forEach(function(t){t.enabled=false;});}
+  if(v.srcObject){
+    var audioTracks=v.srcObject.getAudioTracks();
+    if(audioTracks.length){
+      _cohostVidFull=v.srcObject; // remember full stream
+      v.srcObject=new MediaStream(v.srcObject.getVideoTracks()); // video only
+    }
+    // belt-and-suspenders: disable whatever tracks remain
+    v.srcObject.getAudioTracks().forEach(function(t){t.enabled=false;});
+  }
 }
 function _restoreVidAudio(){
   var v=document.getElementById('vid');
   if(!v)return;
+  // Restore the saved full stream (with audio) if we have it
+  if(_cohostVidFull){
+    v.srcObject=_cohostVidFull;
+    _cohostVidFull=null;
+  }
   v.muted=_muted;
   v.volume=_muted?0:1;
-  if(v.srcObject){v.srcObject.getAudioTracks().forEach(function(t){t.enabled=true;});}
 }
+// backward-compat aliases (referenced in older event handlers)
+var _disableVidAudio=_stripVidAudio;
 
 function acceptCohost(){
   document.getElementById('cohost-modal').classList.remove('show');
-  _disableVidAudio(); // kill _vid audio immediately — no echo possible from this point
+  _acceptingCohost=true;
+  _stripVidAudio(); // immediately strip audio from _vid — echo impossible from this moment
   navigator.mediaDevices.getUserMedia({
     video:{facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},
     audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000}
@@ -986,19 +1002,22 @@ function acceptCohost(){
     _cohostStream=stream;
     var call=_peer.call(HOST_PEER_ID,stream,{config:ICE,metadata:{type:'cohost',n:_name}});
     _cohostCall=call;
+    _acceptingCohost=false;
     document.getElementById('cohost-status').classList.add('show');
     addSys('🎙 You are on stage! Tap "On Stage" to leave.');
     call.on('close',function(){endCohost(true);});
     call.on('error',function(){endCohost(true);});
   }).catch(function(e){
+    _acceptingCohost=false;
     _restoreVidAudio();
     addSys('⚠ Could not access camera/mic: '+e.message);
   });
 }
 function declineCohost(){document.getElementById('cohost-modal').classList.remove('show');}
 function endCohost(silent){
+  _acceptingCohost=false;
   if(_cohostAudioEl){try{_cohostAudioEl.srcObject=null;_cohostAudioEl.remove();}catch(e){}_cohostAudioEl=null;}
-  _restoreVidAudio();
+  _restoreVidAudio(); // restores _cohostVidFull (full stream with audio)
   if(_cohostStream){_cohostStream.getTracks().forEach(function(t){t.stop();});_cohostStream=null;}
   if(_cohostCall){try{_cohostCall.close();}catch(e){}_cohostCall=null;}
   document.getElementById('cohost-status').classList.remove('show');

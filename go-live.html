@@ -693,16 +693,19 @@ function disableCanvas(){
 }
 
 // ── Notify Leads ──
+function _getLeadEmails(){
+  // Gather all emails from the leads tab (community + viewers)
+  return _leads.map(function(l){return(l.email||'').trim().toLowerCase();}).filter(function(e){return e.includes('@');});
+}
 function notifyLeads(){
-  // First fetch lead count, then show preview modal
   var streamUrl=window.location.origin+'/stream.html';
+  var emails=_getLeadEmails();
   fetch('/api/notify-live',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({url:streamUrl,preview:true})
+    body:JSON.stringify({url:streamUrl,preview:true,emails:emails})
   }).then(function(r){return r.json();}).then(function(d){
     if(d.error){sys('❌ '+d.error);return;}
-    // Populate preview modal
     document.getElementById('nv-count').textContent=d.total;
     var iframe=document.getElementById('nv-iframe');
     iframe.srcdoc=d.html;
@@ -716,14 +719,15 @@ function confirmSendNotify(){
   var btn=document.getElementById('nv-send');
   btn.disabled=true;btn.textContent='📧 Sending…';
   var streamUrl=window.location.origin+'/stream.html';
+  var emails=_getLeadEmails();
   fetch('/api/notify-live',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({url:streamUrl})
+    body:JSON.stringify({url:streamUrl,emails:emails})
   }).then(function(r){return r.json();}).then(function(d){
     closeNotifyPreview();
     if(d.error){sys('❌ Notify failed: '+d.error);}
-    else{sys('✅ Notified '+d.sent+'/'+d.total+' community leads!');}
+    else{sys('✅ Notified '+d.sent+'/'+d.total+' leads!');}
   }).catch(function(){
     closeNotifyPreview();
     sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');
@@ -1115,7 +1119,7 @@ function startPeer(){
           var ac=_peer.call(cpid,_baseDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
           _cohosts[cpid].audioCall=ac;
           ac.on('error',function(e){log('cohost_audio err: '+e.message);});
-        },300);
+        },50);
       }
       renderCohostPanel();
     });
