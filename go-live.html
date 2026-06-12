@@ -1109,8 +1109,10 @@ function startPeer(){
       var monitor=document.createElement('audio');
       monitor.autoplay=true;
       monitor.srcObject=stream;
-      // Do NOT mute — Jacob needs to hear cohosts to respond to them.
-      // AEC on the mic (set above in getUserMedia) cancels monitor bleed before it reaches _baseDest.
+      // Keep volume low (~40%) so Jacob can still hear cohosts but mic bleed is minimal.
+      // Full volume = cohost voice picked up by Jacob's mic → leaks into _baseDest → echo.
+      // Lower volume dramatically reduces that bleed even without headphones.
+      monitor.volume=0.4;
       document.body.appendChild(monitor);
       _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];

@@ -386,9 +386,25 @@ nav{
 .co-name.h{color:var(--g);text-shadow:0 0 12px rgba(0,255,135,.32)}
 .co-text{font-size:.73rem;color:rgba(255,255,255,.86);line-height:1.5;word-break:break-word;text-align:right}
 
-/* ─── Reaction float zone (inside chat panel — never on video) ─── */
+/* ─── Reaction float zone — fixed over chat column, never touches video ─── */
 #react-zone{
-  position:absolute;inset:0;pointer-events:none;z-index:60;overflow:hidden
+  position:fixed;
+  right:0;top:52px;bottom:0;
+  width:300px;          /* matches .ccol width on desktop */
+  pointer-events:none;
+  z-index:300;
+  clip-path:inset(0);   /* clips transform-animated children reliably */
+  overflow:hidden
+}
+@media(max-width:760px){
+  /* On mobile, chat panel is below the 16/9 video.
+     Keep reactions in the bottom 38% of the screen (the chat area). */
+  #react-zone{
+    width:100%;
+    top:auto;
+    height:38vh;
+    bottom:0
+  }
 }
 .rfloat{
   position:absolute;pointer-events:none;
@@ -773,7 +789,6 @@ nav{
       </div>
     </div>
     <div class="ccol">
-      <div id="react-zone"></div>
       <div class="chd">
         <span class="chl">Live Chat</span>
         <span id="mob-title" class="mob-title">The Greenprint — Live Session</span>
@@ -800,6 +815,8 @@ nav{
   </div>
 </div>
 <div id="cohost-status" onclick="endCohost()">📡 On Stage — Tap to Leave</div>
+<!-- Reaction float zone — fixed over chat column, zero overlap with video -->
+<div id="react-zone"></div>
 
 <script>
 // ── Must exactly match PEER_ID in go-live.html ──
@@ -1269,21 +1286,12 @@ function acceptCohost(){
     _acceptingCohost=false;
     document.getElementById('cohost-status').classList.add('show');
     addSys('🎙 You are on stage! Tap "On Stage" to leave.');
-    // Jacob answers this call with _baseDest (his mic+screen only).
-    // This makes it a real two-way WebRTC call, which activates the browser's
-    // built-in AEC on this device — it subtracts what's playing through your
-    // speakers from your mic signal, making echo physically impossible.
-    call.on('stream',function(returnStream){
-      if(!returnStream||!returnStream.getAudioTracks().length)return;
-      // Use this as the primary audio feed (replaces/supplements cohost_audio)
-      if(_cohostAudioEl){try{_cohostAudioEl.srcObject=null;_cohostAudioEl.remove();}catch(e){}}
-      _cohostAudioEl=document.createElement('audio');
-      _cohostAudioEl.autoplay=true;
-      _cohostAudioEl.setAttribute('playsinline','');
-      _cohostAudioEl.srcObject=returnStream;
-      document.body.appendChild(_cohostAudioEl);
-      _cohostAudioEl.play().catch(function(){});
-    });
+    // Jacob answers this call with _baseDest (mic+screen only) — two-way call
+    // activates browser AEC on this device. We do NOT play the return stream here
+    // because cohost_audio already carries _baseDest and playing both simultaneously
+    // (with different WebRTC latencies) is what causes the slight echo.
+    // cohost_audio is the sole audio source for the cohost.
+    call.on('stream',function(){});
     call.on('close',function(){endCohost(true);});
     call.on('error',function(){endCohost(true);});
   }).catch(function(e){
