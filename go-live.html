@@ -990,18 +990,27 @@ function startPeer(){
       vid.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
       document.body.appendChild(vid);
       var cname=(_viewers[cpid]&&_viewers[cpid].name)||'Cohost';
-      _cohosts[cpid]={call:inCall,video:vid,name:cname};
+      // Separate audio monitor so Jacob hears the cohost without routing through his mic
+      var monitor=document.createElement('audio');
+      monitor.autoplay=true;monitor.srcObject=stream;
+      document.body.appendChild(monitor);
+      _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];
       sys('⬆ '+cname+' is now on stage!');
-      // Replace this cohost's audio track with the base stream (no cohost audio) so they don't hear themselves
-      if(_baseDest&&_viewers[cpid]&&_viewers[cpid].screenCall&&_viewers[cpid].screenCall.peerConnection){
-        var baseTrack=_baseDest.stream.getAudioTracks()[0];
-        if(baseTrack){
-          _viewers[cpid].screenCall.peerConnection.getSenders().forEach(function(s){
-            if(s.track&&s.track.kind==='audio')s.replaceTrack(baseTrack).catch(function(){});
+      // Give the connection 400ms to settle, then replace the cohost's audio track with
+      // the base stream (mic+screen only, no cohost audio) so they don't hear themselves
+      ;(function(id){
+        setTimeout(function(){
+          if(!_baseDest||!_viewers[id]||!_viewers[id].screenCall)return;
+          var pc=_viewers[id].screenCall.peerConnection;
+          if(!pc)return;
+          var baseTrack=_baseDest.stream.getAudioTracks()[0];
+          if(!baseTrack)return;
+          pc.getSenders().forEach(function(s){
+            if(s.track&&s.track.kind==='audio')s.replaceTrack(baseTrack).catch(function(e){log('replaceTrack err: '+e);});
           });
-        }
-      }
+        },400);
+      })(cpid);
       // Mix their audio into the outgoing stream so viewers hear them
       if(_audioCtx&&_audioDest){
         try{
@@ -1020,6 +1029,7 @@ function startPeer(){
           try{_cohosts[cpid].video.srcObject=null;}catch(e){}
           if(_cohosts[cpid].video.parentNode)_cohosts[cpid].video.parentNode.removeChild(_cohosts[cpid].video);
         }
+        if(_cohosts[cpid].monitor){try{_cohosts[cpid].monitor.srcObject=null;_cohosts[cpid].monitor.remove();}catch(e){}}
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
         // Restore full mixed audio for this viewer now they're no longer a cohost
@@ -1110,7 +1120,7 @@ function renderCohostPanel(){
     if(!c||!c.video||!c.video.srcObject)return;
     var tile=document.createElement('div');tile.className='ch-tile';
     var vid=document.createElement('video');
-    vid.autoplay=true;vid.muted=false;vid.playsInline=true;
+    vid.autoplay=true;vid.muted=true;vid.playsInline=true;// muted — audio handled by monitor element, not via speakers into mic
     vid.srcObject=c.video.srcObject;
     var label=document.createElement('div');label.className='ch-tile-name';
     label.textContent=(c.name||'Cohost');
