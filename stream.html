@@ -565,7 +565,6 @@ var _muted=true;
 var _pipPollTimer=null;
 var _camShouldShow=false;
 var _cohostCall=null, _cohostStream=null, _cohostGateCtx=null, _cohostGateStop=null;
-var _audioSwitch=false; // true when go-live.html is swapping our audio track — suppress stream-ended logic
 var _streamTimer=null;
 var _callReceived=false;
 
@@ -817,7 +816,6 @@ function connectToHost(){
         if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
       });
       call.on('close',function(){
-        if(_audioSwitch){_audioSwitch=false;return;} // just a track swap — stay connected
         _callReceived=false;
         stat('Stream ended — will reconnect when Jacob goes live again…');
         setLive(false);_sysShown.live=false;
@@ -865,11 +863,6 @@ function connectToHost(){
           var v2=document.getElementById('vid');
           var hasVideo=v2&&v2.srcObject&&v2.videoWidth>0;
           if(!hasVideo)expectStream();
-        }
-        if(m.t==='audio_switch'){
-          // Host is swapping our audio track — suppress the stream-ended handler on the incoming close event
-          _audioSwitch=true;
-          setTimeout(function(){_audioSwitch=false;},6000); // auto-clear safety net
         }
         if(m.t==='cam'){
           _camShouldShow=m.on;
@@ -938,15 +931,19 @@ function sendChat(){
 
 // ── Cohost echo gate ──
 // Routes incoming stream audio through a gain node that ducks to near-0 whenever
-// the cohost's own mic is active. Prevents them hearing themselves regardless of
-// whether the server-side replaceTrack succeeded.
-function startCohostGate(micStream){
+// the cohost's own mic is active. Prevents them hearing themselves.
+// ctx must be created synchronously in the click handler (before getUserMedia) so
+// Chrome does NOT suspend it — AudioContexts created inside Promise callbacks often
+// start in 'suspended' state and produce silence.
+function startCohostGate(micStream, ctx){
   var vid=document.getElementById('vid');
   if(!vid||!vid.srcObject)return;
   var audioTracks=vid.srcObject.getAudioTracks();
   if(!audioTracks.length)return;
   try{
-    _cohostGateCtx=new (window.AudioContext||window.webkitAudioContext)();
+    _cohostGateCtx=ctx;
+    // Resume in case it got suspended anyway (e.g. autoplay policy)
+    if(_cohostGateCtx.state==='suspended')_cohostGateCtx.resume();
     // Mic analyser — detects when cohost is speaking
     var micSrc=_cohostGateCtx.createMediaStreamSource(micStream);
     var analyser=_cohostGateCtx.createAnalyser();
@@ -957,7 +954,7 @@ function startCohostGate(micStream){
     var gate=_cohostGateCtx.createGain();
     gate.gain.value=1;
     inSrc.connect(gate);gate.connect(_cohostGateCtx.destination);
-    // Silence video element — volume=0 (not muted) keeps audio track decoded for AudioContext
+    // Silence video element — volume=0 (not muted=true) keeps audio track decoded for AudioContext
     vid.volume=0;
     // Poll mic level; duck incoming audio while cohost is speaking
     var buf=new Uint8Array(analyser.frequencyBinCount);
@@ -982,19 +979,26 @@ function startCohostGate(micStream){
 
 function acceptCohost(){
   document.getElementById('cohost-modal').classList.remove('show');
+  // Create AudioContext HERE, synchronously, while we are still inside the click handler.
+  // This guarantees Chrome does not suspend it. If created inside the getUserMedia .then()
+  // callback it often starts suspended and the gate produces no sound.
+  var gateCtx=new (window.AudioContext||window.webkitAudioContext)();
   navigator.mediaDevices.getUserMedia({
     video:{facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},
     audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000}
   }).then(function(stream){
     _cohostStream=stream;
-    startCohostGate(stream); // suppress echo before the call goes out
+    startCohostGate(stream, gateCtx); // pass pre-created (not-suspended) AudioContext
     var call=_peer.call(HOST_PEER_ID,stream,{config:ICE,metadata:{type:'cohost',n:_name}});
     _cohostCall=call;
     document.getElementById('cohost-status').classList.add('show');
     addSys('🎙 You are on stage! Tap "On Stage" to leave.');
     call.on('close',function(){endCohost(true);});
     call.on('error',function(){endCohost(true);});
-  }).catch(function(e){addSys('⚠ Could not access camera/mic: '+e.message);});
+  }).catch(function(e){
+    try{gateCtx.close();}catch(x){}
+    addSys('⚠ Could not access camera/mic: '+e.message);
+  });
 }
 function declineCohost(){document.getElementById('cohost-modal').classList.remove('show');}
 function endCohost(silent){
