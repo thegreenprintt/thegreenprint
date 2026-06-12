@@ -1088,7 +1088,7 @@ function renderCohostPanel(){
     if(!c||!c.video||!c.video.srcObject)return;
     var tile=document.createElement('div');tile.className='ch-tile';
     var vid=document.createElement('video');
-    vid.autoplay=true;vid.muted=true;vid.playsInline=true;
+    vid.autoplay=true;vid.muted=false;vid.playsInline=true;
     vid.srcObject=c.video.srcObject;
     var label=document.createElement('div');label.className='ch-tile-name';
     label.textContent=(c.name||'Cohost');
