@@ -350,7 +350,7 @@ var ICE = {
   ]
 };
 
-var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null;
+var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null, _baseDest=null;
 var _live=false, _micOn=true, _camOn=false, _pipMini=false;
 var _drawInterval=null, _outStream=null, _hbInterval=null;
 var _dummyCamTrack=null; // invisible 2×2 black placeholder sent when cam is off
@@ -673,15 +673,19 @@ function goLive(){
     try{
       _audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       var dest=_audioCtx.createMediaStreamDestination();
-      _audioCtx.createMediaStreamSource(_micStream).connect(dest);
+      var baseDest=_audioCtx.createMediaStreamDestination(); // base: mic+screen only (no cohosts) — sent to cohosts to avoid echo
+      var micSrc=_audioCtx.createMediaStreamSource(_micStream);
+      micSrc.connect(dest);micSrc.connect(baseDest);
       if(r.hasScreenAudio){
-        _audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks())).connect(dest);
+        var scrSrc=_audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks()));
+        scrSrc.connect(dest);scrSrc.connect(baseDest);
         log('Mic + screen audio mixed ✓');
       } else {
         log('Mic only — check "Share audio" in screen picker for system sound');
       }
       _mixedStream=dest.stream;
       _audioDest=dest; // stored so cohost audio can be mixed in later
+      _baseDest=baseDest; // no-cohost version — given to cohosts so they don't hear themselves
     }catch(e){log('AudioContext unavailable — mic only');_mixedStream=_micStream;}
 
     _live=true;
@@ -989,6 +993,15 @@ function startPeer(){
       _cohosts[cpid]={call:inCall,video:vid,name:cname};
       delete _cohostInvited[cpid];
       sys('⬆ '+cname+' is now on stage!');
+      // Replace this cohost's audio track with the base stream (no cohost audio) so they don't hear themselves
+      if(_baseDest&&_viewers[cpid]&&_viewers[cpid].screenCall&&_viewers[cpid].screenCall.peerConnection){
+        var baseTrack=_baseDest.stream.getAudioTracks()[0];
+        if(baseTrack){
+          _viewers[cpid].screenCall.peerConnection.getSenders().forEach(function(s){
+            if(s.track&&s.track.kind==='audio')s.replaceTrack(baseTrack).catch(function(){});
+          });
+        }
+      }
       // Mix their audio into the outgoing stream so viewers hear them
       if(_audioCtx&&_audioDest){
         try{
@@ -1009,6 +1022,15 @@ function startPeer(){
         }
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
+        // Restore full mixed audio for this viewer now they're no longer a cohost
+        if(_mixedStream&&_viewers[cpid]&&_viewers[cpid].screenCall&&_viewers[cpid].screenCall.peerConnection){
+          var mixedTrack=_mixedStream.getAudioTracks()[0];
+          if(mixedTrack){
+            _viewers[cpid].screenCall.peerConnection.getSenders().forEach(function(s){
+              if(s.track&&s.track.kind==='audio')s.replaceTrack(mixedTrack).catch(function(){});
+            });
+          }
+        }
         renderCohostPanel();
         // Last cohost gone → disable canvas, restore direct passthrough for max quality
         if(Object.keys(_cohosts).length===0&&_live)disableCanvas();
