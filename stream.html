@@ -1009,9 +1009,13 @@ function startCohostGate(micStream, ctx){
 
 function acceptCohost(){
   document.getElementById('cohost-modal').classList.remove('show');
+  // Mute main stream immediately — cohost must never hear themselves
+  // cohost_audio call from host will provide echo-free audio once connected
+  var v=document.getElementById('vid');
+  if(v){v.volume=0;v.muted=true;}
   navigator.mediaDevices.getUserMedia({
     video:{facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},
-    audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000}
+    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,noiseSuppression:true,sampleRate:48000}
   }).then(function(stream){
     _cohostStream=stream;
     var call=_peer.call(HOST_PEER_ID,stream,{config:ICE,metadata:{type:'cohost',n:_name}});
@@ -1020,7 +1024,11 @@ function acceptCohost(){
     addSys('🎙 You are on stage! Tap "On Stage" to leave.');
     call.on('close',function(){endCohost(true);});
     call.on('error',function(){endCohost(true);});
-  }).catch(function(e){addSys('⚠ Could not access camera/mic: '+e.message);});
+  }).catch(function(e){
+    // If getUserMedia fails, restore volume
+    if(v){v.muted=false;v.volume=_muted?0:1;}
+    addSys('⚠ Could not access camera/mic: '+e.message);
+  });
 }
 function declineCohost(){document.getElementById('cohost-modal').classList.remove('show');}
 function endCohost(silent){
