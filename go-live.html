@@ -938,6 +938,10 @@ function startPeer(){
         return;
       }
 
+      if(m.t==='need_stream'&&_live){
+        // Viewer has a DC but no video — re-send the stream without full reconnect
+        if(_viewers[pid]&&!_viewers[pid].screenCall)callViewer(pid);
+      }
       if(m.t==='join'){
         // Sanitize name — strip HTML, limit length
         var safeName=String(m.n||'Viewer').replace(/<[^>]*>/g,'').slice(0,40).trim()||'Viewer';

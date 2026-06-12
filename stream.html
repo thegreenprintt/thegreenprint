@@ -862,7 +862,11 @@ function connectToHost(){
         if(m.t==='hb'){
           var v2=document.getElementById('vid');
           var hasVideo=v2&&v2.srcObject&&v2.videoWidth>0;
-          if(!hasVideo)expectStream();
+          if(!hasVideo){
+            // Ask go-live.html to re-send the stream immediately (no full reconnect needed)
+            try{if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'need_stream'}));}catch(e){}
+            expectStream(); // fallback: full reconnect if still no video after 20s
+          }
         }
         if(m.t==='cam'){
           _camShouldShow=m.on;
@@ -949,8 +953,10 @@ function startCohostGate(micStream, ctx){
     var analyser=_cohostGateCtx.createAnalyser();
     analyser.fftSize=512;analyser.smoothingTimeConstant=0.25;
     micSrc.connect(analyser);
-    // Incoming stream through a gain gate
-    var inSrc=_cohostGateCtx.createMediaStreamSource(new MediaStream(audioTracks));
+    // Connect to vid.srcObject directly (not a snapshot). When go-live.html calls
+    // replaceTrack to swap the audio to the cohost-free _baseDest, this AudioContext
+    // node automatically starts receiving the new track — no re-init needed.
+    var inSrc=_cohostGateCtx.createMediaStreamSource(vid.srcObject);
     var gate=_cohostGateCtx.createGain();
     gate.gain.value=1;
     inSrc.connect(gate);gate.connect(_cohostGateCtx.destination);
