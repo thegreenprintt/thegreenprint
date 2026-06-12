@@ -386,16 +386,19 @@ nav{
 .co-name.h{color:var(--g);text-shadow:0 0 12px rgba(0,255,135,.32)}
 .co-text{font-size:.73rem;color:rgba(255,255,255,.86);line-height:1.5;word-break:break-word;text-align:right}
 
-/* ─── Floating reactions ─── */
+/* ─── Reaction float zone (inside chat panel — never on video) ─── */
+#react-zone{
+  position:absolute;inset:0;pointer-events:none;z-index:60;overflow:hidden
+}
 .rfloat{
-  position:absolute;pointer-events:none;z-index:40;
+  position:absolute;pointer-events:none;
   font-size:1.8rem;line-height:1;
   animation:rfloatUp 3.2s ease-out forwards
 }
 @keyframes rfloatUp{
   0%{opacity:1;transform:translateY(0) scale(1) rotate(-5deg)}
-  30%{opacity:.95;transform:translateY(-155px) scale(1.28) rotate(8deg)}
-  100%{opacity:0;transform:translateY(-390px) scale(.58) rotate(-2deg)}
+  30%{opacity:.95;transform:translateY(-140px) scale(1.22) rotate(8deg)}
+  100%{opacity:0;transform:translateY(-340px) scale(.6) rotate(-2deg)}
 }
 
 /* ─── Floating pill control bar (inside stage) ─── */
@@ -513,7 +516,7 @@ nav{
 
 /* ─── Chat panel ─── */
 .ccol{
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:column;position:relative;
   background:rgba(5,7,14,.98);
   border-left:1px solid rgba(255,255,255,.05)
 }
@@ -770,6 +773,7 @@ nav{
       </div>
     </div>
     <div class="ccol">
+      <div id="react-zone"></div>
       <div class="chd">
         <span class="chl">Live Chat</span>
         <span id="mob-title" class="mob-title">The Greenprint — Live Session</span>
@@ -909,15 +913,15 @@ function sendReact(emoji){
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'react',e:emoji}));
 }
 function spawnReaction(emoji){
-  var stage=document.getElementById('stage');
-  if(!stage)return;
+  var zone=document.getElementById('react-zone');
+  if(!zone)return;
   var el=document.createElement('div');
   el.className='rfloat';
   el.textContent=emoji;
-  el.style.left=(5+Math.random()*78)+'%';
-  el.style.bottom='52px';
-  stage.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},3100);
+  el.style.left=(8+Math.random()*72)+'%';
+  el.style.bottom='50px';
+  zone.appendChild(el);
+  setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},3300);
 }
 
 // ── Mobile reconnect ──

@@ -107,8 +107,8 @@ body{padding-top:56px}
 .ml{flex:1;min-width:0}
 .mn{font-size:.72rem;font-weight:600;color:rgba(0,255,135,.48)}
 .mn.h{color:#00ff87}
-.mt{font-size:.9rem;font-weight:300;color:rgba(240,250,243,.7);line-height:1.5;word-break:break-word}
-.mt.s{color:rgba(255,255,255,.22);font-style:italic;font-size:.8rem}
+.mt{font-size:.98rem;font-weight:500;color:rgba(240,250,243,.92);line-height:1.5;word-break:break-word}
+.mt.s{font-size:.68rem;font-weight:300;color:rgba(240,250,243,.18);font-style:italic}
 .kbtn{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.28);cursor:pointer;font-size:.85rem;padding:1px 3px;line-height:1;margin-top:1px}
 .kbtn:hover{color:rgba(255,59,92,.75)}
 .cobtn{color:rgba(0,255,135,.28)!important}
@@ -1147,7 +1147,11 @@ function startPeer(){
         if(_cohosts[cpid].monitor){try{_cohosts[cpid].monitor.srcObject=null;_cohosts[cpid].monitor.remove();}catch(e){}}
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
-        // Restore full mixed audio — they can now hear all cohosts again
+        // Close silence AudioContext and restore full mixed audio
+        if(_viewers[cpid]&&_viewers[cpid]._silCtx){
+          try{_viewers[cpid]._silCtx.close();}catch(e){}
+          _viewers[cpid]._silCtx=null;
+        }
         swapCohostAudio(cpid,false);
         renderCohostPanel();
         // Last cohost gone → disable canvas, restore direct passthrough for max quality
@@ -1219,10 +1223,43 @@ function swapCohostAudio(cpid, useBase){
 // ── Cohost: invite a viewer to share their camera on the stream ──
 function inviteCohost(pid){
   if(!_viewers[pid]||!_viewers[pid].dc||!_viewers[pid].dc.open)return;
-  if(_cohosts[pid]||_cohostInvited[pid])return; // already cohost or pending invite
+  if(_cohosts[pid]||_cohostInvited[pid])return;
   _cohostInvited[pid]=true;
   try{_viewers[pid].dc.send(JSON.stringify({t:'cohost_invite'}));}catch(e){}
   sys('📨 Cohost invite sent to '+(_viewers[pid].name||'Viewer')+'…');
+  // ── ECHO FIX (Layer 1) ──────────────────────────────────────────────────
+  // Replace the audio track in their screen call with a permanent silence track
+  // RIGHT NOW — before they even accept. Their _vid will have zero audio, so
+  // there is nothing to echo back regardless of what stream.html does.
+  _muteScreenAudioForCohost(pid);
+}
+
+function _muteScreenAudioForCohost(pid){
+  if(!_viewers[pid])return;
+  var sc=_viewers[pid].screenCall;
+  if(!sc||!sc.peerConnection){
+    // ICE not ready yet — retry once
+    setTimeout(function(){_muteScreenAudioForCohost(pid);},600);
+    return;
+  }
+  var senders=sc.peerConnection.getSenders();
+  var aSndr=null;
+  for(var i=0;i<senders.length;i++){
+    if(senders[i].track&&senders[i].track.kind==='audio'){aSndr=senders[i];break;}
+  }
+  if(!aSndr){log('muteScreenAudio: no audio sender for '+pid);return;}
+  try{
+    var silCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var silDest=silCtx.createMediaStreamDestination();
+    var silTrack=silDest.stream.getAudioTracks()[0];
+    aSndr.replaceTrack(silTrack).then(function(){
+      log('🔇 Silenced screen audio for '+pid+' (cohost invite)');
+      if(_viewers[pid])_viewers[pid]._silCtx=silCtx;
+    }).catch(function(e){
+      log('muteScreenAudio replaceTrack failed for '+pid+': '+e.message);
+      try{silCtx.close();}catch(ex){}
+    });
+  }catch(e){log('muteScreenAudio err: '+e.message);}
 }
 
 // ── Remove a cohost from stage ──
