@@ -564,7 +564,7 @@ var _sysShown={};
 var _muted=true;
 var _pipPollTimer=null;
 var _camShouldShow=false;
-var _cohostCall=null, _cohostStream=null;
+var _cohostCall=null, _cohostStream=null, _cohostGateCtx=null, _cohostGateStop=null;
 var _streamTimer=null;
 var _callReceived=false;
 
@@ -929,6 +929,50 @@ function sendChat(){
   if(_dc&&_dc.open)_dc.send(JSON.stringify({t:'chat',n:_name,x:txt}));
 }
 
+// ── Cohost echo gate ──
+// Routes incoming stream audio through a gain node that ducks to near-0 whenever
+// the cohost's own mic is active. Prevents them hearing themselves regardless of
+// whether the server-side replaceTrack succeeded.
+function startCohostGate(micStream){
+  var vid=document.getElementById('vid');
+  if(!vid||!vid.srcObject)return;
+  var audioTracks=vid.srcObject.getAudioTracks();
+  if(!audioTracks.length)return;
+  try{
+    _cohostGateCtx=new (window.AudioContext||window.webkitAudioContext)();
+    // Mic analyser — detects when cohost is speaking
+    var micSrc=_cohostGateCtx.createMediaStreamSource(micStream);
+    var analyser=_cohostGateCtx.createAnalyser();
+    analyser.fftSize=512;analyser.smoothingTimeConstant=0.25;
+    micSrc.connect(analyser);
+    // Incoming stream through a gain gate
+    var inSrc=_cohostGateCtx.createMediaStreamSource(new MediaStream(audioTracks));
+    var gate=_cohostGateCtx.createGain();
+    gate.gain.value=1;
+    inSrc.connect(gate);gate.connect(_cohostGateCtx.destination);
+    // Mute the video element — audio now plays via AudioContext
+    vid.muted=true;
+    // Poll mic level; duck incoming audio while cohost is speaking
+    var buf=new Uint8Array(analyser.frequencyBinCount);
+    var raf;
+    function tick(){
+      raf=requestAnimationFrame(tick);
+      analyser.getByteFrequencyData(buf);
+      var sum=0;for(var i=0;i<buf.length;i++)sum+=buf[i];
+      var avg=sum/buf.length;
+      var target=avg>18?0.02:1; // duck to 2% when mic active
+      gate.gain.setTargetAtTime(target,_cohostGateCtx.currentTime,0.04);
+    }
+    tick();
+    _cohostGateStop=function(){
+      cancelAnimationFrame(raf);
+      vid.muted=false;
+      try{_cohostGateCtx.close();}catch(e){}
+      _cohostGateCtx=null;_cohostGateStop=null;
+    };
+  }catch(e){/* gate unavailable — cohost may hear echo */}
+}
+
 function acceptCohost(){
   document.getElementById('cohost-modal').classList.remove('show');
   navigator.mediaDevices.getUserMedia({
@@ -936,6 +980,7 @@ function acceptCohost(){
     audio:{echoCancellation:true,noiseSuppression:true,sampleRate:48000}
   }).then(function(stream){
     _cohostStream=stream;
+    startCohostGate(stream); // suppress echo before the call goes out
     var call=_peer.call(HOST_PEER_ID,stream,{config:ICE,metadata:{type:'cohost',n:_name}});
     _cohostCall=call;
     document.getElementById('cohost-status').classList.add('show');
@@ -946,6 +991,7 @@ function acceptCohost(){
 }
 function declineCohost(){document.getElementById('cohost-modal').classList.remove('show');}
 function endCohost(silent){
+  if(_cohostGateStop)_cohostGateStop();
   if(_cohostStream){_cohostStream.getTracks().forEach(function(t){t.stop();});_cohostStream=null;}
   if(_cohostCall){try{_cohostCall.close();}catch(e){}_cohostCall=null;}
   document.getElementById('cohost-status').classList.remove('show');
