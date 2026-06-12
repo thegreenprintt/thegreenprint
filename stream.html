@@ -246,7 +246,7 @@ nav{
 
 .stage:-webkit-full-screen,.stage:fullscreen{width:100vw;height:100vh;background:#000}
 .stage:-webkit-full-screen #vid,.stage:fullscreen #vid{width:100%;height:100%;object-fit:contain}
-.stage:-webkit-full-screen .bar,.stage:fullscreen .bar{opacity:1!important}
+.stage:-webkit-full-screen~.bar,.stage:fullscreen~.bar{opacity:1!important}
 
 /* ─── Offline screen ─── */
 .offline{
@@ -441,21 +441,31 @@ nav{
   pointer-events:all
 }
 
-/* Show on desktop hover */
+/* Show on desktop hover — .bar is now sibling of .stage inside .vcol */
 @media(min-width:761px){
-  .stage:hover .bar,
+  .vcol:hover .bar,
   .bar:hover,
-  .stage.bar-visible .bar{
+  .vcol.bar-visible .bar{
     opacity:1;
     transform:translateX(-50%) translateY(0)
   }
 }
-/* Always show on mobile */
+/* Mobile: bar sits BELOW the video, never overlays it */
 @media(max-width:760px){
   .bar{
+    position:static;
+    transform:none;
     opacity:1;
-    transform:translateX(-50%) translateY(0);
-    bottom:10px;padding:8px 11px
+    left:auto;bottom:auto;
+    border-radius:0;
+    border:none;
+    border-top:1px solid rgba(255,255,255,.08);
+    box-shadow:none;
+    width:100%;
+    max-width:100%;
+    padding:10px 14px;
+    justify-content:space-between;
+    gap:6px;
   }
 }
 
@@ -765,26 +775,26 @@ nav{
           <div class="off-sub">Jacob will appear here when the session starts. Stay on this page — it connects automatically.</div>
           <div id="connstat">Connecting…</div>
         </div>
-        <!-- Floating pill control bar -->
-        <div class="bar">
-          <div class="bar-left">
-            <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
-            <div class="btitle" id="stream-title">The Greenprint — Live Session</div>
-            <div class="bhost">Jacob Walton</div>
-          </div>
-          <div class="bar-sep"></div>
-          <div class="bar-mid">
-            <button class="rbtn" onclick="sendReact('🔥')" title="Fire">🔥</button>
-            <button class="rbtn" onclick="sendReact('💰')" title="Money">💰</button>
-            <button class="rbtn" onclick="sendReact('📈')" title="Charts">📈</button>
-            <button class="rbtn" onclick="sendReact('💎')" title="Diamond">💎</button>
-            <button class="rbtn" onclick="sendReact('🚀')" title="Rocket">🚀</button>
-          </div>
-          <div class="bar-sep"></div>
-          <div class="bar-right">
-            <button id="mute-btn" onclick="toggleMute()">🔇 Muted</button>
-            <button id="fs-btn" onclick="toggleFullscreen()">⛶ Full</button>
-          </div>
+      </div>
+      <!-- Floating pill control bar — OUTSIDE .stage so it doesn't overlay video on mobile -->
+      <div class="bar">
+        <div class="bar-left">
+          <div class="live-badge" id="live-badge"><div class="live-dot"></div>LIVE</div>
+          <div class="btitle" id="stream-title">The Greenprint — Live Session</div>
+          <div class="bhost">Jacob Walton</div>
+        </div>
+        <div class="bar-sep"></div>
+        <div class="bar-mid">
+          <button class="rbtn" onclick="sendReact('🔥')" title="Fire">🔥</button>
+          <button class="rbtn" onclick="sendReact('💰')" title="Money">💰</button>
+          <button class="rbtn" onclick="sendReact('📈')" title="Charts">📈</button>
+          <button class="rbtn" onclick="sendReact('💎')" title="Diamond">💎</button>
+          <button class="rbtn" onclick="sendReact('🚀')" title="Rocket">🚀</button>
+        </div>
+        <div class="bar-sep"></div>
+        <div class="bar-right">
+          <button id="mute-btn" onclick="toggleMute()">🔇 Muted</button>
+          <button id="fs-btn" onclick="toggleFullscreen()">⛶ Full</button>
         </div>
       </div>
     </div>
@@ -1312,29 +1322,31 @@ function endCohost(silent){
 }
 
 // ── Bar auto-show on desktop mouse move ──────────────────────────────────────
+// .bar is now a sibling of .stage inside .vcol (not inside .stage) so we
+// use .vcol for hover tracking — this keeps the bar out of the video layer.
 (function(){
-  var stage=document.getElementById('stage');
-  if(!stage||_isMobile)return; // mobile: bar always visible via CSS
+  var vcol=document.querySelector('.vcol');
+  if(!vcol||_isMobile)return; // mobile: bar is static/always visible
   var _hideTimer=null;
   function showBar(){
-    stage.classList.add('bar-visible');
+    vcol.classList.add('bar-visible');
     if(_hideTimer)clearTimeout(_hideTimer);
     _hideTimer=setTimeout(function(){
-      stage.classList.remove('bar-visible');
+      vcol.classList.remove('bar-visible');
       _hideTimer=null;
     },3000);
   }
-  stage.addEventListener('mousemove',showBar);
-  // Always show while bar is hovered
-  var bar=stage.querySelector('.bar');
+  vcol.addEventListener('mousemove',showBar);
+  // Keep bar visible while hovering it
+  var bar=vcol.querySelector('.bar');
   if(bar){
     bar.addEventListener('mouseenter',function(){
-      stage.classList.add('bar-visible');
+      vcol.classList.add('bar-visible');
       if(_hideTimer){clearTimeout(_hideTimer);_hideTimer=null;}
     });
     bar.addEventListener('mouseleave',function(){
       if(_hideTimer)clearTimeout(_hideTimer);
-      _hideTimer=setTimeout(function(){stage.classList.remove('bar-visible');_hideTimer=null;},1500);
+      _hideTimer=setTimeout(function(){vcol.classList.remove('bar-visible');_hideTimer=null;},1500);
     });
   }
 })();

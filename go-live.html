@@ -1102,17 +1102,16 @@ function startPeer(){
       vid.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
       document.body.appendChild(vid);
       var cname=(_viewers[cpid]&&_viewers[cpid].name)||'Cohost';
-      // Cohost monitor — plays through headphones only.
-      // If Jacob is on speakers, this would feed into his mic and echo back to the cohost.
-      // echoCancellation:true on the mic handles this, but muting is an extra safety layer.
-      // Jacob hears cohosts ONLY if he has headphones plugged in (default for streaming setups).
+      // Cohost monitor — volume=0 to break the acoustic echo loop.
+      // With speakers: cohost voice → Jacob's mic → _baseDest → cohost_audio call → cohost hears themselves.
+      // Browser AEC (echoCancellation:true) reduces this but doesn't fully stop it.
+      // The ONLY code-level guarantee: silence the monitor so the mic captures zero cohost bleed.
+      // Jacob must use headphones to hear cohosts — standard for every streaming setup.
+      // With headphones: headphone output is NOT picked up by the mic, so echo is physically impossible.
       var monitor=document.createElement('audio');
       monitor.autoplay=true;
       monitor.srcObject=stream;
-      // Keep volume low (~40%) so Jacob can still hear cohosts but mic bleed is minimal.
-      // Full volume = cohost voice picked up by Jacob's mic → leaks into _baseDest → echo.
-      // Lower volume dramatically reduces that bleed even without headphones.
-      monitor.volume=0.4;
+      monitor.volume=0; // MUTED — eliminates echo loop. Use headphones to hear cohosts.
       document.body.appendChild(monitor);
       _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];
