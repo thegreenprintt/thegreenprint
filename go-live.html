@@ -217,6 +217,7 @@ body{padding-top:56px}
         <button class="btn" id="bMic"    onclick="toggleMic()">🎙 Mic</button>
         <button class="btn" id="bCam"    onclick="toggleCam()">📷 Camera</button>
         <button class="btn" id="bSwitch" onclick="switchScreen()">🖥 Switch</button>
+        <button class="btn" id="bNotify" onclick="notifyLeads()" title="Email all community leads that you're live">🔔 Notify</button>
       </div>
       <div class="slog">Status: <span id="slogtxt">Loading…</span></div>
     </div>
@@ -634,6 +635,23 @@ function disableCanvas(){
 }
 
 // ── Go Live ──
+function notifyLeads(){
+  var btn=document.getElementById('bNotify');
+  if(btn){btn.disabled=true;btn.textContent='📧 Sending…';}
+  var streamUrl=window.location.origin+'/stream.html';
+  fetch('/api/notify-live',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({url:streamUrl})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.error){sys('❌ Notify failed: '+d.error);}
+    else{sys('✅ Notified '+d.sent+'/'+d.total+' community leads!');}
+  }).catch(function(e){sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');
+  }).finally(function(){
+    if(btn){btn.disabled=false;btn.textContent='🔔 Notify';}
+  });
+}
+
 function goLive(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
     log('Use Chrome or Edge for screen sharing.');return;
@@ -1009,21 +1027,23 @@ function startPeer(){
           _cohosts[cpid].audioSrc=src;
         }catch(e){}
       }
-      // Give ALL cohosts base-audio (mic+screen only, no cohost voices)
-      // so no cohost hears themselves. Uses replaceTrack — no call disruption.
-      setTimeout(function(){
-        swapCohostAudio(cpid,true);
-        // Refresh any existing cohosts too (so they don't hear the new cohost's echo either)
-        Object.keys(_cohosts).forEach(function(pid){
-          if(pid!==cpid)swapCohostAudio(pid,true);
-        });
-      },400);
+      // Make a separate audio-only call carrying _baseDest (mic+screen, zero cohost voices).
+      // The cohost's stream.html will mute _vid and play THIS instead — guaranteed echo-free.
+      if(_baseDest){
+        setTimeout(function(){
+          if(!_viewers[cpid]||!_cohosts[cpid])return;
+          var ac=_peer.call(cpid,_baseDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
+          _cohosts[cpid].audioCall=ac;
+          ac.on('error',function(e){log('cohost_audio err: '+e.message);});
+        },300);
+      }
       renderCohostPanel();
     });
     inCall.on('close',function(){
       if(_cohosts[cpid]){
         var n=_cohosts[cpid].name;
         if(_cohosts[cpid].audioSrc)try{_cohosts[cpid].audioSrc.disconnect();}catch(e){}
+        if(_cohosts[cpid].audioCall){try{_cohosts[cpid].audioCall.close();}catch(e){}}
         if(_cohosts[cpid].video){
           try{_cohosts[cpid].video.srcObject=null;}catch(e){}
           if(_cohosts[cpid].video.parentNode)_cohosts[cpid].video.parentNode.removeChild(_cohosts[cpid].video);
