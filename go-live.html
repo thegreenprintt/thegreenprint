@@ -1085,7 +1085,13 @@ function startPeer(){
       try{inCall.close();}catch(e){}
       return;
     }
-    inCall.answer(new MediaStream()); // answer with empty — we only need their stream
+    // Answer with _baseDest (mic+screen, ZERO cohost voices).
+    // This turns the call into a proper two-way WebRTC call, which triggers the
+    // browser's built-in Acoustic Echo Canceller on the cohost's device.
+    // AEC is what Zoom/FaceTime use — it subtracts what's being played from the mic signal.
+    // The cohost physically cannot hear themselves because the browser removes their own voice
+    // from what reaches their speakers before it's played back.
+    inCall.answer(_baseDest?_baseDest.stream:new MediaStream());
     inCall.on('stream',function(stream){
       // First cohost joining → switch from direct passthrough to canvas compositing
       if(!_drawActive)enableCanvas();

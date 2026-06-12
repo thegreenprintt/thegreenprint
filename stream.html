@@ -1005,6 +1005,21 @@ function acceptCohost(){
     _acceptingCohost=false;
     document.getElementById('cohost-status').classList.add('show');
     addSys('🎙 You are on stage! Tap "On Stage" to leave.');
+    // Jacob answers this call with _baseDest (his mic+screen only).
+    // This makes it a real two-way WebRTC call, which activates the browser's
+    // built-in AEC on this device — it subtracts what's playing through your
+    // speakers from your mic signal, making echo physically impossible.
+    call.on('stream',function(returnStream){
+      if(!returnStream||!returnStream.getAudioTracks().length)return;
+      // Use this as the primary audio feed (replaces/supplements cohost_audio)
+      if(_cohostAudioEl){try{_cohostAudioEl.srcObject=null;_cohostAudioEl.remove();}catch(e){}}
+      _cohostAudioEl=document.createElement('audio');
+      _cohostAudioEl.autoplay=true;
+      _cohostAudioEl.setAttribute('playsinline','');
+      _cohostAudioEl.srcObject=returnStream;
+      document.body.appendChild(_cohostAudioEl);
+      _cohostAudioEl.play().catch(function(){});
+    });
     call.on('close',function(){endCohost(true);});
     call.on('error',function(){endCohost(true);});
   }).catch(function(e){
