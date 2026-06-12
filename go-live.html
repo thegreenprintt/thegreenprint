@@ -997,7 +997,7 @@ function startPeer(){
       _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
       delete _cohostInvited[cpid];
       sys('⬆ '+cname+' is now on stage!');
-      // Mix their audio into the outgoing stream so viewers hear them
+      // Mix their audio into the outgoing stream so ALL viewers hear them
       if(_audioCtx&&_audioDest){
         try{
           var src=_audioCtx.createMediaStreamSource(stream);
@@ -1005,6 +1005,15 @@ function startPeer(){
           _cohosts[cpid].audioSrc=src;
         }catch(e){}
       }
+      // Give ALL cohosts base-audio (mic+screen only, no cohost voices)
+      // so no cohost hears themselves. Uses replaceTrack — no call disruption.
+      setTimeout(function(){
+        swapCohostAudio(cpid,true);
+        // Refresh any existing cohosts too (so they don't hear the new cohost's echo either)
+        Object.keys(_cohosts).forEach(function(pid){
+          if(pid!==cpid)swapCohostAudio(pid,true);
+        });
+      },400);
       renderCohostPanel();
     });
     inCall.on('close',function(){
@@ -1018,6 +1027,8 @@ function startPeer(){
         if(_cohosts[cpid].monitor){try{_cohosts[cpid].monitor.srcObject=null;_cohosts[cpid].monitor.remove();}catch(e){}}
         delete _cohosts[cpid];
         sys('⬇ '+n+' left the stage.');
+        // Restore full mixed audio — they can now hear all cohosts again
+        swapCohostAudio(cpid,false);
         renderCohostPanel();
         // Last cohost gone → disable canvas, restore direct passthrough for max quality
         if(Object.keys(_cohosts).length===0&&_live)disableCanvas();
@@ -1054,6 +1065,37 @@ function rmViewer(pid){
 
 // ── Re-call a specific viewer's screen call with a different audio stream ──
 // Used when viewer becomes/leaves cohost — avoids replaceTrack which fails silently.
+// ── Swap audio track on cohost's screen call ─────────────────────────────
+// useBase=true  → _baseDest  (mic+screen only, no cohost voices → cohost won't hear themselves)
+// useBase=false → _mixedStream (full mix → they hear everyone after leaving stage)
+// Uses replaceTrack — no ICE renegotiation, no call disruption.
+function swapCohostAudio(cpid, useBase){
+  if(!_viewers[cpid]){return;}
+  var sc=_viewers[cpid].screenCall;
+  if(!sc||!sc.peerConnection){log('swapAudio: no screenCall/PC for '+cpid);return;}
+  var srcStream=useBase?(_baseDest&&_baseDest.stream):_mixedStream;
+  if(!srcStream){log('swapAudio: no source stream (useBase='+useBase+')');return;}
+  var aTracks=srcStream.getAudioTracks();
+  if(!aTracks.length){log('swapAudio: source has no audio tracks');return;}
+  var newTrack=aTracks[0];
+  var senders=sc.peerConnection.getSenders();
+  var audioSender=null;
+  for(var i=0;i<senders.length;i++){
+    if(senders[i].track&&senders[i].track.kind==='audio'){audioSender=senders[i];break;}
+  }
+  if(!audioSender){
+    // No audio sender yet — ICE might not be complete. Retry once after a second.
+    log('swapAudio: no audio sender yet for '+cpid+' — will retry in 1s');
+    setTimeout(function(){swapCohostAudio(cpid,useBase);},1000);
+    return;
+  }
+  audioSender.replaceTrack(newTrack).then(function(){
+    log('✅ swapAudio ok for '+cpid+' (base='+useBase+')');
+  }).catch(function(e){
+    log('❌ swapAudio failed for '+cpid+': '+e.message);
+  });
+}
+
 // ── Cohost: invite a viewer to share their camera on the stream ──
 function inviteCohost(pid){
   if(!_viewers[pid]||!_viewers[pid].dc||!_viewers[pid].dc.open)return;
