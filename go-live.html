@@ -1063,8 +1063,15 @@ function recallScreenWithAudio(cpid, audioStream){
   if(!_viewers[cpid]||!audioStream)return;
   var oldSc=_viewers[cpid].screenCall;
   _viewers[cpid]._recalling=true; // prevent rmViewer from firing on the close event
-  if(oldSc){try{oldSc.close();}catch(e){}}
-  _viewers[cpid].screenCall=null;
+  // Tell the viewer this is just an audio track switch — don't treat it as stream ended
+  if(_viewers[cpid].dc&&_viewers[cpid].dc.open){
+    try{_viewers[cpid].dc.send(JSON.stringify({t:'audio_switch'}));}catch(e){}
+  }
+  // Small delay so the DC message arrives before the call close
+  setTimeout(function(){
+    if(oldSc){try{oldSc.close();}catch(e){}}
+    _viewers[cpid]&&(_viewers[cpid].screenCall=null);
+  },120);
   setTimeout(function(){
     if(!_viewers[cpid]){return;}
     _viewers[cpid]._recalling=false;

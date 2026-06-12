@@ -565,6 +565,7 @@ var _muted=true;
 var _pipPollTimer=null;
 var _camShouldShow=false;
 var _cohostCall=null, _cohostStream=null, _cohostGateCtx=null, _cohostGateStop=null;
+var _audioSwitch=false; // true when go-live.html is swapping our audio track — suppress stream-ended logic
 var _streamTimer=null;
 var _callReceived=false;
 
@@ -816,6 +817,7 @@ function connectToHost(){
         if(!_sysShown.live){_sysShown.live=true;addSys('🔴 Stream is live!'+((_isMobile)?' Tap the video to hear audio.':' Tap 🔇 Muted to hear audio.'));}
       });
       call.on('close',function(){
+        if(_audioSwitch){_audioSwitch=false;return;} // just a track swap — stay connected
         _callReceived=false;
         stat('Stream ended — will reconnect when Jacob goes live again…');
         setLive(false);_sysShown.live=false;
@@ -863,6 +865,11 @@ function connectToHost(){
           var v2=document.getElementById('vid');
           var hasVideo=v2&&v2.srcObject&&v2.videoWidth>0;
           if(!hasVideo)expectStream();
+        }
+        if(m.t==='audio_switch'){
+          // Host is swapping our audio track — suppress the stream-ended handler on the incoming close event
+          _audioSwitch=true;
+          setTimeout(function(){_audioSwitch=false;},6000); // auto-clear safety net
         }
         if(m.t==='cam'){
           _camShouldShow=m.on;
