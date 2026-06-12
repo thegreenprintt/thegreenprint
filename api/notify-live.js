@@ -43,14 +43,22 @@ module.exports = async function handler(req, res) {
   var from = process.env.FROM_EMAIL || 'The Greenprint <notifications@thegreenprint.trade>';
   var isPreview = body.preview === true;
 
-  // Load emails from JSON file, fallback to COMMUNITY_EMAILS env var
+  // Use emails passed from frontend (leads tab) if provided
   var emails = [];
-  try {
-    var filePath = path.join(__dirname, '..', 'community-leads.json');
-    var fileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    emails = (fileData.emails || []).filter(function(e) { return typeof e === 'string' && e.includes('@'); });
-  } catch(e) {}
+  if (Array.isArray(body.emails) && body.emails.length > 0) {
+    emails = body.emails.filter(function(e) { return typeof e === 'string' && e.includes('@'); });
+  }
 
+  // Fallback: JSON file
+  if (emails.length === 0) {
+    try {
+      var filePath = path.join(__dirname, '..', 'community-leads.json');
+      var fileData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      emails = (fileData.emails || []).filter(function(e) { return typeof e === 'string' && e.includes('@'); });
+    } catch(e) {}
+  }
+
+  // Fallback: COMMUNITY_EMAILS env var
   if (emails.length === 0 && process.env.COMMUNITY_EMAILS) {
     emails = process.env.COMMUNITY_EMAILS.split(',')
       .map(function(e) { return e.trim().toLowerCase(); })
@@ -58,7 +66,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (!emails.length) {
-    return res.status(400).json({ error: 'No emails found. Deploy community-leads.json or add COMMUNITY_EMAILS env var.' });
+    return res.status(400).json({ error: 'No emails found in leads tab or community-leads.json.' });
   }
 
   var emailHtml = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0d0d0d;color:#fff;border-radius:12px">'
