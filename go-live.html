@@ -59,6 +59,11 @@ body{padding-top:56px}
 #bSwitch{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.42)}
 .slog{font-size:.62rem;font-weight:300;color:rgba(240,250,243,.2);line-height:1.55}
 #slogtxt{color:rgba(0,255,135,.38)}
+/* ── Cohost strip — row of tiles bottom-left of stage ── */
+#cohost-strip{position:absolute;bottom:10px;left:10px;display:flex;flex-direction:row;gap:7px;z-index:15;pointer-events:none}
+.ch-tile{display:flex;flex-direction:column;align-items:center;width:130px}
+.ch-tile video{width:130px;height:73px;object-fit:cover;border-radius:6px;background:#000;border:1.5px solid rgba(0,255,135,.3);box-shadow:0 4px 18px rgba(0,0,0,.8)}
+.ch-tile-name{font-size:.48rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,255,135,.7);margin-top:3px;text-shadow:0 1px 6px rgba(0,0,0,.9);text-align:center}
 /* ── Live chat overlay on screenshare preview ── */
 #host-chat-overlay{position:absolute;top:14px;right:14px;width:280px;pointer-events:none;z-index:30;display:flex;flex-direction:column;gap:5px}
 .hco-msg{background:rgba(0,0,0,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:6px 12px 7px;border-right:3px solid #00ff87;animation:hcoIn .25s ease forwards,hcoOut .4s ease 7.6s forwards}
@@ -198,6 +203,8 @@ body{padding-top:56px}
       </div>
       <!-- Live chat overlay — shows all chat messages on top of screenshare preview -->
       <div id="host-chat-overlay"></div>
+      <!-- Cohost strip — bottom-left row of live cohost tiles -->
+      <div id="cohost-strip"></div>
     </div>
     <div class="ctrl">
       <div class="trow">
@@ -1056,27 +1063,37 @@ function removeCohost(pid){
 
 // ── Re-render the on-air cohost panel in the sidebar ──
 function renderCohostPanel(){
+  // Sidebar panel (name + remove button only)
   var panel=document.getElementById('cohost-panel');
   var list=document.getElementById('cohost-list');
-  if(!panel||!list)return;
-  var pids=Object.keys(_cohosts);
-  panel.className=pids.length>0?'show':'';
-  list.innerHTML='';
-  pids.forEach(function(pid){
-    var row=document.createElement('div');row.className='cohost-row';
-    // Live preview video
-    if(_cohosts[pid]&&_cohosts[pid].video&&_cohosts[pid].video.srcObject){
-      var preview=document.createElement('video');
-      preview.autoplay=true;preview.muted=true;preview.playsInline=true;
-      preview.srcObject=_cohosts[pid].video.srcObject;
-      preview.style.cssText='width:72px;height:40px;object-fit:cover;border-radius:4px;border:1px solid rgba(0,255,135,.2);background:#000;flex-shrink:0;';
-      row.appendChild(preview);
-    }
-    var nm=document.createElement('span');nm.className='cohost-name';nm.textContent='📡 '+(_cohosts[pid].name||'Cohost');
-    var btn=document.createElement('button');btn.className='cohost-rm';btn.textContent='⬇ Remove';
-    btn.onclick=(function(id){return function(){removeCohost(id);};})(pid);
-    row.appendChild(nm);row.appendChild(btn);
-    list.appendChild(row);
+  if(panel&&list){
+    var pids=Object.keys(_cohosts);
+    panel.className=pids.length>0?'show':'';
+    list.innerHTML='';
+    pids.forEach(function(pid){
+      var row=document.createElement('div');row.className='cohost-row';
+      var nm=document.createElement('span');nm.className='cohost-name';nm.textContent='📡 '+(_cohosts[pid].name||'Cohost');
+      var btn=document.createElement('button');btn.className='cohost-rm';btn.textContent='⬇ Remove';
+      btn.onclick=(function(id){return function(){removeCohost(id);};})(pid);
+      row.appendChild(nm);row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+  // Stage strip — live video tiles at bottom-left
+  var strip=document.getElementById('cohost-strip');
+  if(!strip)return;
+  strip.innerHTML='';
+  Object.keys(_cohosts).forEach(function(pid){
+    var c=_cohosts[pid];
+    if(!c||!c.video||!c.video.srcObject)return;
+    var tile=document.createElement('div');tile.className='ch-tile';
+    var vid=document.createElement('video');
+    vid.autoplay=true;vid.muted=true;vid.playsInline=true;
+    vid.srcObject=c.video.srcObject;
+    var label=document.createElement('div');label.className='ch-tile-name';
+    label.textContent=(c.name||'Cohost');
+    tile.appendChild(vid);tile.appendChild(label);
+    strip.appendChild(tile);
   });
 }
 function showHostReaction(emoji){
