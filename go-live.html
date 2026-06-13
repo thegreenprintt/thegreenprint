@@ -1,1523 +1,562 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Greenprint — Go Live</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Urbanist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#050505;color:#f0faf3;font-family:'Urbanist',sans-serif}
-nav{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(5,5,5,.96);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
-.brand{font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
-.dot{width:6px;height:6px;border-radius:50%;background:#00ff87;box-shadow:0 0 8px rgba(0,255,135,.5)}
-.dot.live{background:#ff3b5c;box-shadow:0 0 8px rgba(255,59,92,.6);animation:pulse 1.8s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,92,.5)}70%{box-shadow:0 0 0 8px rgba(255,59,92,0)}100%{box-shadow:0 0 0 0 rgba(255,59,92,0)}}
-#nstat{font-size:.6rem;font-weight:600;letter-spacing:.18em;color:rgba(240,250,243,.2)}
-#nstat.on{color:rgba(255,59,92,.7)}
-#nvc{font-size:.6rem;color:rgba(240,250,243,.25);display:none}
-#nvc.on{display:block}
-body{padding-top:56px}
-.wrap{display:grid;grid-template-columns:1fr 310px;height:calc(100vh - 56px)}
-@media(max-width:920px){.wrap{grid-template-columns:1fr}}
-.vcol{display:flex;flex-direction:column;background:#000}
-.stage{flex:1;position:relative;background:#030303;overflow:hidden}
-#scrnv{width:100%;height:100%;object-fit:contain;display:none}
-#campip{position:absolute;bottom:14px;right:14px;width:200px;display:none;flex-direction:column;border:1px solid rgba(255,255,255,.12);background:#000;box-shadow:0 6px 24px rgba(0,0,0,.7);z-index:10}
-#campip.show{display:flex}
-#campip.mini{width:64px}
-#campip.mini #camv{height:48px}
-#campip.mini .pip-label{display:none}
-#camv{width:100%;height:120px;object-fit:cover;display:block;background:#111;transform:scaleX(-1)}
-.pip-bar{background:rgba(8,8,8,.92);padding:3px 7px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.06)}
-.pip-label{font-size:.52rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,255,135,.4)}
-.pip-btns{display:flex;gap:2px}
-.pb{background:none;border:none;color:rgba(240,250,243,.3);cursor:pointer;font-size:.72rem;padding:1px 4px;line-height:1}
-.pb:hover{color:rgba(240,250,243,.75)}
-.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#030303;text-align:center;padding:40px}
-.ph::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,135,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,.012) 1px,transparent 1px);background-size:52px 52px}
-.ph-t{font-weight:300;font-size:.95rem;letter-spacing:.25em;text-transform:uppercase;color:rgba(240,250,243,.1);position:relative;z-index:1}
-.ph-s{font-size:.7rem;font-weight:300;color:rgba(240,250,243,.1);line-height:1.8;position:relative;z-index:1}
-.ctrl{background:rgba(4,4,4,.98);border-top:1px solid rgba(255,255,255,.05);padding:12px 16px;display:flex;flex-direction:column;gap:10px}
-.trow{display:flex;gap:7px}
-#titinp{flex:1;height:38px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:#f0faf3;padding:0 13px;font-family:'Urbanist',sans-serif;font-size:.82rem;outline:none;border-radius:0}
-#titinp:focus{border-color:rgba(0,255,135,.25)}
-#titinp::placeholder{color:rgba(240,250,243,.18)}
-.tpush{height:38px;padding:0 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:rgba(240,250,243,.4);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
-.tpush:hover{border-color:rgba(0,255,135,.2);color:rgba(0,255,135,.6)}
-.btns{display:flex;gap:7px;flex-wrap:wrap}
-.btn{height:38px;padding:0 14px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;transition:all .15s;white-space:nowrap;border-radius:0}
-#bGo{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;flex:1;min-width:90px}
-#bGo:hover{opacity:.88}
-#bGo:disabled{opacity:.35;cursor:not-allowed}
-#bEnd{background:rgba(255,59,92,.08);border:1px solid rgba(255,59,92,.22);color:rgba(255,59,92,.65);display:none}
-#bEnd:hover{background:rgba(255,59,92,.16)}
-#bMic{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.42)}
-#bMic.off{background:rgba(255,59,92,.07);border-color:rgba(255,59,92,.2);color:rgba(255,59,92,.6)}
-#bCam{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.42)}
-#bCam.on{background:rgba(0,255,135,.05);border-color:rgba(0,255,135,.18);color:rgba(0,255,135,.65)}
-#bSwitch{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:rgba(240,250,243,.42)}
-.slog{font-size:.62rem;font-weight:300;color:rgba(240,250,243,.2);line-height:1.55}
-#slogtxt{color:rgba(0,255,135,.38)}
-/* ── Cohost strip — row of tiles bottom-left of stage ── */
-#cohost-strip{position:absolute;bottom:10px;left:10px;display:flex;flex-direction:row;gap:7px;z-index:15;pointer-events:none}
-.ch-tile{display:flex;flex-direction:column;align-items:center;width:130px}
-.ch-tile video{width:130px;height:73px;object-fit:cover;border-radius:6px;background:#000;border:1.5px solid rgba(0,255,135,.3);box-shadow:0 4px 18px rgba(0,0,0,.8)}
-.ch-tile-name{font-size:.48rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,255,135,.7);margin-top:3px;text-shadow:0 1px 6px rgba(0,0,0,.9);text-align:center}
-/* ── Live chat overlay on screenshare preview ── */
-#host-chat-overlay{position:absolute;top:14px;right:14px;width:280px;pointer-events:none;z-index:30;display:flex;flex-direction:column;gap:5px}
-.hco-msg{background:rgba(0,0,0,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:6px 12px 7px;border-right:3px solid #00ff87;animation:hcoIn .25s ease forwards,hcoOut .4s ease 7.6s forwards}
-.hco-name{font-size:.6rem;font-weight:700;color:#00ff87;margin-bottom:2px;text-align:right;letter-spacing:.04em}
-.hco-name.h{text-shadow:0 0 8px rgba(0,255,135,.5)}
-.hco-text{font-size:.78rem;color:#fff;line-height:1.45;word-break:break-word;text-align:right}
-@keyframes hcoIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
-@keyframes hcoOut{from{opacity:1}to{opacity:0}}
-.ccol{display:flex;flex-direction:column;background:#070707;border-left:1px solid rgba(255,255,255,.05)}
-@media(max-width:920px){.ccol{display:none}}
-/* Tab bar */
-.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
-.tab-btn{flex:1;height:38px;background:none;border:none;border-bottom:2px solid transparent;color:rgba(240,250,243,.2);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.54rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;transition:all .15s}
-.tab-btn.active{color:rgba(0,255,135,.7);border-bottom-color:rgba(0,255,135,.4)}
-.tab-btn:hover:not(.active){color:rgba(240,250,243,.45)}
-.chd{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.chl{font-size:.56rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2)}
-#cvc{font-size:.56rem;font-weight:600;color:rgba(0,255,135,.35)}
-/* Leads panel */
-#leads-panel{flex:1;overflow-y:auto;display:none;flex-direction:column}
-.leads-hd{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
-.leads-count{font-size:.54rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:rgba(0,255,135,.4)}
-.leads-export{height:26px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.5);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
-.leads-export:hover{background:rgba(0,255,135,.12);color:#00ff87}
-.lead-row:hover{background:rgba(255,255,255,.02)}
-.lead-name{font-size:.72rem;font-weight:600;color:rgba(240,250,243,.7)}
-.lead-detail{font-size:.6rem;font-weight:300;color:rgba(240,250,243,.3);word-break:break-all}
-.leads-empty{padding:32px 16px;text-align:center;font-size:.68rem;font-weight:300;color:rgba(240,250,243,.15);line-height:1.8}
-.lead-copy{flex-shrink:0;height:22px;padding:0 7px;background:rgba(0,255,135,.04);border:1px solid rgba(0,255,135,.1);color:rgba(0,255,135,.35);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.48rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-radius:2px;transition:all .15s;white-space:nowrap}
-.lead-copy:hover{background:rgba(0,255,135,.12);color:#00ff87;border-color:rgba(0,255,135,.3)}
-.lead-copy.ok{background:rgba(0,255,135,.1);color:#00ff87}
-.leads-actions{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0}
-.leads-action-btn{flex:1;height:30px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:rgba(240,250,243,.4);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.5rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:all .15s}
-.leads-action-btn:hover{background:rgba(0,255,135,.07);border-color:rgba(0,255,135,.18);color:rgba(0,255,135,.7)}
-.lead-row{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px}
-.lead-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.feed{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px}
-.feed::-webkit-scrollbar{width:2px}
-.feed::-webkit-scrollbar-thumb{background:rgba(0,200,83,.13)}
-.mi{display:flex;align-items:flex-start;gap:5px}
-.ml{flex:1;min-width:0}
-.mn{font-size:.72rem;font-weight:600;color:rgba(0,255,135,.48)}
-.mn.h{color:#00ff87}
-.mt{font-size:.98rem;font-weight:500;color:rgba(240,250,243,.92);line-height:1.5;word-break:break-word}
-.mt.s{font-size:.68rem;font-weight:300;color:rgba(240,250,243,.18);font-style:italic}
-.kbtn{flex-shrink:0;background:none;border:none;color:rgba(255,59,92,.28);cursor:pointer;font-size:.85rem;padding:1px 3px;line-height:1;margin-top:1px}
-.kbtn:hover{color:rgba(255,59,92,.75)}
-.cobtn{color:rgba(0,255,135,.28)!important}
-.cobtn:hover{color:rgba(0,255,135,.85)!important}
-/* ── Cohost on-air panel ── */
-#cohost-panel{display:none;padding:6px 12px;border-top:1px solid rgba(0,255,135,.1);background:rgba(0,255,135,.03);flex-shrink:0}
-#cohost-panel.show{display:block}
-.cohost-hd{font-size:.5rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,255,135,.35);margin-bottom:5px}
-.cohost-row{display:flex;align-items:center;gap:8px;padding:4px 0}
-.cohost-name{font-size:.7rem;color:rgba(0,255,135,.7);flex:1}
-.cohost-rm{background:none;border:none;color:rgba(255,59,92,.4);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1}
-.cohost-rm:hover{color:rgba(255,59,92,.85)}
-.cft{padding:8px 10px;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:5px}
-.cin{flex:1;height:34px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:#f0faf3;padding:0 10px;font-family:'Urbanist',sans-serif;font-size:.78rem;outline:none;border-radius:0}
-.cin:focus{border-color:rgba(0,255,135,.2)}
-.cin::placeholder{color:rgba(240,250,243,.14)}
-.csnd{height:34px;padding:0 10px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.1);color:rgba(0,255,135,.52);cursor:pointer;font-family:'Urbanist',sans-serif;font-size:.56rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
-.csnd:hover{background:rgba(0,255,135,.1);color:#00ff87}
-/* ── Auth Gate ── */
-#auth-gate{position:fixed;inset:0;background:#050505;z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
-.auth-box{width:100%;max-width:340px;text-align:center}
-.auth-eye{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.35);margin-bottom:20px}
-.auth-title{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:6px}
-.auth-sub{font-size:.72rem;font-weight:300;color:rgba(240,250,243,.3);margin-bottom:28px}
-#auth-pwd{width:100%;height:48px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:#f0faf3;padding:0 16px;font-family:'Urbanist',sans-serif;font-size:1rem;outline:none;letter-spacing:.08em;-webkit-appearance:none;border-radius:0;margin-bottom:10px;text-align:center}
-#auth-pwd:focus{border-color:rgba(0,255,135,.3)}
-#auth-submit{width:100%;height:44px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;margin-bottom:10px}
-#auth-submit:disabled{opacity:.4;cursor:not-allowed}
-#auth-err{font-size:.68rem;color:rgba(255,59,92,.7);min-height:20px;margin-top:4px}
-/* ── Stream Recap Modal ── */
-#recap-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center;padding:20px}
-#recap-overlay.show{display:flex}
-#recap-box{background:#0c0c0c;border:1px solid rgba(255,255,255,.08);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:32px 28px;position:relative}
-.rc-eyebrow{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:16px}
-.rc-title{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
-.rc-date{font-size:.65rem;font-weight:300;color:rgba(240,250,243,.3);margin-bottom:28px}
-.rc-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
-.rc-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);padding:14px 16px}
-.rc-stat-n{font-size:1.6rem;font-weight:700;color:#00ff87;line-height:1}
-.rc-stat-l{font-size:.52rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,250,243,.25);margin-top:4px}
-.rc-section-label{font-size:.52rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2);margin-bottom:8px}
-.rc-viewers{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:24px}
-.rc-viewer-tag{font-size:.68rem;padding:3px 9px;background:rgba(0,255,135,.05);border:1px solid rgba(0,255,135,.12);color:rgba(0,255,135,.55)}
-.rc-btns{display:flex;gap:8px;margin-top:4px}
-.rc-btn{height:38px;padding:0 16px;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
-#rc-copy{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.55)}
-#rc-copy:hover{background:rgba(255,255,255,.1)}
-#rc-close{background:linear-gradient(135deg,#00ff87,#00c853);color:#020202}
-#rc-close:hover{opacity:.88}
-@keyframes hreact{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:.9;transform:translateY(-120px) scale(1.3)}100%{opacity:0;transform:translateY(-220px) scale(.8)}}
-/* ── Notify Preview Modal ── */
-#notify-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center;padding:20px}
-#notify-overlay.show{display:flex}
-#notify-box{background:#0c0c0c;border:1px solid rgba(255,255,255,.08);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:28px;position:relative}
-.nv-eyebrow{font-size:.52rem;font-weight:600;letter-spacing:.35em;text-transform:uppercase;color:rgba(0,255,135,.4);margin-bottom:12px}
-.nv-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:4px}
-.nv-sub{font-size:.68rem;color:rgba(240,250,243,.3);margin-bottom:20px}
-.nv-meta{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.nv-chip{background:rgba(0,255,135,.06);border:1px solid rgba(0,255,135,.15);padding:5px 12px;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,255,135,.65)}
-.nv-preview-label{font-size:.5rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(240,250,243,.2);margin-bottom:8px}
-#nv-iframe{width:100%;height:280px;border:1px solid rgba(255,255,255,.07);background:#fff;border-radius:4px}
-.nv-btns{display:flex;gap:8px;margin-top:20px}
-#nv-cancel{flex:1;height:40px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(240,250,243,.45);cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
-#nv-cancel:hover{border-color:rgba(255,59,92,.3);color:rgba(255,59,92,.6)}
-#nv-send{flex:2;height:40px;background:linear-gradient(135deg,#00ff87,#00c853);color:#020202;border:none;cursor:pointer;font-family:'Urbanist',sans-serif;font-weight:700;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}
-#nv-send:hover{opacity:.88}
-#nv-send:disabled{opacity:.4;cursor:not-allowed}
-</style>
+"use client";
+import { useState, useEffect, useRef } from "react";
 
-  <!-- Firebase — syncs live status to the app -->
-  <script>
-    // Posts live status to /api/livestatus — picked up by the app every 10s
-    window._fbSetLive = async function(isLive, title) {
-      try {
-        const res = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/livestatus.json', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            isLive: isLive,
-            title: title || 'The Greenprint — Live Session',
-          }),
-        });
-        const data = await res.json();
-        console.log('Live status synced:', data);
-      } catch(e) {
-        console.warn('Live status sync error:', e);
+const RTDB_URL =
+  process.env.NEXT_PUBLIC_FIREBASE_RTDB_URL ||
+  "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+const HOST_PEER_ID = "gp-greenprint-live";
+
+// Password: Greenprint1!
+// To change password: run  echo -n "YourNewPassword" | sha256sum  then paste hash below
+const PWD_HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
+
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+interface Viewer { name: string; conn: any; call: any; }
+interface ChatMsg { name: string; text: string; ts: number; }
+interface Lead   { name: string; email: string; ts: number; }
+
+export default function GoLivePage() {
+  // Auth
+  const [authed, setAuthed]         = useState(false);
+  const [pwd, setPwd]               = useState("");
+  const [authErr, setAuthErr]       = useState("");
+  const [authLocked, setAuthLocked] = useState(false);
+  const [attempts, setAttempts]     = useState(0);
+
+  // Stream state
+  const [isLive, setIsLive]       = useState(false);
+  const [title, setTitle]         = useState("");
+  const [micOn, setMicOn]         = useState(true);
+  const [camOn, setCamOn]         = useState(false);
+  const [statusLog, setStatusLog] = useState("Ready — press Go Live to start.");
+  const [elapsed, setElapsed]     = useState("00:00:00");
+
+  // Refs
+  const screenVideoRef  = useRef<HTMLVideoElement>(null);
+  const camVideoRef     = useRef<HTMLVideoElement>(null);
+  const peerRef         = useRef<any>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const micStreamRef    = useRef<MediaStream | null>(null);
+  const camStreamRef    = useRef<MediaStream | null>(null);
+  const outStreamRef    = useRef<MediaStream | null>(null);
+  const viewersRef      = useRef<Record<string, Viewer>>({});
+  const audioCtxRef     = useRef<AudioContext | null>(null);
+  const audioDstRef     = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const startTimeRef    = useRef<number | null>(null);
+  const timerRef        = useRef<any>(null);
+
+  // Chat + leads + stats
+  const [chat, setChat]           = useState<ChatMsg[]>([]);
+  const [leads, setLeads]         = useState<Lead[]>([]);
+  const [viewers, setViewers]     = useState<Record<string, string>>({});
+  const [peakViewers, setPeakViewers] = useState(0);
+
+  const log = (msg: string) => setStatusLog(msg);
+
+  // Restore auth from session
+  useEffect(() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem("gp_golive_v3") || "null");
+      if (s?.ok && s.exp > Date.now()) setAuthed(true);
+    } catch {}
+  }, []);
+
+  // Timer
+  useEffect(() => {
+    if (isLive) {
+      startTimeRef.current = Date.now();
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - (startTimeRef.current ?? Date.now())) / 1000);
+        setElapsed(
+          `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
+        );
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+      setElapsed("00:00:00");
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isLive]);
+
+  async function doAuth(e: React.FormEvent) {
+    e.preventDefault();
+    if (authLocked) return;
+    const hash = await sha256(pwd);
+    if (hash === PWD_HASH) {
+      sessionStorage.setItem("gp_golive_v3", JSON.stringify({ ok: true, exp: Date.now() + 8 * 3600000 }));
+      setAuthed(true);
+      setAuthErr("");
+    } else {
+      const next = attempts + 1;
+      setAttempts(next);
+      setPwd("");
+      if (next >= 5) {
+        setAuthLocked(true);
+        setAuthErr("Too many attempts. Wait 2 minutes.");
+        setTimeout(() => { setAuthLocked(false); setAttempts(0); }, 120000);
+      } else {
+        setAuthErr(`Wrong password. ${5 - next} attempt${5 - next === 1 ? "" : "s"} left.`);
       }
-    };
-  </script>
-</head>
-<body>
-<!-- Auth gate — blocks entire page until password verified -->
-<div id="auth-gate">
-  <div class="auth-box">
-    <div class="auth-eye">Broadcaster Access</div>
-    <div class="auth-title">The Greenprint</div>
-    <div class="auth-sub">Private control room. Enter your password to continue.</div>
-    <input id="auth-pwd" type="password" placeholder="••••••••••••" autocomplete="current-password"
-           onkeydown="if(event.key==='Enter')verifyAuth()">
-    <button id="auth-submit" onclick="verifyAuth()">Unlock →</button>
-    <div id="auth-err"></div>
-  </div>
-</div>
+    }
+  }
 
-<nav>
-  <div class="brand"><div class="dot" id="ndot"></div>THE GREENPRINT</div>
-  <div style="display:flex;align-items:center;gap:14px">
-    <span id="nstat">ready</span>
-    <span id="nvc">👁 <span id="nvcn">0</span></span>
-  </div>
-</nav>
+  async function setLiveStatus(live: boolean, t?: string) {
+    try {
+      await fetch(`${RTDB_URL}/livestatus.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isLive: live, title: t || "", ts: Date.now() }),
+      });
+    } catch (e) { console.warn("Firebase sync error:", e); }
+  }
 
-<div class="wrap">
-  <div class="vcol">
-    <div class="stage">
-      <video id="scrnv" autoplay muted playsinline></video>
-      <div id="campip">
-        <video id="camv" autoplay muted playsinline></video>
-        <div class="pip-bar">
-          <span class="pip-label">Camera</span>
-          <div class="pip-btns">
-            <button class="pb" onclick="pipMinToggle()">▢</button>
-            <button class="pb" onclick="camOff()">✕</button>
+  function loadPeerJS(cb: () => void) {
+    if ((window as any).Peer) { cb(); return; }
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
+    s.onload = cb;
+    s.onerror = () => log("Failed to load PeerJS. Check your internet connection.");
+    document.body.appendChild(s);
+  }
+
+  function startPeer() {
+    const PeerJS = (window as any).Peer;
+    if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
+    const peer = new PeerJS(HOST_PEER_ID, { debug: 0 });
+    peerRef.current = peer;
+
+    peer.on("open", (id: string) => {
+      log(`✅ Broadcaster ready — ID: ${id}. Press Go Live when ready.`);
+    });
+
+    peer.on("connection", (conn: any) => {
+      conn.on("data", (d: any) => {
+        if (d?.t === "join") {
+          const pid = conn.peer;
+          viewersRef.current[pid] = { name: d.name || "Viewer", conn, call: null };
+          setViewers(prev => {
+            const n = { ...prev, [pid]: d.name || "Viewer" };
+            setPeakViewers(p => Math.max(p, Object.keys(n).length));
+            return n;
+          });
+          broadcast({ t: "vc", count: Object.keys(viewersRef.current).length });
+          if (isLive && outStreamRef.current) callViewer(pid);
+        }
+        if (d?.t === "chat") {
+          setChat(prev => [...prev.slice(-199), { name: d.name, text: d.msg, ts: Date.now() }]);
+          broadcast({ t: "chat", name: d.name, msg: d.msg });
+        }
+        if (d?.t === "lead") {
+          setLeads(prev => [...prev, { name: d.name, email: d.email, ts: Date.now() }]);
+        }
+      });
+      conn.on("close", () => {
+        delete viewersRef.current[conn.peer];
+        setViewers(prev => { const n = { ...prev }; delete n[conn.peer]; return n; });
+        broadcast({ t: "vc", count: Object.keys(viewersRef.current).length });
+      });
+    });
+
+    peer.on("error", (err: any) => {
+      if (err.type === "unavailable-id") {
+        log("⚠️ Stream ID already in use — you may already be live in another tab.");
+      } else {
+        log(`Peer error: ${err.message}. Reconnecting…`);
+        setTimeout(() => startPeer(), 3000);
+      }
+    });
+  }
+
+  function callViewer(pid: string) {
+    if (!outStreamRef.current || !peerRef.current) return;
+    const v = viewersRef.current[pid];
+    if (!v) return;
+    try {
+      const call = peerRef.current.call(pid, outStreamRef.current);
+      viewersRef.current[pid].call = call;
+      call.on("error", () => { try { call.close(); } catch {} });
+    } catch {}
+  }
+
+  function broadcast(data: object) {
+    Object.values(viewersRef.current).forEach(v => {
+      try { v.conn?.send(data); } catch {}
+    });
+  }
+
+  async function goLive() {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      log("⚠️ Use Chrome or Edge on desktop for screen sharing.");
+      return;
+    }
+    log("Choose your screen — select 'Share Audio' if you want system sound.");
+    try {
+      const scrn = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 60 }, cursor: "always" } as any,
+        audio: { echoCancellation: false, noiseSuppression: false } as any,
+      });
+      screenStreamRef.current = scrn;
+      if (screenVideoRef.current) {
+        screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
+        screenVideoRef.current.muted = true;
+        screenVideoRef.current.style.display = "block";
+      }
+
+      log("Screen captured — requesting mic…");
+      const mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+        video: false,
+      });
+      micStreamRef.current = mic;
+
+      // Mix screen audio + mic
+      try {
+        const ctx = new AudioContext();
+        audioCtxRef.current = ctx;
+        const dst = ctx.createMediaStreamDestination();
+        audioDstRef.current = dst;
+        ctx.createMediaStreamSource(mic).connect(dst);
+        const screenAudio = scrn.getAudioTracks();
+        if (screenAudio.length > 0) {
+          ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
+          log("✅ Screen + mic audio mixed. Going live…");
+        } else {
+          log("✅ Mic ready (no screen audio selected). Going live…");
+        }
+        outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
+      } catch {
+        outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
+        log("✅ Mic ready. Going live…");
+      }
+
+      const liveTitle = title || "The Greenprint — Live Session";
+      setIsLive(true);
+      await setLiveStatus(true, liveTitle);
+      log(`🔴 LIVE — broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewers…`);
+
+      Object.keys(viewersRef.current).forEach((pid, i) => {
+        setTimeout(() => callViewer(pid), i * 100);
+      });
+      setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 100 + 300);
+
+      scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
+    } catch (err: any) {
+      if (err.name === "NotAllowedError") {
+        log("Screen share cancelled.");
+      } else {
+        log(`Error: ${err.message}`);
+      }
+    }
+  }
+
+  async function endStream() {
+    broadcast({ t: "end" });
+    await setLiveStatus(false, "");
+    screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    micStreamRef.current?.getTracks().forEach(t => t.stop());
+    camStreamRef.current?.getTracks().forEach(t => t.stop());
+    try { audioCtxRef.current?.close(); } catch {}
+    screenStreamRef.current = null;
+    micStreamRef.current = null;
+    outStreamRef.current = null;
+    if (screenVideoRef.current) {
+      screenVideoRef.current.srcObject = null;
+      screenVideoRef.current.style.display = "none";
+    }
+    if (camVideoRef.current) {
+      camVideoRef.current.srcObject = null;
+      camVideoRef.current.style.display = "none";
+    }
+    setIsLive(false);
+    setCamOn(false);
+    log("Stream ended. Thanks for going live.");
+  }
+
+  function toggleMic() {
+    micStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+    setMicOn(m => !m);
+  }
+
+  async function toggleCam() {
+    if (camOn) {
+      camStreamRef.current?.getTracks().forEach(t => t.stop());
+      camStreamRef.current = null;
+      if (camVideoRef.current) { camVideoRef.current.srcObject = null; camVideoRef.current.style.display = "none"; }
+      setCamOn(false);
+    } else {
+      try {
+        const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        camStreamRef.current = cam;
+        if (camVideoRef.current) {
+          camVideoRef.current.srcObject = cam;
+          camVideoRef.current.style.display = "block";
+        }
+        setCamOn(true);
+      } catch { log("Camera access denied."); }
+    }
+  }
+
+  function copyLeads(emailsOnly = false) {
+    const text = emailsOnly
+      ? leads.map(l => l.email).join(", ")
+      : leads.map(l => `${l.name} <${l.email}>`).join("\n");
+    navigator.clipboard.writeText(text);
+    log(`${emailsOnly ? "Emails" : "All leads"} copied to clipboard.`);
+  }
+
+  function downloadCSV() {
+    const rows = [
+      ["Name", "Email", "Joined"].join(","),
+      ...leads.map(l => [l.name, l.email, new Date(l.ts).toISOString()].join(","))
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `greenprint-leads-${Date.now()}.csv`;
+    a.click();
+  }
+
+  // Init peer after auth
+  useEffect(() => {
+    if (!authed) return;
+    loadPeerJS(() => startPeer());
+    return () => { if (peerRef.current) try { peerRef.current.destroy(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
+
+  /* ── Auth gate ──────────────────────────────────────────── */
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#00FF85]/4 blur-[120px]"/>
+        </div>
+        <div className="relative w-full max-w-sm bg-[#111] border border-white/8 rounded-2xl p-8">
+          <div className="w-10 h-10 bg-[#00FF85] rounded-xl flex items-center justify-center mx-auto mb-6">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h1 className="text-center font-bold text-white mb-1">Broadcaster Access</h1>
+          <p className="text-center text-xs text-white/30 mb-6">The Greenprint — Go Live Control Room</p>
+          <form onSubmit={doAuth} className="space-y-4">
+            <input
+              type="password"
+              placeholder="Password"
+              required
+              value={pwd}
+              onChange={e => setPwd(e.target.value)}
+              disabled={authLocked}
+              className="w-full bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#00FF85]/50 transition-colors disabled:opacity-40"
+            />
+            {authErr && <p className="text-xs text-red-400">{authErr}</p>}
+            <button
+              type="submit"
+              disabled={authLocked}
+              className="w-full bg-[#00FF85] text-black font-black py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#00e676] transition-all"
+              style={{ boxShadow: "0 0 24px rgba(0,255,133,0.3)" }}
+            >
+              Enter →
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Broadcaster control room ───────────────────────────── */
+  return (
+    <div className="min-h-screen bg-[#080808] flex flex-col font-sans">
+      {/* Top bar */}
+      <div className="h-12 bg-[#0d0d0d] border-b border-white/5 flex items-center px-4 gap-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className={`w-2.5 h-2.5 rounded-full ${isLive ? "bg-red-500 animate-pulse" : "bg-white/20"}`}/>
+          <span className={`text-xs font-black tracking-widest ${isLive ? "text-red-400" : "text-white/25"}`}>
+            {isLive ? "LIVE" : "OFFLINE"}
+          </span>
+        </div>
+        <span className="text-xs text-white/30 flex-1 truncate">
+          The Greenprint — Go Live Control Room
+        </span>
+        <span className="font-mono text-xs text-white/25">
+          {Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}
+        </span>
+        {isLive && (
+          <span className="font-mono text-xs text-[#00FF85]">{elapsed}</span>
+        )}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
+        {/* Video stage */}
+        <div className="flex-1 bg-black relative min-h-[220px]">
+          <video ref={screenVideoRef} autoPlay muted playsInline
+            className="w-full h-full object-contain" style={{ display: "none" }}/>
+          <video ref={camVideoRef} autoPlay muted playsInline
+            className="absolute bottom-3 right-3 w-36 h-24 object-cover rounded-xl border border-white/10"
+            style={{ display: "none", transform: "scaleX(-1)" }}/>
+          {!isLive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="3" fill="#00FF85"/>
+                  <path d="M12 5a7 7 0 100 14A7 7 0 0012 5z" stroke="white" strokeWidth="1.5" strokeOpacity="0.2"/>
+                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1" strokeOpacity="0.1"/>
+                </svg>
+              </div>
+              <p className="text-white/20 text-xs">Press Go Live to start broadcasting</p>
+              <p className="text-white/10 text-xs">Viewers at thegreenprint.trade/stream will connect automatically</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right panel */}
+        <div className="w-full lg:w-80 bg-[#0d0d0d] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0">
+          {/* Controls */}
+          <div className="p-4 border-b border-white/5">
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Session title (e.g. NVDA Options Play)"
+              className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors mb-3"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {!isLive ? (
+                <button onClick={goLive}
+                  className="flex-1 bg-[#00FF85] text-black font-black py-2.5 rounded-xl text-xs hover:bg-[#00e676] transition-all"
+                  style={{ boxShadow: "0 0 16px rgba(0,255,133,0.3)" }}>
+                  🔴 Go Live
+                </button>
+              ) : (
+                <button onClick={endStream}
+                  className="flex-1 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-2.5 rounded-xl text-xs hover:bg-red-500/20 transition-colors">
+                  ⏹ End Stream
+                </button>
+              )}
+              <button onClick={toggleMic}
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
+                  micOn ? "border-white/10 text-white/40 hover:text-white" : "border-red-500/30 text-red-400 bg-red-500/5"
+                }`}>
+                🎙 {micOn ? "Mic On" : "Muted"}
+              </button>
+              <button onClick={toggleCam}
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
+                  camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"
+                }`}>
+                📷 Cam
+              </button>
+            </div>
+            <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
+          </div>
+
+          {/* App QR — show on stream so viewers can join */}
+          <div className="p-3 border-b border-white/5">
+            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream → Join App</p>
+            <div className="flex items-center gap-3">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
+                alt="Join App QR"
+                className="w-16 h-16 rounded-lg border border-white/10"
+              />
+              <div>
+                <p className="text-[11px] text-white/60 font-semibold mb-0.5">The Greenprint App</p>
+                <p className="text-[10px] text-white/25 leading-relaxed">$29.99/mo — scan to join<br/>full access + mobile app</p>
+                <button
+                  onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
+                  className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors"
+                >
+                  Copy Link
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Live stats */}
+          {isLive && (
+            <div className="grid grid-cols-3 border-b border-white/5">
+              {[
+                { label: "Live", val: Object.keys(viewers).length },
+                { label: "Peak", val: peakViewers },
+                { label: "Time", val: elapsed },
+              ].map(s => (
+                <div key={s.label} className="p-3 text-center border-r border-white/5 last:border-0">
+                  <div className="font-mono text-base font-black text-[#00FF85]">{s.val}</div>
+                  <div className="font-mono text-[9px] text-white/25 uppercase tracking-widest">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Who's watching */}
+          {Object.keys(viewers).length > 0 && (
+            <div className="px-3 py-2 border-b border-white/5">
+              <p className="text-[10px] text-white/25 font-mono uppercase tracking-widest mb-1.5">Watching</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.values(viewers).slice(0, 12).map((name, i) => (
+                  <span key={i} className="bg-white/5 text-white/40 text-[10px] px-2 py-0.5 rounded-full">{name}</span>
+                ))}
+                {Object.keys(viewers).length > 12 && (
+                  <span className="text-white/25 text-[10px]">+{Object.keys(viewers).length - 12} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Chat */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-3 py-2 border-b border-white/5">
+              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Live Chat</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[100px] max-h-[200px] lg:max-h-none">
+              {chat.length === 0
+                ? <p className="text-[10px] text-white/20">Chat appears here once viewers start watching.</p>
+                : chat.map((m, i) => (
+                  <div key={i} className="text-xs">
+                    <span className="text-[#00FF85] font-semibold">{m.name}: </span>
+                    <span className="text-white/40">{m.text}</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+
+          {/* Leads */}
+          <div className="border-t border-white/5 p-3 shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">
+                Leads ({leads.length})
+              </p>
+              <div className="flex gap-1">
+                {[
+                  { label: "Copy", fn: () => copyLeads(false) },
+                  { label: "Emails", fn: () => copyLeads(true) },
+                  { label: "CSV", fn: downloadCSV },
+                ].map(b => (
+                  <button key={b.label} onClick={b.fn}
+                    className="text-[9px] text-white/25 hover:text-white border border-white/8 rounded-lg px-1.5 py-0.5 transition-colors">
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="max-h-20 overflow-y-auto space-y-0.5">
+              {leads.length === 0
+                ? <p className="text-[10px] text-white/20">Stream subscriber emails appear here.</p>
+                : leads.map((l, i) => (
+                  <div key={i} className="text-[10px] font-mono text-white/30">
+                    {l.name} &lt;{l.email}&gt;
+                  </div>
+                ))
+              }
+            </div>
           </div>
         </div>
       </div>
-      <div class="ph" id="ph">
-        <div class="ph-t">Ready to go live</div>
-        <div class="ph-s">Click Go Live to share your screen.</div>
-      </div>
-      <!-- Live chat overlay — shows all chat messages on top of screenshare preview -->
-      <div id="host-chat-overlay"></div>
-      <!-- Cohost strip — bottom-left row of live cohost tiles -->
-      <div id="cohost-strip"></div>
     </div>
-    <div class="ctrl">
-      <div class="trow">
-        <input id="titinp" type="text" placeholder="Stream title…" value="The Greenprint — Live Session">
-        <button class="tpush" onclick="pushTitle()">Push</button>
-      </div>
-      <div class="btns">
-        <button class="btn" id="bGo"     onclick="goLive()">🔴 Go Live</button>
-        <button class="btn" id="bEnd"    onclick="endStream()">⏹ End</button>
-        <button class="btn" id="bMic"    onclick="toggleMic()">🎙 Mic</button>
-        <button class="btn" id="bCam"    onclick="toggleCam()">📷 Camera</button>
-        <button class="btn" id="bSwitch" onclick="switchScreen()">🖥 Switch</button>
-        <button class="btn" id="bNotify" onclick="notifyLeads()" title="Email all community leads that you're live">🔔 Notify</button>
-      </div>
-      <div class="slog">Status: <span id="slogtxt">Loading…</span></div>
-    </div>
-  </div>
-  <div class="ccol">
-    <div class="tabs">
-      <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
-      <button class="tab-btn" id="tab-leads" onclick="switchTab('leads')">📋 Leads <span id="leads-badge"></span></button>
-    </div>
-    <!-- Chat panel -->
-    <div id="chat-panel" style="display:flex;flex-direction:column;flex:1;min-height:0">
-      <div class="chd"><span class="chl">Live Chat</span><span id="cvc">0 viewers</span></div>
-      <div class="feed" id="feed"></div>
-      <div class="cft">
-        <input class="cin" id="ci" placeholder="Reply to viewers…" maxlength="200" onkeydown="if(event.key==='Enter')hostChat()">
-        <button class="csnd" onclick="hostChat()">Send</button>
-      </div>
-    </div>
-    <!-- Cohost on-air panel -->
-    <div id="cohost-panel">
-      <div class="cohost-hd">📡 On Stage</div>
-      <div id="cohost-list"></div>
-    </div>
-    <!-- Leads panel -->
-    <div id="leads-panel">
-      <div class="leads-hd">
-        <span class="leads-count" id="leads-count">0 leads</span>
-      </div>
-      <div class="leads-actions">
-        <button class="leads-action-btn" id="copy-all-btn" onclick="copyAllLeads()">📋 Copy All</button>
-        <button class="leads-action-btn" id="copy-emails-btn" onclick="copyEmails()">📧 Copy Emails</button>
-        <button class="leads-action-btn" onclick="exportLeads()">⬇ CSV</button>
-      </div>
-      <div id="leads-list" style="flex:1;overflow-y:auto"><div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- Stream Recap Modal -->
-<div id="recap-overlay">
-  <div id="recap-box">
-    <div class="rc-eyebrow">Stream Recap</div>
-    <div class="rc-title" id="rc-title">Session Complete</div>
-    <div class="rc-date" id="rc-date"></div>
-    <div class="rc-stats">
-      <div class="rc-stat"><div class="rc-stat-n" id="rc-duration">0:00</div><div class="rc-stat-l">Duration</div></div>
-      <div class="rc-stat"><div class="rc-stat-n" id="rc-peak">0</div><div class="rc-stat-l">Peak Viewers</div></div>
-      <div class="rc-stat"><div class="rc-stat-n" id="rc-unique">0</div><div class="rc-stat-l">Unique Viewers</div></div>
-      <div class="rc-stat"><div class="rc-stat-n" id="rc-msgs">0</div><div class="rc-stat-l">Chat Messages</div></div>
-    </div>
-    <div class="rc-section-label">Viewers Who Joined</div>
-    <div class="rc-viewers" id="rc-viewer-list"></div>
-    <div class="rc-btns">
-      <button class="rc-btn" id="rc-copy" onclick="copyReport()">📋 Copy Report</button>
-      <button class="rc-btn" id="rc-close" onclick="closeReport()">Done</button>
-    </div>
-  </div>
-</div>
-
-<!-- Notify Preview Modal -->
-<div id="notify-overlay">
-  <div id="notify-box">
-    <div class="nv-eyebrow">Email Preview</div>
-    <div class="nv-title">🔔 Notify Community</div>
-    <div class="nv-sub">Review before sending — this will go out to everyone on your list.</div>
-    <div class="nv-meta">
-      <div class="nv-chip">📧 <span id="nv-count">—</span> recipients</div>
-      <div class="nv-chip">Subject: 🔴 Jay is LIVE on The Greenprint right now!</div>
-    </div>
-    <div class="nv-preview-label">Email Preview</div>
-    <iframe id="nv-iframe" frameborder="0" scrolling="auto"></iframe>
-    <div class="nv-btns">
-      <button id="nv-cancel" onclick="closeNotifyPreview()">✕ Cancel</button>
-      <button id="nv-send" onclick="confirmSendNotify()">📤 Send to All →</button>
-    </div>
-  </div>
-</div>
-
-<canvas id="cv" style="display:none"></canvas>
-
-<script>
-// ─────────────────────────────────────────────────────────────────
-// AUTH — SHA-256 password gate. Change PASSWORD below to update.
-// To get the hash of a new password run in browser console:
-//   crypto.subtle.digest('SHA-256',new TextEncoder().encode('yourpassword'))
-//     .then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
-// ─────────────────────────────────────────────────────────────────
-// Current password: 100Wallpaper
-var _PWD_HASH='688c62cbcc9582042931a11a16cd824cca4396d6a1a51f5da6f61dafb81ca1a9';
-var _AUTH_KEY='gp_host_auth_v2';
-var _authAttempts=0,_authLockedUntil=0,_authReady=false;
-
-async function verifyAuth(){
-  var now=Date.now();
-  if(now<_authLockedUntil){
-    var secs=Math.ceil((_authLockedUntil-now)/1000);
-    showAuthErr('Too many failed attempts. Wait '+secs+'s.');
-    return;
-  }
-  var btn=document.getElementById('auth-submit');
-  btn.disabled=true;
-  var pwd=document.getElementById('auth-pwd').value;
-  if(!pwd){btn.disabled=false;showAuthErr('Enter your password.');return;}
-  try{
-    var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pwd));
-    var hex=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-    if(hex===_PWD_HASH){
-      _authAttempts=0;
-      // Session valid for 8 hours — stored in sessionStorage (clears on tab close)
-      sessionStorage.setItem(_AUTH_KEY,JSON.stringify({ok:true,ts:now,exp:now+8*3600000}));
-      document.getElementById('auth-gate').style.display='none';
-      initPage();
-    } else {
-      _authAttempts++;
-      document.getElementById('auth-pwd').value='';
-      var delay=Math.min(Math.pow(2,_authAttempts-1)*2000,120000); // 2s,4s,8s…max 2min
-      if(_authAttempts>=3){_authLockedUntil=now+delay;showAuthErr('Wrong password. Locked for '+Math.ceil(delay/1000)+'s.');}
-      else{showAuthErr('Wrong password. '+  (3-_authAttempts)+' attempt'+(3-_authAttempts===1?'':'s')+' left.');}
-    }
-  }catch(e){showAuthErr('Auth error. Refresh and try again.');}
-  btn.disabled=false;
+  );
 }
-function showAuthErr(msg){var e=document.getElementById('auth-err');e.textContent=msg;}
-
-// Auto-unlock if valid session exists
-(function(){
-  try{
-    var s=JSON.parse(sessionStorage.getItem(_AUTH_KEY)||'null');
-    if(s&&s.ok&&s.exp>Date.now()){
-      document.getElementById('auth-gate').style.display='none';
-      initPage();
-    }
-  }catch(e){}
-})();
-
-// ── Fixed peer ID — must exactly match HOST_PEER_ID in stream.html ──
-var PEER_ID = 'gp-greenprint-live';
-
-// ── ICE config: multiple STUN + public TURN relay servers ──
-var ICE = {
-  iceServers:[
-    {urls:'stun:stun.l.google.com:19302'},
-    {urls:'stun:stun1.l.google.com:19302'},
-    {urls:'stun:stun2.l.google.com:19302'},
-    {urls:'stun:stun3.l.google.com:19302'},
-    {urls:'stun:stun4.l.google.com:19302'},
-    {urls:'turn:openrelay.metered.ca:80',   username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:openrelay.metered.ca:443',  username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turns:openrelay.metered.ca:443', username:'openrelayproject',credential:'openrelayproject'}
-  ]
-};
-
-var _peer=null, _screenStream=null, _micStream=null, _camStream=null, _audioCtx=null, _mixedStream=null, _audioDest=null, _baseDest=null;
-var _live=false, _micOn=true, _camOn=false, _pipMini=false;
-var _drawInterval=null, _outStream=null, _hbInterval=null;
-var _dummyCamTrack=null; // invisible 2×2 black placeholder sent when cam is off
-var _viewers={}, _banned=[];
-var _cohostInvited={}, _cohosts={}; // cohost state: invited viewers + active cohosts
-var _canvas=document.getElementById('cv');
-// desynchronized: bypasses compositor sync → GPU-accelerated compositing
-// alpha: false → no transparency blending overhead
-var _ctx=_canvas.getContext('2d',{alpha:false,desynchronized:true});
-var _SW=1920, _SH=1080; // actual captured screen dimensions
-var _drawActive=false; // controls rVFC loop
-
-// ── Tab switching ──
-function switchTab(tab){
-  var isChat=tab==='chat';
-  document.getElementById('chat-panel').style.display=isChat?'flex':'none';
-  document.getElementById('leads-panel').style.display=isChat?'none':'flex';
-  document.getElementById('tab-chat').className='tab-btn'+(isChat?' active':'');
-  document.getElementById('tab-leads').className='tab-btn'+(isChat?'':' active');
-}
-
-// ── Leads storage & display ──
-var _leads=[];
-try{_leads=JSON.parse(localStorage.getItem('gp_leads')||'[]');}catch(e){}
-
-// Load community emails into leads on startup
-fetch('/community-leads.json').then(function(r){return r.json();}).then(function(d){
-  var emails=d.emails||[];
-  var added=0;
-  emails.forEach(function(email){
-    if(!email||!email.includes('@'))return;
-    var already=_leads.some(function(l){return l.email===email;});
-    if(!already){
-      var name=email.split('@')[0].replace(/[._\-0-9]/g,' ').replace(/\s+/g,' ').trim();
-      name=name.charAt(0).toUpperCase()+name.slice(1)||email;
-      _leads.push({name:name,email:email,phone:'',ts:0,community:true});
-      added++;
-    }
-  });
-  if(added>0){
-    try{localStorage.setItem('gp_leads',JSON.stringify(_leads));}catch(e){}
-    renderLeads();
-  }
-}).catch(function(){});
-
-renderLeads();
-
-function addLead(name,email,phone){
-  if(!email&&!phone)return; // skip if no contact info
-  // Deduplicate by email
-  var exists=_leads.some(function(l){return l.email&&l.email===email;});
-  if(exists)return;
-  var lead={name:name||'Unknown',email:email||'',phone:phone||'',ts:Date.now()};
-  _leads.unshift(lead);
-  try{localStorage.setItem('gp_leads',JSON.stringify(_leads));}catch(e){}
-  renderLeads();
-}
-
-function renderLeads(){
-  var list=document.getElementById('leads-list');
-  var count=document.getElementById('leads-count');
-  var badge=document.getElementById('leads-badge');
-  if(!list)return;
-  if(count)count.textContent=_leads.length+' lead'+(_leads.length===1?'':'s');
-  if(badge)badge.textContent=_leads.length>0?'('+_leads.length+')':'';
-  if(_leads.length===0){
-    list.innerHTML='<div class="leads-empty">No leads yet.<br>Viewers who fill the gate form<br>will appear here.</div>';
-    return;
-  }
-  list.innerHTML='';
-  _leads.forEach(function(l,i){
-    var d=document.createElement('div');d.className='lead-row';
-    var dt=l.ts?new Date(l.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    var info=document.createElement('div');info.className='lead-info';
-    info.innerHTML='<div class="lead-name">'+esc(l.name)
-      +(l.community?'<span style="font-size:.46rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:rgba(0,255,135,.08);border:1px solid rgba(0,255,135,.18);color:rgba(0,255,135,.55);padding:1px 5px;margin-left:6px;border-radius:2px">community</span>':'')
-      +'<span style="font-size:.52rem;font-weight:300;color:rgba(240,250,243,.2);margin-left:6px">'+dt+'</span></div>'
-      +(l.email?'<div class="lead-detail">✉ '+esc(l.email)+'</div>':'')
-      +(l.phone?'<div class="lead-detail">📞 '+esc(l.phone)+'</div>':'');
-    var btn=document.createElement('button');
-    btn.className='lead-copy';btn.textContent='📋 Copy';
-    btn.onclick=(function(lead,b){return function(){
-      var txt=[lead.name,lead.email,lead.phone].filter(Boolean).join(' | ');
-      navigator.clipboard.writeText(txt).then(function(){
-        b.textContent='✅';b.className='lead-copy ok';
-        setTimeout(function(){b.textContent='📋 Copy';b.className='lead-copy';},1800);
-      }).catch(function(){});
-    };})(l,btn);
-    d.appendChild(info);d.appendChild(btn);
-    list.appendChild(d);
-  });
-}
-
-function copyEmails(){
-  var emails=_leads.map(function(l){return(l.email||'').trim();}).filter(Boolean);
-  if(!emails.length){sys('No emails to copy yet.');return;}
-  var btn=document.getElementById('copy-emails-btn');
-  navigator.clipboard.writeText(emails.join('\n')).then(function(){
-    btn.textContent='✅ '+emails.length+' Copied!';
-    setTimeout(function(){btn.textContent='📧 Copy Emails';},2500);
-  }).catch(function(){});
-}
-
-function copyAllLeads(){
-  if(!_leads.length){return;}
-  var txt=_leads.map(function(l){
-    return[l.name,l.email,l.phone].filter(Boolean).join(' | ');
-  }).join('\n');
-  var btn=document.getElementById('copy-all-btn');
-  navigator.clipboard.writeText(txt).then(function(){
-    btn.textContent='✅ Copied!';
-    setTimeout(function(){btn.textContent='📋 Copy All';},2000);
-  }).catch(function(){});
-}
-
-function exportLeads(){
-  if(!_leads.length){return;}
-  var csv='Name,Email,Phone,Date\n'+_leads.map(function(l){
-    var dt=l.ts?new Date(l.ts).toLocaleString():'';
-    return[l.name,l.email,l.phone,dt].map(function(v){return'"'+(v||'').replace(/"/g,'""')+'"';}).join(',');
-  }).join('\n');
-  var a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='greenprint-leads-'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
-}
-
-// ── Stream stats tracking ──
-var _stats={start:null,peak:0,unique:{},chatCount:0,title:'The Greenprint — Live Session'};
-function statPeakCheck(){var n=Object.keys(_viewers).length;if(n>_stats.peak)_stats.peak=n;}
-function fmtDur(ms){var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?(h+':'+(m<10?'0':'')+m+':'+(sc<10?'0':'')+sc):(m+':'+(sc<10?'0':'')+sc);}
-function showReport(){
-  var dur=_stats.start?(Date.now()-_stats.start):0;
-  var dt=_stats.start?new Date(_stats.start).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'';
-  document.getElementById('rc-title').textContent=_stats.title;
-  document.getElementById('rc-date').textContent=dt;
-  document.getElementById('rc-duration').textContent=fmtDur(dur);
-  document.getElementById('rc-peak').textContent=_stats.peak;
-  var unames=Object.values(_stats.unique);
-  document.getElementById('rc-unique').textContent=unames.length;
-  document.getElementById('rc-msgs').textContent=_stats.chatCount;
-  var vl=document.getElementById('rc-viewer-list');vl.innerHTML='';
-  if(unames.length===0){vl.innerHTML='<span style="font-size:.68rem;color:rgba(240,250,243,.18)">No viewers joined this session</span>';}
-  else{unames.forEach(function(n){var t=document.createElement('span');t.className='rc-viewer-tag';t.textContent=n;vl.appendChild(t);});}
-  document.getElementById('recap-overlay').className='show';
-}
-function closeReport(){document.getElementById('recap-overlay').className='';}
-function copyReport(){
-  var dur=_stats.start?fmtDur(Date.now()-_stats.start):'—';
-  var dt=_stats.start?new Date(_stats.start).toLocaleString():'—';
-  var unames=Object.values(_stats.unique);
-  var txt=[
-    '📊 THE GREENPRINT — STREAM RECAP',
-    '───────────────────────────────',
-    'Title:          '+_stats.title,
-    'Date:           '+dt,
-    'Duration:       '+dur,
-    'Peak viewers:   '+_stats.peak,
-    'Unique viewers: '+unames.length,
-    'Chat messages:  '+_stats.chatCount,
-    '',
-    'Viewers: '+(unames.length?unames.join(', '):'(none)'),
-  ].join('\n');
-  navigator.clipboard.writeText(txt).then(function(){
-    var btn=document.getElementById('rc-copy');
-    btn.textContent='✅ Copied!';setTimeout(function(){btn.textContent='📋 Copy Report';},2000);
-  }).catch(function(){});
-}
-
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function log(t){document.getElementById('slogtxt').textContent=t;console.log('[HOST]',t);}
-// Chat overlay on the screenshare preview — so Jacob sees chat while streaming
-function addHostChatOverlay(name,text,isHost){
-  var el=document.getElementById('host-chat-overlay');if(!el)return;
-  var m=document.createElement('div');m.className='hco-msg';
-  m.innerHTML='<div class="hco-name'+(isHost?' h':'')+'">'+esc(name)+'</div>'
-    +'<div class="hco-text">'+esc(text)+'</div>';
-  el.appendChild(m);
-  while(el.children.length>6)el.removeChild(el.firstChild);
-  setTimeout(function(){if(m.parentNode)m.parentNode.removeChild(m);},8000);
-}
-function sys(t){
-  var f=document.getElementById('feed'),d=document.createElement('div');d.className='mi';
-  var l=document.createElement('div');l.className='ml';
-  l.innerHTML='<div class="mt s">'+esc(t)+'</div>';
-  d.appendChild(l);f.appendChild(d);f.scrollTop=f.scrollHeight;
-}
-function addMsg(name,text,type,pid){
-  var f=document.getElementById('feed'),d=document.createElement('div');d.className='mi';
-  var l=document.createElement('div');l.className='ml';
-  l.innerHTML='<div class="mn'+(type==='host'?' h':'')+'">'+esc(name)+'</div><div class="mt">'+esc(text)+'</div>';
-  d.appendChild(l);
-  if(pid){
-    // Kick button
-    var k=document.createElement('button');k.className='kbtn';k.textContent='✕';k.title='Kick viewer';
-    k.onclick=(function(id){return function(){kick(id);};})(pid);d.appendChild(k);
-    // Cohost button: ⬆ invite (if not cohost) or ⬇ remove (if already cohost)
-    if(_cohosts[pid]){
-      var rb=document.createElement('button');rb.className='kbtn cobtn';rb.textContent='⬇';rb.title='Remove from stage';
-      rb.onclick=(function(id){return function(){removeCohost(id);};})(pid);d.appendChild(rb);
-    } else {
-      var cb=document.createElement('button');cb.className='kbtn cobtn';cb.textContent='⬆';cb.title='Invite on stage';
-      cb.onclick=(function(id){return function(){inviteCohost(id);};})(pid);d.appendChild(cb);
-    }
-  }
-  f.appendChild(d);f.scrollTop=f.scrollHeight;
-}
-function setVC(n){
-  document.getElementById('cvc').textContent=n+' viewer'+(n===1?'':'s');
-  document.getElementById('nvcn').textContent=n;
-  document.getElementById('nvc').className=n>0?'on':'';
-  if(_live)statPeakCheck();
-}
-
-// ── Dummy camera track: 2×2 black canvas, 1fps — holds the WebRTC track slot
-// when camera is off so viewers never lose the track (avoids renegotiation) ──
-function createDummyCamTrack(){
-  try{
-    var dc=document.createElement('canvas');
-    dc.width=2;dc.height=2;
-    var dctx=dc.getContext('2d');
-    dctx.fillStyle='#000';dctx.fillRect(0,0,2,2);
-    var ds=dc.captureStream(1);
-    _dummyCamTrack=ds.getVideoTracks()[0];
-    if(_dummyCamTrack&&'contentHint' in _dummyCamTrack)_dummyCamTrack.contentHint='motion';
-  }catch(e){_dummyCamTrack=null;console.warn('[CAM] Dummy track failed:',e);}
-}
-
-// ── Canvas compositor: only active when cohosts are on stage ──
-// When no cohosts: raw screen track passes directly to WebRTC (no re-encoding overhead)
-// When cohost joins: enableCanvas() switches all senders to canvas stream
-// When last cohost leaves: disableCanvas() restores direct passthrough
-function _runDrawLoop(){
-  _drawActive=true;
-  var sv=document.getElementById('scrnv');
-  function drawFrame(){
-    if(!_drawActive)return;
-    if(sv.readyState>=2)_ctx.drawImage(sv,0,0,_SW,_SH);
-    else{_ctx.fillStyle='#030303';_ctx.fillRect(0,0,_SW,_SH);}
-    var cohostPids=Object.keys(_cohosts);
-    if(cohostPids.length>0){
-      var boxW=Math.round(_SW*0.18);
-      var boxH=Math.round(boxW*9/16);
-      var pad=12;
-      cohostPids.forEach(function(cpid,i){
-        var vid=_cohosts[cpid].video;
-        if(!vid||vid.readyState<2)return;
-        var x=pad,y=_SH-pad-(i+1)*(boxH+pad);
-        _ctx.fillStyle='#000';_ctx.fillRect(x,y,boxW,boxH);
-        _ctx.drawImage(vid,x,y,boxW,boxH);
-        _ctx.fillStyle='rgba(0,0,0,.75)';_ctx.fillRect(x,y+boxH-18,boxW,18);
-        _ctx.fillStyle='#00ff87';_ctx.font='bold 11px sans-serif';
-        _ctx.fillText((_cohosts[cpid].name||'Cohost').slice(0,22),x+5,y+boxH-5);
-      });
-    }
-    if('requestVideoFrameCallback' in HTMLVideoElement.prototype)sv.requestVideoFrameCallback(drawFrame);
-  }
-  if('requestVideoFrameCallback' in HTMLVideoElement.prototype)sv.requestVideoFrameCallback(drawFrame);
-  else _drawInterval=setInterval(drawFrame,33);
-}
-
-// Switch to canvas when first cohost joins — replaces track on all active viewers
-function enableCanvas(){
-  if(_drawActive||!_screenStream)return;
-  var settings=_screenStream.getVideoTracks()[0].getSettings();
-  _SW=Math.min(settings.width||1920,1920);
-  _SH=Math.min(settings.height||1080,1080);
-  _canvas.width=_SW;_canvas.height=_SH;
-  _ctx.imageSmoothingEnabled=false;
-  _outStream=_canvas.captureStream(30);
-  var vt=_outStream.getVideoTracks()[0];
-  if(vt&&'contentHint' in vt)vt.contentHint='detail';
-  _runDrawLoop();
-  // Push new canvas track to all currently-connected viewers
-  var newVT=_outStream.getVideoTracks()[0];
-  Object.keys(_viewers).forEach(function(pid){
-    var sc=_viewers[pid].screenCall;
-    if(sc&&sc.peerConnection){
-      sc.peerConnection.getSenders().forEach(function(s){
-        if(s.track&&s.track.kind==='video')s.replaceTrack(newVT).catch(function(){});
-      });
-    }
-  });
-  log('Canvas enabled: '+_SW+'×'+_SH+' (cohost compositing)');
-}
-
-// Restore direct passthrough when last cohost leaves
-function disableCanvas(){
-  if(!_drawActive)return;
-  _drawActive=false;clearInterval(_drawInterval);
-  var rawVT=_screenStream?_screenStream.getVideoTracks()[0]:null;
-  if(!rawVT)return;
-  _outStream=new MediaStream([rawVT]);
-  Object.keys(_viewers).forEach(function(pid){
-    var sc=_viewers[pid].screenCall;
-    if(sc&&sc.peerConnection){
-      sc.peerConnection.getSenders().forEach(function(s){
-        if(s.track&&s.track.kind==='video')s.replaceTrack(rawVT).catch(function(){});
-      });
-    }
-  });
-  log('Canvas disabled — direct screen passthrough restored (max quality)');
-}
-
-// ── Notify Leads ──
-function _getLeadEmails(){
-  // Gather all emails from the leads tab (community + viewers)
-  return _leads.map(function(l){return(l.email||'').trim().toLowerCase();}).filter(function(e){return e.includes('@');});
-}
-function notifyLeads(){
-  var streamUrl=window.location.origin+'/stream.html';
-  var emails=_getLeadEmails();
-  fetch('/api/notify-live',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({url:streamUrl,preview:true,emails:emails})
-  }).then(function(r){return r.json();}).then(function(d){
-    if(d.error){sys('❌ '+d.error);return;}
-    document.getElementById('nv-count').textContent=d.total;
-    var iframe=document.getElementById('nv-iframe');
-    iframe.srcdoc=d.html;
-    document.getElementById('notify-overlay').classList.add('show');
-  }).catch(function(){sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');});
-}
-function closeNotifyPreview(){
-  document.getElementById('notify-overlay').classList.remove('show');
-}
-function confirmSendNotify(){
-  var btn=document.getElementById('nv-send');
-  btn.disabled=true;btn.textContent='📧 Sending…';
-  var streamUrl=window.location.origin+'/stream.html';
-  var emails=_getLeadEmails();
-  fetch('/api/notify-live',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({url:streamUrl,emails:emails})
-  }).then(function(r){return r.json();}).then(function(d){
-    closeNotifyPreview();
-    if(d.error){sys('❌ Notify failed: '+d.error);}
-    else{sys('✅ Notified '+d.sent+'/'+d.total+' leads!');}
-  }).catch(function(){
-    closeNotifyPreview();
-    sys('❌ Notify error — check RESEND_API_KEY in Vercel env vars.');
-  }).finally(function(){
-    btn.disabled=false;btn.textContent='📤 Send to All →';
-  });
-}
-
-function goLive(){
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
-    log('Use Chrome or Edge for screen sharing.');return;
-  }
-  log('Choose your screen — check "Share audio" in the dialog for sound.');
-  document.getElementById('bGo').disabled=true;
-
-  // getDisplayMedia MUST be called first and directly — it needs the user-gesture
-  // token. Calling getUserMedia before it can consume the token and silently
-  // block the screen picker from opening in Chrome.
-  navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:60,max:60},cursor:'always'},
-    audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000,channelCount:2}
-  }).then(function(scrn){
-    _screenStream=scrn;
-    var sv=document.getElementById('scrnv');
-    sv.srcObject=new MediaStream(scrn.getVideoTracks()); // video-only — no local audio playback
-    sv.muted=true;sv.volume=0;
-    sv.style.display='block';
-    document.getElementById('ph').style.display='none';
-    // Lock stage aspect ratio to actual screenshare dimensions — eliminates black bars
-    sv.addEventListener('loadedmetadata',function(){
-      if(sv.videoWidth&&sv.videoHeight){
-        var stage=document.querySelector('.stage');
-        if(stage)stage.style.aspectRatio=sv.videoWidth+'/'+sv.videoHeight;
-      }
-    },{once:true});
-    var hasScreenAudio=scrn.getAudioTracks().length>0;
-    log('Screen captured'+(hasScreenAudio?' + audio':'')+' — requesting mic…');
-    // NOW request mic — screen picker is already done, gesture token no longer needed
-    return navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false,sampleRate:48000,channelCount:1},
-      video:false
-    }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
-  }).then(function(r){
-    _micStream=r.mic;
-    try{
-      _audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      var dest=_audioCtx.createMediaStreamDestination();
-      var baseDest=_audioCtx.createMediaStreamDestination(); // base: mic+screen only (no cohosts) — sent to cohosts to avoid echo
-      var micSrc=_audioCtx.createMediaStreamSource(_micStream);
-      micSrc.connect(dest);micSrc.connect(baseDest);
-      if(r.hasScreenAudio){
-        var scrSrc=_audioCtx.createMediaStreamSource(new MediaStream(_screenStream.getAudioTracks()));
-        scrSrc.connect(dest);scrSrc.connect(baseDest);
-        log('Mic + screen audio mixed ✓');
-      } else {
-        log('Mic only — check "Share audio" in screen picker for system sound');
-      }
-      _mixedStream=dest.stream;
-      _audioDest=dest; // stored so cohost audio can be mixed in later
-      _baseDest=baseDest; // no-cohost version — given to cohosts so they don't hear themselves
-    }catch(e){log('AudioContext unavailable — mic only');_mixedStream=_micStream;}
-
-    _live=true;
-    _stats.start=Date.now();_stats.peak=0;_stats.unique={};_stats.chatCount=0;
-    _stats.title=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
-    Object.keys(_viewers).forEach(function(pid){if(_viewers[pid].name)_stats.unique[pid]=_viewers[pid].name;});
-    statPeakCheck();
-
-    // Direct passthrough — raw screen track goes straight to WebRTC, no canvas re-encoding.
-    // Canvas is only enabled on-demand if a cohost joins (enableCanvas).
-    // This eliminates the double-encode pipeline and gives viewers hardware-quality video.
-    var sFT=_screenStream.getVideoTracks()[0];
-    var sFSettings=sFT.getSettings();
-    _SW=sFSettings.width||1920;_SH=sFSettings.height||1080;
-    _outStream=new MediaStream([sFT]);
-    if(sFT&&'contentHint' in sFT)sFT.contentHint='detail';
-    log('Direct passthrough: '+_SW+'×'+_SH+' — no canvas overhead');
-
-    document.getElementById('ndot').className='dot live';
-    document.getElementById('nstat').textContent='live';
-    document.getElementById('nstat').className='on';
-    document.getElementById('bGo').style.display='none';
-    // Sync to app
-    var _t=document.getElementById('titinp').value||'The Greenprint — Live Session';
-    if(window._fbSetLive) window._fbSetLive(true, _t);
-    document.getElementById('bEnd').style.display='block';
-    sys('🔴 You are live!');
-    log('🔴 LIVE — calling '+Object.keys(_viewers).length+' waiting viewer(s)…');
-
-    // Stagger callViewer calls — avoids simultaneous ICE candidate storms
-    // when many viewers are waiting. 80ms apart is imperceptible but reduces load.
-    var vpids=Object.keys(_viewers);
-    vpids.forEach(function(pid,i){setTimeout(function(){callViewer(pid);},i*80);});
-
-    // Tell ALL viewers Jacob just went live — viewer uses this to start an 8s
-    // stream-expectation timer and auto-reconnects if WebRTC call never arrives.
-    // Sent AFTER calls are initiated so viewer's timer starts when call is in flight.
-    setTimeout(function(){broadcast({t:'live'});},vpids.length*80+200);
-
-    // Heartbeat every 20s while live — viewers use this to detect stale connections.
-    // If a viewer has a DC open but no video, heartbeat triggers auto-reconnect.
-    if(_hbInterval)clearInterval(_hbInterval);
-    _hbInterval=setInterval(function(){
-      if(!_live){clearInterval(_hbInterval);_hbInterval=null;return;}
-      broadcast({t:'hb'});
-    },20000);
-
-    // Auto-start camera when going live
-    if(!_camOn)camOn();
-
-  }).catch(function(e){
-    if(e.name==='NotAllowedError'){
-      log('Permission denied. On Mac: System Settings → Privacy → Screen Recording → allow Chrome');
-    } else {
-      log('Error: '+e.message);
-    }
-    document.getElementById('bGo').disabled=false;
-  });
-}
-
-// ── Re-establish cam call for a viewer (auto-called when cam call drops) ──
-// This prevents viewers from having to refresh when the cam WebRTC connection times out.
-function recallCam(pid){
-  if(!_viewers[pid]||!_live)return;
-  if(!_viewers[pid].dc||!_viewers[pid].dc.open)return;
-  var camTrack=(_camOn&&_camStream)?_camStream.getVideoTracks()[0]:_dummyCamTrack;
-  if(!camTrack)return;
-  var cc=_peer.call(pid,new MediaStream([camTrack]),{config:ICE,metadata:{type:'cam'}});
-  _viewers[pid].camCall=cc;
-  if(cc.peerConnection){
-    cc.peerConnection.oniceconnectionstatechange=function(){
-      var st=cc.peerConnection.iceConnectionState;
-      if(st==='connected'||st==='completed'){
-        cc.peerConnection.getSenders().forEach(function(s){
-          if(!s.track||s.track.kind!=='video')return;
-          var p=s.getParameters();
-          if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          p.encodings[0].maxBitrate=5000000;p.encodings[0].maxFramerate=60;
-          s.setParameters(p).catch(function(){});
-          if(_viewers[pid])_viewers[pid].camSender=s;
-          // Tell this viewer the current cam state immediately after ICE connects.
-          // Fixes race: recallCam reconnects AFTER cam was already toggled on,
-          // so viewer never got the broadcast message.
-          setTimeout(function(){
-            if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-              try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:_camOn}));}catch(e){}
-            }
-          },600);
-        });
-      }
-    };
-  }
-  cc.on('error',function(e){log('Cam call error (retry): '+e.message);});
-  cc.on('close',function(){
-    if(cc._intentionalClose)return;
-    if(!_viewers[pid])return;
-    delete _viewers[pid].camCall;delete _viewers[pid].camSender;
-    if(_live&&_viewers[pid].dc&&_viewers[pid].dc.open)setTimeout(function(){recallCam(pid);},2000);
-  });
-}
-
-// ── Close both calls for a viewer (screen + cam) ──
-function closeViewerCalls(pid){
-  if(!_viewers[pid])return;
-  var sc=_viewers[pid].screenCall,cc=_viewers[pid].camCall;
-  // Flag intentional close so the cam close handler won't trigger recallCam
-  if(cc)cc._intentionalClose=true;
-  if(sc)try{sc.close();}catch(e){}
-  if(cc)try{cc.close();}catch(e){}
-  delete _viewers[pid].screenCall;
-  delete _viewers[pid].camCall;
-  delete _viewers[pid].camSender;
-}
-
-// ── Call one viewer — TWO separate labeled calls so screen/camera can never swap ──
-// Call 1 (metadata type:'screen') carries the canvas + audio.
-// Call 2 (metadata type:'cam')    carries the raw camera — dummy 2×2 when off.
-// Viewer identifies each by metadata.type so layout is 100% deterministic.
-function callViewer(pid){
-  if(!_viewers[pid]||_viewers[pid].screenCall)return; // already called
-
-  var audioSrc=_mixedStream||_micStream;
-  var aTracks=audioSrc?audioSrc.getAudioTracks():[];
-  var screenTracks=_outStream?_outStream.getVideoTracks():[];
-  if(!screenTracks.length){log('No video tracks yet for '+pid);return;}
-
-  var vname=_viewers[pid].name||'Viewer';
-  log('Calling '+vname+'…');
-
-  // ── Screen call ──
-  var sc=_peer.call(pid,new MediaStream(screenTracks.concat(aTracks)),{config:ICE,metadata:{type:'screen'}});
-  _viewers[pid].screenCall=sc;
-  if(sc.peerConnection){
-    sc.peerConnection.oniceconnectionstatechange=function(){
-      var st=sc.peerConnection.iceConnectionState;
-      log('ICE→'+vname+': '+st);
-      if(st==='connected'||st==='completed'){
-        sys('✅ '+vname+' is watching.');
-        sc.peerConnection.getSenders().forEach(function(s){
-          if(!s.track)return;
-          var p=s.getParameters();
-          if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-          if(s.track.kind==='video'){p.encodings[0].maxBitrate=12000000;p.encodings[0].maxFramerate=60;p.encodings[0].priority='high';p.encodings[0].networkPriority='high';}
-          if(s.track.kind==='audio'){p.encodings[0].maxBitrate=256000;}
-          s.setParameters(p).catch(function(){});
-        });
-      } else if(st==='failed'){
-        sys('⚠ Connection issue with '+vname+' — retrying…');
-        closeViewerCalls(pid);
-        setTimeout(function(){callViewer(pid);},2000);
-      }
-    };
-  }
-  sc.on('close',function(){rmViewer(pid);});
-  sc.on('error',function(e){log('Screen call error: '+e.message);});
-
-  // ── Camera call ──
-  var camTrack=(_camOn&&_camStream)?_camStream.getVideoTracks()[0]:_dummyCamTrack;
-  if(camTrack){
-    if(_camOn&&'contentHint' in camTrack)camTrack.contentHint='motion';
-    var cc=_peer.call(pid,new MediaStream([camTrack]),{config:ICE,metadata:{type:'cam'}});
-    _viewers[pid].camCall=cc;
-    if(cc.peerConnection){
-      cc.peerConnection.oniceconnectionstatechange=function(){
-        var st=cc.peerConnection.iceConnectionState;
-        if(st==='connected'||st==='completed'){
-          cc.peerConnection.getSenders().forEach(function(s){
-            if(!s.track||s.track.kind!=='video')return;
-            var p=s.getParameters();
-            if(!p.encodings||!p.encodings.length)p.encodings=[{}];
-            p.encodings[0].maxBitrate=5000000;p.encodings[0].maxFramerate=60;
-            s.setParameters(p).catch(function(){});
-            _viewers[pid].camSender=s; // store for replaceTrack on cam toggle
-            // Tell this viewer the current cam state — if cam was already on before they
-            // connected, they need this explicit message or the PIP stays hidden
-            setTimeout(function(){
-              if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-                try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:_camOn}));}catch(e){}
-              }
-            },600);
-          });
-        }
-      };
-    }
-    cc.on('error',function(e){log('Cam call error: '+e.message);});
-    cc.on('close',function(){
-      if(cc._intentionalClose)return; // closed by closeViewerCalls — don't recall
-      if(!_viewers[pid])return;
-      delete _viewers[pid].camCall;delete _viewers[pid].camSender;
-      if(_live&&_viewers[pid].dc&&_viewers[pid].dc.open)setTimeout(function(){recallCam(pid);},2000);
-    });
-  }
-}
-
-// ── PeerJS: register peer on page load so viewers can connect immediately ──
-function startPeer(){
-  if(_peer){try{_peer.destroy();}catch(e){}_peer=null;}
-  _peer=new Peer(PEER_ID,{host:'0.peerjs.com',port:443,path:'/',secure:true,config:ICE,debug:0});
-
-  _peer.on('open',function(id){
-    log('Ready — click Go Live. (Peer: '+id+')');
-  });
-
-  _peer.on('connection',function(dc){
-    var pid=dc.peer;
-    if(_banned.indexOf(pid)>-1){dc.close();return;}
-    // Hard cap: max 500 concurrent connections
-    if(Object.keys(_viewers).length>=500){dc.close();return;}
-    if(!_viewers[pid])_viewers[pid]={};
-    _viewers[pid].dc=dc;
-
-    dc.on('open',function(){
-      var vname=(dc.metadata&&dc.metadata.name)?dc.metadata.name:'Viewer';
-      _viewers[pid].name=vname;
-      // Track unique viewers for recap
-      if(_live){_stats.unique[pid]=vname;statPeakCheck();}
-      setVC(Object.keys(_viewers).length);
-      sys(vname+(_live?' joined.':' is waiting for stream to start.'));
-      pushTitle();
-      // If cam is already on, tell this viewer so they show the PIP overlay
-      if(_camOn){
-        setTimeout(function(){
-          if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-            try{_viewers[pid].dc.send(JSON.stringify({t:'cam',on:true}));}catch(e){}
-          }
-        },1200);
-      }
-      // If already live, call immediately then send {t:'live'} so their 8s expectation
-      // timer starts — if the WebRTC call fails they'll auto-reconnect within 8s
-      if(_live){
-        callViewer(pid);
-        setTimeout(function(){
-          if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-            try{_viewers[pid].dc.send(JSON.stringify({t:'live'}));}catch(e){}
-          }
-        },1000);
-      }
-    });
-    dc.on('data',function(raw){
-      // ── Security: strict validation ──
-      if(typeof raw!=='string'||raw.length>2000)return; // reject oversized payloads
-      var m;try{m=JSON.parse(raw);}catch(e){return;} // reject malformed JSON
-      if(!m||typeof m.t!=='string')return; // require type field
-
-      // ── Rate limiting: max 8 messages per 30s per viewer ──
-      var now=Date.now();
-      if(!_viewers[pid]._rl){_viewers[pid]._rl={count:0,reset:now+30000};}
-      if(now>_viewers[pid]._rl.reset){_viewers[pid]._rl={count:0,reset:now+30000};}
-      _viewers[pid]._rl.count++;
-      if(_viewers[pid]._rl.count>8){
-        // Auto-ban repeat spammers (>3x over limit)
-        if(_viewers[pid]._rl.count>24){kick(pid);sys('Auto-banned: '+(_viewers[pid].name||pid)+' (spam)');}
-        return;
-      }
-
-      if(m.t==='need_stream'&&_live){
-        // Viewer has a DC but no video — re-send the stream without full reconnect
-        if(_viewers[pid]&&!_viewers[pid].screenCall)callViewer(pid);
-      }
-      if(m.t==='join'){
-        // Sanitize name — strip HTML, limit length
-        var safeName=String(m.n||'Viewer').replace(/<[^>]*>/g,'').slice(0,40).trim()||'Viewer';
-        _viewers[pid].name=safeName;
-        if(_live)_stats.unique[pid]=safeName;
-        // Accept lead data — validate fields
-        var safeEmail=typeof m.e==='string'?m.e.slice(0,100).replace(/[<>"]/g,''):'';
-        var safePhone=typeof m.p==='string'?m.p.slice(0,30).replace(/[^0-9+\-(). ]/g,''):'';
-        var safeFull=typeof m.fn==='string'?m.fn.slice(0,80).replace(/<[^>]*>/g,''):safeName;
-        if(safeEmail||safePhone)addLead(safeFull,safeEmail,safePhone);
-      }
-      if(m.t==='chat'){
-        // Validate chat message
-        if(typeof m.x!=='string'||!m.x.trim())return;
-        var safeMsg=m.x.slice(0,200).trim(); // enforce max length
-        _stats.chatCount++;
-        var vname=_viewers[pid].name||'Viewer';
-        addMsg(vname,safeMsg,'viewer',pid);
-        addHostChatOverlay(vname,safeMsg,false);
-        broadcast({t:'chat',n:vname,x:safeMsg,h:false},pid);
-      }
-      if(m.t==='react'){
-        var allowedEmojis=['🔥','💰','📈','💎','🚀'];
-        if(allowedEmojis.indexOf(m.e)>-1){
-          broadcast({t:'react',e:m.e},pid); // relay to all other viewers (sender already spawned it)
-          showHostReaction(m.e);            // show on broadcaster's preview
-        }
-      }
-    });
-    dc.on('close',function(){rmViewer(pid);});
-  });
-
-  // ── Incoming call from a cohost (viewer calling US with their camera) ──
-  _peer.on('call',function(inCall){
-    var cpid=inCall.peer;
-    // Only accept calls from viewers we explicitly invited
-    if(!_cohostInvited[cpid]){
-      console.warn('[COHOST] Rejected uninvited call from',cpid);
-      try{inCall.close();}catch(e){}
-      return;
-    }
-    // Answer with _baseDest (mic+screen, ZERO cohost voices).
-    // This turns the call into a proper two-way WebRTC call, which triggers the
-    // browser's built-in Acoustic Echo Canceller on the cohost's device.
-    // AEC is what Zoom/FaceTime use — it subtracts what's being played from the mic signal.
-    // The cohost physically cannot hear themselves because the browser removes their own voice
-    // from what reaches their speakers before it's played back.
-    inCall.answer(_baseDest?_baseDest.stream:new MediaStream());
-    inCall.on('stream',function(stream){
-      // First cohost joining → switch from direct passthrough to canvas compositing
-      if(!_drawActive)enableCanvas();
-      // Off-screen video element for canvas compositing — opacity:0 not display:none (Safari fix)
-      var vid=document.createElement('video');
-      vid.autoplay=true;vid.muted=true;vid.playsInline=true;
-      vid.srcObject=stream;
-      vid.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
-      document.body.appendChild(vid);
-      var cname=(_viewers[cpid]&&_viewers[cpid].name)||'Cohost';
-      // Cohost monitor — Jacob hears cohost voices at moderate volume.
-      // Echo prevention is handled architecturally: the cohost_audio stream sent back
-      // to each cohost is built from a per-cohost destination that EXCLUDES their own
-      // voice (see below), so they can never hear themselves regardless of mic bleed.
-      var monitor=document.createElement('audio');
-      monitor.autoplay=true;
-      monitor.srcObject=stream;
-      monitor.volume=0.7;
-      document.body.appendChild(monitor);
-      _cohosts[cpid]={call:inCall,video:vid,monitor:monitor,name:cname};
-      delete _cohostInvited[cpid];
-      sys('⬆ '+cname+' is now on stage!');
-      // Mix their audio into the outgoing stream so ALL viewers hear them
-      if(_audioCtx&&_audioDest){
-        try{
-          var src=_audioCtx.createMediaStreamSource(stream);
-          src.connect(_audioDest);
-          _cohosts[cpid].audioSrc=src;
-        }catch(e){}
-      }
-      // Make a separate audio-only call to the cohost carrying a personalized mix:
-      // Jacob's mic + screen audio + ALL OTHER cohost voices — but NOT this cohost's own voice.
-      // This is architecturally echo-free: the cohost literally cannot hear themselves because
-      // their signal is never injected into the stream they receive. No AEC needed.
-      if(_audioCtx&&_baseDest){
-        setTimeout(function(){
-          if(!_viewers[cpid]||!_cohosts[cpid])return;
-          try{
-            // Build a per-cohost destination: start with Jacob mic+screen (same as _baseDest)
-            var perDest=_audioCtx.createMediaStreamDestination();
-            var micSrc2=_audioCtx.createMediaStreamSource(_micStream);
-            micSrc2.connect(perDest);
-            if(_screenStream){
-              var scTracks=_screenStream.getAudioTracks();
-              if(scTracks.length){
-                var scSrc2=_audioCtx.createMediaStreamSource(new MediaStream(scTracks));
-                scSrc2.connect(perDest);
-              }
-            }
-            // Add ALL other cohosts' voices (not this one)
-            Object.keys(_cohosts).forEach(function(pid){
-              if(pid!==cpid&&_cohosts[pid]&&_cohosts[pid].audioSrc){
-                try{_cohosts[pid].audioSrc.connect(perDest);}catch(e){}
-              }
-            });
-            _cohosts[cpid].perDest=perDest;
-            _cohosts[cpid].micSrc2=micSrc2;
-            var ac=_peer.call(cpid,perDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
-            _cohosts[cpid].audioCall=ac;
-            ac.on('error',function(e){log('cohost_audio err: '+e.message);});
-          }catch(e){
-            // Fallback to baseDest if Web Audio graph fails
-            var ac=_peer.call(cpid,_baseDest.stream,{config:ICE,metadata:{type:'cohost_audio'}});
-            _cohosts[cpid].audioCall=ac;
-            ac.on('error',function(e){log('cohost_audio err: '+e.message);});
-          }
-        },50);
-      }
-      renderCohostPanel();
-    });
-    inCall.on('close',function(){
-      if(_cohosts[cpid]){
-        var n=_cohosts[cpid].name;
-        if(_cohosts[cpid].audioSrc)try{_cohosts[cpid].audioSrc.disconnect();}catch(e){}
-        if(_cohosts[cpid].micSrc2)try{_cohosts[cpid].micSrc2.disconnect();}catch(e){}
-        if(_cohosts[cpid].audioCall){try{_cohosts[cpid].audioCall.close();}catch(e){}}
-        if(_cohosts[cpid].video){
-          try{_cohosts[cpid].video.srcObject=null;}catch(e){}
-          if(_cohosts[cpid].video.parentNode)_cohosts[cpid].video.parentNode.removeChild(_cohosts[cpid].video);
-        }
-        if(_cohosts[cpid].monitor){try{_cohosts[cpid].monitor.srcObject=null;_cohosts[cpid].monitor.remove();}catch(e){}}
-        delete _cohosts[cpid];
-        sys('⬇ '+n+' left the stage.');
-        // Close silence AudioContext and restore full mixed audio
-        if(_viewers[cpid]&&_viewers[cpid]._silCtx){
-          try{_viewers[cpid]._silCtx.close();}catch(e){}
-          _viewers[cpid]._silCtx=null;
-        }
-        swapCohostAudio(cpid,false);
-        renderCohostPanel();
-        // Last cohost gone → disable canvas, restore direct passthrough for max quality
-        if(Object.keys(_cohosts).length===0&&_live)disableCanvas();
-      }
-    });
-    inCall.on('error',function(e){log('Cohost call error: '+e.message);});
-  });
-
-  _peer.on('error',function(e){
-    log('Peer error: '+e.type);
-    if(e.type==='unavailable-id'){
-      log('ID busy — retrying in 4s…');
-      setTimeout(function(){if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;startPeer();},4000);
-    }
-    if(e.type==='server-error'||e.type==='network'){
-      setTimeout(function(){if(_peer){try{_peer.destroy();}catch(x){}}_peer=null;startPeer();},6000);
-    }
-  });
-  _peer.on('disconnected',function(){try{_peer.reconnect();}catch(e){}});
-}
-
-function rmViewer(pid){
-  if(_viewers[pid]&&_viewers[pid]._recalling)return; // mid screen-call restart, ignore
-  if(_viewers[pid]){
-    // If they were a cohost, clean that up too
-    if(_cohosts[pid]){try{_cohosts[pid].call.close();}catch(e){}}
-    if(_cohostInvited[pid])delete _cohostInvited[pid];
-    closeViewerCalls(pid);
-    sys((_viewers[pid].name||'Viewer')+' left.');
-    delete _viewers[pid];
-  }
-  setVC(Object.keys(_viewers).length);
-}
-
-// ── Re-call a specific viewer's screen call with a different audio stream ──
-// Used when viewer becomes/leaves cohost — avoids replaceTrack which fails silently.
-// ── Swap audio track on cohost's screen call ─────────────────────────────
-// useBase=true  → _baseDest  (mic+screen only, no cohost voices → cohost won't hear themselves)
-// useBase=false → _mixedStream (full mix → they hear everyone after leaving stage)
-// Uses replaceTrack — no ICE renegotiation, no call disruption.
-function swapCohostAudio(cpid, useBase){
-  if(!_viewers[cpid]){return;}
-  var sc=_viewers[cpid].screenCall;
-  if(!sc||!sc.peerConnection){log('swapAudio: no screenCall/PC for '+cpid);return;}
-  var srcStream=useBase?(_baseDest&&_baseDest.stream):_mixedStream;
-  if(!srcStream){log('swapAudio: no source stream (useBase='+useBase+')');return;}
-  var aTracks=srcStream.getAudioTracks();
-  if(!aTracks.length){log('swapAudio: source has no audio tracks');return;}
-  var newTrack=aTracks[0];
-  var senders=sc.peerConnection.getSenders();
-  var audioSender=null;
-  for(var i=0;i<senders.length;i++){
-    if(senders[i].track&&senders[i].track.kind==='audio'){audioSender=senders[i];break;}
-  }
-  if(!audioSender){
-    // No audio sender yet — ICE might not be complete. Retry once after a second.
-    log('swapAudio: no audio sender yet for '+cpid+' — will retry in 1s');
-    setTimeout(function(){swapCohostAudio(cpid,useBase);},1000);
-    return;
-  }
-  audioSender.replaceTrack(newTrack).then(function(){
-    log('✅ swapAudio ok for '+cpid+' (base='+useBase+')');
-  }).catch(function(e){
-    log('❌ swapAudio failed for '+cpid+': '+e.message);
-  });
-}
-
-// ── Cohost: invite a viewer to share their camera on the stream ──
-function inviteCohost(pid){
-  if(!_viewers[pid]||!_viewers[pid].dc||!_viewers[pid].dc.open)return;
-  if(_cohosts[pid]||_cohostInvited[pid])return;
-  _cohostInvited[pid]=true;
-  try{_viewers[pid].dc.send(JSON.stringify({t:'cohost_invite'}));}catch(e){}
-  sys('📨 Cohost invite sent to '+(_viewers[pid].name||'Viewer')+'…');
-  // ── ECHO FIX (Layer 1) ──────────────────────────────────────────────────
-  // Replace the audio track in their screen call with a permanent silence track
-  // RIGHT NOW — before they even accept. Their _vid will have zero audio, so
-  // there is nothing to echo back regardless of what stream.html does.
-  _muteScreenAudioForCohost(pid);
-}
-
-function _muteScreenAudioForCohost(pid){
-  if(!_viewers[pid])return;
-  var sc=_viewers[pid].screenCall;
-  if(!sc||!sc.peerConnection){
-    // ICE not ready yet — retry once
-    setTimeout(function(){_muteScreenAudioForCohost(pid);},600);
-    return;
-  }
-  var senders=sc.peerConnection.getSenders();
-  var aSndr=null;
-  for(var i=0;i<senders.length;i++){
-    if(senders[i].track&&senders[i].track.kind==='audio'){aSndr=senders[i];break;}
-  }
-  if(!aSndr){log('muteScreenAudio: no audio sender for '+pid);return;}
-  try{
-    var silCtx=new(window.AudioContext||window.webkitAudioContext)();
-    var silDest=silCtx.createMediaStreamDestination();
-    var silTrack=silDest.stream.getAudioTracks()[0];
-    aSndr.replaceTrack(silTrack).then(function(){
-      log('🔇 Silenced screen audio for '+pid+' (cohost invite)');
-      if(_viewers[pid])_viewers[pid]._silCtx=silCtx;
-    }).catch(function(e){
-      log('muteScreenAudio replaceTrack failed for '+pid+': '+e.message);
-      try{silCtx.close();}catch(ex){}
-    });
-  }catch(e){log('muteScreenAudio err: '+e.message);}
-}
-
-// ── Remove a cohost from stage ──
-function removeCohost(pid){
-  if(!_cohosts[pid])return;
-  // Notify viewer they've been removed
-  if(_viewers[pid]&&_viewers[pid].dc&&_viewers[pid].dc.open){
-    try{_viewers[pid].dc.send(JSON.stringify({t:'cohost_remove'}));}catch(e){}
-  }
-  try{_cohosts[pid].call.close();}catch(e){} // triggers call.on('close') for cleanup
-}
-
-// ── Re-render the on-air cohost panel in the sidebar ──
-function renderCohostPanel(){
-  // Sidebar panel (name + remove button only)
-  var panel=document.getElementById('cohost-panel');
-  var list=document.getElementById('cohost-list');
-  if(panel&&list){
-    var pids=Object.keys(_cohosts);
-    panel.className=pids.length>0?'show':'';
-    list.innerHTML='';
-    pids.forEach(function(pid){
-      var row=document.createElement('div');row.className='cohost-row';
-      var nm=document.createElement('span');nm.className='cohost-name';nm.textContent='📡 '+(_cohosts[pid].name||'Cohost');
-      var btn=document.createElement('button');btn.className='cohost-rm';btn.textContent='⬇ Remove';
-      btn.onclick=(function(id){return function(){removeCohost(id);};})(pid);
-      row.appendChild(nm);row.appendChild(btn);
-      list.appendChild(row);
-    });
-  }
-  // Stage strip — live video tiles at bottom-left
-  var strip=document.getElementById('cohost-strip');
-  if(!strip)return;
-  strip.innerHTML='';
-  Object.keys(_cohosts).forEach(function(pid){
-    var c=_cohosts[pid];
-    if(!c||!c.video||!c.video.srcObject)return;
-    var tile=document.createElement('div');tile.className='ch-tile';
-    var vid=document.createElement('video');
-    vid.autoplay=true;vid.muted=true;vid.playsInline=true;// muted — audio handled by monitor element, not via speakers into mic
-    vid.srcObject=c.video.srcObject;
-    var label=document.createElement('div');label.className='ch-tile-name';
-    label.textContent=(c.name||'Cohost');
-    tile.appendChild(vid);tile.appendChild(label);
-    strip.appendChild(tile);
-  });
-}
-function showHostReaction(emoji){
-  var stage=document.querySelector('.stage');
-  if(!stage)return;
-  var el=document.createElement('div');
-  el.textContent=emoji;
-  el.style.cssText='position:absolute;pointer-events:none;z-index:50;font-size:2rem;line-height:1;'
-    +'bottom:'+(40+Math.random()*100)+'px;left:'+(5+Math.random()*74)+'%;'
-    +'animation:hreact 2.6s ease-out forwards;';
-  stage.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},2700);
-}
-
-function broadcast(obj,excludePid){
-  Object.keys(_viewers).forEach(function(pid){
-    if(pid===excludePid)return; // don't echo back to sender
-    var dc=_viewers[pid].dc;
-    if(dc&&dc.open)try{dc.send(JSON.stringify(obj));}catch(e){}
-  });
-}
-function kick(pid){
-  if(!_viewers[pid])return;
-  var dc=_viewers[pid].dc;
-  try{if(dc&&dc.open)dc.send(JSON.stringify({t:'kick'}));}catch(e){}
-  setTimeout(function(){
-    try{if(dc)dc.close();}catch(e){}
-    closeViewerCalls(pid);
-    _banned.push(pid);
-    if(_viewers[pid])delete _viewers[pid];
-    setVC(Object.keys(_viewers).length);
-    sys('Viewer removed.');
-  },300);
-}
-function pushTitle(){
-  var t=document.getElementById('titinp').value.trim()||'The Greenprint — Live Session';
-  broadcast({t:'title',x:t});
-}
-function hostChat(){
-  var inp=document.getElementById('ci'),txt=inp.value.trim();if(!txt)return;inp.value='';
-  _stats.chatCount++;
-  addMsg('Jay (Host)',txt,'host',null);
-  addHostChatOverlay('Jay (Host)',txt,true);
-  broadcast({t:'chat',n:'Jay (Host)',x:txt,h:true});
-}
-
-function toggleMic(){
-  if(!_micStream)return;
-  _micOn=!_micOn;
-  _micStream.getAudioTracks().forEach(function(t){t.enabled=_micOn;});
-  document.getElementById('bMic').textContent=_micOn?'🎙 Mic':'🔇 Muted';
-  document.getElementById('bMic').className='btn'+(_micOn?'':' off');
-  log(_micOn?'Mic on':'Mic muted');
-}
-function toggleCam(){_camOn?camOff():camOn();}
-function camOn(){
-  navigator.mediaDevices.getUserMedia({
-    video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:60,max:60},aspectRatio:{ideal:16/9}},
-    audio:false
-  }).then(function(s){
-    _camStream=s;_camOn=true;
-    // Show local preview
-    var cv=document.getElementById('camv');
-    cv.srcObject=s;cv.muted=true;cv.volume=0;
-    document.getElementById('campip').className='show';
-    document.getElementById('bCam').textContent='📷 Cam On';
-    document.getElementById('bCam').className='btn on';
-    // Replace dummy track with real camera on all active calls (no renegotiation)
-    var camTrack=s.getVideoTracks()[0];
-    if(camTrack){
-      if('contentHint' in camTrack)camTrack.contentHint='motion';
-      Object.keys(_viewers).forEach(function(pid){
-        var sender=_viewers[pid].camSender;
-        if(sender)sender.replaceTrack(camTrack).catch(function(){});
-      });
-    }
-    // Tell viewers to show the camera PIP
-    broadcast({t:'cam',on:true});
-  }).catch(function(e){log('Camera: '+e.message);});
-}
-function camOff(){
-  if(_camStream)_camStream.getTracks().forEach(function(t){t.stop();});
-  _camStream=null;_camOn=false;
-  // Replace real cam with dummy track — PIP disappears, track slot stays reserved
-  if(_dummyCamTrack){
-    Object.keys(_viewers).forEach(function(pid){
-      var sender=_viewers[pid].camSender;
-      if(sender)sender.replaceTrack(_dummyCamTrack).catch(function(){});
-    });
-  }
-  // Tell viewers to hide PIP
-  broadcast({t:'cam',on:false});
-  document.getElementById('camv').srcObject=null;
-  document.getElementById('campip').className='';
-  document.getElementById('bCam').textContent='📷 Camera';
-  document.getElementById('bCam').className='btn';
-}
-function pipMinToggle(){
-  _pipMini=!_pipMini;
-  document.getElementById('campip').className=_pipMini?'show mini':'show';
-}
-function switchScreen(){
-  navigator.mediaDevices.getDisplayMedia({
-    video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},cursor:'always'},
-    audio:false
-  }).then(function(s){
-    var old=_screenStream?_screenStream.getVideoTracks():[];
-    _screenStream=s;
-    document.getElementById('scrnv').srcObject=s;
-    old.forEach(function(t){t.stop();});
-    log('Screen switched.');
-  }).catch(function(){log('Switch cancelled.');});
-}
-function endStream(){
-  // Sync to app
-  if(window._fbSetLive) window._fbSetLive(false, '');
-  broadcast({t:'ended'});
-  _drawActive=false;clearInterval(_drawInterval);
-  if(_hbInterval){clearInterval(_hbInterval);_hbInterval=null;}
-  _live=false;
-  // Close all active calls but keep data channels — viewers stay connected and waiting
-  Object.keys(_viewers).forEach(function(pid){closeViewerCalls(pid);});
-  [_screenStream,_micStream,_camStream,_mixedStream].forEach(function(s){
-    if(s)s.getTracks().forEach(function(t){t.stop();});
-  });
-  if(_audioCtx)try{_audioCtx.close();}catch(e){}
-  _audioCtx=null;
-  _screenStream=null;_micStream=null;_camStream=null;_mixedStream=null;
-  _outStream=null;
-  document.getElementById('scrnv').style.display='none';
-  document.querySelector('.stage').style.aspectRatio=''; // reset so next session re-locks
-  document.getElementById('campip').className='';
-  document.getElementById('ph').style.display='flex';
-  document.getElementById('ph').querySelector('.ph-t').textContent='Stream Paused';
-  document.getElementById('ph').querySelector('.ph-s').textContent='Click Go Live to start the next session.';
-  document.getElementById('ndot').className='dot';
-  document.getElementById('nstat').textContent='offline';
-  document.getElementById('nstat').className='';
-  document.getElementById('bEnd').style.display='none';
-  document.getElementById('bGo').style.display='block';
-  document.getElementById('bGo').disabled=false;
-  // Keep _peer alive — connected viewers stay and will receive next session instantly
-  log('Stream ended. '+Object.keys(_viewers).length+' viewer(s) still connected and waiting.');
-  // Show the recap report
-  showReport();
-}
-
-// initPage() — called only after successful auth. Nothing streams or loads until verified.
-function initPage(){
-  if(_authReady)return; // prevent double-init
-  _authReady=true;
-  // Create dummy cam track immediately — must exist before first callViewer()
-  createDummyCamTrack();
-  var s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
-  s.onload=function(){startPeer();};
-  s.onerror=function(){log('Failed to load PeerJS. Check your internet connection.');};
-  document.body.appendChild(s);
-}
-</script>
-</body>
-</html>
