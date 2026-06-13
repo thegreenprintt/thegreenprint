@@ -157,7 +157,7 @@ export default function Home() {
           >
             <View style={s.brokerLeft}>
               <Text style={s.brokerName}>GenesisFX Markets</Text>
-              <Text style={s.brokerSub}>Jacob's recommended broker. Use his referral link to get started with a demo account.</Text>
+              <Text style={s.brokerSub}>The Greenprint's recommended broker. Use our referral link to get started with a demo or live account.</Text>
               <Text style={s.brokerLink}>Open Account →</Text>
             </View>
             <Text style={s.brokerIcon}>🏦</Text>
@@ -196,7 +196,7 @@ export default function Home() {
           {/* Legal Disclaimer */}
           <View style={s.disclaimer}>
             <Text style={s.disclaimerTxt}>
-              ⚖️  The Greenprint is an educational community. Jacob Walton is not a licensed financial adviser. All content is for educational purposes only and does not constitute financial advice. Trading involves substantial risk of loss. Past performance is not indicative of future results. Never trade more than you can afford to lose.
+              ⚖️  For educational purposes only. Not financial advice. Trading involves risk. See Terms & Privacy for full disclaimer.
             </Text>
           </View>
 
