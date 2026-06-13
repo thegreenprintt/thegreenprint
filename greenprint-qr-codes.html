@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Greenprint — QR Codes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080808; color: #F5F5F5; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .container { max-width: 760px; width: 100%; }
+  .header { text-align: center; margin-bottom: 48px; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .logo-icon { width: 40px; height: 40px; background: #00FF85; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .logo-text { font-size: 22px; font-weight: 800; }
+  .logo-text span { color: #00FF85; }
+  h1 { font-size: 32px; font-weight: 900; margin-bottom: 8px; }
+  p { color: rgba(255,255,255,0.4); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 32px 24px; text-align: center; }
+  .card.green { border-color: rgba(0,255,133,0.25); background: rgba(0,255,133,0.04); }
+  .card.gold { border-color: rgba(201,168,76,0.25); background: rgba(201,168,76,0.04); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 4px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 20px; }
+  .badge.green { background: rgba(0,255,133,0.12); color: #00FF85; border: 1px solid rgba(0,255,133,0.25); }
+  .badge.gold { background: rgba(201,168,76,0.12); color: #C9A84C; border: 1px solid rgba(201,168,76,0.25); }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .badge.green .badge-dot { background: #00FF85; animation: pulse 1.5s infinite; }
+  .badge.gold .badge-dot { background: #C9A84C; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  .qr-wrap { width: 220px; height: 220px; background: #080808; border-radius: 16px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; padding: 12px; border: 1px solid rgba(255,255,255,0.06); }
+  .qr-wrap img { width: 100%; height: 100%; border-radius: 8px; }
+  .card h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .card .url { font-size: 12px; color: rgba(255,255,255,0.3); font-family: monospace; margin-bottom: 16px; word-break: break-all; }
+  .card p.desc { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+  .cta { display: inline-block; margin-top: 20px; padding: 12px 28px; border-radius: 100px; font-weight: 800; font-size: 13px; text-decoration: none; transition: all .2s; }
+  .cta.green { background: #00FF85; color: #080808; box-shadow: 0 0 24px rgba(0,255,133,0.3); }
+  .cta.green:hover { background: #00e676; }
+  .cta.gold { background: rgba(201,168,76,0.15); color: #C9A84C; border: 1px solid rgba(201,168,76,0.3); }
+  .footer { text-align: center; margin-top: 40px; color: rgba(255,255,255,0.2); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+          <path d="M2 12L6 7L9 10L13 4" stroke="#080808" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">The <span>Greenprint</span></div>
+    </div>
+    <h1>Scan to Connect</h1>
+    <p>Share these QR codes with your community — print them, post them, or screenshot them.</p>
+  </div>
+
+  <div class="grid">
+    <!-- Join App -->
+    <div class="card green">
+      <div class="badge green">
+        <div class="badge-dot"></div>
+        Get The App
+      </div>
+      <div class="qr-wrap">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=080808&qzone=1" alt="App QR"/>
+      </div>
+      <h2>Join The Greenprint App</h2>
+      <div class="url">$29.99/month — Full Access</div>
+      <p class="desc">Scan to download and join The Greenprint app. Get full access to live sessions, alerts, Discord, and more.</p>
+      <a href="https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/" class="cta green" target="_blank">Open Link</a>
+    </div>
+
+    <!-- Join Now (gold) -->
+    <div class="card gold">
+      <div class="badge gold">
+        <div class="badge-dot"></div>
+        Join Now
+      </div>
+      <div class="qr-wrap">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://thegreenprint.trade&color=C9A84C&bgcolor=080808&qzone=1" alt="Website QR"/>
+      </div>
+      <h2>The Greenprint</h2>
+      <div class="url">thegreenprint.trade</div>
+      <p class="desc">Scan to visit the website — book a call, explore pricing, and learn more about The Greenprint.</p>
+      <a href="https://thegreenprint.trade" class="cta gold" target="_blank">Open Link</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>© 2025 The Greenprint · thegreenprint.trade</p>
+    <p style="margin-top:6px">Print at full resolution for best scan results</p>
+  </div>
+</div>
+</body>
+</html>
