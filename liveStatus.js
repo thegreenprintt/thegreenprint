@@ -1,7 +1,7 @@
 const SECRET = process.env.LIVE_SECRET || 'gp-live-2024';
 let state = { isLive: false, title: '', updatedAt: 0 };
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
@@ -25,4 +25,4 @@ export default function handler(req, res) {
   }
 
   return res.status(405).json({ error: 'method not allowed' });
-}
+};
