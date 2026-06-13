@@ -1,28 +1,26 @@
-const SECRET = process.env.LIVE_SECRET || 'gp-live-2024';
-let state = { isLive: false, title: '', updatedAt: 0 };
+// Live status via Firebase Realtime Database REST API
+const STATUS_URL = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/livestatus.json';
 
-module.exports = function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store');
-
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Live-Secret');
-    return res.status(200).end();
+export async function fetchLiveStatus() {
+  try {
+    const res = await fetch(STATUS_URL);
+    if (!res.ok) return { isLive: false, title: '' };
+    const data = await res.json();
+    if (!data) return { isLive: false, title: '' };
+    return { isLive: data.isLive || false, title: data.title || 'Live Now' };
+  } catch (_) {
+    return { isLive: false, title: '' };
   }
+}
 
-  if (req.method === 'GET') {
-    return res.status(200).json(state);
+export function subscribeLiveStatus(cb) {
+  let cancelled = false;
+  async function poll() {
+    if (cancelled) return;
+    const status = await fetchLiveStatus();
+    if (!cancelled) cb(status);
   }
-
-  if (req.method === 'POST') {
-    if (req.headers['x-live-secret'] !== SECRET) {
-      return res.status(401).json({ error: 'unauthorized' });
-    }
-    const { isLive, title } = req.body || {};
-    state = { isLive: !!isLive, title: title || '', updatedAt: Date.now() };
-    return res.status(200).json({ ok: true, state });
-  }
-
-  return res.status(405).json({ error: 'method not allowed' });
-};
+  poll();
+  const id = setInterval(poll, 10_000);
+  return () => { cancelled = true; clearInterval(id); };
+}
