@@ -6,7 +6,7 @@ import Link from "next/link";
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
-const WHOP_URL = "https://whop.com"; // ← update with your real Whop link
+const WHOP_URL = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 function FadeIn({
@@ -471,54 +471,19 @@ function LiveCallout() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────── */
-function Pricing() {
-  const plans = [
-    {
-      name: "The Greenprint",
-      price: "97", period: "/mo",
-      color: "#00FF85", popular: false, cta: "Get Started",
-      desc: "Everything you need to start learning how to trade.",
-      features: [
-        "Real-time trade alerts",
-        "Live stream access",
-        "Private Discord community",
-        "Weekly market breakdown",
-        "Trading playbook PDF",
-        "Mobile app access",
-      ],
-    },
-    {
-      name: "Elite",
-      price: "197", period: "/mo",
-      color: "#00FF85", popular: true, cta: "Get Elite Access",
-      desc: "For members serious about leveling up their trading education.",
-      features: [
-        "Everything in Greenprint",
-        "Options flow scanner",
-        "Priority alert notifications",
-        "Monthly group Q&A session",
-        "Advanced setups + watchlists",
-        "Performance tracker",
-        "Early access to new tools",
-      ],
-    },
-    {
-      name: "Inner Circle",
-      price: "497", period: "/mo",
-      color: "#C9A84C", popular: false, cta: "Apply Now",
-      desc: "Direct coaching access. For members committed to the craft.",
-      features: [
-        "Everything in Elite",
-        "Monthly 1-on-1 coaching call",
-        "Portfolio review sessions",
-        "VIP Discord channel",
-        "Custom trade plan built for you",
-        "First look at special setups",
-        "Priority support",
-      ],
-    },
-  ];
+const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const ONEHOUSE_REF  = "https://subscribe.1houseglobal.com/jay";
 
+function Check({ color }: { color: string }) {
+  return (
+    <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" fill={color} fillOpacity="0.12"/>
+      <path d="M5 8l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function Pricing() {
   return (
     <section id="pricing" className="py-24">
       <div className="max-w-6xl mx-auto px-6">
@@ -526,66 +491,190 @@ function Pricing() {
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
           <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            Every tier gives you real education, live sessions, and a community that takes trading seriously.
+            Start with The Greenprint or level up with our partner platform 1House Global — everything you need is right here.
           </p>
         </FadeIn>
 
-        <div className="grid md:grid-cols-3 gap-5">
-          {plans.map((plan, i) => (
-            <FadeIn key={plan.name} delay={i * 0.12}>
-              <div className={`relative rounded-2xl p-7 h-full flex flex-col ${
-                plan.popular
-                  ? "border-2 border-[#00FF85]/50 bg-[#00FF85]/5"
-                  : plan.color === "#C9A84C"
-                  ? "border border-[#C9A84C]/20 bg-white/2"
-                  : "border border-white/8 bg-white/2"
-              }`}>
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
-                    MOST POPULAR
-                  </div>
-                )}
-                <div className="mb-6">
-                  <div className="text-sm font-bold mb-1" style={{ color: plan.color }}>{plan.name}</div>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-white/30 text-xl">$</span>
-                    <span className="text-5xl font-black text-white">{plan.price}</span>
-                    <span className="text-white/30 text-sm">{plan.period}</span>
-                  </div>
-                  <p className="text-white/40 text-sm">{plan.desc}</p>
-                </div>
-                <ul className="space-y-3 flex-1 mb-8">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-start gap-2.5 text-white/65 text-sm">
-                      <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
-                        <circle cx="8" cy="8" r="7" fill={plan.color} fillOpacity="0.12"/>
-                        <path d="M5 8l2 2 4-4" stroke={plan.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-                  className="w-full text-center font-bold py-3.5 rounded-xl transition-all duration-200 text-sm block"
-                  style={
-                    plan.popular
-                      ? { background: "#00FF85", color: "#080808", boxShadow: "0 0 24px rgba(0,255,133,0.3)" }
-                      : plan.color === "#C9A84C"
-                      ? { background: "rgba(201,168,76,0.12)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }
-                      : { background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.1)" }
-                  }>
-                  {plan.cta}
-                </Link>
+        <div className="grid md:grid-cols-3 gap-5 items-start">
+
+          {/* ── Tier 1: The Greenprint (own product) ── */}
+          <FadeIn delay={0}>
+            <div className="relative rounded-2xl p-7 flex flex-col border-2 border-[#00FF85]/50 bg-[#00FF85]/5">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
+                ⚡ LIMITED SPOTS
               </div>
-            </FadeIn>
-          ))}
+
+              {/* Label */}
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded-md bg-[#00FF85] flex items-center justify-center shrink-0">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <span className="text-[#00FF85] text-sm font-bold">The Greenprint</span>
+              </div>
+
+              {/* Price */}
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-white/30 text-xl">$</span>
+                <span className="text-6xl font-black text-white">29</span>
+                <span className="text-white text-2xl font-black">.99</span>
+                <span className="text-white/30 text-sm">/mo</span>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Full access to everything The Greenprint — streams, alerts, app, and community. Priced to stay accessible.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "All live trading sessions",
+                  "Real-time trade alerts",
+                  "Mobile app access (iOS + Android)",
+                  "Private member community",
+                  "Stream replay library",
+                  "Weekly market breakdowns",
+                  "Trading playbook & education",
+                  "New content added weekly",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/70 text-sm">
+                    <Check color="#00FF85"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={WHOP_CHECKOUT} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
+                style={{ background: "#00FF85", color: "#080808", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>
+                Join The Greenprint — $29.99/mo
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">Cancel anytime. Limited spots available.</p>
+            </div>
+          </FadeIn>
+
+          {/* ── Tier 2: 1House Stream ($99/mo) ── */}
+          <FadeIn delay={0.12}>
+            <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
+              {/* 1House badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-white/70 text-sm font-bold mb-1">1House Global — Stream</div>
+
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-white/30 text-xl">$</span>
+                <span className="text-6xl font-black text-white">99</span>
+                <span className="text-white/30 text-sm">/mo</span>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more — all on one platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Unlimited live stream access",
+                  "100+ expert creators",
+                  "Stocks, Crypto, Real Estate & more",
+                  "Day Trading & Options education",
+                  "E-commerce, AI & Business content",
+                  "On-demand replay library",
+                  "1House mobile app included",
+                  "Live stream alerts & notifications",
+                  "Inner Circle creator access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#6366f1"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-white/10"
+                style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
+                Subscribe via 1House — $99/mo
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
+
+          {/* ── Tier 3: 1House Startup ($200 + $165/mo) ── */}
+          <FadeIn delay={0.24}>
+            <div className="relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
+              {/* 1House badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global — Startup</div>
+
+              {/* Startup fee + monthly */}
+              <div className="mb-1">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-white/30 text-lg">$</span>
+                  <span className="text-5xl font-black text-white">200</span>
+                  <span className="text-white/40 text-sm ml-1">startup fee</span>
+                </div>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-[#C9A84C] font-bold text-lg">+</span>
+                  <span className="text-[#C9A84C] font-black text-2xl">$165</span>
+                  <span className="text-white/30 text-sm">/mo after</span>
+                </div>
+              </div>
+
+              <p className="text-white/40 text-sm mb-6 mt-3">
+                Everything in Stream, plus the ability to host your own content, build a subscriber base, and earn on the 1House platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Everything in 1House Stream",
+                  "Launch your own channel on 1House",
+                  "Monetize your content & community",
+                  "Creator dashboard & analytics",
+                  "Host live streams to 1House members",
+                  "Build your subscriber base",
+                  "Access to creator support team",
+                  "Business & marketing education",
+                  "1House Startup community access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#C9A84C"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-[#C9A84C]/20"
+                style={{ background: "rgba(201,168,76,0.10)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}>
+                Get 1House Startup
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
         </div>
 
-        <FadeIn delay={0.3} className="mt-8 text-center">
-          <p className="text-white/30 text-sm">
-            Not sure which plan fits?{" "}
+        {/* Bottom note */}
+        <FadeIn delay={0.3} className="mt-10 text-center">
+          <p className="text-white/25 text-xs max-w-xl mx-auto">
+            The 1House Global plans are offered through our affiliate partnership. Clicking those links may earn The Greenprint a referral commission at no extra cost to you. 1House plan details and pricing are set by 1House Global.
+          </p>
+          <p className="text-white/30 text-sm mt-4">
+            Not sure which plan is right for you?{" "}
             <Link href={CALENDLY} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] hover:underline">
-              Book a free 15-min strategy call
+              Book a free call
             </Link>{" "}
             and we&apos;ll help you decide.
           </p>
