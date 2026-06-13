@@ -1,87 +1,107 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-const RTDB_URL = process.env.NEXT_PUBLIC_FIREBASE_RTDB_URL ||
+const RTDB_URL =
+  process.env.NEXT_PUBLIC_FIREBASE_RTDB_URL ||
   "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const HOST_PEER_ID = "gp-greenprint-live";
 
-// Password is checked against SHA-256 hash of GO_LIVE_PASSWORD env var
-// The hash is embedded at build time for client-side gate
-const PWD_HASH = "688c62cbcc9582042931a11a16cd824cca4396d6a1a51f5da6f61dafb81ca1a9";
+// Password: Greenprint1!
+// To change password: run  echo -n "YourNewPassword" | sha256sum  then paste hash below
+const PWD_HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 interface Viewer { name: string; conn: any; call: any; }
 interface ChatMsg { name: string; text: string; ts: number; }
-interface Lead { name: string; email: string; ts: number; }
+interface Lead   { name: string; email: string; ts: number; }
 
 export default function GoLivePage() {
   // Auth
-  const [authed, setAuthed] = useState(false);
-  const [pwd, setPwd] = useState("");
-  const [authErr, setAuthErr] = useState("");
+  const [authed, setAuthed]         = useState(false);
+  const [pwd, setPwd]               = useState("");
+  const [authErr, setAuthErr]       = useState("");
   const [authLocked, setAuthLocked] = useState(false);
-  const [attempts, setAttempts] = useState(0);
+  const [attempts, setAttempts]     = useState(0);
 
   // Stream state
-  const [isLive, setIsLive] = useState(false);
-  const [title, setTitle] = useState("");
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(false);
+  const [isLive, setIsLive]       = useState(false);
+  const [title, setTitle]         = useState("");
+  const [micOn, setMicOn]         = useState(true);
+  const [camOn, setCamOn]         = useState(false);
   const [statusLog, setStatusLog] = useState("Ready — press Go Live to start.");
+  const [elapsed, setElapsed]     = useState("00:00:00");
 
   // Refs
-  const screenVideoRef = useRef<HTMLVideoElement>(null);
-  const camVideoRef = useRef<HTMLVideoElement>(null);
-  const peerRef = useRef<any>(null);
+  const screenVideoRef  = useRef<HTMLVideoElement>(null);
+  const camVideoRef     = useRef<HTMLVideoElement>(null);
+  const peerRef         = useRef<any>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const camStreamRef = useRef<MediaStream | null>(null);
-  const outStreamRef = useRef<MediaStream | null>(null);
-  const viewersRef = useRef<Record<string, Viewer>>({});
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioDstRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const micStreamRef    = useRef<MediaStream | null>(null);
+  const camStreamRef    = useRef<MediaStream | null>(null);
+  const outStreamRef    = useRef<MediaStream | null>(null);
+  const viewersRef      = useRef<Record<string, Viewer>>({});
+  const audioCtxRef     = useRef<AudioContext | null>(null);
+  const audioDstRef     = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const startTimeRef    = useRef<number | null>(null);
+  const timerRef        = useRef<any>(null);
 
   // Chat + leads + stats
-  const [chat, setChat] = useState<ChatMsg[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [viewers, setViewers] = useState<Record<string, string>>({});
+  const [chat, setChat]           = useState<ChatMsg[]>([]);
+  const [leads, setLeads]         = useState<Lead[]>([]);
+  const [viewers, setViewers]     = useState<Record<string, string>>({});
   const [peakViewers, setPeakViewers] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
 
   const log = (msg: string) => setStatusLog(msg);
-  const vcCount = Object.keys(viewers).length;
 
-  // Auto-restore auth from sessionStorage
+  // Restore auth from session
   useEffect(() => {
     try {
-      const s = JSON.parse(sessionStorage.getItem("gp_golive_v2") || "null");
+      const s = JSON.parse(sessionStorage.getItem("gp_golive_v3") || "null");
       if (s?.ok && s.exp > Date.now()) setAuthed(true);
     } catch {}
   }, []);
+
+  // Timer
+  useEffect(() => {
+    if (isLive) {
+      startTimeRef.current = Date.now();
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - (startTimeRef.current ?? Date.now())) / 1000);
+        setElapsed(
+          `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
+        );
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+      setElapsed("00:00:00");
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isLive]);
 
   async function doAuth(e: React.FormEvent) {
     e.preventDefault();
     if (authLocked) return;
     const hash = await sha256(pwd);
     if (hash === PWD_HASH) {
-      const now = Date.now();
-      sessionStorage.setItem("gp_golive_v2", JSON.stringify({ ok: true, exp: now + 8*3600000 }));
+      sessionStorage.setItem("gp_golive_v3", JSON.stringify({ ok: true, exp: Date.now() + 8 * 3600000 }));
       setAuthed(true);
       setAuthErr("");
     } else {
       const next = attempts + 1;
       setAttempts(next);
       setPwd("");
-      if (next >= 3) {
+      if (next >= 5) {
         setAuthLocked(true);
         setAuthErr("Too many attempts. Wait 2 minutes.");
         setTimeout(() => { setAuthLocked(false); setAttempts(0); }, 120000);
       } else {
-        setAuthErr(`Wrong password. ${3 - next} attempt${3-next===1?"":"s"} left.`);
+        setAuthErr(`Wrong password. ${5 - next} attempt${5 - next === 1 ? "" : "s"} left.`);
       }
     }
   }
@@ -91,9 +111,9 @@ export default function GoLivePage() {
       await fetch(`${RTDB_URL}/livestatus.json`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isLive: live, title: t || "" }),
+        body: JSON.stringify({ isLive: live, title: t || "", ts: Date.now() }),
       });
-    } catch (e) { console.warn("RTDB sync error:", e); }
+    } catch (e) { console.warn("Firebase sync error:", e); }
   }
 
   function loadPeerJS(cb: () => void) {
@@ -101,7 +121,7 @@ export default function GoLivePage() {
     const s = document.createElement("script");
     s.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
     s.onload = cb;
-    s.onerror = () => log("Failed to load PeerJS.");
+    s.onerror = () => log("Failed to load PeerJS. Check your internet connection.");
     document.body.appendChild(s);
   }
 
@@ -111,14 +131,20 @@ export default function GoLivePage() {
     const peer = new PeerJS(HOST_PEER_ID, { debug: 0 });
     peerRef.current = peer;
 
-    peer.on("open", (id: string) => log(`Connected — ID: ${id}`));
+    peer.on("open", (id: string) => {
+      log(`✅ Broadcaster ready — ID: ${id}. Press Go Live when ready.`);
+    });
+
     peer.on("connection", (conn: any) => {
       conn.on("data", (d: any) => {
         if (d?.t === "join") {
           const pid = conn.peer;
           viewersRef.current[pid] = { name: d.name || "Viewer", conn, call: null };
-          setViewers(prev => { const n = { ...prev, [pid]: d.name || "Viewer" }; setPeakViewers(p => Math.max(p, Object.keys(n).length)); return n; });
-          // Send viewer count update to all
+          setViewers(prev => {
+            const n = { ...prev, [pid]: d.name || "Viewer" };
+            setPeakViewers(p => Math.max(p, Object.keys(n).length));
+            return n;
+          });
           broadcast({ t: "vc", count: Object.keys(viewersRef.current).length });
           if (isLive && outStreamRef.current) callViewer(pid);
         }
@@ -139,9 +165,9 @@ export default function GoLivePage() {
 
     peer.on("error", (err: any) => {
       if (err.type === "unavailable-id") {
-        log("Host peer ID in use — stream already active in another tab.");
+        log("⚠️ Stream ID already in use — you may already be live in another tab.");
       } else {
-        log(`Peer error: ${err.message}`);
+        log(`Peer error: ${err.message}. Reconnecting…`);
         setTimeout(() => startPeer(), 3000);
       }
     });
@@ -166,18 +192,16 @@ export default function GoLivePage() {
 
   async function goLive() {
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      log("Use Chrome or Edge on desktop for screen sharing."); return;
+      log("⚠️ Use Chrome or Edge on desktop for screen sharing.");
+      return;
     }
-    log("Choose your screen — check Share Audio in the dialog.");
-
+    log("Choose your screen — select 'Share Audio' if you want system sound.");
     try {
-      // getDisplayMedia FIRST (requires direct user gesture)
       const scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 }, cursor: "always" } as any,
-        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 } as any,
+        video: { frameRate: { ideal: 60 }, cursor: "always" } as any,
+        audio: { echoCancellation: false, noiseSuppression: false } as any,
       });
       screenStreamRef.current = scrn;
-
       if (screenVideoRef.current) {
         screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
         screenVideoRef.current.muted = true;
@@ -186,12 +210,12 @@ export default function GoLivePage() {
 
       log("Screen captured — requesting mic…");
       const mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 },
+        audio: { echoCancellation: true, noiseSuppression: true },
         video: false,
       });
       micStreamRef.current = mic;
 
-      // Mix audio
+      // Mix screen audio + mic
       try {
         const ctx = new AudioContext();
         audioCtxRef.current = ctx;
@@ -201,29 +225,26 @@ export default function GoLivePage() {
         const screenAudio = scrn.getAudioTracks();
         if (screenAudio.length > 0) {
           ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
-          log("Screen + mic audio mixed ✓");
+          log("✅ Screen + mic audio mixed. Going live…");
         } else {
-          log("Mic only — check Share Audio in screen picker for system sound");
+          log("✅ Mic ready (no screen audio selected). Going live…");
         }
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
-        log("Mic ready ✓");
+        log("✅ Mic ready. Going live…");
       }
 
       const liveTitle = title || "The Greenprint — Live Session";
       setIsLive(true);
-      setStartTime(Date.now());
       await setLiveStatus(true, liveTitle);
-      log(`🔴 LIVE — calling ${Object.keys(viewersRef.current).length} waiting viewer(s)…`);
+      log(`🔴 LIVE — broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewers…`);
 
-      // Call all waiting viewers
       Object.keys(viewersRef.current).forEach((pid, i) => {
-        setTimeout(() => callViewer(pid), i * 80);
+        setTimeout(() => callViewer(pid), i * 100);
       });
-      setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 80 + 200);
+      setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 100 + 300);
 
-      // Detect screen share stopped
       scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
@@ -240,13 +261,21 @@ export default function GoLivePage() {
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
     micStreamRef.current?.getTracks().forEach(t => t.stop());
     camStreamRef.current?.getTracks().forEach(t => t.stop());
-    audioCtxRef.current?.close();
-    screenStreamRef.current = null; micStreamRef.current = null; outStreamRef.current = null;
-    if (screenVideoRef.current) { screenVideoRef.current.srcObject = null; screenVideoRef.current.style.display = "none"; }
-    if (camVideoRef.current) { camVideoRef.current.srcObject = null; }
+    try { audioCtxRef.current?.close(); } catch {}
+    screenStreamRef.current = null;
+    micStreamRef.current = null;
+    outStreamRef.current = null;
+    if (screenVideoRef.current) {
+      screenVideoRef.current.srcObject = null;
+      screenVideoRef.current.style.display = "none";
+    }
+    if (camVideoRef.current) {
+      camVideoRef.current.srcObject = null;
+      camVideoRef.current.style.display = "none";
+    }
     setIsLive(false);
     setCamOn(false);
-    log("Stream ended.");
+    log("Stream ended. Thanks for going live.");
   }
 
   function toggleMic() {
@@ -264,7 +293,10 @@ export default function GoLivePage() {
       try {
         const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         camStreamRef.current = cam;
-        if (camVideoRef.current) { camVideoRef.current.srcObject = cam; camVideoRef.current.style.display = "block"; }
+        if (camVideoRef.current) {
+          camVideoRef.current.srcObject = cam;
+          camVideoRef.current.style.display = "block";
+        }
         setCamOn(true);
       } catch { log("Camera access denied."); }
     }
@@ -279,16 +311,15 @@ export default function GoLivePage() {
   }
 
   function downloadCSV() {
-    const rows = [["Name","Email","Joined"].join(","), ...leads.map(l => [l.name,l.email,new Date(l.ts).toISOString()].join(","))];
+    const rows = [
+      ["Name", "Email", "Joined"].join(","),
+      ...leads.map(l => [l.name, l.email, new Date(l.ts).toISOString()].join(","))
+    ];
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = `greenprint-leads-${Date.now()}.csv`; a.click();
-  }
-
-  function dur() {
-    if (!startTime) return "—";
-    const s = Math.floor((Date.now() - startTime) / 1000);
-    return `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `greenprint-leads-${Date.now()}.csv`;
+    a.click();
   }
 
   // Init peer after auth
@@ -296,28 +327,41 @@ export default function GoLivePage() {
     if (!authed) return;
     loadPeerJS(() => startPeer());
     return () => { if (peerRef.current) try { peerRef.current.destroy(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
-  // ── Auth gate ──────────────────────────────────────────────────
+  /* ── Auth gate ──────────────────────────────────────────── */
   if (!authed) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-        <div className="w-full max-w-sm bg-surface border border-border rounded-card p-8">
-          <div className="w-10 h-10 bg-accent rounded flex items-center justify-center mx-auto mb-6">
-            <span className="text-bg font-black text-sm">GP</span>
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-[#00FF85]/4 blur-[120px]"/>
+        </div>
+        <div className="relative w-full max-w-sm bg-[#111] border border-white/8 rounded-2xl p-8">
+          <div className="w-10 h-10 bg-[#00FF85] rounded-xl flex items-center justify-center mx-auto mb-6">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-          <h1 className="text-center font-bold text-text mb-1">Broadcaster Access</h1>
-          <p className="text-center text-xs text-muted mb-6">Go Live Control Room</p>
+          <h1 className="text-center font-bold text-white mb-1">Broadcaster Access</h1>
+          <p className="text-center text-xs text-white/30 mb-6">The Greenprint — Go Live Control Room</p>
           <form onSubmit={doAuth} className="space-y-4">
             <input
-              type="password" placeholder="Password" required
-              value={pwd} onChange={e => setPwd(e.target.value)}
+              type="password"
+              placeholder="Password"
+              required
+              value={pwd}
+              onChange={e => setPwd(e.target.value)}
               disabled={authLocked}
-              className={`w-full bg-bg border ${authErr ? "border-red" : "border-border"} rounded-inp px-3 py-2.5 text-sm text-text placeholder:text-muted focus:outline-none focus:border-accent transition-colors`}
+              className="w-full bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#00FF85]/50 transition-colors disabled:opacity-40"
             />
-            {authErr && <p className="text-xs text-red">{authErr}</p>}
-            <button type="submit" disabled={authLocked}
-              className="w-full bg-accent text-bg font-bold py-2.5 rounded-btn text-sm disabled:opacity-40 btn-accent transition-all">
+            {authErr && <p className="text-xs text-red-400">{authErr}</p>}
+            <button
+              type="submit"
+              disabled={authLocked}
+              className="w-full bg-[#00FF85] text-black font-black py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#00e676] transition-all"
+              style={{ boxShadow: "0 0 24px rgba(0,255,133,0.3)" }}
+            >
               Enter →
             </button>
           </form>
@@ -326,104 +370,155 @@ export default function GoLivePage() {
     );
   }
 
-  // ── Broadcaster control room ───────────────────────────────────
+  /* ── Broadcaster control room ───────────────────────────── */
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
-      {/* Top nav */}
-      <div className="h-12 bg-surface border-b border-border flex items-center px-4 gap-4">
+    <div className="min-h-screen bg-[#080808] flex flex-col font-sans">
+      {/* Top bar */}
+      <div className="h-12 bg-[#0d0d0d] border-b border-white/5 flex items-center px-4 gap-4 shrink-0">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isLive ? "bg-red pulse-dot" : "bg-muted"}`} />
-          <span className={`font-mono text-xs font-bold ${isLive ? "text-red" : "text-muted"}`}>
+          <div className={`w-2.5 h-2.5 rounded-full ${isLive ? "bg-red-500 animate-pulse" : "bg-white/20"}`}/>
+          <span className={`text-xs font-black tracking-widest ${isLive ? "text-red-400" : "text-white/25"}`}>
             {isLive ? "LIVE" : "OFFLINE"}
           </span>
         </div>
-        <span className="text-xs text-muted flex-1">Go Live Control Room</span>
-        <span className="font-mono text-xs text-muted">{Object.keys(viewers).length} viewers</span>
+        <span className="text-xs text-white/30 flex-1 truncate">
+          The Greenprint — Go Live Control Room
+        </span>
+        <span className="font-mono text-xs text-white/25">
+          {Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}
+        </span>
+        {isLive && (
+          <span className="font-mono text-xs text-[#00FF85]">{elapsed}</span>
+        )}
       </div>
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         {/* Video stage */}
         <div className="flex-1 bg-black relative min-h-[220px]">
           <video ref={screenVideoRef} autoPlay muted playsInline
-            className="w-full h-full object-contain" style={{ display: "none" }} />
+            className="w-full h-full object-contain" style={{ display: "none" }}/>
           <video ref={camVideoRef} autoPlay muted playsInline
-            className="absolute bottom-3 right-3 w-36 h-24 object-cover rounded border border-border"
-            style={{ display: "none", transform: "scaleX(-1)" }} />
+            className="absolute bottom-3 right-3 w-36 h-24 object-cover rounded-xl border border-white/10"
+            style={{ display: "none", transform: "scaleX(-1)" }}/>
           {!isLive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
-              <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Stage</div>
-              <p className="text-xs text-muted">Press Go Live to start broadcasting</p>
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="3" fill="#00FF85"/>
+                  <path d="M12 5a7 7 0 100 14A7 7 0 0012 5z" stroke="white" strokeWidth="1.5" strokeOpacity="0.2"/>
+                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1" strokeOpacity="0.1"/>
+                </svg>
+              </div>
+              <p className="text-white/20 text-xs">Press Go Live to start broadcasting</p>
+              <p className="text-white/10 text-xs">Viewers at thegreenprint.trade/stream will connect automatically</p>
             </div>
           )}
         </div>
 
         {/* Right panel */}
-        <div className="w-full lg:w-80 bg-surface border-t lg:border-t-0 lg:border-l border-border flex flex-col">
+        <div className="w-full lg:w-80 bg-[#0d0d0d] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0">
           {/* Controls */}
-          <div className="p-4 border-b border-border">
-            <div className="mb-3">
-              <input
-                value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Session title…"
-                className="w-full bg-bg border border-border rounded-inp px-3 py-2 text-xs text-text placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-              />
-            </div>
+          <div className="p-4 border-b border-white/5">
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Session title (e.g. NVDA Options Play)"
+              className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors mb-3"
+            />
             <div className="flex gap-2 flex-wrap">
               {!isLive ? (
                 <button onClick={goLive}
-                  className="flex-1 bg-accent text-bg font-bold py-2 rounded-btn text-xs btn-accent transition-all">
+                  className="flex-1 bg-[#00FF85] text-black font-black py-2.5 rounded-xl text-xs hover:bg-[#00e676] transition-all"
+                  style={{ boxShadow: "0 0 16px rgba(0,255,133,0.3)" }}>
                   🔴 Go Live
                 </button>
               ) : (
                 <button onClick={endStream}
-                  className="flex-1 bg-red/10 border border-red/30 text-red font-bold py-2 rounded-btn text-xs hover:bg-red/20 transition-colors">
-                  ⏹ End
+                  className="flex-1 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-2.5 rounded-xl text-xs hover:bg-red-500/20 transition-colors">
+                  ⏹ End Stream
                 </button>
               )}
               <button onClick={toggleMic}
-                className={`px-3 py-2 rounded-btn text-xs border transition-colors ${
-                  micOn ? "border-border text-muted hover:text-text" : "border-red/30 text-red bg-red/5"
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
+                  micOn ? "border-white/10 text-white/40 hover:text-white" : "border-red-500/30 text-red-400 bg-red-500/5"
                 }`}>
-                🎙 {micOn ? "Mic" : "Muted"}
+                🎙 {micOn ? "Mic On" : "Muted"}
               </button>
               <button onClick={toggleCam}
-                className={`px-3 py-2 rounded-btn text-xs border transition-colors ${
-                  camOn ? "border-accent/30 text-accent bg-accent/5" : "border-border text-muted hover:text-text"
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
+                  camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"
                 }`}>
                 📷 Cam
               </button>
             </div>
-            <p className="text-[10px] text-muted mt-2 font-mono">{statusLog}</p>
+            <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
           </div>
 
-          {/* Stats bar */}
+          {/* App QR — show on stream so viewers can join */}
+          <div className="p-3 border-b border-white/5">
+            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream → Join App</p>
+            <div className="flex items-center gap-3">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
+                alt="Join App QR"
+                className="w-16 h-16 rounded-lg border border-white/10"
+              />
+              <div>
+                <p className="text-[11px] text-white/60 font-semibold mb-0.5">The Greenprint App</p>
+                <p className="text-[10px] text-white/25 leading-relaxed">$29.99/mo — scan to join<br/>full access + mobile app</p>
+                <button
+                  onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
+                  className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors"
+                >
+                  Copy Link
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Live stats */}
           {isLive && (
-            <div className="grid grid-cols-3 border-b border-border divide-x divide-border">
+            <div className="grid grid-cols-3 border-b border-white/5">
               {[
-                { label: "Viewers", val: Object.keys(viewers).length },
+                { label: "Live", val: Object.keys(viewers).length },
                 { label: "Peak", val: peakViewers },
-                { label: "Duration", val: dur() },
+                { label: "Time", val: elapsed },
               ].map(s => (
-                <div key={s.label} className="p-3 text-center">
-                  <div className="font-mono text-base font-bold text-accent">{s.val}</div>
-                  <div className="font-mono text-[9px] text-muted uppercase tracking-widest">{s.label}</div>
+                <div key={s.label} className="p-3 text-center border-r border-white/5 last:border-0">
+                  <div className="font-mono text-base font-black text-[#00FF85]">{s.val}</div>
+                  <div className="font-mono text-[9px] text-white/25 uppercase tracking-widest">{s.label}</div>
                 </div>
               ))}
             </div>
           )}
 
+          {/* Who's watching */}
+          {Object.keys(viewers).length > 0 && (
+            <div className="px-3 py-2 border-b border-white/5">
+              <p className="text-[10px] text-white/25 font-mono uppercase tracking-widest mb-1.5">Watching</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.values(viewers).slice(0, 12).map((name, i) => (
+                  <span key={i} className="bg-white/5 text-white/40 text-[10px] px-2 py-0.5 rounded-full">{name}</span>
+                ))}
+                {Object.keys(viewers).length > 12 && (
+                  <span className="text-white/25 text-[10px]">+{Object.keys(viewers).length - 12} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Chat */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-3 py-2 border-b border-border">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Live Chat</p>
+            <div className="px-3 py-2 border-b border-white/5">
+              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Live Chat</p>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[100px] max-h-[240px] lg:max-h-none">
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[100px] max-h-[200px] lg:max-h-none">
               {chat.length === 0
-                ? <p className="text-[10px] text-muted">Chat appears here.</p>
+                ? <p className="text-[10px] text-white/20">Chat appears here once viewers start watching.</p>
                 : chat.map((m, i) => (
                   <div key={i} className="text-xs">
-                    <span className="text-accent font-semibold">{m.name}: </span>
-                    <span className="text-muted">{m.text}</span>
+                    <span className="text-[#00FF85] font-semibold">{m.name}: </span>
+                    <span className="text-white/40">{m.text}</span>
                   </div>
                 ))
               }
@@ -431,20 +526,29 @@ export default function GoLivePage() {
           </div>
 
           {/* Leads */}
-          <div className="border-t border-border p-3">
+          <div className="border-t border-white/5 p-3 shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Leads ({leads.length})</p>
+              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">
+                Leads ({leads.length})
+              </p>
               <div className="flex gap-1">
-                <button onClick={() => copyLeads(false)} className="text-[9px] text-muted hover:text-text border border-border rounded px-1.5 py-0.5 transition-colors">Copy All</button>
-                <button onClick={() => copyLeads(true)} className="text-[9px] text-muted hover:text-text border border-border rounded px-1.5 py-0.5 transition-colors">Emails</button>
-                <button onClick={downloadCSV} className="text-[9px] text-muted hover:text-text border border-border rounded px-1.5 py-0.5 transition-colors">CSV</button>
+                {[
+                  { label: "Copy", fn: () => copyLeads(false) },
+                  { label: "Emails", fn: () => copyLeads(true) },
+                  { label: "CSV", fn: downloadCSV },
+                ].map(b => (
+                  <button key={b.label} onClick={b.fn}
+                    className="text-[9px] text-white/25 hover:text-white border border-white/8 rounded-lg px-1.5 py-0.5 transition-colors">
+                    {b.label}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="max-h-24 overflow-y-auto space-y-1">
+            <div className="max-h-20 overflow-y-auto space-y-0.5">
               {leads.length === 0
-                ? <p className="text-[10px] text-muted">No leads yet.</p>
+                ? <p className="text-[10px] text-white/20">Stream subscriber emails appear here.</p>
                 : leads.map((l, i) => (
-                  <div key={i} className="text-[10px] font-mono text-muted">
+                  <div key={i} className="text-[10px] font-mono text-white/30">
                     {l.name} &lt;{l.email}&gt;
                   </div>
                 ))
