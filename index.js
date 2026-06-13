@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, SafeAreaView, Linking,
+  StatusBar, SafeAreaView, Linking, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from '../../src/firebase';
 import { useAuth } from '../../src/hooks/useAuth';
 import { registerForPushNotifications } from '../../src/hooks/useNotifications';
@@ -28,23 +28,32 @@ export default function Home() {
   const [isLive,        setIsLive]        = useState(false);
   const [liveTitle,     setLiveTitle]     = useState('');
   const [announcements, setAnnouncements] = useState([]);
+  const [refreshing,    setRefreshing]    = useState(false);
 
+  // Register push notifications when user logs in
   useEffect(() => {
     if (!user) return;
     registerForPushNotifications(user.uid);
   }, [user]);
 
+  // Stream status — NO auth guard so the live banner shows for everyone
   useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(doc(db, 'stream', 'status'), (snap) => {
-      if (snap.exists()) {
-        setIsLive(snap.data().isLive || false);
-        setLiveTitle(snap.data().title || 'Live Now');
-      }
-    }, () => {});
+    const unsub = onSnapshot(
+      doc(db, 'stream', 'status'),
+      (snap) => {
+        if (snap.exists()) {
+          setIsLive(snap.data().isLive || false);
+          setLiveTitle(snap.data().title || 'Live Now');
+        } else {
+          setIsLive(false);
+        }
+      },
+      () => { /* silently ignore errors */ },
+    );
     return unsub;
-  }, [user]);
+  }, []); // no dependency on user — runs immediately on mount
 
+  // Announcements — only load when authenticated
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(5));
@@ -54,13 +63,39 @@ export default function Home() {
     return unsub;
   }, [user]);
 
+  // Pull-to-refresh — force re-read stream status
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const snap = await getDoc(doc(db, 'stream', 'status'));
+      if (snap.exists()) {
+        setIsLive(snap.data().isLive || false);
+        setLiveTitle(snap.data().title || 'Live Now');
+      } else {
+        setIsLive(false);
+      }
+    } catch (_) {}
+    setRefreshing(false);
+  }, []);
+
   const name = profile?.displayName || user?.displayName || '';
 
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+        >
 
           {/* Header */}
           <View style={s.header}>
@@ -113,7 +148,6 @@ export default function Home() {
           {/* Feature Cards Row */}
           <Text style={s.sectionLabel}>TOOLS & FEATURES</Text>
           <View style={s.featureRow}>
-            {/* Trade Journal */}
             <TouchableOpacity style={s.featureCard} onPress={() => router.push('/(tabs)/journal')} activeOpacity={0.8}>
               <Text style={s.featureIcon}>📒</Text>
               <Text style={s.featureTitle}>Trade Journal</Text>
@@ -121,7 +155,6 @@ export default function Home() {
               <View style={s.featureBadge}><Text style={s.featureBadgeTxt}>ACTIVE</Text></View>
             </TouchableOpacity>
 
-            {/* Market Scanner - Coming Soon */}
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>🔍</Text>
               <Text style={s.featureTitle}>Scanner</Text>
@@ -131,7 +164,6 @@ export default function Home() {
           </View>
 
           <View style={s.featureRow}>
-            {/* Signals - Coming Soon */}
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>⚡</Text>
               <Text style={s.featureTitle}>Signals</Text>
@@ -139,7 +171,6 @@ export default function Home() {
               <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
             </View>
 
-            {/* Education - Coming Soon */}
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>🎓</Text>
               <Text style={s.featureTitle}>Education</Text>
