@@ -177,6 +177,32 @@ body{padding-top:56px}
 #nv-send:hover{opacity:.88}
 #nv-send:disabled{opacity:.4;cursor:not-allowed}
 </style>
+
+  <!-- Firebase — syncs live status to the app -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const _fbApp = initializeApp({
+      apiKey:            "AIzaSyDhs-M7cWhKwvMGJAdgsee7Sf7kn34BCrA",
+      authDomain:        "the-greenprint-53d98.firebaseapp.com",
+      projectId:         "the-greenprint-53d98",
+      storageBucket:     "the-greenprint-53d98.firebasestorage.app",
+      messagingSenderId: "883107233351",
+      appId:             "1:883107233351:web:a0f6a3befb30c400f07b62",
+    });
+    const _db = getFirestore(_fbApp);
+
+    window._fbSetLive = async function(isLive, title) {
+      try {
+        await setDoc(doc(_db, 'stream', 'status'), {
+          isLive: isLive,
+          title: title || 'The Greenprint — Live Session',
+          startedAt: isLive ? serverTimestamp() : null,
+        }, { merge: true });
+      } catch(e) { console.warn('Firebase sync error:', e); }
+    };
+  </script>
 </head>
 <body>
 <!-- Auth gate — blocks entire page until password verified -->
@@ -810,6 +836,9 @@ function goLive(){
     document.getElementById('nstat').textContent='live';
     document.getElementById('nstat').className='on';
     document.getElementById('bGo').style.display='none';
+    // Sync to app
+    var _t=document.getElementById('titinp').value||'The Greenprint — Live Session';
+    if(window._fbSetLive) window._fbSetLive(true, _t);
     document.getElementById('bEnd').style.display='block';
     sys('🔴 You are live!');
     log('🔴 LIVE — calling '+Object.keys(_viewers).length+' waiting viewer(s)…');
@@ -1447,6 +1476,8 @@ function switchScreen(){
   }).catch(function(){log('Switch cancelled.');});
 }
 function endStream(){
+  // Sync to app
+  if(window._fbSetLive) window._fbSetLive(false, '');
   broadcast({t:'ended'});
   _drawActive=false;clearInterval(_drawInterval);
   if(_hbInterval){clearInterval(_hbInterval);_hbInterval=null;}
