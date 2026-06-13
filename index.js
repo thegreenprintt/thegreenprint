@@ -4,11 +4,12 @@ import {
   StatusBar, SafeAreaView, Linking, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { doc, onSnapshot, collection, query, orderBy, limit, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../../src/firebase';
 import { useAuth } from '../../src/hooks/useAuth';
 import { registerForPushNotifications } from '../../src/hooks/useNotifications';
-import { colors, radius } from '../../src/theme';
+import { subscribeLiveStatus, fetchLiveStatus } from '../../src/liveStatus';
+import { colors } from '../../src/theme';
 
 const MINDSET = [
   "Discipline is the bridge between goals and accomplishment.",
@@ -30,30 +31,22 @@ export default function Home() {
   const [announcements, setAnnouncements] = useState([]);
   const [refreshing,    setRefreshing]    = useState(false);
 
-  // Register push notifications when user logs in
+  // Push notifications
   useEffect(() => {
     if (!user) return;
     registerForPushNotifications(user.uid);
   }, [user]);
 
-  // Stream status — NO auth guard so the live banner shows for everyone
+  // Poll live status every 10s — no auth needed, works immediately on mount
   useEffect(() => {
-    const unsub = onSnapshot(
-      doc(db, 'stream', 'status'),
-      (snap) => {
-        if (snap.exists()) {
-          setIsLive(snap.data().isLive || false);
-          setLiveTitle(snap.data().title || 'Live Now');
-        } else {
-          setIsLive(false);
-        }
-      },
-      () => { /* silently ignore errors */ },
-    );
+    const unsub = subscribeLiveStatus(({ isLive, title }) => {
+      setIsLive(isLive);
+      setLiveTitle(title);
+    });
     return unsub;
-  }, []); // no dependency on user — runs immediately on mount
+  }, []);
 
-  // Announcements — only load when authenticated
+  // Announcements — authenticated only
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(5));
@@ -63,18 +56,12 @@ export default function Home() {
     return unsub;
   }, [user]);
 
-  // Pull-to-refresh — force re-read stream status
+  // Pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const snap = await getDoc(doc(db, 'stream', 'status'));
-      if (snap.exists()) {
-        setIsLive(snap.data().isLive || false);
-        setLiveTitle(snap.data().title || 'Live Now');
-      } else {
-        setIsLive(false);
-      }
-    } catch (_) {}
+    const status = await fetchLiveStatus();
+    setIsLive(status.isLive);
+    setLiveTitle(status.title);
     setRefreshing(false);
   }, []);
 
@@ -96,7 +83,6 @@ export default function Home() {
             />
           }
         >
-
           {/* Header */}
           <View style={s.header}>
             <View>
@@ -145,7 +131,7 @@ export default function Home() {
             <Text style={s.mindsetSig}>— The Greenprint</Text>
           </View>
 
-          {/* Feature Cards Row */}
+          {/* Features */}
           <Text style={s.sectionLabel}>TOOLS & FEATURES</Text>
           <View style={s.featureRow}>
             <TouchableOpacity style={s.featureCard} onPress={() => router.push('/(tabs)/journal')} activeOpacity={0.8}>
@@ -154,7 +140,6 @@ export default function Home() {
               <Text style={s.featureSub}>Log & track every trade</Text>
               <View style={s.featureBadge}><Text style={s.featureBadgeTxt}>ACTIVE</Text></View>
             </TouchableOpacity>
-
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>🔍</Text>
               <Text style={s.featureTitle}>Scanner</Text>
@@ -162,7 +147,6 @@ export default function Home() {
               <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
             </View>
           </View>
-
           <View style={s.featureRow}>
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>⚡</Text>
@@ -170,7 +154,6 @@ export default function Home() {
               <Text style={s.featureSub}>Live trade alerts</Text>
               <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
             </View>
-
             <View style={[s.featureCard, s.featureCardDim]}>
               <Text style={s.featureIcon}>🎓</Text>
               <Text style={s.featureTitle}>Education</Text>
@@ -179,7 +162,7 @@ export default function Home() {
             </View>
           </View>
 
-          {/* Broker Setup */}
+          {/* Broker */}
           <Text style={s.sectionLabel}>RECOMMENDED BROKER</Text>
           <TouchableOpacity
             style={s.brokerCard}
@@ -194,7 +177,7 @@ export default function Home() {
             <Text style={s.brokerIcon}>🏦</Text>
           </TouchableOpacity>
 
-          {/* Community Links */}
+          {/* Community */}
           <Text style={s.sectionLabel}>COMMUNITY</Text>
           <View style={s.linksRow}>
             <TouchableOpacity style={s.linkCard} onPress={() => Linking.openURL('https://t.me/+Hz_sp0s32jVjNDQx')} activeOpacity={0.8}>
@@ -224,13 +207,12 @@ export default function Home() {
             </View>
           )}
 
-          {/* Legal Disclaimer */}
+          {/* Disclaimer */}
           <View style={s.disclaimer}>
             <Text style={s.disclaimerTxt}>
               ⚖️  For educational purposes only. Not financial advice. Trading involves risk. See Terms & Privacy for full disclaimer.
             </Text>
           </View>
-
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -267,22 +249,22 @@ const s = StyleSheet.create({
   onboardSub:    { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
   onboardArrow:  { fontSize: 20, color: colors.accent, fontWeight: '700' },
 
-  mindsetCard: { backgroundColor: '#0A0A0A', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', padding: 20, marginBottom: 24, borderLeftWidth: 3, borderLeftColor: colors.accent },
+  mindsetCard:  { backgroundColor: '#0A0A0A', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', padding: 20, marginBottom: 24, borderLeftWidth: 3, borderLeftColor: colors.accent },
   mindsetLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: colors.accent, marginBottom: 10 },
   mindsetQuote: { fontSize: 15, color: 'rgba(255,255,255,0.75)', lineHeight: 24, fontStyle: 'italic', marginBottom: 8 },
   mindsetSig:   { fontSize: 11, color: 'rgba(255,255,255,0.25)', fontWeight: '600' },
 
   sectionLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: 'rgba(255,255,255,0.25)', marginBottom: 12 },
 
-  featureRow:     { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  featureCard:    { flex: 1, backgroundColor: '#0D0D0D', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 4 },
-  featureCardDim: { opacity: 0.6 },
-  featureIcon:    { fontSize: 24, marginBottom: 4 },
-  featureTitle:   { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  featureSub:     { fontSize: 11, color: '#555', marginBottom: 8 },
-  featureBadge:   { backgroundColor: 'rgba(0,255,135,0.1)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(0,255,135,0.2)' },
-  featureBadgeSoon: { backgroundColor: 'rgba(255,209,102,0.08)', borderColor: 'rgba(255,209,102,0.2)' },
-  featureBadgeTxt:  { fontSize: 8, fontWeight: '700', letterSpacing: 1.5, color: colors.accent },
+  featureRow:      { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  featureCard:     { flex: 1, backgroundColor: '#0D0D0D', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 4 },
+  featureCardDim:  { opacity: 0.6 },
+  featureIcon:     { fontSize: 24, marginBottom: 4 },
+  featureTitle:    { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  featureSub:      { fontSize: 11, color: '#555', marginBottom: 8 },
+  featureBadge:    { backgroundColor: 'rgba(0,255,135,0.1)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(0,255,135,0.2)' },
+  featureBadgeSoon:{ backgroundColor: 'rgba(255,209,102,0.08)', borderColor: 'rgba(255,209,102,0.2)' },
+  featureBadgeTxt: { fontSize: 8, fontWeight: '700', letterSpacing: 1.5, color: colors.accent },
 
   brokerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0D0D0D', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 18, marginBottom: 24 },
   brokerLeft: { flex: 1 },
