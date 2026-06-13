@@ -185,9 +185,9 @@ function Nav() {
 /* ─── Hero ───────────────────────────────────────────────────── */
 function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16">
-      {/* Background */}
-      <div className="absolute inset-0 pointer-events-none">
+    <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
+      {/* Background — hidden on mobile for performance */}
+      <div className="absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
         <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
         <div className="absolute inset-0 opacity-[0.025]"
@@ -197,48 +197,52 @@ function Hero() {
           }}
         />
       </div>
+      {/* Subtle mobile glow */}
+      <div className="absolute inset-0 pointer-events-none sm:hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
+      </div>
 
-      <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-        className="mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-4 py-2">
-        <span className="w-2 h-2 rounded-full bg-[#00FF85] animate-pulse"/>
-        <span className="text-[#00FF85] text-sm font-medium">Live Trading Community · 2,400+ Members</span>
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1 }}
+        className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
+        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
+        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community · 2,400+ Members</span>
       </motion.div>
 
       <motion.h1
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center font-black leading-[0.9] tracking-tight px-4"
-        style={{ fontSize: "clamp(56px, 10vw, 130px)" }}
+        transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center font-black leading-[0.88] tracking-tight px-4"
+        style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
       >
         <span className="block text-white">TRADE</span>
-        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 80px rgba(0,255,133,0.5)" }}>
+        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 60px rgba(0,255,133,0.45)" }}>
           SMARTER.
         </span>
         <span className="block text-white">WIN BIGGER.</span>
       </motion.h1>
 
-      <motion.p initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="mt-8 text-white/45 text-center max-w-xl px-6 text-lg leading-relaxed">
-        Real-time trade alerts, live sessions, and a proven system — the educational trading community built to help you level up.
+      <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
+        Real-time trade alerts, live sessions, and a proven system — built to help you level up.
       </motion.p>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
         <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-base px-8 py-4 rounded-full hover:bg-[#00e676] transition-all"
-          style={{ boxShadow: "0 0 40px rgba(0,255,133,0.4)" }}>
-          Get Access Now
-          <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
+          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all flex-1 sm:flex-none justify-center"
+          style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
+          Get Access
+          <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </Link>
         <Link href="/stream"
-          className="inline-flex items-center gap-2 border border-white/15 text-white font-semibold text-base px-8 py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all">
-          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all flex-1 sm:flex-none justify-center">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
             <polygon points="6.5,5.5 11,8 6.5,10.5" fill="currentColor"/>
           </svg>
@@ -246,20 +250,20 @@ function Hero() {
         </Link>
       </motion.div>
 
-      {/* Stat badges — no win-rate claims */}
+      {/* Stat badges — 2 on mobile, all 3 on desktop */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 1 }}
-        className="mt-16 flex flex-wrap justify-center gap-3 px-4">
+        transition={{ delay: 0.8, duration: 0.8 }}
+        className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
         {[
           { label: "Active Members", value: "2,400+", color: "#00FF85" },
           { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
-          { label: "Years of Experience", value: "7+", color: "#00FF85" },
+          { label: "Years Experience", value: "7+", color: "#00FF85", hideOnMobile: true },
         ].map((stat, i) => (
           <motion.div key={stat.label}
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.1 + i * 0.1 }}
-            className="bg-white/5 border border-white/8 rounded-2xl px-5 py-3 flex items-center gap-3">
-            <span className="font-black text-2xl" style={{ color: stat.color }}>{stat.value}</span>
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 + i * 0.08 }}
+            className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
+            <span className="font-black text-lg sm:text-2xl" style={{ color: stat.color }}>{stat.value}</span>
             <span className="text-white/40 text-xs">{stat.label}</span>
           </motion.div>
         ))}
