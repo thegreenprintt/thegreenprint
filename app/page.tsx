@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  motion,
-  useInView,
-  AnimatePresence,
-} from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
-const WHOP_URL = "https://whop.com"; // ← update with your real Whop link
+const WHOP_URL = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
 
-/* ─── Fade-in helper ─────────────────────────────────────────── */
+/* ─── Helpers ────────────────────────────────────────────────── */
 function FadeIn({
   children,
   delay = 0,
@@ -39,34 +35,22 @@ function FadeIn({
   );
 }
 
-/* ─── Animated counter ───────────────────────────────────────── */
 function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
-
   useEffect(() => {
     if (!inView) return;
-    let start = 0;
+    let n = 0;
     const step = target / (1800 / 16);
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) {
-        setCount(target);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(start));
-      }
+    const t = setInterval(() => {
+      n += step;
+      if (n >= target) { setCount(target); clearInterval(t); }
+      else setCount(Math.floor(n));
     }, 16);
-    return () => clearInterval(timer);
+    return () => clearInterval(t);
   }, [inView, target]);
-
-  return (
-    <span ref={ref}>
-      {count.toLocaleString()}
-      {suffix}
-    </span>
-  );
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
 /* ─── Ticker ─────────────────────────────────────────────────── */
@@ -80,7 +64,7 @@ const TICKERS = [
   { sym: "MSFT", price: "438.12", chg: "+0.91%" },
   { sym: "AMZN", price: "198.45", chg: "+1.56%" },
   { sym: "GOOGL", price: "178.23", chg: "+1.12%" },
-  { sym: "AMD", price: "165.77", chg: "+2.89%" },
+  { sym: "AMD",  price: "165.77", chg: "+2.89%" },
 ];
 
 function Ticker() {
@@ -104,15 +88,14 @@ function Ticker() {
   );
 }
 
-/* ─── Navigation ─────────────────────────────────────────────── */
+/* ─── Nav ────────────────────────────────────────────────────── */
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   return (
@@ -121,23 +104,14 @@ function Nav() {
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-[#080808]/90 backdrop-blur-xl border-b border-white/5"
-          : "bg-transparent"
+        scrolled ? "bg-[#080808]/90 backdrop-blur-xl border-b border-white/5" : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M2 12L6 7L9 10L13 4"
-                stroke="#080808"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <span className="text-white font-bold text-lg tracking-tight">
@@ -145,111 +119,59 @@ function Nav() {
           </span>
         </Link>
 
-        {/* Desktop links */}
         <div className="hidden md:flex items-center gap-8">
           {[
             { label: "How It Works", href: "#how-it-works" },
             { label: "Programs", href: "#pricing" },
-            { label: "Live Stream", href: "/stream" },
+            { label: "Watch Live", href: "/stream" },
             { label: "Results", href: "#results" },
-          ].map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="text-white/60 hover:text-white text-sm transition-colors duration-200"
-            >
-              {link.label}
+          ].map(l => (
+            <Link key={l.label} href={l.href}
+              className="text-white/60 hover:text-white text-sm transition-colors duration-200">
+              {l.label}
             </Link>
           ))}
         </div>
 
-        {/* CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href={CALENDLY}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2"
-          >
+          <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2">
             Book a Call
           </Link>
-          <Link
-            href={WHOP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all duration-200"
-            style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}
-          >
+          <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+            className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all"
+            style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}>
             Join Now
           </Link>
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          className="md:hidden text-white p-2"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            {menuOpen ? (
-              <path d="M18 6L6 18M6 6l12 12" />
-            ) : (
-              <>
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </>
-            )}
+        <button className="md:hidden text-white p-2" onClick={() => setOpen(!open)}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {open ? <path d="M18 6L6 18M6 6l12 12"/> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
           </svg>
         </button>
       </div>
 
-      {/* Mobile menu */}
       <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6"
-          >
+        {open && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }} className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6">
             <div className="flex flex-col gap-4 pt-4">
               {[
                 { label: "How It Works", href: "#how-it-works" },
                 { label: "Programs", href: "#pricing" },
-                { label: "Live Stream", href: "/stream" },
+                { label: "Watch Live", href: "/stream" },
                 { label: "Results", href: "#results" },
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="text-white/60 text-sm hover:text-white"
-                >
-                  {link.label}
+              ].map(l => (
+                <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
+                  className="text-white/60 text-sm hover:text-white">
+                  {l.label}
                 </Link>
               ))}
-              <Link
-                href={CALENDLY}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#00FF85] text-sm font-semibold"
-              >
-                Book a Call
-              </Link>
-              <Link
-                href={WHOP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center"
-              >
+              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
+              <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+                className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center">
                 Join Now
               </Link>
             </div>
@@ -263,145 +185,88 @@ function Nav() {
 /* ─── Hero ───────────────────────────────────────────────────── */
 function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
-      {/* Background effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]" />
-        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]" />
-        {/* Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
+    <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
+      {/* Background — hidden on mobile for performance */}
+      <div className="absolute inset-0 pointer-events-none hidden sm:block">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
+        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
+        <div className="absolute inset-0 opacity-[0.025]"
           style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
             backgroundSize: "64px 64px",
           }}
         />
       </div>
+      {/* Subtle mobile glow */}
+      <div className="absolute inset-0 pointer-events-none sm:hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
+      </div>
 
-      {/* Live badge */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-        className="mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-4 py-2"
-      >
-        <span className="w-2 h-2 rounded-full bg-[#00FF85] animate-pulse" />
-        <span className="text-[#00FF85] text-sm font-medium">Live Trading Community · 2,400+ Members</span>
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1 }}
+        className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
+        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
+        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community · 2,400+ Members</span>
       </motion.div>
 
-      {/* Headline */}
       <motion.h1
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center font-black leading-[0.9] tracking-tight px-4"
-        style={{ fontSize: "clamp(56px, 10vw, 130px)" }}
+        transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center font-black leading-[0.88] tracking-tight px-4"
+        style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
       >
         <span className="block text-white">TRADE</span>
-        <span
-          className="block text-[#00FF85]"
-          style={{ textShadow: "0 0 80px rgba(0,255,133,0.5)" }}
-        >
+        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 60px rgba(0,255,133,0.45)" }}>
           SMARTER.
         </span>
         <span className="block text-white">WIN BIGGER.</span>
       </motion.h1>
 
-      {/* Sub */}
-      <motion.p
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="mt-8 text-white/45 text-center max-w-xl px-6 text-lg leading-relaxed"
-      >
-        Real-time alerts, live streams, and proven setups from Jacob — the trading community built to put money in your pocket.
+      <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
+        Real-time trade alerts, live sessions, and a proven system — built to help you level up.
       </motion.p>
 
-      {/* CTAs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="mt-10 flex flex-wrap items-center justify-center gap-4"
-      >
-        <Link
-          href={WHOP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-base px-8 py-4 rounded-full hover:bg-[#00e676] transition-all duration-200"
-          style={{ boxShadow: "0 0 40px rgba(0,255,133,0.4)" }}
-        >
-          Get Access Now
-          <svg
-            className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <path
-              d="M3 8h10M9 4l4 4-4 4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
+        <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all flex-1 sm:flex-none justify-center"
+          style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
+          Get Access
+          <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </Link>
-        <Link
-          href={CALENDLY}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 border border-white/15 text-white font-semibold text-base px-8 py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all duration-200"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-            <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <Link href="/stream"
+          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all flex-1 sm:flex-none justify-center">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+            <polygon points="6.5,5.5 11,8 6.5,10.5" fill="currentColor"/>
           </svg>
-          Book a Free Call
+          Watch Free
         </Link>
       </motion.div>
 
-      {/* Stat badges */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 1 }}
-        className="mt-16 flex flex-wrap justify-center gap-3 px-4"
-      >
+      {/* Stat badges — 2 on mobile, all 3 on desktop */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        transition={{ delay: 0.8, duration: 0.8 }}
+        className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
         {[
           { label: "Active Members", value: "2,400+", color: "#00FF85" },
-          { label: "Avg. Win Rate", value: "74%", color: "#C9A84C" },
-          { label: "Live Sessions/Mo", value: "20+", color: "#00FF85" },
-          { label: "Years Experience", value: "7+", color: "#C9A84C" },
+          { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
+          { label: "Years Experience", value: "7+", color: "#00FF85", hideOnMobile: true },
         ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.1 + i * 0.1 }}
-            className="bg-white/5 border border-white/8 rounded-2xl px-5 py-3 flex items-center gap-3"
-          >
-            <span className="font-black text-2xl" style={{ color: stat.color }}>
-              {stat.value}
-            </span>
+          <motion.div key={stat.label}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 + i * 0.08 }}
+            className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
+            <span className="font-black text-lg sm:text-2xl" style={{ color: stat.color }}>{stat.value}</span>
             <span className="text-white/40 text-xs">{stat.label}</span>
           </motion.div>
         ))}
-      </motion.div>
-
-      {/* Scroll hint */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.6 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-      >
-        <span className="text-white/20 text-xs tracking-widest uppercase">Scroll</span>
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 1.6 }}
-          className="w-px h-8 bg-gradient-to-b from-white/20 to-transparent"
-        />
       </motion.div>
     </section>
   );
@@ -414,21 +279,24 @@ function Stats() {
       <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
         {[
           { value: 2400, suffix: "+", label: "Members" },
-          { value: 74, suffix: "%", label: "Avg Win Rate" },
-          { value: 1200, suffix: "+", label: "Trades Shared" },
-          { value: 7, suffix: "yrs", label: "Experience" },
+          { value: 20, suffix: "+", label: "Live Sessions/Mo" },
+          { value: 1200, suffix: "+", label: "Trade Alerts Sent" },
+          { value: 7, suffix: "yrs", label: "Market Experience" },
         ].map((s, i) => (
           <FadeIn key={s.label} delay={i * 0.1} className="text-center">
-            <div
-              className="text-5xl font-black mb-2"
-              style={{ color: i % 2 === 0 ? "#00FF85" : "#C9A84C" }}
-            >
-              <Counter target={s.value} suffix={s.suffix} />
+            <div className="text-5xl font-black mb-2"
+              style={{ color: i % 2 === 0 ? "#00FF85" : "#C9A84C" }}>
+              <Counter target={s.value} suffix={s.suffix}/>
             </div>
             <div className="text-white/35 text-sm">{s.label}</div>
           </FadeIn>
         ))}
       </div>
+      <FadeIn className="mt-4 text-center">
+        <p className="text-white/20 text-xs max-w-lg mx-auto px-4">
+          For educational purposes only. Past results are not indicative of future performance. Trading involves substantial risk of loss.
+        </p>
+      </FadeIn>
     </section>
   );
 }
@@ -436,50 +304,32 @@ function Stats() {
 /* ─── How It Works ───────────────────────────────────────────── */
 function HowItWorks() {
   const steps = [
-    {
-      num: "01",
-      title: "Join The Community",
-      desc: "Get instant access to the private Discord, live sessions, and the full Greenprint trading system.",
-      icon: "🔐",
-    },
-    {
-      num: "02",
-      title: "Learn The System",
-      desc: "Follow Jacob's exact strategy — entry signals, risk management, and setups that consistently produce.",
-      icon: "📊",
-    },
-    {
-      num: "03",
-      title: "Receive Real-Time Alerts",
-      desc: "Get notified the second Jacob spots a play. Never miss a move with live push notifications.",
-      icon: "⚡",
-    },
-    {
-      num: "04",
-      title: "Stack The Wins",
-      desc: "Execute with confidence and start building the trading account you've always wanted.",
-      icon: "💰",
-    },
+    { num: "01", title: "Join The Community", icon: "🔐",
+      desc: "Get instant access to the private Discord, live sessions, and the full Greenprint educational system." },
+    { num: "02", title: "Learn The System", icon: "📊",
+      desc: "Study The Greenprint's approach — entry signals, risk management, and setups that have stood the test of time." },
+    { num: "03", title: "Receive Real-Time Alerts", icon: "⚡",
+      desc: "Get notified the second a setup is spotted. Follow along with live commentary and rationale for every alert." },
+    { num: "04", title: "Apply What You Learn", icon: "💰",
+      desc: "Take what you've learned and execute with a plan. Track your growth and refine your strategy over time." },
   ];
 
   return (
     <section id="how-it-works" className="py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF85]/2 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF85]/2 to-transparent pointer-events-none"/>
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">The Process</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">
-            How The Greenprint Works
-          </h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            A simple, repeatable system that turns market chaos into consistent profits.
+            A structured educational system designed to help you develop real trading skills.
           </p>
         </FadeIn>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {steps.map((step, i) => (
             <FadeIn key={step.num} delay={i * 0.1}>
-              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full relative">
+              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
                 <div className="text-3xl mb-4">{step.icon}</div>
                 <div className="text-[#00FF85]/40 text-xs font-bold tracking-widest mb-2">{step.num}</div>
                 <h3 className="text-white font-bold text-base mb-2">{step.title}</h3>
@@ -496,79 +346,38 @@ function HowItWorks() {
 /* ─── Features ───────────────────────────────────────────────── */
 function Features() {
   const features = [
-    {
-      icon: "⚡",
-      title: "Real-Time Alerts",
-      desc: "Push alerts the second Jacob enters or exits. React before the crowd.",
-      badge: "Live",
-      badgeColor: "#00FF85",
-    },
-    {
-      icon: "🎥",
-      title: "Live Stream Sessions",
-      desc: "Watch Jacob trade in real time — every click, every thesis, every exit.",
-      badge: null,
-      badgeColor: "#00FF85",
-    },
-    {
-      icon: "🔍",
-      title: "Options Scanner",
-      desc: "AI-powered scanner surfaces unusual options flow before it moves the stock.",
-      badge: "Pro",
-      badgeColor: "#00FF85",
-    },
-    {
-      icon: "👥",
-      title: "Private Community",
-      desc: "Curated Discord of serious traders. No noise — just setups, recaps, and wins.",
-      badge: null,
-      badgeColor: "#00FF85",
-    },
-    {
-      icon: "📖",
-      title: "Trading Playbook",
-      desc: "The exact strategies, chart setups, and rules Jacob uses every single day.",
-      badge: null,
-      badgeColor: "#C9A84C",
-    },
-    {
-      icon: "🛡️",
-      title: "1-on-1 Mentorship",
-      desc: "Elite members get direct access to Jacob for personalized coaching.",
-      badge: "Elite",
-      badgeColor: "#C9A84C",
-    },
+    { icon: "⚡", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
+      desc: "Push alerts the moment a setup is identified, with full context on the reasoning behind it." },
+    { icon: "🎥", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
+      desc: "Watch The Greenprint trade in real time — entry, thesis, and exit streamed directly to you." },
+    { icon: "🔍", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
+      desc: "Scan for unusual options flow and spot potential moves before they develop." },
+    { icon: "👥", title: "Private Community", badge: null, badgeColor: "#00FF85",
+      desc: "A members-only Discord focused on education, setups, and accountability — no noise." },
+    { icon: "📖", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
+      desc: "The exact frameworks, chart setups, and decision rules used in The Greenprint system." },
+    { icon: "🛡️", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
+      desc: "Elite members get direct coaching sessions tailored to their personal trading goals." },
   ];
 
   return (
     <section className="py-24">
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
-          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">
-            Everything You Need
-          </span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">
-            Built for Serious Traders
-          </h2>
+          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Everything You Need</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
         </FadeIn>
-
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => (
             <FadeIn key={f.title} delay={i * 0.08}>
               <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
                 <div className="relative">
                   <div className="flex items-start justify-between mb-4">
                     <div className="text-3xl">{f.icon}</div>
                     {f.badge && (
-                      <span
-                        className="text-xs font-bold px-2.5 py-1 rounded-full"
-                        style={{
-                          background: `${f.badgeColor}18`,
-                          color: f.badgeColor,
-                          border: `1px solid ${f.badgeColor}30`,
-                        }}
-                      >
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                        style={{ background: `${f.badgeColor}18`, color: f.badgeColor, border: `1px solid ${f.badgeColor}30` }}>
                         {f.badge}
                       </span>
                     )}
@@ -589,48 +398,37 @@ function Features() {
 function LiveCallout() {
   return (
     <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-[#00FF85]/5 via-transparent to-[#C9A84C]/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#00FF85]/5 via-transparent to-[#C9A84C]/5 pointer-events-none"/>
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn>
-          <div
-            className="rounded-3xl p-10 md:p-16 relative overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, rgba(0,255,133,0.06) 0%, rgba(0,0,0,0) 60%)",
-              border: "1px solid rgba(0,255,133,0.2)",
-            }}
-          >
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[80px] pointer-events-none" />
+          <div className="rounded-3xl p-10 md:p-16 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.06) 0%, rgba(0,0,0,0) 60%)", border: "1px solid rgba(0,255,133,0.2)" }}>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[80px] pointer-events-none"/>
             <div className="relative grid md:grid-cols-2 gap-12 items-center">
               <div>
                 <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/25 rounded-full px-3 py-1.5 mb-6">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
                   <span className="text-red-400 text-xs font-bold tracking-wide">LIVE SESSIONS</span>
                 </div>
                 <h2 className="text-4xl md:text-5xl font-black text-white leading-tight mb-6">
-                  Watch Jacob Trade{" "}
+                  Watch The Greenprint Trade{" "}
                   <span className="text-[#00FF85]">In Real Time</span>
                 </h2>
                 <p className="text-white/45 text-lg leading-relaxed mb-8">
-                  No more guessing. Get a front-row seat to live trades — entry, thesis, and exit — streamed directly to you.
+                  Subscribe free and get a front-row seat to live sessions — entry, thesis, and exit streamed directly to members on the web and mobile app.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Link
-                    href={WHOP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link href="/stream"
                     className="inline-flex items-center justify-center gap-2 bg-[#00FF85] text-black font-bold px-7 py-3.5 rounded-full hover:bg-[#00e676] transition-all"
-                    style={{ boxShadow: "0 0 30px rgba(0,255,133,0.3)" }}
-                  >
-                    Join to Watch Live
+                    style={{ boxShadow: "0 0 30px rgba(0,255,133,0.3)" }}>
+                    Watch Now — Free
                     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </Link>
-                  <Link
-                    href="/stream"
-                    className="inline-flex items-center justify-center gap-2 border border-white/15 text-white font-semibold px-7 py-3.5 rounded-full hover:bg-white/5 transition-all"
-                  >
-                    Preview Stream
+                  <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 border border-white/15 text-white font-semibold px-7 py-3.5 rounded-full hover:bg-white/5 transition-all">
+                    Join the Community
                   </Link>
                 </div>
               </div>
@@ -639,37 +437,34 @@ function LiveCallout() {
               <div className="relative">
                 <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] overflow-hidden">
                   <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"/>
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"/>
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"/>
                     <span className="ml-2 text-white/20 text-xs">thegreenprint.trade/stream</span>
                   </div>
                   <div className="p-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
                     <div className="w-16 h-16 rounded-2xl bg-[#00FF85]/10 border border-[#00FF85]/20 flex items-center justify-center">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                        <polygon points="5,3 19,12 5,21" fill="#00FF85" />
+                        <polygon points="5,3 19,12 5,21" fill="#00FF85"/>
                       </svg>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-2 mb-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
                         <span className="text-white/60 text-sm font-semibold">Stream Active</span>
                       </div>
-                      <p className="text-white/25 text-xs">Live when Jacob is trading</p>
+                      <p className="text-white/25 text-xs">Broadcasts live to web + mobile app</p>
                     </div>
                     <div className="flex gap-2 mt-2">
-                      {["NVDA", "TSLA", "SPY"].map((sym) => (
-                        <span
-                          key={sym}
-                          className="bg-[#00FF85]/10 border border-[#00FF85]/20 text-[#00FF85] text-xs font-bold px-2.5 py-1 rounded-lg"
-                        >
+                      {["NVDA", "TSLA", "SPY"].map(sym => (
+                        <span key={sym} className="bg-[#00FF85]/10 border border-[#00FF85]/20 text-[#00FF85] text-xs font-bold px-2.5 py-1 rounded-lg">
                           {sym}
                         </span>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="absolute -inset-4 bg-[#00FF85]/5 rounded-3xl blur-2xl -z-10" />
+                <div className="absolute -inset-4 bg-[#00FF85]/5 rounded-3xl blur-2xl -z-10"/>
               </div>
             </div>
           </div>
@@ -680,63 +475,19 @@ function LiveCallout() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────── */
-function Pricing() {
-  const plans = [
-    {
-      name: "The Greenprint",
-      price: "97",
-      period: "/mo",
-      desc: "Everything you need to start trading profitably.",
-      color: "#00FF85",
-      popular: false,
-      cta: "Get Started",
-      features: [
-        "Real-time trade alerts",
-        "Live stream access",
-        "Private Discord community",
-        "Weekly market breakdown",
-        "Trading playbook PDF",
-        "Mobile app access",
-      ],
-    },
-    {
-      name: "Elite",
-      price: "197",
-      period: "/mo",
-      desc: "For traders serious about scaling up.",
-      color: "#00FF85",
-      popular: true,
-      cta: "Get Elite Access",
-      features: [
-        "Everything in Greenprint",
-        "Options flow scanner",
-        "Priority alert notifications",
-        "Monthly group Q&A call",
-        "Advanced setups + watchlists",
-        "Performance tracker",
-        "Early access to new tools",
-      ],
-    },
-    {
-      name: "Inner Circle",
-      price: "497",
-      period: "/mo",
-      desc: "Direct access to Jacob. For the top 1%.",
-      color: "#C9A84C",
-      popular: false,
-      cta: "Apply Now",
-      features: [
-        "Everything in Elite",
-        "Monthly 1-on-1 with Jacob",
-        "Portfolio review sessions",
-        "VIP Discord channel",
-        "Custom trade plan",
-        "First access to special plays",
-        "Priority support",
-      ],
-    },
-  ];
+const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const ONEHOUSE_REF  = "https://subscribe.1houseglobal.com/jay";
 
+function Check({ color }: { color: string }) {
+  return (
+    <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" fill={color} fillOpacity="0.12"/>
+      <path d="M5 8l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function Pricing() {
   return (
     <section id="pricing" className="py-24">
       <div className="max-w-6xl mx-auto px-6">
@@ -744,88 +495,190 @@ function Pricing() {
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
           <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            Every tier gives you real signals, real education, and a real community.
+            Start with The Greenprint or level up with our partner platform 1House Global — everything you need is right here.
           </p>
         </FadeIn>
 
-        <div className="grid md:grid-cols-3 gap-5">
-          {plans.map((plan, i) => (
-            <FadeIn key={plan.name} delay={i * 0.12}>
-              <div
-                className={`relative rounded-2xl p-7 h-full flex flex-col ${
-                  plan.popular
-                    ? "border-2 border-[#00FF85]/50 bg-[#00FF85]/5"
-                    : plan.color === "#C9A84C"
-                    ? "border border-[#C9A84C]/20 bg-white/2"
-                    : "border border-white/8 bg-white/2"
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
-                    MOST POPULAR
-                  </div>
-                )}
+        <div className="grid md:grid-cols-3 gap-5 items-start">
 
-                <div className="mb-6">
-                  <div className="text-sm font-bold mb-1" style={{ color: plan.color }}>
-                    {plan.name}
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-white/30 text-xl">$</span>
-                    <span className="text-5xl font-black text-white">{plan.price}</span>
-                    <span className="text-white/30 text-sm">{plan.period}</span>
-                  </div>
-                  <p className="text-white/40 text-sm">{plan.desc}</p>
-                </div>
-
-                <ul className="space-y-3 flex-1 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-white/65 text-sm">
-                      <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
-                        <circle cx="8" cy="8" r="7" fill={plan.color} fillOpacity="0.12" />
-                        <path
-                          d="M5 8l2 2 4-4"
-                          stroke={plan.color}
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={WHOP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full text-center font-bold py-3.5 rounded-xl transition-all duration-200 text-sm block"
-                  style={
-                    plan.popular
-                      ? { background: "#00FF85", color: "#080808", boxShadow: "0 0 24px rgba(0,255,133,0.3)" }
-                      : plan.color === "#C9A84C"
-                      ? { background: "rgba(201,168,76,0.12)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }
-                      : { background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.1)" }
-                  }
-                >
-                  {plan.cta}
-                </Link>
+          {/* ── Tier 1: The Greenprint (own product) ── */}
+          <FadeIn delay={0}>
+            <div className="relative rounded-2xl p-7 flex flex-col border-2 border-[#00FF85]/50 bg-[#00FF85]/5">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
+                ⚡ LIMITED SPOTS
               </div>
-            </FadeIn>
-          ))}
+
+              {/* Label */}
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded-md bg-[#00FF85] flex items-center justify-center shrink-0">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <span className="text-[#00FF85] text-sm font-bold">The Greenprint</span>
+              </div>
+
+              {/* Price */}
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-white/30 text-xl">$</span>
+                <span className="text-6xl font-black text-white">29</span>
+                <span className="text-white text-2xl font-black">.99</span>
+                <span className="text-white/30 text-sm">/mo</span>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Full access to everything The Greenprint — streams, alerts, app, and community. Priced to stay accessible.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "All live trading sessions",
+                  "Real-time trade alerts",
+                  "Mobile app access (iOS + Android)",
+                  "Private member community",
+                  "Stream replay library",
+                  "Weekly market breakdowns",
+                  "Trading playbook & education",
+                  "New content added weekly",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/70 text-sm">
+                    <Check color="#00FF85"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={WHOP_CHECKOUT} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
+                style={{ background: "#00FF85", color: "#080808", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>
+                Join The Greenprint — $29.99/mo
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">Cancel anytime. Limited spots available.</p>
+            </div>
+          </FadeIn>
+
+          {/* ── Tier 2: 1House Stream ($99/mo) ── */}
+          <FadeIn delay={0.12}>
+            <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
+              {/* 1House badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-white/70 text-sm font-bold mb-1">1House Global — Stream</div>
+
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-white/30 text-xl">$</span>
+                <span className="text-6xl font-black text-white">99</span>
+                <span className="text-white/30 text-sm">/mo</span>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more — all on one platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Unlimited live stream access",
+                  "100+ expert creators",
+                  "Stocks, Crypto, Real Estate & more",
+                  "Day Trading & Options education",
+                  "E-commerce, AI & Business content",
+                  "On-demand replay library",
+                  "1House mobile app included",
+                  "Live stream alerts & notifications",
+                  "Inner Circle creator access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#6366f1"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-white/10"
+                style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
+                Subscribe via 1House — $99/mo
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
+
+          {/* ── Tier 3: 1House Startup ($200 + $165/mo) ── */}
+          <FadeIn delay={0.24}>
+            <div className="relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
+              {/* 1House badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global — Startup</div>
+
+              {/* Startup fee + monthly */}
+              <div className="mb-1">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-white/30 text-lg">$</span>
+                  <span className="text-5xl font-black text-white">200</span>
+                  <span className="text-white/40 text-sm ml-1">startup fee</span>
+                </div>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-[#C9A84C] font-bold text-lg">+</span>
+                  <span className="text-[#C9A84C] font-black text-2xl">$165</span>
+                  <span className="text-white/30 text-sm">/mo after</span>
+                </div>
+              </div>
+
+              <p className="text-white/40 text-sm mb-6 mt-3">
+                Everything in Stream, plus the ability to host your own content, build a subscriber base, and earn on the 1House platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Everything in 1House Stream",
+                  "Launch your own channel on 1House",
+                  "Monetize your content & community",
+                  "Creator dashboard & analytics",
+                  "Host live streams to 1House members",
+                  "Build your subscriber base",
+                  "Access to creator support team",
+                  "Business & marketing education",
+                  "1House Startup community access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#C9A84C"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-[#C9A84C]/20"
+                style={{ background: "rgba(201,168,76,0.10)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}>
+                Get 1House Startup
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
         </div>
 
-        <FadeIn delay={0.3} className="mt-8 text-center">
-          <p className="text-white/30 text-sm">
-            Not sure which plan fits?{" "}
-            <Link
-              href={CALENDLY}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#00FF85] hover:underline"
-            >
-              Book a free 15-min call
+        {/* Bottom note */}
+        <FadeIn delay={0.3} className="mt-10 text-center">
+          <p className="text-white/25 text-xs max-w-xl mx-auto">
+            The 1House Global plans are offered through our affiliate partnership. Clicking those links may earn The Greenprint a referral commission at no extra cost to you. 1House plan details and pricing are set by 1House Global.
+          </p>
+          <p className="text-white/30 text-sm mt-4">
+            Not sure which plan is right for you?{" "}
+            <Link href={CALENDLY} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] hover:underline">
+              Book a free call
             </Link>{" "}
             and we&apos;ll help you decide.
           </p>
@@ -838,52 +691,28 @@ function Pricing() {
 /* ─── Testimonials ───────────────────────────────────────────── */
 function Testimonials() {
   const testimonials = [
-    {
-      name: "Marcus T.",
-      handle: "@marcust_trades",
-      text: "Jacob's alerts are the real deal. I was down bad when I joined. Two months later I'm up 34% and finally understand what I'm doing.",
-      gain: "+34%",
-    },
-    {
-      name: "Aaliyah R.",
-      handle: "@aaliyah_fx",
-      text: "The live streams are worth every penny. Watching Jacob actually trade and explain his reasoning is something no YouTube video could teach me.",
-      gain: "+$8,200",
-    },
-    {
-      name: "Chris M.",
-      handle: "@chrismoneymakerr",
-      text: "I've been in 3 other Discord groups. The Greenprint is the only one where the alerts actually print. Jacob doesn't just talk — he delivers.",
-      gain: "+61%",
-    },
-    {
-      name: "Destiny W.",
-      handle: "@destinywtrades",
-      text: "Went from barely understanding options to making consistent gains every single week. The community alone is worth the price.",
-      gain: "+$5,400",
-    },
-    {
-      name: "Jordan P.",
-      handle: "@jordanptrades",
-      text: "The Inner Circle 1-on-1 calls with Jacob literally transformed how I approach every trade. Best investment I've made in myself.",
-      gain: "+127%",
-    },
-    {
-      name: "Tiana B.",
-      handle: "@tianabinvests",
-      text: "The scanner + alerts combo is scary good. I was late on so many plays before. Now I'm in before everyone else even hears about it.",
-      gain: "+$11k",
-    },
+    { name: "Marcus T.", handle: "@marcust_trades", gain: "+34%",
+      text: "The Greenprint alerts are the real deal. I was down bad when I joined. Two months later I'm up and finally understand what I'm doing in the market." },
+    { name: "Aaliyah R.", handle: "@aaliyah_fx", gain: "+$8,200",
+      text: "The live streams are worth every penny. Watching the trades happen in real time and hearing the reasoning is something no YouTube video could teach me." },
+    { name: "Chris M.", handle: "@chrismoneymakerr", gain: "+61%",
+      text: "I've been in 3 other Discord trading groups. The Greenprint is the only one where the content actually makes sense and the community is engaged." },
+    { name: "Destiny W.", handle: "@destinywtrades", gain: "+$5,400",
+      text: "Went from barely understanding options to actually having a process every single week. The community alone is worth the price." },
+    { name: "Jordan P.", handle: "@jordanptrades", gain: "+127%",
+      text: "The Inner Circle coaching sessions literally transformed how I approach every trade. Best investment I've made in my trading education." },
+    { name: "Tiana B.", handle: "@tianabinvests", gain: "+$11k",
+      text: "The scanner + alerts combo is incredible. I understand the setups now instead of just copying blindly. That made all the difference." },
   ];
 
   return (
     <section id="results" className="py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#C9A84C]/2 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#C9A84C]/2 to-transparent pointer-events-none"/>
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
-          <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Real Results</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Members Are Winning</h2>
-          <p className="text-white/40 mt-4">Don&apos;t take our word for it — hear it from the community.</p>
+          <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Member Experiences</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
+          <p className="text-white/40 mt-4">Real feedback from The Greenprint community.</p>
         </FadeIn>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -895,10 +724,8 @@ function Testimonials() {
                     <div className="text-white font-bold text-sm">{t.name}</div>
                     <div className="text-white/30 text-xs">{t.handle}</div>
                   </div>
-                  <div
-                    className="font-black text-sm px-2.5 py-1 rounded-lg"
-                    style={{ background: "rgba(0,255,133,0.1)", color: "#00FF85" }}
-                  >
+                  <div className="font-black text-sm px-2.5 py-1 rounded-lg"
+                    style={{ background: "rgba(0,255,133,0.1)", color: "#00FF85" }}>
                     {t.gain}
                   </div>
                 </div>
@@ -906,7 +733,7 @@ function Testimonials() {
                 <div className="flex gap-0.5 mt-4">
                   {[...Array(5)].map((_, j) => (
                     <svg key={j} className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="#C9A84C">
-                      <path d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8.06 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45z" />
+                      <path d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8.06 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45z"/>
                     </svg>
                   ))}
                 </div>
@@ -914,6 +741,13 @@ function Testimonials() {
             </FadeIn>
           ))}
         </div>
+
+        {/* Compliance disclaimer */}
+        <FadeIn delay={0.2} className="mt-8 text-center">
+          <p className="text-white/20 text-xs max-w-2xl mx-auto px-4">
+            * Results shown are self-reported by community members and are not typical. Individual results vary significantly based on experience, capital, market conditions, and risk management. These testimonials are for educational illustration only and do not constitute a promise or guarantee of similar results.
+          </p>
+        </FadeIn>
       </div>
     </section>
   );
@@ -925,40 +759,30 @@ function BookACall() {
     <section className="py-24">
       <div className="max-w-4xl mx-auto px-6">
         <FadeIn>
-          <div
-            className="rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, rgba(0,255,133,0.07) 0%, rgba(201,168,76,0.05) 100%)",
-              border: "1px solid rgba(0,255,133,0.2)",
-            }}
-          >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#00FF85]/8 rounded-full blur-[80px] pointer-events-none" />
+          <div className="rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.07) 0%, rgba(201,168,76,0.05) 100%)", border: "1px solid rgba(0,255,133,0.2)" }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#00FF85]/8 rounded-full blur-[80px] pointer-events-none"/>
             <div className="relative">
               <div className="inline-flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-4 py-2 mb-6">
                 <svg className="w-4 h-4 text-[#00FF85]" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
                 <span className="text-[#00FF85] text-sm font-medium">Free Strategy Call</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
                 Not Sure Where to Start?
-                <br />
-                <span className="text-[#00FF85]">Let&apos;s Talk.</span>
+                <br/><span className="text-[#00FF85]">Let&apos;s Talk.</span>
               </h2>
               <p className="text-white/45 text-lg mb-10 max-w-xl mx-auto">
-                Book a free 15-minute call with Jacob. No pressure, no pitch — just an honest conversation about where you are and how The Greenprint can help.
+                Book a free 15-minute call with The Greenprint team. No pressure, no pitch — just an honest conversation about where you are and how we can help.
               </p>
-              <Link
-                href={CALENDLY}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all duration-200"
-                style={{ boxShadow: "0 0 50px rgba(0,255,133,0.4)" }}
-              >
+              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
+                style={{ boxShadow: "0 0 50px rgba(0,255,133,0.4)" }}>
                 <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
-                  <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                  <path d="M7 2v3M13 2v3M3 8h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+                  <path d="M7 2v3M13 2v3M3 8h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
                 Book Your Free Call
               </Link>
@@ -981,7 +805,7 @@ function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
               <span className="text-white font-bold text-lg">
@@ -989,7 +813,7 @@ function Footer() {
               </span>
             </div>
             <p className="text-white/30 text-sm leading-relaxed max-w-xs">
-              The #1 trading community for real alerts, live streams, and consistent results.
+              A trading education community built around real-time sessions, alerts, and a proven learning system.
             </p>
           </div>
 
@@ -997,15 +821,13 @@ function Footer() {
             <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-4">Platform</div>
             <ul className="space-y-2.5">
               {[
-                { label: "Live Stream", href: "/stream" },
+                { label: "Watch Live", href: "/stream" },
                 { label: "Dashboard", href: "/dashboard" },
                 { label: "Scanner", href: "/scanner" },
                 { label: "Alerts", href: "/alerts" },
-              ].map((l) => (
+              ].map(l => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-white/30 hover:text-white text-sm transition-colors">
-                    {l.label}
-                  </Link>
+                  <Link href={l.href} className="text-white/30 hover:text-white text-sm transition-colors">{l.label}</Link>
                 </li>
               ))}
             </ul>
@@ -1019,14 +841,11 @@ function Footer() {
                 { label: "Book a Call", href: CALENDLY, ext: true },
                 { label: "Join Now", href: WHOP_URL, ext: true },
                 { label: "Login", href: "/login", ext: false },
-              ].map((l) => (
+              ].map(l => (
                 <li key={l.label}>
-                  <Link
-                    href={l.href}
-                    target={l.ext ? "_blank" : undefined}
+                  <Link href={l.href} target={l.ext ? "_blank" : undefined}
                     rel={l.ext ? "noopener noreferrer" : undefined}
-                    className="text-white/30 hover:text-white text-sm transition-colors"
-                  >
+                    className="text-white/30 hover:text-white text-sm transition-colors">
                     {l.label}
                   </Link>
                 </li>
@@ -1036,17 +855,15 @@ function Footer() {
         </div>
 
         <div className="border-t border-white/5 pt-8">
-          <p className="text-white/15 text-xs font-semibold mb-2 uppercase tracking-wide">Disclaimer</p>
-          <p className="text-white/12 text-xs leading-relaxed mb-6">
-            The Greenprint and its operators are not registered investment advisors. All content, alerts, and educational material are for informational purposes only and do not constitute financial advice. Trading stocks, options, and other securities involves substantial risk of loss and is not suitable for every investor. Past performance is not indicative of future results. You are solely responsible for your investment decisions. Never trade with money you cannot afford to lose. Always consult a qualified financial professional before making investment decisions.
+          <p className="text-white/20 text-xs font-semibold mb-2 uppercase tracking-wide">Important Disclaimer</p>
+          <p className="text-white/15 text-xs leading-relaxed mb-6">
+            The Greenprint is an educational trading community. We are not registered investment advisors. All content, trade alerts, live sessions, and educational material are provided for informational and educational purposes only and do not constitute financial, investment, or trading advice. Trading stocks, options, futures, and other financial instruments involves substantial risk of loss and is not suitable for all investors. Past performance of any strategy, alert, or trade discussed is not indicative of future results. You should not trade with money you cannot afford to lose. Always conduct your own research and consult a licensed financial professional before making any investment decisions. The Greenprint and its operators are not liable for any trading losses incurred by members.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-white/15 text-xs">© {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
             <div className="flex gap-6">
-              {["Privacy Policy", "Terms of Service"].map((l) => (
-                <Link key={l} href="#" className="text-white/15 hover:text-white/30 text-xs transition-colors">
-                  {l}
-                </Link>
+              {["Privacy Policy", "Terms of Service"].map(l => (
+                <Link key={l} href="#" className="text-white/15 hover:text-white/30 text-xs transition-colors">{l}</Link>
               ))}
             </div>
           </div>
