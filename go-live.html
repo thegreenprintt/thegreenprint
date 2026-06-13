@@ -183,11 +183,10 @@ body{padding-top:56px}
     // Posts live status to /api/livestatus — picked up by the app every 10s
     window._fbSetLive = async function(isLive, title) {
       try {
-        const res = await fetch('/api/livestatus', {
-          method: 'POST',
+        const res = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/livestatus.json', {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Live-Secret': 'gp-live-2024',
           },
           body: JSON.stringify({
             isLive: isLive,
