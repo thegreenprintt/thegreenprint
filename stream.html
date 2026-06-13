@@ -979,8 +979,16 @@ document.addEventListener('visibilitychange',function(){
   if(fb&&_isMobile)fb.textContent='⛶';
 })();
 
-// Auto-skip gate if logged in within last 24 hours
+// Auto-skip gate if ?app=1 (coming from The Greenprint app)
 (function(){
+  if(new URLSearchParams(window.location.search).get('app')==='1'){
+    _name='Member';
+    document.getElementById('gate').style.display='none';
+    document.getElementById('main').style.display='block';
+    loadPeerJS();
+    return;
+  }
+  // Auto-skip gate if logged in within last 24 hours
   try{
     var saved=JSON.parse(localStorage.getItem('gp_lead_v2')||'null');
     if(saved&&saved.ts&&(Date.now()-saved.ts)<86400000){
