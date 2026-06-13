@@ -766,13 +766,9 @@ function goLive(){
   log('Choose your screen — check "Share audio" in the dialog for sound.');
   document.getElementById('bGo').disabled=true;
 
-  // Kick off mic request NOW — runs in parallel while screen picker is open
-  // so by the time screen is chosen, mic is already ready
-  var micPromise=navigator.mediaDevices.getUserMedia({
-    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false,sampleRate:48000,channelCount:1},
-    video:false
-  });
-
+  // getDisplayMedia MUST be called first and directly — it needs the user-gesture
+  // token. Calling getUserMedia before it can consume the token and silently
+  // block the screen picker from opening in Chrome.
   navigator.mediaDevices.getDisplayMedia({
     video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:60,max:60},cursor:'always'},
     audio:{echoCancellation:false,noiseSuppression:false,sampleRate:48000,channelCount:2}
@@ -791,8 +787,12 @@ function goLive(){
       }
     },{once:true});
     var hasScreenAudio=scrn.getAudioTracks().length>0;
-    log('Screen captured'+(hasScreenAudio?' + audio':'')+' — finishing setup…');
-    return micPromise.then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
+    log('Screen captured'+(hasScreenAudio?' + audio':'')+' — requesting mic…');
+    // NOW request mic — screen picker is already done, gesture token no longer needed
+    return navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false,sampleRate:48000,channelCount:1},
+      video:false
+    }).then(function(mic){return{mic:mic,hasScreenAudio:hasScreenAudio};});
   }).then(function(r){
     _micStream=r.mic;
     try{
