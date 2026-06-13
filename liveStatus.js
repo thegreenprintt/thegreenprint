@@ -1,33 +1,28 @@
-// ─── Live Status — polls /api/livestatus on the website ─────────────────────
-// No Firebase auth required. The website's Vercel API endpoint handles state.
+const SECRET = process.env.LIVE_SECRET || 'gp-live-2024';
+let state = { isLive: false, title: '', updatedAt: 0 };
 
-const STATUS_URL = 'https://thegreenprint.trade/api/livestatus';
+export default function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store');
 
-export async function fetchLiveStatus() {
-  try {
-    const res = await fetch(STATUS_URL, { cache: 'no-store' });
-    if (!res.ok) return { isLive: false, title: '' };
-    const data = await res.json();
-    return {
-      isLive: data.isLive || false,
-      title:  data.title  || 'Live Now',
-    };
-  } catch (_) {
-    return { isLive: false, title: '' };
-  }
-}
-
-// Polls every 10 seconds; returns unsubscribe fn
-export function subscribeLiveStatus(cb) {
-  let cancelled = false;
-
-  async function poll() {
-    if (cancelled) return;
-    const status = await fetchLiveStatus();
-    if (!cancelled) cb(status);
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Live-Secret');
+    return res.status(200).end();
   }
 
-  poll(); // immediate first call
-  const id = setInterval(poll, 10_000);
-  return () => { cancelled = true; clearInterval(id); };
+  if (req.method === 'GET') {
+    return res.status(200).json(state);
+  }
+
+  if (req.method === 'POST') {
+    if (req.headers['x-live-secret'] !== SECRET) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const { isLive, title } = req.body || {};
+    state = { isLive: !!isLive, title: title || '', updatedAt: Date.now() };
+    return res.status(200).json({ ok: true, state });
+  }
+
+  return res.status(405).json({ error: 'method not allowed' });
 }
