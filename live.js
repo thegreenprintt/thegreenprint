@@ -1,45 +1,59 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, StatusBar, ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useFocusEffect } from 'expo-router';
 import { colors } from '../../src/theme';
 
-// Injected into stream.html:
-// - Skips the viewer name gate (app users don't need to enter name)
-// - Fixes PIP camera position for mobile viewport
+const STREAM_URL = 'https://thegreenprint.trade/stream.html';
+
+// Runs after page load:
+// 1. Hides the name gate so app users skip it
+// 2. Retries every 300ms until loadPeerJS() is available, then calls it
+// 3. Fixes camera PIP position for mobile
 const INJECT = `
   (function() {
-    var gate = document.getElementById('gate');
-    if (gate) gate.style.display = 'none';
-    if (typeof loadPeerJS === 'function') loadPeerJS();
-    var style = document.createElement('style');
-    style.textContent = \`
-      #cam-pip {
-        position: fixed !important;
-        bottom: 90px !important;
-        right: 12px !important;
-        width: 28vw !important;
-        min-width: 80px !important;
-        max-width: 140px !important;
-        z-index: 9999 !important;
+    function tryConnect() {
+      var gate = document.getElementById('gate');
+      if (gate) gate.style.display = 'none';
+
+      if (typeof loadPeerJS === 'function') {
+        loadPeerJS();
+      } else {
+        setTimeout(tryConnect, 300);
+        return;
       }
-      #chat-overlay { display: none !important; }
-      .ctrl-bar { bottom: 0 !important; }
-    \`;
-    document.head.appendChild(style);
+
+      var style = document.createElement('style');
+      style.textContent = \`
+        #cam-pip {
+          position: fixed !important;
+          bottom: 90px !important;
+          right: 12px !important;
+          width: 28vw !important;
+          min-width: 80px !important;
+          max-width: 140px !important;
+          z-index: 9999 !important;
+        }
+        #chat-overlay { display: none !important; }
+        .ctrl-bar { bottom: 0 !important; }
+      \`;
+      document.head.appendChild(style);
+    }
+
+    // Run immediately + after DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tryConnect);
+    } else {
+      tryConnect();
+    }
   })();
   true;
 `;
-
-const STREAM_URL = 'https://thegreenprint.trade/stream.html';
 
 export default function Live() {
   const [loading, setLoading] = useState(true);
   const [focused, setFocused] = useState(true);
 
-  // Pause WebView when leaving tab to save resources
   useFocusEffect(
     React.useCallback(() => {
       setFocused(true);
@@ -58,22 +72,22 @@ export default function Live() {
         </View>
       )}
 
-      {focused ? (
+      {focused && (
         <WebView
-          source={{ uri: `${STREAM_URL}?app=1` }}
+          source={{ uri: `${STREAM_URL}?app=1&t=${Date.now()}` }}
           style={{ flex: 1, backgroundColor: '#000' }}
           mediaPlaybackRequiresUserAction={false}
-          allowsInlineMediaPlayback
+          allowsInlineMediaPlayback={true}
+          allowsFullscreenVideo={true}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          mixedContentMode="always"
+          originWhitelist={['*']}
           onLoad={() => setLoading(false)}
           onError={() => setLoading(false)}
-          javaScriptEnabled
-          domStorageEnabled
-          allowsFullscreenVideo
           injectedJavaScript={INJECT}
           onMessage={() => {}}
         />
-      ) : (
-        <View style={s.pausedOverlay} />
       )}
     </View>
   );
@@ -89,6 +103,5 @@ const s = StyleSheet.create({
     zIndex: 10,
     gap: 16,
   },
-  loadingTxt:    { fontSize: 14, color: colors.textMuted },
-  pausedOverlay: { flex: 1, backgroundColor: '#000' },
+  loadingTxt: { fontSize: 14, color: colors.textMuted },
 });
