@@ -273,16 +273,14 @@ export default function GoLivePage() {
   function copyLeads(emailsOnly = false) {
     const text = emailsOnly
       ? leads.map(l => l.email).join(", ")
-      : leads.map(l => `${l.name} <${l.email}>`).join("
-");
+      : leads.map(l => `${l.name} <${l.email}>`).join("\n");
     navigator.clipboard.writeText(text);
     log(`${emailsOnly ? "Emails" : "All leads"} copied to clipboard.`);
   }
 
   function downloadCSV() {
     const rows = [["Name","Email","Joined"].join(","), ...leads.map(l => [l.name,l.email,new Date(l.ts).toISOString()].join(","))];
-    const blob = new Blob([rows.join("
-")], { type: "text/csv" });
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
     a.download = `greenprint-leads-${Date.now()}.csv`; a.click();
   }
