@@ -1,71 +1,106 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, SafeAreaView, Linking, RefreshControl,
+  StatusBar, SafeAreaView, Animated, Easing,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../src/firebase';
 import { useAuth } from '../../src/hooks/useAuth';
 import { registerForPushNotifications } from '../../src/hooks/useNotifications';
-import { subscribeLiveStatus, fetchLiveStatus } from '../../src/liveStatus';
-import { colors } from '../../src/theme';
-
-const MINDSET = [
-  "Discipline is the bridge between goals and accomplishment.",
-  "The market rewards patience. Trade the plan, not the emotion.",
-  "Every loss is a lesson. Every win is a confirmation.",
-  "Risk management isn't optional — it's the whole game.",
-  "Your edge is consistency. Show up every single day.",
-  "The best trade is sometimes no trade at all.",
-  "Process over profits. The results will follow.",
-];
-
-const dailyQuote = MINDSET[new Date().getDay() % MINDSET.length];
+import { colors, fonts, radius, spacing, shadow } from '../../src/theme';
 
 export default function Home() {
   const router = useRouter();
   const { user, profile, isAdmin } = useAuth();
-  const [isLive,        setIsLive]        = useState(false);
-  const [liveTitle,     setLiveTitle]     = useState('');
+  const [isLive,  setIsLive]  = useState(false);
+  const [liveTitle, setLiveTitle] = useState('');
   const [announcements, setAnnouncements] = useState([]);
-  const [refreshing,    setRefreshing]    = useState(false);
 
-  // Push notifications
+  // ─── Animated values ───────────────────────────────────────────
+  const headerAnim   = useRef(new Animated.Value(0)).current;
+  const liveAnim     = useRef(new Animated.Value(0)).current;
+  const quickAnim    = useRef(new Animated.Value(0)).current;
+  const announceAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim    = useRef(new Animated.Value(1)).current;
+  const glowAnim     = useRef(new Animated.Value(0.4)).current;
+
+  // Entrance stagger on mount
   useEffect(() => {
-    if (!user) return;
-    registerForPushNotifications(user.uid);
+    Animated.stagger(90, [
+      Animated.spring(headerAnim,   { toValue: 1, tension: 55, friction: 9, useNativeDriver: true }),
+      Animated.spring(liveAnim,     { toValue: 1, tension: 55, friction: 9, useNativeDriver: true }),
+      Animated.spring(quickAnim,    { toValue: 1, tension: 55, friction: 9, useNativeDriver: true }),
+      Animated.spring(announceAnim, { toValue: 1, tension: 55, friction: 9, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  // Pulse loop when live
+  useEffect(() => {
+    if (isLive) {
+      Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.03, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(glowAnim, { toValue: 1,   duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(glowAnim, { toValue: 0.4, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+        ])
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      glowAnim.stopAnimation();
+      Animated.parallel([
+        Animated.timing(pulseAnim, { toValue: 1,   duration: 200, useNativeDriver: true }),
+        Animated.timing(glowAnim,  { toValue: 0.4, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+    return () => {
+      pulseAnim.stopAnimation();
+      glowAnim.stopAnimation();
+    };
+  }, [isLive]);
+
+  // ─── Data listeners ────────────────────────────────────────────
+  useEffect(() => {
+    if (user) registerForPushNotifications(user.uid);
   }, [user]);
 
-  // Poll live status every 10s — no auth needed, works immediately on mount
   useEffect(() => {
-    const unsub = subscribeLiveStatus(({ isLive, title }) => {
-      setIsLive(isLive);
-      setLiveTitle(title);
+    const unsub = onSnapshot(doc(db, 'stream', 'status'), (snap) => {
+      if (snap.exists()) {
+        setIsLive(snap.data().isLive || false);
+        setLiveTitle(snap.data().title || 'Jacob is Live');
+      }
     });
     return unsub;
   }, []);
 
-  // Announcements — authenticated only
   useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(5));
+    const q = query(
+      collection(db, 'announcements'),
+      orderBy('createdAt', 'desc'),
+      limit(5),
+    );
     const unsub = onSnapshot(q, (snap) => {
       setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, () => {});
+    });
     return unsub;
-  }, [user]);
-
-  // Pull-to-refresh
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    const status = await fetchLiveStatus();
-    setIsLive(status.isLive);
-    setLiveTitle(status.title);
-    setRefreshing(false);
   }, []);
 
-  const name = profile?.displayName || user?.displayName || '';
+  const name = profile?.displayName || user?.displayName || 'there';
+
+  // Helper: slide-up + fade entrance style
+  const enterStyle = (anim) => ({
+    opacity: anim,
+    transform: [{
+      translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }),
+    }],
+  });
 
   return (
     <View style={s.root}>
@@ -74,214 +109,319 @@ export default function Home() {
         <ScrollView
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
-            />
-          }
         >
           {/* Header */}
-          <View style={s.header}>
+          <Animated.View style={[s.header, enterStyle(headerAnim)]}>
             <View>
-              <Text style={s.logoLabel}>THE GREENPRINT</Text>
-              {name ? <Text style={s.greeting}>Welcome back, {name} 👋</Text> : null}
+              <Text style={s.greeting}>Good day,</Text>
+              <Text style={s.name}>{name} {isAdmin ? '👑' : ''}</Text>
             </View>
             {isAdmin && (
-              <TouchableOpacity style={s.adminBtn} onPress={() => router.push('/admin')}>
-                <Text style={s.adminTxt}>👑 Admin</Text>
+              <TouchableOpacity
+                style={s.adminBtn}
+                onPress={() => router.push('/admin')}
+              >
+                <Text style={s.adminTxt}>Admin</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </Animated.View>
 
-          {/* Live Banner */}
-          {isLive ? (
-            <TouchableOpacity style={s.liveBanner} onPress={() => router.push('/(tabs)/live')} activeOpacity={0.85}>
-              <View style={s.livePill}>
-                <View style={s.liveDot} />
-                <Text style={s.livePillTxt}>LIVE NOW</Text>
+          {/* Live card */}
+          <Animated.View style={[
+            enterStyle(liveAnim),
+            { transform: [
+                { translateY: liveAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) },
+                { scale: pulseAnim },
+              ]
+            },
+          ]}>
+            {isLive ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => router.push('/(tabs)/live')}
+                style={s.liveCardWrap}
+              >
+                <Animated.View style={[s.glowRing, { opacity: glowAnim }]} pointerEvents="none" />
+                <LinearGradient
+                  colors={['#00FF87', '#00C96B']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.liveCard}
+                >
+                  <View style={s.livePill}>
+                    <View style={s.liveDot} />
+                    <Text style={s.livePillTxt}>LIVE NOW</Text>
+                  </View>
+                  <Text style={s.liveTitle}>{liveTitle}</Text>
+                  <Text style={s.liveSub}>Tap to join the session →</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <View style={[s.offlineCard, shadow.card]}>
+                <LinearGradient
+                  colors={['rgba(0,255,135,0.08)', 'rgba(0,255,135,0.02)']}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={s.offlineOrb}>
+                  <Text style={s.offlineIcon}>◉</Text>
+                </View>
+                <Text style={s.offlineTitle}>Not Live Yet</Text>
+                <Text style={s.offlineSub}>
+                  You'll get a notification the moment Jacob goes live.
+                </Text>
               </View>
-              <Text style={s.liveTitle}>{liveTitle}</Text>
-              <Text style={s.liveAction}>Tap to Join Stream →</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={s.offlineBanner}>
-              <Text style={s.offlineIcon}>◎</Text>
-              <Text style={s.offlineTitle}>Not streaming yet</Text>
-              <Text style={s.offlineSub}>You'll be notified the moment we go live.</Text>
-            </View>
-          )}
+            )}
+          </Animated.View>
 
-          {/* Member Onboarding */}
-          <TouchableOpacity style={s.onboardCard} onPress={() => router.push('/(tabs)/member-onboarding')} activeOpacity={0.85}>
-            <View style={s.onboardLeft}>
-              <View style={s.onboardTag}><Text style={s.onboardTagTxt}>START HERE</Text></View>
-              <Text style={s.onboardTitle}>Member Onboarding</Text>
-              <Text style={s.onboardSub}>7 steps to get fully set up and ready to trade.</Text>
+          {/* Quick actions */}
+          <Animated.View style={enterStyle(quickAnim)}>
+            <Text style={s.sectionLabel}>Quick Access</Text>
+            <View style={s.quickRow}>
+              <QuickCard
+                icon="◈"
+                label="Community"
+                sub="Chat live"
+                onPress={() => router.push('/(tabs)/chat')}
+                accent={colors.accent}
+              />
+              <QuickCard
+                icon="▶"
+                label="Stream"
+                sub="Watch live"
+                onPress={() => router.push('/(tabs)/live')}
+                accent="#00D4FF"
+              />
             </View>
-            <Text style={s.onboardArrow}>→</Text>
-          </TouchableOpacity>
-
-          {/* Daily Mindset */}
-          <View style={s.mindsetCard}>
-            <Text style={s.mindsetLabel}>DAILY MINDSET</Text>
-            <Text style={s.mindsetQuote}>"{dailyQuote}"</Text>
-            <Text style={s.mindsetSig}>— The Greenprint</Text>
-          </View>
-
-          {/* Features */}
-          <Text style={s.sectionLabel}>TOOLS & FEATURES</Text>
-          <View style={s.featureRow}>
-            <TouchableOpacity style={s.featureCard} onPress={() => router.push('/(tabs)/journal')} activeOpacity={0.8}>
-              <Text style={s.featureIcon}>📒</Text>
-              <Text style={s.featureTitle}>Trade Journal</Text>
-              <Text style={s.featureSub}>Log & track every trade</Text>
-              <View style={s.featureBadge}><Text style={s.featureBadgeTxt}>ACTIVE</Text></View>
-            </TouchableOpacity>
-            <View style={[s.featureCard, s.featureCardDim]}>
-              <Text style={s.featureIcon}>🔍</Text>
-              <Text style={s.featureTitle}>Scanner</Text>
-              <Text style={s.featureSub}>AI market scanner</Text>
-              <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
-            </View>
-          </View>
-          <View style={s.featureRow}>
-            <View style={[s.featureCard, s.featureCardDim]}>
-              <Text style={s.featureIcon}>⚡</Text>
-              <Text style={s.featureTitle}>Signals</Text>
-              <Text style={s.featureSub}>Live trade alerts</Text>
-              <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
-            </View>
-            <View style={[s.featureCard, s.featureCardDim]}>
-              <Text style={s.featureIcon}>🎓</Text>
-              <Text style={s.featureTitle}>Education</Text>
-              <Text style={s.featureSub}>Full course library</Text>
-              <View style={[s.featureBadge, s.featureBadgeSoon]}><Text style={[s.featureBadgeTxt, { color: '#FFD166' }]}>SOON</Text></View>
-            </View>
-          </View>
-
-          {/* Broker */}
-          <Text style={s.sectionLabel}>RECOMMENDED BROKER</Text>
-          <TouchableOpacity
-            style={s.brokerCard}
-            onPress={() => Linking.openURL('https://dashboard.genesisfxmarkets.com/auth/register?ref=JACWAL843')}
-            activeOpacity={0.85}
-          >
-            <View style={s.brokerLeft}>
-              <Text style={s.brokerName}>GenesisFX Markets</Text>
-              <Text style={s.brokerSub}>The Greenprint's recommended broker. Use our referral link to get started with a demo or live account.</Text>
-              <Text style={s.brokerLink}>Open Account →</Text>
-            </View>
-            <Text style={s.brokerIcon}>🏦</Text>
-          </TouchableOpacity>
-
-          {/* Community */}
-          <Text style={s.sectionLabel}>COMMUNITY</Text>
-          <View style={s.linksRow}>
-            <TouchableOpacity style={s.linkCard} onPress={() => Linking.openURL('https://t.me/+Hz_sp0s32jVjNDQx')} activeOpacity={0.8}>
-              <Text style={s.linkIcon}>✈️</Text>
-              <Text style={s.linkLabel}>Telegram</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.linkCard} onPress={() => Linking.openURL('https://thegreenprint.trade')} activeOpacity={0.8}>
-              <Text style={s.linkIcon}>🌐</Text>
-              <Text style={s.linkLabel}>Website</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.linkCard} onPress={() => router.push('/(tabs)/chat')} activeOpacity={0.8}>
-              <Text style={s.linkIcon}>💬</Text>
-              <Text style={s.linkLabel}>Chat</Text>
-            </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Announcements */}
           {announcements.length > 0 && (
-            <View style={{ marginBottom: 20 }}>
-              <Text style={s.sectionLabel}>ANNOUNCEMENTS</Text>
-              {announcements.map(a => (
-                <View key={a.id} style={s.card}>
-                  <Text style={s.cardSender}>📢 The Greenprint</Text>
-                  <Text style={s.cardText}>{a.message || a.text || ''}</Text>
-                </View>
+            <Animated.View style={enterStyle(announceAnim)}>
+              <Text style={s.sectionLabel}>From Jacob</Text>
+              {announcements.map((a, i) => (
+                <AnnouncementCard key={a.id} data={a} index={i} />
               ))}
-            </View>
+            </Animated.View>
           )}
 
-          {/* Disclaimer */}
-          <View style={s.disclaimer}>
-            <Text style={s.disclaimerTxt}>
-              ⚖️  For educational purposes only. Not financial advice. Trading involves risk. See Terms & Privacy for full disclaimer.
-            </Text>
-          </View>
+          <View style={{ height: 24 }} />
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 }
 
+function QuickCard({ icon, label, sub, onPress, accent }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, tension: 120, friction: 8 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, tension: 120, friction: 8 }).start();
+
+  return (
+    <Animated.View style={[q.card, shadow.card, { transform: [{ scale }] }]}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
+        style={{ flex: 1 }}
+      >
+        <View style={[q.iconWrap, { borderColor: accent + '30', backgroundColor: accent + '12' }]}>
+          <Text style={[q.icon, { color: accent }]}>{icon}</Text>
+        </View>
+        <Text style={q.label}>{label}</Text>
+        <Text style={q.sub}>{sub}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+function AnnouncementCard({ data, index }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(anim, {
+      toValue: 1,
+      delay: index * 60,
+      tension: 55,
+      friction: 9,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const time = data.createdAt?.toDate ? timeAgo(data.createdAt.toDate()) : '';
+
+  return (
+    <Animated.View style={[
+      a.card, shadow.card,
+      {
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+      },
+    ]}>
+      <View style={a.row}>
+        <View style={a.avatar}>
+          <Text style={a.avatarTxt}>JW</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={a.nameRow}>
+            <Text style={a.sender}>Jacob Walton</Text>
+            <View style={a.badge}><Text style={a.badgeTxt}>ADMIN</Text></View>
+          </View>
+          <Text style={a.time}>{time}</Text>
+        </View>
+      </View>
+      <Text style={a.text}>{data.text}</Text>
+    </Animated.View>
+  );
+}
+
+function timeAgo(date) {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: '#000' },
-  scroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  scroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
+  },
+  greeting: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginBottom: 2 },
+  name:     { fontFamily: fonts.display, fontSize: 28, color: colors.text },
+  adminBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.accentDim,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,135,0.2)',
+  },
+  adminTxt: { fontFamily: fonts.semibold, fontSize: 13, color: colors.accent },
+  liveCardWrap: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    marginBottom: spacing.xl,
+    ...shadow.accent,
+  },
+  glowRing: {
+    position: 'absolute',
+    top: -6, left: -6, right: -6, bottom: -6,
+    borderRadius: radius.xl + 6,
+    borderWidth: 2,
+    borderColor: '#00FF87',
+    zIndex: 1,
+  },
+  liveCard: { padding: spacing.xl, borderRadius: radius.xl },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  liveDot:    { width: 7, height: 7, borderRadius: radius.full, backgroundColor: colors.bg },
+  livePillTxt:{ fontFamily: fonts.bold, fontSize: 11, color: colors.bg, letterSpacing: 1.5 },
+  liveTitle:  { fontFamily: fonts.display, fontSize: 26, color: colors.bg, marginBottom: 6 },
+  liveSub:    { fontFamily: fonts.medium, fontSize: 14, color: 'rgba(5,7,14,0.7)' },
+  offlineCard: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,135,0.1)',
+    padding: spacing.xl,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  offlineOrb: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,255,135,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,135,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  offlineIcon:  { fontSize: 22, color: colors.accent, opacity: 0.6 },
+  offlineTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.text, marginBottom: 6 },
+  offlineSub:   { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  sectionLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.textMuted,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: spacing.md,
+  },
+  quickRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl },
+});
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  logoLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 3, color: colors.accent, marginBottom: 4 },
-  greeting:  { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  adminBtn:  { paddingHorizontal: 14, paddingVertical: 7, backgroundColor: 'rgba(0,255,135,0.08)', borderRadius: 99, borderWidth: 1, borderColor: 'rgba(0,255,135,0.2)' },
-  adminTxt:  { fontSize: 12, fontWeight: '600', color: colors.accent },
+const q = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: spacing.md,
+  },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  icon:  { fontSize: 18 },
+  label: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text,    marginBottom: 2 },
+  sub:   { fontFamily: fonts.regular,  fontSize: 12, color: colors.textMuted },
+});
 
-  liveBanner: { backgroundColor: 'rgba(0,255,135,0.06)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,255,135,0.25)', padding: 20, marginBottom: 16 },
-  livePill:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  liveDot:    { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  livePillTxt:{ fontSize: 10, fontWeight: '700', letterSpacing: 2, color: colors.accent },
-  liveTitle:  { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 10 },
-  liveAction: { fontSize: 13, fontWeight: '600', color: colors.accent },
-
-  offlineBanner: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 20, marginBottom: 16, alignItems: 'center' },
-  offlineIcon:   { fontSize: 24, color: 'rgba(255,255,255,0.12)', marginBottom: 8 },
-  offlineTitle:  { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.35)', marginBottom: 4 },
-  offlineSub:    { fontSize: 12, color: 'rgba(255,255,255,0.2)', textAlign: 'center' },
-
-  onboardCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,255,135,0.06)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,255,135,0.2)', padding: 18, marginBottom: 16 },
-  onboardLeft:   { flex: 1 },
-  onboardTag:    { backgroundColor: 'rgba(0,255,135,0.12)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 },
-  onboardTagTxt: { fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.accent },
-  onboardTitle:  { fontSize: 17, fontWeight: '800', color: '#FFF', marginBottom: 4 },
-  onboardSub:    { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
-  onboardArrow:  { fontSize: 20, color: colors.accent, fontWeight: '700' },
-
-  mindsetCard:  { backgroundColor: '#0A0A0A', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', padding: 20, marginBottom: 24, borderLeftWidth: 3, borderLeftColor: colors.accent },
-  mindsetLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: colors.accent, marginBottom: 10 },
-  mindsetQuote: { fontSize: 15, color: 'rgba(255,255,255,0.75)', lineHeight: 24, fontStyle: 'italic', marginBottom: 8 },
-  mindsetSig:   { fontSize: 11, color: 'rgba(255,255,255,0.25)', fontWeight: '600' },
-
-  sectionLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: 'rgba(255,255,255,0.25)', marginBottom: 12 },
-
-  featureRow:      { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  featureCard:     { flex: 1, backgroundColor: '#0D0D0D', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 4 },
-  featureCardDim:  { opacity: 0.6 },
-  featureIcon:     { fontSize: 24, marginBottom: 4 },
-  featureTitle:    { fontSize: 14, fontWeight: '700', color: '#FFF' },
-  featureSub:      { fontSize: 11, color: '#555', marginBottom: 8 },
-  featureBadge:    { backgroundColor: 'rgba(0,255,135,0.1)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(0,255,135,0.2)' },
-  featureBadgeSoon:{ backgroundColor: 'rgba(255,209,102,0.08)', borderColor: 'rgba(255,209,102,0.2)' },
-  featureBadgeTxt: { fontSize: 8, fontWeight: '700', letterSpacing: 1.5, color: colors.accent },
-
-  brokerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0D0D0D', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 18, marginBottom: 24 },
-  brokerLeft: { flex: 1 },
-  brokerName: { fontSize: 16, fontWeight: '700', color: '#FFF', marginBottom: 6 },
-  brokerSub:  { fontSize: 12, color: '#555', lineHeight: 18, marginBottom: 10 },
-  brokerLink: { fontSize: 13, fontWeight: '700', color: colors.accent },
-  brokerIcon: { fontSize: 32, marginLeft: 12 },
-
-  linksRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  linkCard: { flex: 1, backgroundColor: '#0D0D0D', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', paddingVertical: 16, alignItems: 'center', gap: 6 },
-  linkIcon:  { fontSize: 22 },
-  linkLabel: { fontSize: 11, fontWeight: '600', color: '#555' },
-
-  card:       { backgroundColor: '#0D0D0D', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', padding: 16, marginBottom: 10 },
-  cardSender: { fontSize: 11, fontWeight: '700', color: colors.accent, marginBottom: 6 },
-  cardText:   { fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 22 },
-
-  disclaimer:    { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 16, marginBottom: 8 },
-  disclaimerTxt: { fontSize: 11, color: 'rgba(255,255,255,0.2)', lineHeight: 18, textAlign: 'center' },
+const a = StyleSheet.create({
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentDim,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,135,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarTxt: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent },
+  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sender:    { fontFamily: fonts.semibold, fontSize: 14, color: colors.text },
+  badge: {
+    backgroundColor: colors.accentDim,
+    borderRadius: radius.full,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeTxt: { fontFamily: fonts.bold, fontSize: 9, color: colors.accent, letterSpacing: 1 },
+  time: { fontFamily: fonts.regular, fontSize: 11, color: colors.textFaint },
+  text: { fontFamily: fonts.regular, fontSize: 15, color: colors.textMid, lineHeight: 24 },
 });
