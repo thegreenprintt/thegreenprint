@@ -179,28 +179,26 @@ body{padding-top:56px}
 </style>
 
   <!-- Firebase — syncs live status to the app -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-    const _fbApp = initializeApp({
-      apiKey:            "AIzaSyDhs-M7cWhKwvMGJAdgsee7Sf7kn34BCrA",
-      authDomain:        "the-greenprint-53d98.firebaseapp.com",
-      projectId:         "the-greenprint-53d98",
-      storageBucket:     "the-greenprint-53d98.firebasestorage.app",
-      messagingSenderId: "883107233351",
-      appId:             "1:883107233351:web:a0f6a3befb30c400f07b62",
-    });
-    const _db = getFirestore(_fbApp);
-
+  <script>
+    // Posts live status to /api/livestatus — picked up by the app every 10s
     window._fbSetLive = async function(isLive, title) {
       try {
-        await setDoc(doc(_db, 'stream', 'status'), {
-          isLive: isLive,
-          title: title || 'The Greenprint — Live Session',
-          startedAt: isLive ? serverTimestamp() : null,
-        }, { merge: true });
-      } catch(e) { console.warn('Firebase sync error:', e); }
+        const res = await fetch('/api/livestatus', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Live-Secret': 'gp-live-2024',
+          },
+          body: JSON.stringify({
+            isLive: isLive,
+            title: title || 'The Greenprint — Live Session',
+          }),
+        });
+        const data = await res.json();
+        console.log('Live status synced:', data);
+      } catch(e) {
+        console.warn('Live status sync error:', e);
+      }
     };
   </script>
 </head>
