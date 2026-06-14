@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-/* âââ Constants âââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Constants ─────────────────────────────────────────────────── */
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
 const WHOP_URL = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
 
-/* âââ Helpers ââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Helpers ───────────────────────────────────────────────────── */
 function FadeIn({
   children,
   delay = 0,
@@ -44,11 +44,21 @@ function FadeIn({
       {children}
     </div>
   );
+}
 
 function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+  const [inView, setInView] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { rootMargin: "-60px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   useEffect(() => {
     if (!inView) return;
     let n = 0;
@@ -63,7 +73,7 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
-/* âââ Ticker âââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Ticker ────────────────────────────────────────────────────── */
 const TICKERS = [
   { sym: "SPY", price: "542.18", chg: "+1.24%" },
   { sym: "QQQ", price: "468.92", chg: "+1.87%" },
@@ -74,7 +84,7 @@ const TICKERS = [
   { sym: "MSFT", price: "438.12", chg: "+0.91%" },
   { sym: "AMZN", price: "198.45", chg: "+1.56%" },
   { sym: "GOOGL", price: "178.23", chg: "+1.12%" },
-  { sym: "AMD",  price: "165.77", chg: "+2.89%" },
+  { sym: "AMD", price: "165.77", chg: "+2.89%" },
 ];
 
 function Ticker() {
@@ -98,7 +108,7 @@ function Ticker() {
   );
 }
 
-/* âââ Nav ââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Nav ───────────────────────────────────────────────────────── */
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -109,14 +119,13 @@ function Nav() {
   }, []);
 
   return (
-    <motion.nav
-      initial={{ y: -80 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+    <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? "bg-[#080808]/90 backdrop-blur-xl border-b border-white/5" : "bg-transparent"
       }`}
+      style={{ animation: "gp-slideDown 0.6s cubic-bezier(0.22,1,0.36,1) forwards" }}
     >
+      <style>{`@keyframes gp-slideDown{from{transform:translateY(-80px)}to{transform:translateY(0)}}`}</style>
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
@@ -162,41 +171,38 @@ function Nav() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }} className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6">
-            <div className="flex flex-col gap-4 pt-4">
-              {[
-                { label: "How It Works", href: "#how-it-works" },
-                { label: "Programs", href: "#pricing" },
-                { label: "Watch Live", href: "/stream" },
-                { label: "Results", href: "#results" },
-              ].map(l => (
-                <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
-                  className="text-white/60 text-sm hover:text-white">
-                  {l.label}
-                </Link>
-              ))}
-              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
-              <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-                className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center">
-                Join Now
+      {open && (
+        <div className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6">
+          <div className="flex flex-col gap-4 pt-4">
+            {[
+              { label: "How It Works", href: "#how-it-works" },
+              { label: "Programs", href: "#pricing" },
+              { label: "Watch Live", href: "/stream" },
+              { label: "Results", href: "#results" },
+            ].map(l => (
+              <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
+                className="text-white/60 text-sm hover:text-white">
+                {l.label}
               </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+            ))}
+            <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+              className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
+            <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+              className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center">
+              Join Now
+            </Link>
+          </div>
+        </div>
+      )}
+    </nav>
   );
 }
 
-/* âââ Hero âââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Hero ──────────────────────────────────────────────────────── */
 function Hero() {
   return (
     <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
-      {/* Background â hidden on mobile for performance */}
+      {/* Background hidden on mobile for performance */}
       <div className="absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
         <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
@@ -207,22 +213,16 @@ function Hero() {
           }}
         />
       </div>
-      {/* Subtle mobile glow */}
       <div className="absolute inset-0 pointer-events-none sm:hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
       </div>
 
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1 }}
-        className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
+      <div className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
         <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
-        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community Â· 2,400+ Members</span>
-      </motion.div>
+        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community &middot; 2,400+ Members</span>
+      </div>
 
-      <motion.h1
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      <h1
         className="text-center font-black leading-[0.88] tracking-tight px-4"
         style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
       >
@@ -231,17 +231,13 @@ function Hero() {
           SMARTER.
         </span>
         <span className="block text-white">WIN BIGGER.</span>
-      </motion.h1>
+      </h1>
 
-      <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
-        Real-time trade alerts, live sessions, and a proven system â built to help you level up.
-      </motion.p>
+      <p className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
+        Real-time trade alerts, live sessions, and a proven system &ndash; built to help you level up.
+      </p>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
+      <div className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
         <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
           className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all flex-1 sm:flex-none justify-center"
           style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
@@ -258,31 +254,26 @@ function Hero() {
           </svg>
           Watch Free
         </Link>
-      </motion.div>
+      </div>
 
-      {/* Stat badges â 2 on mobile, all 3 on desktop */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.8 }}
-        className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
+      <div className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
         {[
           { label: "Active Members", value: "2,400+", color: "#00FF85" },
           { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
           { label: "Years Experience", value: "7+", color: "#00FF85", hideOnMobile: true },
-        ].map((stat, i) => (
-          <motion.div key={stat.label}
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 + i * 0.08 }}
+        ].map((stat) => (
+          <div key={stat.label}
             className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
             <span className="font-black text-lg sm:text-2xl" style={{ color: stat.color }}>{stat.value}</span>
             <span className="text-white/40 text-xs">{stat.label}</span>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     </section>
   );
 }
 
-/* âââ Stats ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Stats ─────────────────────────────────────────────────────── */
 function Stats() {
   return (
     <section className="py-20 border-t border-white/5">
@@ -311,16 +302,16 @@ function Stats() {
   );
 }
 
-/* âââ How It Works âââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── How It Works ──────────────────────────────────────────────── */
 function HowItWorks() {
   const steps = [
-    { num: "01", title: "Join The Community", icon: "ð",
+    { num: "01", title: "Join The Community", icon: "\u{1F4F1}",
       desc: "Get instant access to the private Discord, live sessions, and the full Greenprint educational system." },
-    { num: "02", title: "Learn The System", icon: "ð",
-      desc: "Study The Greenprint's approach â entry signals, risk management, and setups that have stood the test of time." },
-    { num: "03", title: "Receive Real-Time Alerts", icon: "â¡",
+    { num: "02", title: "Learn The System", icon: "\u{1F4C8}",
+      desc: "Study The Greenprint's approach – entry signals, risk management, and setups that have stood the test of time." },
+    { num: "03", title: "Receive Real-Time Alerts", icon: "⚡",
       desc: "Get notified the second a setup is spotted. Follow along with live commentary and rationale for every alert." },
-    { num: "04", title: "Apply What You Learn", icon: "ð°",
+    { num: "04", title: "Apply What You Learn", icon: "\u{1F4B0}",
       desc: "Take what you've learned and execute with a plan. Track your growth and refine your strategy over time." },
   ];
 
@@ -353,20 +344,20 @@ function HowItWorks() {
   );
 }
 
-/* âââ Features âââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Features ──────────────────────────────────────────────────── */
 function Features() {
   const features = [
-    { icon: "â¡", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
+    { icon: "⚡", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
       desc: "Push alerts the moment a setup is identified, with full context on the reasoning behind it." },
-    { icon: "ð¥", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
-      desc: "Watch The Greenprint trade in real time â entry, thesis, and exit streamed directly to you." },
-    { icon: "ð", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
+    { icon: "\u{1F3A5}", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
+      desc: "Watch The Greenprint trade in real time – entry, thesis, and exit streamed directly to you." },
+    { icon: "\u{1F4CA}", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
       desc: "Scan for unusual options flow and spot potential moves before they develop." },
-    { icon: "ð¥", title: "Private Community", badge: null, badgeColor: "#00FF85",
-      desc: "A members-only Discord focused on education, setups, and accountability â no noise." },
-    { icon: "ð", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
+    { icon: "\u{1F525}", title: "Private Community", badge: null, badgeColor: "#00FF85",
+      desc: "A members-only Discord focused on education, setups, and accountability – no noise." },
+    { icon: "\u{1F4DA}", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
       desc: "The exact frameworks, chart setups, and decision rules used in The Greenprint system." },
-    { icon: "ð¡ï¸", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
+    { icon: "\u{1F6E1}️", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
       desc: "Elite members get direct coaching sessions tailored to their personal trading goals." },
   ];
 
@@ -404,7 +395,7 @@ function Features() {
   );
 }
 
-/* âââ Live Stream Callout ââââââââââââââââââââââââââââââââââââââ */
+/* ─── Live Stream Callout ───────────────────────────────────────── */
 function LiveCallout() {
   return (
     <section className="py-24 relative overflow-hidden">
@@ -425,13 +416,13 @@ function LiveCallout() {
                   <span className="text-[#00FF85]">In Real Time</span>
                 </h2>
                 <p className="text-white/45 text-lg leading-relaxed mb-8">
-                  Subscribe free and get a front-row seat to live sessions â entry, thesis, and exit streamed directly to members on the web and mobile app.
+                  Subscribe free and get a front-row seat to live sessions &ndash; entry, thesis, and exit streamed directly to members on the web and mobile app.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link href="/stream"
                     className="inline-flex items-center justify-center gap-2 bg-[#00FF85] text-black font-bold px-7 py-3.5 rounded-full hover:bg-[#00e676] transition-all"
                     style={{ boxShadow: "0 0 30px rgba(0,255,133,0.3)" }}>
-                    Watch Now â Free
+                    Watch Now &ndash; Free
                     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
                       <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
@@ -443,7 +434,6 @@ function LiveCallout() {
                 </div>
               </div>
 
-              {/* Visual mockup */}
               <div className="relative">
                 <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] overflow-hidden">
                   <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5">
@@ -484,9 +474,9 @@ function LiveCallout() {
   );
 }
 
-/* âââ Pricing ââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Pricing ───────────────────────────────────────────────────── */
 const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
-const ONEHOUSE_REF  = "https://subscribe.1houseglobal.com/jay";
+const ONEHOUSE_REF = "https://subscribe.1houseglobal.com/jay";
 
 function Check({ color }: { color: string }) {
   return (
@@ -505,20 +495,18 @@ function Pricing() {
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
           <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            Start with The Greenprint or level up with our partner platform 1House Global â everything you need is right here.
+            Start with The Greenprint or level up with our partner platform 1House Global &ndash; everything you need is right here.
           </p>
         </FadeIn>
 
         <div className="grid md:grid-cols-3 gap-5 items-start">
 
-          {/* ââ Tier 1: The Greenprint (own product) ââ */}
           <FadeIn delay={0}>
             <div className="relative rounded-2xl p-7 flex flex-col border-2 border-[#00FF85]/50 bg-[#00FF85]/5">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
-                â¡ LIMITED SPOTS
+                ⚡ LIMITED SPOTS
               </div>
 
-              {/* Label */}
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-5 h-5 rounded-md bg-[#00FF85] flex items-center justify-center shrink-0">
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
@@ -528,7 +516,6 @@ function Pricing() {
                 <span className="text-[#00FF85] text-sm font-bold">The Greenprint</span>
               </div>
 
-              {/* Price */}
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-white/30 text-xl">$</span>
                 <span className="text-6xl font-black text-white">29</span>
@@ -536,7 +523,7 @@ function Pricing() {
                 <span className="text-white/30 text-sm">/mo</span>
               </div>
               <p className="text-white/40 text-sm mb-6">
-                Full access to everything The Greenprint â streams, alerts, app, and community. Priced to stay accessible.
+                Full access to everything The Greenprint &ndash; streams, alerts, app, and community. Priced to stay accessible.
               </p>
 
               <ul className="space-y-3 mb-8">
@@ -560,23 +547,21 @@ function Pricing() {
               <Link href={WHOP_CHECKOUT} target="_blank" rel="noopener noreferrer"
                 className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
                 style={{ background: "#00FF85", color: "#080808", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>
-                Join The Greenprint â $29.99/mo
+                Join The Greenprint &ndash; $29.99/mo
               </Link>
               <p className="text-white/20 text-xs text-center mt-3">Cancel anytime. Limited spots available.</p>
             </div>
           </FadeIn>
 
-          {/* ââ Tier 2: 1House Stream ($99/mo) ââ */}
           <FadeIn delay={0.12}>
             <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
-              {/* 1House badge */}
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
                   Affiliate Partner
                 </span>
               </div>
 
-              <div className="text-white/70 text-sm font-bold mb-1">1House Global â Stream</div>
+              <div className="text-white/70 text-sm font-bold mb-1">1House Global &ndash; Stream</div>
 
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-white/30 text-xl">$</span>
@@ -584,7 +569,7 @@ function Pricing() {
                 <span className="text-white/30 text-sm">/mo</span>
               </div>
               <p className="text-white/40 text-sm mb-6">
-                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more â all on one platform.
+                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more &ndash; all on one platform.
               </p>
 
               <ul className="space-y-3 mb-8">
@@ -610,7 +595,7 @@ function Pricing() {
               <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
                 className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-white/10"
                 style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Subscribe via 1House â $99/mo
+                Subscribe via 1House &ndash; $99/mo
               </Link>
               <p className="text-white/20 text-xs text-center mt-3">
                 Via our affiliate link at 1House Global.
@@ -618,19 +603,16 @@ function Pricing() {
             </div>
           </FadeIn>
 
-          {/* ââ Tier 3: 1House Startup ($200 + $165/mo) ââ */}
           <FadeIn delay={0.24}>
             <div className="relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
-              {/* 1House badge */}
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
                   Affiliate Partner
                 </span>
               </div>
 
-              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global â Startup</div>
+              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global &ndash; Startup</div>
 
-              {/* Startup fee + monthly */}
               <div className="mb-1">
                 <div className="flex items-baseline gap-1">
                   <span className="text-white/30 text-lg">$</span>
@@ -680,7 +662,6 @@ function Pricing() {
           </FadeIn>
         </div>
 
-        {/* Bottom note */}
         <FadeIn delay={0.3} className="mt-10 text-center">
           <p className="text-white/25 text-xs max-w-xl mx-auto">
             The 1House Global plans are offered through our affiliate partnership. Clicking those links may earn The Greenprint a referral commission at no extra cost to you. 1House plan details and pricing are set by 1House Global.
@@ -698,7 +679,7 @@ function Pricing() {
   );
 }
 
-/* âââ Testimonials âââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Testimonials ──────────────────────────────────────────────── */
 function Testimonials() {
   const testimonials = [
     { name: "Marcus T.", handle: "@marcust_trades", gain: "+34%",
@@ -752,7 +733,6 @@ function Testimonials() {
           ))}
         </div>
 
-        {/* Compliance disclaimer */}
         <FadeIn delay={0.2} className="mt-8 text-center">
           <p className="text-white/20 text-xs max-w-2xl mx-auto px-4">
             * Results shown are self-reported by community members and are not typical. Individual results vary significantly based on experience, capital, market conditions, and risk management. These testimonials are for educational illustration only and do not constitute a promise or guarantee of similar results.
@@ -763,7 +743,7 @@ function Testimonials() {
   );
 }
 
-/* âââ Book a Call ââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Book a Call ───────────────────────────────────────────────── */
 function BookACall() {
   return (
     <section className="py-24">
@@ -785,7 +765,7 @@ function BookACall() {
                 <br/><span className="text-[#00FF85]">Let&apos;s Talk.</span>
               </h2>
               <p className="text-white/45 text-lg mb-10 max-w-xl mx-auto">
-                Book a free 15-minute call with The Greenprint team. No pressure, no pitch â just an honest conversation about where you are and how we can help.
+                Book a free 15-minute call with The Greenprint team. No pressure, no pitch &ndash; just an honest conversation about where you are and how we can help.
               </p>
               <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
@@ -805,7 +785,7 @@ function BookACall() {
   );
 }
 
-/* âââ Footer âââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Footer ────────────────────────────────────────────────────── */
 function Footer() {
   return (
     <footer className="border-t border-white/5 pt-16 pb-8">
@@ -870,7 +850,7 @@ function Footer() {
             The Greenprint is an educational trading community. We are not registered investment advisors. All content, trade alerts, live sessions, and educational material are provided for informational and educational purposes only and do not constitute financial, investment, or trading advice. Trading stocks, options, futures, and other financial instruments involves substantial risk of loss and is not suitable for all investors. Past performance of any strategy, alert, or trade discussed is not indicative of future results. You should not trade with money you cannot afford to lose. Always conduct your own research and consult a licensed financial professional before making any investment decisions. The Greenprint and its operators are not liable for any trading losses incurred by members.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-white/15 text-xs">Â© {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
+            <p className="text-white/15 text-xs">&copy; {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
             <div className="flex gap-6">
               {["Privacy Policy", "Terms of Service"].map(l => (
                 <Link key={l} href="#" className="text-white/15 hover:text-white/30 text-xs transition-colors">{l}</Link>
@@ -883,7 +863,7 @@ function Footer() {
   );
 }
 
-/* âââ Root âââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─── Root ──────────────────────────────────────────────────────── */
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#080808] text-white">
