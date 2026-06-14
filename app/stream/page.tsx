@@ -10,7 +10,7 @@ const ICE = [
   { urls: "stun:stun2.l.google.com:19302" },
 ];
 
-interface ChatMsg { name: string; text: string; ts: number; }
+interface ChatMsg { id: string; name: string; text: string; ts: number; }
 
 function loadPeerJS(cb: () => void) {
   if ((window as any).Peer) { cb(); return; }
@@ -19,6 +19,8 @@ function loadPeerJS(cb: () => void) {
   s.onload = cb;
   document.body.appendChild(s);
 }
+
+function msgId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
 export default function StreamPage() {
   const [name, setName]           = useState("");
@@ -30,7 +32,7 @@ export default function StreamPage() {
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
-  const [muted, setMuted]         = useState(true); // start muted, user taps to unmute
+  const [muted, setMuted]         = useState(true);
 
   const videoRef   = useRef<HTMLVideoElement>(null);
   const peerRef    = useRef<any>(null);
@@ -40,8 +42,8 @@ export default function StreamPage() {
   const liveRef    = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
+  const seenIds    = useRef<Set<string>>(new Set());
 
-  // Hide disclaimer bar
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const style = document.createElement("style");
@@ -57,22 +59,17 @@ export default function StreamPage() {
     };
   }, []);
 
-  // Firebase poll
   useEffect(() => {
     const check = async () => {
       try {
         const r = await fetch(`${RTDB_URL}/livestatus.json`, { cache: "no-store" });
         const d = await r.json();
-        const nowLive = !!d?.isLive;
         if (d?.title) setTitle(d.title);
+        const nowLive = !!d?.isLive;
         if (nowLive !== liveRef.current) {
           liveRef.current = nowLive;
           setIsLive(nowLive);
-          if (!nowLive) {
-            setConnected(false);
-            setViewers(0);
-            if (videoRef.current) videoRef.current.srcObject = null;
-          }
+          if (!nowLive) { setConnected(false); setViewers(0); if (videoRef.current) videoRef.current.srcObject = null; }
         }
       } catch {}
     };
@@ -81,7 +78,6 @@ export default function StreamPage() {
     return () => clearInterval(iv);
   }, []);
 
-  // PeerJS
   const startPeer = useCallback(() => {
     loadPeerJS(() => {
       const PeerJS = (window as any).Peer;
@@ -94,13 +90,14 @@ export default function StreamPage() {
         connRef.current = conn;
         conn.on("open", () => conn.send({ t: "join", name }));
         conn.on("data", (d: any) => {
-          if (d?.t === "end") {
-            setConnected(false);
-            if (videoRef.current) videoRef.current.srcObject = null;
-          }
+          if (d?.t === "end") { setConnected(false); if (videoRef.current) videoRef.current.srcObject = null; }
           if (d?.t === "vc") setViewers(d.count ?? 0);
           if (d?.t === "chat") {
-            setChat(prev => [...prev.slice(-199), { name: d.name, text: d.msg, ts: Date.now() }]);
+            // Deduplicate: skip if we already added this message (e.g. our own send)
+            const id = d.id ?? (d.name + d.msg + d.ts);
+            if (seenIds.current.has(id)) return;
+            seenIds.current.add(id);
+            setChat(prev => [...prev.slice(-299), { id, name: d.name, text: d.msg, ts: Date.now() }]);
           }
         });
         conn.on("close", () => setConnected(false));
@@ -111,7 +108,6 @@ export default function StreamPage() {
         call.on("stream", (stream: MediaStream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            // Start muted so autoplay works, user taps to unmute
             videoRef.current.muted = true;
             videoRef.current.play().catch(() => {});
             setMuted(true);
@@ -121,11 +117,7 @@ export default function StreamPage() {
           clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
             const s = Math.floor((Date.now() - (startRef.current ?? Date.now())) / 1000);
-            setElapsed(
-              `${String(Math.floor(s / 3600)).padStart(2, "0")}:` +
-              `${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:` +
-              `${String(s % 60).padStart(2, "0")}`
-            );
+            setElapsed(`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`);
           }, 1000);
         });
         call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
@@ -137,11 +129,8 @@ export default function StreamPage() {
     });
   }, [name]);
 
-  useEffect(() => {
-    if (nameSet && isLive) startPeer();
-  }, [nameSet, isLive, startPeer]);
+  useEffect(() => { if (nameSet && isLive) startPeer(); }, [nameSet, isLive, startPeer]);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
@@ -153,43 +142,40 @@ export default function StreamPage() {
 
   function toggleMute() {
     if (!videoRef.current) return;
-    const nowMuted = !muted;
-    videoRef.current.muted = nowMuted;
-    if (!nowMuted) {
-      videoRef.current.play().catch(() => {});
-    }
-    setMuted(nowMuted);
+    const next = !muted;
+    videoRef.current.muted = next;
+    if (!next) videoRef.current.play().catch(() => {});
+    setMuted(next);
   }
 
   function sendChat(e: React.FormEvent) {
     e.preventDefault();
     const txt = chatInput.trim();
     if (!txt || !connRef.current) return;
-    connRef.current.send({ t: "chat", name, msg: txt });
-    setChat(prev => [...prev.slice(-199), { name, text: txt, ts: Date.now() }]);
+    const id = msgId();
+    // Mark as seen BEFORE sending so we don't double-add when broadcaster echoes it back
+    seenIds.current.add(id);
+    connRef.current.send({ t: "chat", name, msg: txt, id });
+    setChat(prev => [...prev.slice(-299), { id, name, text: txt, ts: Date.now() }]);
     setChatInput("");
     inputRef.current?.blur();
   }
 
-  // ── Name gate ─────────────────────────────────────────────────────────────
+  // Name gate
   if (!nameSet) {
     return (
-      <div style={{ position: "fixed", inset: 0, background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px", zIndex: 9999 }}>
-        <div style={{ width: "100%", maxWidth: 320 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, margin: "0 auto 20px", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
-            <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-              <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+      <div style={{ position:"fixed", inset:0, background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px", zIndex:9999 }}>
+        <div style={{ width:"100%", maxWidth:320 }}>
+          <div style={{ width:52, height:52, borderRadius:16, margin:"0 auto 20px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 32px rgba(0,255,133,0.35)" }}>
+            <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
-          <p style={{ color: "#fff", fontWeight: 900, fontSize: 22, textAlign: "center", margin: "0 0 6px" }}>The Greenprint</p>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center", margin: "0 0 28px" }}>Enter your name to join</p>
+          <p style={{ color:"#fff", fontWeight:900, fontSize:22, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
+          <p style={{ color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center", margin:"0 0 28px" }}>Enter your name to join</p>
           <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }}>
-            <input
-              value={name} onChange={e => setName(e.target.value)}
-              placeholder="Your name" autoFocus
-              style={{ display: "block", width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "13px 16px", fontSize: 14, color: "#fff", outline: "none", marginBottom: 12 }}
-            />
-            <button type="submit" disabled={!name.trim()} style={{ display: "block", width: "100%", padding: "13px", background: "linear-gradient(135deg,#00FF85,#00cc6a)", border: "none", borderRadius: 14, fontSize: 14, fontWeight: 900, color: "#080808", cursor: "pointer", opacity: name.trim() ? 1 : 0.3 }}>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoFocus
+              style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, padding:"13px 16px", fontSize:14, color:"#fff", outline:"none", marginBottom:12 }}/>
+            <button type="submit" disabled={!name.trim()}
+              style={{ display:"block", width:"100%", padding:"13px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:14, fontWeight:900, color:"#080808", cursor:"pointer", opacity:name.trim()?1:0.3 }}>
               Join Stream
             </button>
           </form>
@@ -198,152 +184,99 @@ export default function StreamPage() {
     );
   }
 
-  // ── Main view ─────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 9999, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    // 100dvh = dynamic viewport height — accounts for mobile browser chrome so nothing clips
+    <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
-      {/* ── VIDEO (fills width at 16:9) ── */}
-      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", flexShrink: 0, background: "#000", overflow: "hidden" }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#000", display: connected ? "block" : "none" }}
-        />
+      {/* VIDEO — fills width, 16:9 height, max 45dvh so chat always has room */}
+      <div style={{ position:"relative", width:"100%", flexShrink:0, background:"#000", overflow:"hidden", height:"min(56.25vw, 45dvh)" }}>
+        <video ref={videoRef} autoPlay playsInline muted
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain", background:"#000", display:connected?"block":"none" }}/>
 
-        {/* Offline */}
         {!connected && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 40px rgba(0,255,133,0.3)", position: "relative" }}>
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-                <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {isLive && <div style={{ position: "absolute", top: -4, right: -4, width: 13, height: 13, background: "#ef4444", borderRadius: "50%", border: "2px solid #000" }}/>}
+          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+            <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 36px rgba(0,255,133,0.3)", position:"relative" }}>
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {isLive && <div style={{ position:"absolute", top:-4, right:-4, width:12, height:12, background:"#ef4444", borderRadius:"50%", border:"2px solid #000" }}/>}
             </div>
-            <p style={{ color: "#fff", fontWeight: 800, fontSize: 15, margin: 0, textAlign: "center" }}>
-              {isLive ? "Connecting..." : "Not live yet"}
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0, textAlign: "center" }}>
-              {isLive ? "Hang tight, loading video..." : "The Greenprint will go live soon"}
-            </p>
+            <p style={{ color:"#fff", fontWeight:800, fontSize:14, margin:0 }}>{isLive?"Connecting...":"Not live yet"}</p>
+            <p style={{ color:"rgba(255,255,255,0.35)", fontSize:11, margin:0 }}>{isLive?"Loading stream...":"The Greenprint will go live soon"}</p>
           </div>
         )}
 
-        {/* Top gradient */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom,rgba(0,0,0,0.8),transparent)", pointerEvents: "none" }}/>
-
-        {/* Top bar */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 8, padding: "12px 12px 0", zIndex: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid #00FF85", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ color: "#080808", fontWeight: 900, fontSize: 12 }}>G</span>
+        {/* Top gradient + bar */}
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:72, background:"linear-gradient(to bottom,rgba(0,0,0,0.82),transparent)", pointerEvents:"none" }}/>
+        <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", alignItems:"center", gap:8, padding:"10px 12px 0", zIndex:10 }}>
+          <div style={{ width:30, height:30, borderRadius:"50%", border:"2px solid #00FF85", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <span style={{ color:"#080808", fontWeight:900, fontSize:11 }}>G</span>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: "#fff", fontWeight: 700, fontSize: 12, margin: 0, lineHeight: 1.2 }}>The Greenprint</p>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+          <div style={{ flex:1, minWidth:0 }}>
+            <p style={{ color:"#fff", fontWeight:700, fontSize:12, margin:0, lineHeight:1.2 }}>The Greenprint</p>
+            <p style={{ color:"rgba(255,255,255,0.4)", fontSize:9, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
           </div>
           {isLive && connected && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 6, padding: "3px 7px", flexShrink: 0 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#f87171" }}/>
-              <span style={{ color: "#f87171", fontSize: 9, fontWeight: 900, letterSpacing: 1.5 }}>LIVE</span>
+            <div style={{ display:"flex", alignItems:"center", gap:4, background:"rgba(239,68,68,0.25)", border:"1px solid rgba(239,68,68,0.5)", borderRadius:6, padding:"3px 7px", flexShrink:0 }}>
+              <div style={{ width:5, height:5, borderRadius:"50%", background:"#f87171" }}/>
+              <span style={{ color:"#f87171", fontSize:9, fontWeight:900, letterSpacing:1.5 }}>LIVE</span>
             </div>
           )}
-          {connected && <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontFamily: "monospace", flexShrink: 0 }}>{viewers || 1} watching</span>}
-          {connected && <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: "monospace", flexShrink: 0 }}>{elapsed}</span>}
+          {connected && <span style={{ color:"rgba(255,255,255,0.4)", fontSize:10, fontFamily:"monospace", flexShrink:0 }}>{viewers||1} watching</span>}
+          {connected && <span style={{ color:"rgba(255,255,255,0.25)", fontSize:9, fontFamily:"monospace", flexShrink:0 }}>{elapsed}</span>}
         </div>
 
-        {/* Tap to unmute button */}
+        {/* Tap to unmute */}
         {connected && muted && (
-          <button
-            onClick={toggleMute}
-            style={{
-              position: "absolute", bottom: 10, right: 10, zIndex: 10,
-              display: "flex", alignItems: "center", gap: 6,
-              background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999,
-              padding: "7px 12px", cursor: "pointer", color: "#fff", fontSize: 12, fontWeight: 700,
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
-              <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+          <button onClick={toggleMute} style={{ position:"absolute", bottom:8, right:8, zIndex:10, display:"flex", alignItems:"center", gap:5, background:"rgba(0,0,0,0.78)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:999, padding:"6px 11px", cursor:"pointer", color:"#fff", fontSize:11, fontWeight:700 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             Tap to unmute
           </button>
         )}
-
-        {/* Mute/unmute toggle when already unmuted */}
         {connected && !muted && (
-          <button
-            onClick={toggleMute}
-            style={{
-              position: "absolute", bottom: 10, right: 10, zIndex: 10,
-              width: 32, height: 32, borderRadius: "50%",
-              background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
-              <path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+          <button onClick={toggleMute} style={{ position:"absolute", bottom:8, right:8, zIndex:10, width:30, height:30, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"1px solid rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
           </button>
         )}
       </div>
 
-      {/* ── CHAT SECTION (fills remaining screen below video) ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+      {/* CHAT — takes all remaining height below video */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
 
-        {/* Chat header */}
-        <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, display: "flex", alignItems: "center", gap: 7 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: isLive && connected ? "#00FF85" : "rgba(255,255,255,0.2)", flexShrink: 0 }}/>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, margin: 0, letterSpacing: 1.5, textTransform: "uppercase" }}>
-            Live Chat {chat.length > 0 && <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>({chat.length})</span>}
-          </p>
+        {/* Header */}
+        <div style={{ padding:"9px 14px 7px", borderBottom:"1px solid rgba(255,255,255,0.06)", flexShrink:0, display:"flex", alignItems:"center", gap:7 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:isLive&&connected?"#00FF85":"rgba(255,255,255,0.2)", flexShrink:0 }}/>
+          <span style={{ color:"rgba(255,255,255,0.55)", fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase" }}>
+            Live Chat{chat.length>0 ? ` (${chat.length})` : ""}
+          </span>
         </div>
 
-        {/* Messages — scrollable, shows ALL messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+        {/* All messages, scrollable */}
+        <div style={{ flex:1, overflowY:"auto", padding:"10px 14px", display:"flex", flexDirection:"column", gap:10, minHeight:0 }}>
           {chat.length === 0 && (
-            <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 12, textAlign: "center", marginTop: 20 }}>
-              Chat will appear here...
-            </p>
+            <p style={{ color:"rgba(255,255,255,0.18)", fontSize:12, textAlign:"center", marginTop:16 }}>Chat will appear here...</p>
           )}
           {chat.map((m, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#080808", marginTop: 1 }}>
+            <div key={m.id || i} style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+              <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:900, color:"#080808", marginTop:1 }}>
                 {m.name[0]?.toUpperCase()}
               </div>
-              <div style={{ flex: 1, lineHeight: 1.5 }}>
-                <span style={{ color: "#00FF85", fontSize: 12, fontWeight: 700, marginRight: 6 }}>{m.name}</span>
-                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, wordBreak: "break-word" }}>{m.text}</span>
+              <div style={{ flex:1, lineHeight:1.5 }}>
+                <span style={{ color:"#00FF85", fontSize:11, fontWeight:700, marginRight:5 }}>{m.name}</span>
+                <span style={{ color:"rgba(255,255,255,0.85)", fontSize:13, wordBreak:"break-word" }}>{m.text}</span>
               </div>
             </div>
           ))}
           <div ref={chatEndRef}/>
         </div>
 
-        {/* Input */}
-        <form onSubmit={sendChat} style={{ padding: "10px 14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 9, alignItems: "center", flexShrink: 0 }}>
-          <input
-            ref={inputRef}
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            placeholder="Say something..."
-            style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none" }}
-            onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,133,0.55)")}
-            onBlur={e  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)")}
-          />
-          <button
-            type="submit"
-            disabled={!chatInput.trim()}
-            style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: chatInput.trim() ? 1 : 0.3 }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+        {/* Input — always visible, never pushed off screen */}
+        <form onSubmit={sendChat} style={{ padding:"9px 12px 12px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+          <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Say something..."
+            style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:999, padding:"10px 15px", fontSize:14, color:"#fff", outline:"none", minWidth:0 }}
+            onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.55)")}
+            onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.14)")}/>
+          <button type="submit" disabled={!chatInput.trim()}
+            style={{ width:42, height:42, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:chatInput.trim()?1:0.3 }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
         </form>
       </div>
