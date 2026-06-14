@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 
@@ -36,7 +35,6 @@ export default function OnboardingPage() {
   const [tier, setTier] = useState<string>("member");
   const [focus, setFocus] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
-  const [direction, setDirection] = useState(1);
 
   useEffect(() => {
     (async () => {
@@ -48,8 +46,8 @@ export default function OnboardingPage() {
     })();
   }, []);
 
-  const next = () => { setDirection(1); setStep(s => Math.min(s + 1, TOTAL_STEPS)); };
-  const back = () => { setDirection(-1); setStep(s => Math.max(s - 1, 1)); };
+  const next = () => { setStep(s => Math.min(s + 1, TOTAL_STEPS)); };
+  const back = () => { setStep(s => Math.max(s - 1, 1)); };
 
   const complete = async () => {
     const supabase = createClient();
@@ -63,21 +61,11 @@ export default function OnboardingPage() {
     router.push("/dashboard");
   };
 
-  const variants = {
-    enter: (d: number) => ({ opacity: 0, x: d * 40 }),
-    center: { opacity: 1, x: 0 },
-    exit: (d: number) => ({ opacity: 0, x: -d * 40 }),
-  };
-
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-surface">
-        <motion.div
-          className="h-full bg-accent"
-          animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-        />
+        <div className="h-full bg-accent" style={{ width: `${(step / TOTAL_STEPS) * 100}%`, transition: 'width 0.4s ease' }} />
       </div>
 
       {/* Step counter */}
@@ -95,11 +83,7 @@ export default function OnboardingPage() {
       {/* Step content */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-lg">
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div key={step} custom={direction}
-              variants={variants} initial="enter" animate="center" exit="exit"
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-            >
+          <div key={step}>
               {step === 1 && (
                 <div className="text-center">
                   <div className="w-14 h-14 bg-accent rounded-card flex items-center justify-center mx-auto mb-8">
@@ -307,25 +291,20 @@ export default function OnboardingPage() {
                       "Broker set up",
                       "Foundation videos queued",
                     ].map((item, i) => (
-                      <motion.div key={item}
-                        initial={{opacity:0,x:-10}} animate={{opacity:1,x:0}}
-                        transition={{delay:i*0.15,duration:0.3}}
-                        className="flex items-center gap-3"
-                      >
+                      <div key={item} className="flex items-center gap-3">
                         <div className="w-5 h-5 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
                           <svg className="w-3 h-3 text-bg" fill="none" viewBox="0 0 12 12">
                             <path d="M2 6l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         </div>
                         <span className="text-sm text-text">{item}</span>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                   <Button size="lg" fullWidth onClick={complete}>Enter Dashboard →</Button>
                 </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
