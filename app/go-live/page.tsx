@@ -201,7 +201,7 @@ export default function GoLivePage() {
     log("Choose your screen - select 'Share Audio' if you want system sound.");
     try {
       const scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60 }, cursor: "always" } as any,
+        video: { frameRate: { ideal: 60 }, width: { ideal: 3840 }, height: { ideal: 2160 }, cursor: "always" } as any,
         audio: { echoCancellation: false, noiseSuppression: false } as any,
       });
       screenStreamRef.current = scrn;
@@ -213,7 +213,7 @@ export default function GoLivePage() {
 
       log("Screen captured - requesting mic...");
       const mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000, channelCount: { ideal: 2 } },
         video: false,
       });
       micStreamRef.current = mic;
@@ -224,8 +224,13 @@ export default function GoLivePage() {
         const dst = ctx.createMediaStreamDestination();
         audioDstRef.current = dst;
         ctx.createMediaStreamSource(mic).connect(dst);
-        // Mic-only audio â screen audio NOT mixed in to prevent echo/feedback
-        log("Mic ready. Going live...");
+        const screenAudio = scrn.getAudioTracks();
+        if (screenAudio.length > 0) {
+          ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
+          log("Screen + mic audio mixed. Going live...");
+        } else {
+          log("Mic ready (no screen audio — remember to tick Share Audio in Chrome). Going live...");
+        }
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
@@ -247,7 +252,7 @@ export default function GoLivePage() {
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          // Screen: COVER fill Ã¢ÂÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
+          // Screen: COVER fill ÃÂ¢ÃÂÃÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
           const srcW = svr.videoWidth || 1920;
           const srcH = svr.videoHeight || 1080;
           const scale = Math.max(1920 / srcW, 1080 / srcH);
@@ -307,7 +312,7 @@ export default function GoLivePage() {
           pipRafRef.current = requestAnimationFrame(drawPip);
         };
         drawPip();
-        const canvasStream = pipCanvas.captureStream(30);
+        const canvasStream = pipCanvas.captureStream(60);
         const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
         outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
         log("PiP active - canvas stream with camera overlay sent to viewers.");
