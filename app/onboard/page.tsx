@@ -13,9 +13,7 @@ const APPS = [
 const BROKER_STEPS = [
   { n: 1, title: "Create Your GenesisFX Account", desc: "Sign up at GenesisFX using the link below.", href: "https://client.genesisfx.io/register", linkLabel: "Open GenesisFX" },
   { n: 2, title: "Verify Your Identity", desc: "Complete KYC verification — takes about 5 minutes. Have your ID ready." },
-  { n: 3, title: "Fund Your Account", desc: "Make your initial deposit to activate your live trading account." },
-  { n: 4, title: "Download TradeLocker", desc: "Install TradeLocker from the App Store or Google Play, then open the app." },
-  { n: 5, title: "Connect Your Live Account", desc: "In TradeLocker, tap the 3 lines (top left), press TradeLocker, select New Account, choose Live, enter your GenesisFX credentials, and confirm." },
+  { n: 3, title: "Download TradeLocker", desc: "Install TradeLocker from the App Store or Google Play, then open the app." },
 ];
 
 const DEMO_STEPS = [
@@ -136,7 +134,7 @@ export default function OnboardPage() {
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-3">Set Up Your Broker</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-6">
-              We use GenesisFX. Set up your live account first, then create a demo inside TradeLocker to practice before trading real money.
+              First get your GenesisFX account set up, then create your demo account in TradeLocker. No funding needed yet — this is all about getting your demo running so you can start practicing.
             </p>
 
             <p className="text-white/60 text-xs font-semibold tracking-widest uppercase mb-4">GenesisFX Account</p>
