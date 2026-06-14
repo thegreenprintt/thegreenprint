@@ -15,6 +15,14 @@ const APPS = [
   { name: "Boards", desc: "Task management", ios: "https://apps.apple.com/us/app/boards-com/id1507677341", android: "https://play.google.com/store/search?q=boards+kanban&c=apps" },
 ];
 
+const STARTER_APPS = [
+  { name: "Green Print", desc: "Your community app", ios: "#", android: "#" },
+  { name: "TradingView", desc: "Charts & analysis", ios: "https://apps.apple.com/us/app/tradingview-stock-market/id1205990992", android: "https://play.google.com/store/apps/details?id=com.tradingview.tradingviewapp" },
+  { name: "TradeLocker", desc: "Trading platform", ios: "https://apps.apple.com/us/app/tradelocker/id6447196449", android: "https://play.google.com/store/apps/details?id=com.tradelocker.mobile" },
+  { name: "Zoom", desc: "Live sessions", ios: "https://apps.apple.com/us/app/zoom-one-platform-to-connect/id546505307", android: "https://play.google.com/store/apps/details?id=us.zoom.videomeetings" },
+  { name: "Telegram", desc: "Community chat", ios: "https://apps.apple.com/us/app/telegram-messenger/id686449807", android: "https://play.google.com/store/apps/details?id=org.telegram.messenger" },
+];
+
 const FOCUS_AREAS = [
   { id: "day-trading", icon: "📈", label: "Day Trading" },
   { id: "investing", icon: "💹", label: "Investing" },
@@ -35,6 +43,8 @@ export default function OnboardingPage() {
   const [tier, setTier] = useState<string>("member");
   const [focus, setFocus] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
+  const [plan] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("plan") || "pro" : "pro");
+  const apps = plan === "starter" ? STARTER_APPS : APPS;
 
   useEffect(() => {
     (async () => {
@@ -198,7 +208,7 @@ export default function OnboardingPage() {
                   <h2 className="text-2xl font-bold text-text mb-3">Download your tools.</h2>
                   <p className="text-muted mb-6">Everything you need to trade, learn, and connect.</p>
                   <div className="space-y-3 mb-6">
-                    {APPS.map(app => (
+                    {apps.map(app => (
                       <div key={app.name} className="bg-surface border border-border rounded-card p-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-semibold text-text">{app.name}</p>
