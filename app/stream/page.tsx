@@ -175,11 +175,11 @@ export default function StreamPage() {
     </div>
   );
 
-  // ââ VIDEO SECTION (shared between layouts) ââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ VIDEO SECTION (shared between layouts) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const videoSection = (
     <div style={{ position:"relative", width:"100%", height:"100%", background:"#000", overflow:"hidden", flexShrink:0 }}>
 
-      {/* Blurred background fill â eliminates black bars by showing blurred stream behind */}
+      {/* Blurred background fill Ã¢ÂÂ eliminates black bars by showing blurred stream behind */}
       {connected && (
         <video ref={bgVideoRef} autoPlay playsInline muted
           style={{ position:"absolute", inset:"-5%", width:"110%", height:"110%", objectFit:"cover", filter:"blur(28px) brightness(0.35)", pointerEvents:"none" }}/>
@@ -204,10 +204,10 @@ export default function StreamPage() {
       )}
 
       {/* Top gradient */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, height:90, background:"linear-gradient(to bottom,rgba(0,0,0,0.85),transparent)", pointerEvents:"none", zIndex:2 }}/>
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:"calc(90px + env(safe-area-inset-top, 0px))", background:"linear-gradient(to bottom,rgba(0,0,0,0.85),transparent)", pointerEvents:"none", zIndex:2 }}/>
 
       {/* Top bar */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", alignItems:"center", gap:10, padding:"16px 18px 0", zIndex:3 }}>
+      <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", alignItems:"center", gap:10, padding:"calc(16px + env(safe-area-inset-top, 0px)) 18px 0", zIndex:3 }}>
         <div style={{ width:36, height:36, borderRadius:"50%", border:"2.5px solid #00FF85", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
           <span style={{ color:"#080808", fontWeight:900, fontSize:14 }}>G</span>
         </div>
@@ -227,20 +227,20 @@ export default function StreamPage() {
 
       {/* Unmute */}
       {connected && muted && (
-        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, right:14, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:999, padding:"8px 14px", cursor:"pointer", color:"#fff", fontSize:13, fontWeight:700 }}>
+        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, left:14, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:999, padding:"8px 14px", cursor:"pointer", color:"#fff", fontSize:13, fontWeight:700 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
           Tap to unmute
         </button>
       )}
       {connected && !muted && (
-        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, right:14, zIndex:3, width:36, height:36, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
+        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, left:14, zIndex:3, width:36, height:36, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
         </button>
       )}
     </div>
   );
 
-  // ââ CHAT SECTION (shared) âââââââââââââââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ CHAT SECTION (shared) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const chatSection = (
     <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, height:"100%",
       background: desktop ? "rgba(10,10,12,0.97)" : "#0a0a0a",
@@ -285,7 +285,7 @@ export default function StreamPage() {
     </div>
   );
 
-  // ââ DESKTOP: video fills screen, chat sidebar right âââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ DESKTOP: video fills screen, chat sidebar right Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   if (desktop) return (
     <div style={{ position:"fixed", inset:0, background:"#000", zIndex:9999, display:"flex", flexDirection:"row", overflow:"hidden" }}>
       <div style={{ flex:1, position:"relative", overflow:"hidden" }}>{videoSection}</div>
@@ -293,7 +293,7 @@ export default function StreamPage() {
     </div>
   );
 
-  // ââ MOBILE: video 16:9 on top, chat fills rest ââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ MOBILE: video 16:9 on top, chat fills rest Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   return (
     <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <div style={{ position:"relative", width:"100%", height:"min(56.25vw, 36dvh)", flexShrink:0, overflow:"hidden" }}>{videoSection}</div>
