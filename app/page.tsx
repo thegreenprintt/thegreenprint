@@ -12,7 +12,7 @@ function FadeIn({
   children,
   delay = 0,
   className = "",
-  y = 30,
+  y = 15,
 }: {
   children: React.ReactNode;
   delay?: number;
@@ -38,7 +38,6 @@ function FadeIn({
         opacity: vis ? 1 : 0,
         transform: vis ? "none" : `translateY(${y}px)`,
         transition: `opacity 0.55s ease ${delay}s, transform 0.55s ease ${delay}s`,
-        willChange: "opacity, transform",
       }}
     >
       {children}
@@ -54,7 +53,7 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
     const el = ref.current; if (!el) return;
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
-      { rootMargin: "-60px" }
+      { rootMargin: "0px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
