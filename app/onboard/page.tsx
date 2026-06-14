@@ -96,13 +96,13 @@ export default function OnboardPage() {
           </div>
         )}
 
-        {/* Step 3: Join the Chats */}
+     Step 3: Join the Chats */}
         {step === 3 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Community</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Join the Chats</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-8">
-              Get plugged in. The community is where signals, updates, and live session alerts happen. Don’t miss it.
+              Get plugged in. This is where signals, updates, and live session alerts happen. Don't miss it.
             </p>
             <div className="flex flex-col gap-3">
               <a
@@ -117,23 +117,25 @@ export default function OnboardPage() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">Telegram</p>
+                  <p className="text-white font-semibold text-sm">The Greenprint</p>
                   <p className="text-white/40 text-xs">Main community chat</p>
                 </div>
                 <span className="ml-auto text-white/30 text-sm">→</span>
               </a>
               <a
-                href="https://www.1house.tv"
+                href="https://t.me/+1rvPMKd6MRw3NGUx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors"
               >
-                <div className="w-10 h-10 rounded-xl bg-[#00FF85]/20 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#00FF85] font-black text-base">1H</span>
+                <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
+                  </svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">1House Community</p>
-                  <p className="text-white/40 text-xs">Platform chat & content</p>
+                  <p className="text-white font-semibold text-sm">Market Bully Community</p>
+                  <p className="text-white/40 text-xs">Market Bully chat</p>
                 </div>
                 <span className="ml-auto text-white/30 text-sm">→</span>
               </a>
@@ -141,7 +143,7 @@ export default function OnboardPage() {
           </div>
         )}
 
-        {/* Step 4: Broker + Demo */}
+        {/*    {/* Step 4: Broker + Demo */}
         {step === 4 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
