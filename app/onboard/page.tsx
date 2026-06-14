@@ -56,36 +56,43 @@ export default function OnboardPage() {
           </div>
         )}
 
-        {/* Step 2: Watch Arin's Clips */}
+     Step 2: Watch Arin's Clips */}
         {step === 2 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education First</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin’s Clips</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-8">
-              Before anything else, get your foundation right. Watch Arin’s long-form breakdowns — these cover everything from how to read price action to how we structure our trades inside The Greenprint.
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin's Clips</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">
+              Start with Arin Long's channel on 1House. Watch these in order before moving on.
             </p>
+            <div className="flex flex-col gap-3 mb-8">
+              {[
+                { n: 1, title: "New Trader Start Here", desc: "Begin here — no exceptions." },
+                { n: 2, title: "Market Basics", desc: "Foundation for everything we do." },
+                { n: 3, title: "Market Bully Strategy", desc: "The core strategy used inside The Greenprint." },
+              ].map(item => (
+                <div key={item.n} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#00FF85] text-xs font-bold">{item.n}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">{item.title}</p>
+                    <p className="text-white/40 text-xs mt-0.5">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
             <a
-              href="https://www.youtube.com/@arinlong"
+              href="https://www.1house.tv/educators/a782da2a-81c6-4c32-9f6a-e36c9c74e218"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors mb-3"
+              className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-base text-center hover:border-[#00FF85]/40 transition-colors"
             >
-              <div className="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19.59 6.69a4.83 4.83 0 01-3.77-2.73 12.18 12.18 0 00-8.45 2.73A4.83 4.83 0 013.6 9.42a12.18 12.18 0 000 5.16 4.83 4.83 0 013.77 2.73 12.18 12.18 0 008.45-2.73 4.83 4.83 0 013.77-2.73 12.18 12.18 0 000-5.16zM9.75 15V9l5.25 3-5.25 3z"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-white font-semibold text-sm">Arin’s Long Clips</p>
-                <p className="text-white/40 text-xs">youtube.com/@arinlong</p>
-              </div>
-              <span className="ml-auto text-white/30 text-sm">→</span>
+              Open Arin's Channel on 1House →
             </a>
-            <p className="text-white/30 text-xs mt-4">Watch at least one full video before moving on.</p>
           </div>
         )}
 
-        {/* Step 3: Download Apps */}
+        {/*    {/* Step 3: Download Apps */}
         {step === 3 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
