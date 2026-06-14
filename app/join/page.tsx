@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { ComplianceCheckbox } from "@/components/ui/ComplianceCheckbox";
 
@@ -10,7 +9,7 @@ const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
 const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
 
 const TIERS = [
-  {
+  
     name: "The Greenprint",
     price: "$29", cents: ".99", period: "/month",
     tagline: "Limited spots available.",
@@ -96,8 +95,7 @@ export default function JoinPage() {
   const [agreed, setAgreed] = useState(false);
 
   return (
-    <motion.div
-      initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.3}}
+    <div
       className="min-h-screen bg-bg pb-24"
     >
       {/* Header */}
@@ -197,6 +195,6 @@ export default function JoinPage() {
           <Link href="/refund-policy" className="underline">See Refund Policy</Link> for full details.
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
