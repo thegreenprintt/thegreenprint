@@ -252,10 +252,10 @@ export default function GoLivePage() {
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          // Scale screen to fit 1920x1080 letterboxed (handles ultrawide / any aspect ratio)
+          // Screen: COVER fill — scales to fill 1920x1080, crops edges on ultrawide (no black bars)
           const srcW = svr.videoWidth || 1920;
           const srcH = svr.videoHeight || 1080;
-          const scale = Math.min(1920 / srcW, 1080 / srcH);
+          const scale = Math.max(1920 / srcW, 1080 / srcH);
           const dw = srcW * scale;
           const dh = srcH * scale;
           const dx = (1920 - dw) / 2;
@@ -263,27 +263,50 @@ export default function GoLivePage() {
           pipCtx.fillStyle = "#000";
           pipCtx.fillRect(0, 0, 1920, 1080);
           pipCtx.drawImage(svr, dx, dy, dw, dh);
+
+          // Camera PiP: bottom-right, 18% width, 16:9, rounded corners, green border
           const cv = camVideoRef.current;
           if (camStreamRef.current && cv && cv.readyState >= 2) {
-            const pw = Math.round(pipCanvas.width * 0.22);
-            const ph = Math.round(pw * 9 / 16);
-            const px = pipCanvas.width  - pw - 24;
-            const py = pipCanvas.height - ph - 24;
+            const pw = Math.round(pipCanvas.width * 0.18);   // ~346px
+            const ph = Math.round(pw * 9 / 16);               // 16:9 = ~195px
+            const px = pipCanvas.width  - pw - 36;
+            const py = pipCanvas.height - ph - 36;
+            const r  = 22;
+
+            // Helper: draw rounded rect path
+            const rr = () => {
+              pipCtx.beginPath();
+              pipCtx.moveTo(px + r, py);
+              pipCtx.lineTo(px + pw - r, py);
+              pipCtx.quadraticCurveTo(px + pw, py, px + pw, py + r);
+              pipCtx.lineTo(px + pw, py + ph - r);
+              pipCtx.quadraticCurveTo(px + pw, py + ph, px + pw - r, py + ph);
+              pipCtx.lineTo(px + r, py + ph);
+              pipCtx.quadraticCurveTo(px, py + ph, px, py + ph - r);
+              pipCtx.lineTo(px, py + r);
+              pipCtx.quadraticCurveTo(px, py, px + r, py);
+              pipCtx.closePath();
+            };
+
+            // 1. Glow shadow
             pipCtx.save();
-            pipCtx.beginPath();
-            const r = 14;
-            pipCtx.moveTo(px + r, py);
-            pipCtx.lineTo(px + pw - r, py);
-            pipCtx.quadraticCurveTo(px + pw, py, px + pw, py + r);
-            pipCtx.lineTo(px + pw, py + ph - r);
-            pipCtx.quadraticCurveTo(px + pw, py + ph, px + pw - r, py + ph);
-            pipCtx.lineTo(px + r, py + ph);
-            pipCtx.quadraticCurveTo(px, py + ph, px, py + ph - r);
-            pipCtx.lineTo(px, py + r);
-            pipCtx.quadraticCurveTo(px, py, px + r, py);
-            pipCtx.closePath();
-            pipCtx.clip();
+            pipCtx.shadowColor = "rgba(0,255,133,0.55)";
+            pipCtx.shadowBlur  = 30;
+            pipCtx.fillStyle   = "#00FF85";
+            rr(); pipCtx.fill();
+            pipCtx.restore();
+
+            // 2. Clip + draw camera
+            pipCtx.save();
+            rr(); pipCtx.clip();
             pipCtx.drawImage(cv, px, py, pw, ph);
+            pipCtx.restore();
+
+            // 3. Green border stroke on top
+            pipCtx.save();
+            pipCtx.strokeStyle = "#00FF85";
+            pipCtx.lineWidth   = 4;
+            rr(); pipCtx.stroke();
             pipCtx.restore();
           }
           pipRafRef.current = requestAnimationFrame(drawPip);
