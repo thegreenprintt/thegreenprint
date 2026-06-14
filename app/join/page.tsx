@@ -179,6 +179,7 @@ export default function JoinPage() {
             )}
           </div>
         ))}
+        </div>
 
         {/* Compliance checkbox */}
         <div className="bg-surface border border-border rounded-card p-5 mb-4 max-w-xl mx-auto">
