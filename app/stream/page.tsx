@@ -140,6 +140,14 @@ export default function StreamPage() {
     try { peerRef.current?.destroy(); } catch {}
   }, []);
 
+  // Keep viewer screen awake while connected — prevents stream going black on phone lock
+  useEffect(() => {
+    if (!connected) return;
+    let wl: any = null;
+    (navigator as any).wakeLock?.request("screen").then((lock: any) => { wl = lock; }).catch(() => {});
+    return () => { wl?.release().catch(() => {}); };
+  }, [connected]);
+
   function toggleMute() {
     if (!videoRef.current) return;
     const next = !muted;
@@ -185,10 +193,10 @@ export default function StreamPage() {
   }
 
   return (
-    // 100dvh = dynamic viewport height — accounts for mobile browser chrome so nothing clips
+    // 100dvh = dynamic viewport height â accounts for mobile browser chrome so nothing clips
     <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
-      {/* VIDEO — fills width, 16:9 height, max 45dvh so chat always has room */}
+      {/* VIDEO â fills width, 16:9 height, max 45dvh so chat always has room */}
       <div style={{ position:"relative", width:"100%", flexShrink:0, background:"#000", overflow:"hidden", height:"min(56.25vw, 45dvh)" }}>
         <video ref={videoRef} autoPlay playsInline muted
           style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain", background:"#000", display:connected?"block":"none" }}/>
@@ -238,7 +246,7 @@ export default function StreamPage() {
         )}
       </div>
 
-      {/* CHAT — takes all remaining height below video */}
+      {/* CHAT â takes all remaining height below video */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
 
         {/* Header */}
@@ -268,7 +276,7 @@ export default function StreamPage() {
           <div ref={chatEndRef}/>
         </div>
 
-        {/* Input — always visible, never pushed off screen */}
+        {/* Input â always visible, never pushed off screen */}
         <form onSubmit={sendChat} style={{ padding:"9px 12px 12px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
           <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Say something..."
             style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:999, padding:"10px 15px", fontSize:14, color:"#fff", outline:"none", minWidth:0 }}
