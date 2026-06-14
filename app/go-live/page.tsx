@@ -229,7 +229,7 @@ export default function GoLivePage() {
           ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
           log("Screen + mic audio mixed. Going live...");
         } else {
-          log("Mic ready (no screen audio — remember to tick Share Audio in Chrome). Going live...");
+          log("Mic ready (no screen audio â remember to tick Share Audio in Chrome). Going live...");
         }
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
@@ -252,7 +252,7 @@ export default function GoLivePage() {
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          // Screen: COVER fill ÃÂ¢ÃÂÃÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
+          // Screen: COVER fill ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
           const srcW = svr.videoWidth || 1920;
           const srcH = svr.videoHeight || 1080;
           const scale = Math.max(1920 / srcW, 1080 / srcH);
@@ -374,7 +374,7 @@ export default function GoLivePage() {
       setCamOn(false);
     } else {
       try {
-        const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 }, facingMode: "user" }, audio: false });
         camStreamRef.current = cam;
         if (camVideoRef.current) { camVideoRef.current.srcObject = cam; camVideoRef.current.style.display = "block"; }
         setCamOn(true);
