@@ -259,7 +259,7 @@ function Hero() {
         {[
           { label: "Active Members", value: "2,400+", color: "#00FF85" },
           { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
-          { label: "Years Experience", value: "7+", color: "#00FF85", hideOnMobile: true },
+          { label: "Years Experience", value: "4+", color: "#00FF85", hideOnMobile: true },
         ].map((stat) => (
           <div key={stat.label}
             className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
@@ -281,7 +281,7 @@ function Stats() {
           { value: 2400, suffix: "+", label: "Members" },
           { value: 20, suffix: "+", label: "Live Sessions/Mo" },
           { value: 1200, suffix: "+", label: "Trade Alerts Sent" },
-          { value: 7, suffix: "yrs", label: "Market Experience" },
+          { value: 4, suffix: "yrs", label: "Market Experience" },
         ].map((s, i) => (
           <FadeIn key={s.label} delay={i * 0.1} className="text-center">
             <div className="text-5xl font-black mb-2"
