@@ -9,7 +9,7 @@ const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
 const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
 
 const TIERS = [
-  
+  {
     name: "The Greenprint",
     price: "$29", cents: ".99", period: "/month",
     tagline: "Limited spots available.",
