@@ -237,9 +237,9 @@ function Hero() {
         Real-time trade alerts, live sessions, and a proven system &ndash; built to help you level up.
       </p>
 
-      <div className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
+      <div className="mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
         <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all flex-1 sm:flex-none justify-center"
+          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
           style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
           Get Access
           <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
@@ -247,7 +247,7 @@ function Hero() {
           </svg>
         </Link>
         <Link href="/stream"
-          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all flex-1 sm:flex-none justify-center">
+          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all w-full sm:w-auto justify-center">
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
             <polygon points="6.5,5.5 11,8 6.5,10.5" fill="currentColor"/>
