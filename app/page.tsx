@@ -5,7 +5,7 @@ import Link from "next/link";
 
 /* ─── Constants ─────────────────────────────────────────────────── */
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
-const WHOP_URL = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const WHOP_URL = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 
 /* ─── Helpers ───────────────────────────────────────────────────── */
 function FadeIn({
@@ -475,7 +475,7 @@ function LiveCallout() {
 }
 
 /* ─── Pricing ───────────────────────────────────────────────────── */
-const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const WHOP_CHECKOUT = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 const ONEHOUSE_REF = "https://subscribe.1houseglobal.com/jay";
 
 function Check({ color }: { color: string }) {
