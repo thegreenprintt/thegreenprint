@@ -175,11 +175,11 @@ export default function StreamPage() {
     </div>
   );
 
-  // ── VIDEO SECTION (shared between layouts) ────────────────────────────────
+  // ââ VIDEO SECTION (shared between layouts) ââââââââââââââââââââââââââââââââ
   const videoSection = (
     <div style={{ position:"relative", width:"100%", height:"100%", background:"#000", overflow:"hidden", flexShrink:0 }}>
 
-      {/* Blurred background fill — eliminates black bars by showing blurred stream behind */}
+      {/* Blurred background fill â eliminates black bars by showing blurred stream behind */}
       {connected && (
         <video ref={bgVideoRef} autoPlay playsInline muted
           style={{ position:"absolute", inset:"-5%", width:"110%", height:"110%", objectFit:"cover", filter:"blur(28px) brightness(0.35)", pointerEvents:"none" }}/>
@@ -240,7 +240,7 @@ export default function StreamPage() {
     </div>
   );
 
-  // ── CHAT SECTION (shared) ─────────────────────────────────────────────────
+  // ââ CHAT SECTION (shared) âââââââââââââââââââââââââââââââââââââââââââââââââ
   const chatSection = (
     <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, height:"100%",
       background: desktop ? "rgba(10,10,12,0.97)" : "#0a0a0a",
@@ -272,7 +272,7 @@ export default function StreamPage() {
         <div ref={chatEndRef}/>
       </div>
 
-      <form onSubmit={sendChat} style={{ padding:"10px 14px 16px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+      <form onSubmit={sendChat} style={{ padding:"10px 14px calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
         <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Say something..."
           style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:999, padding:"10px 16px", fontSize:14, color:"#fff", outline:"none", minWidth:0 }}
           onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.55)")}
@@ -285,7 +285,7 @@ export default function StreamPage() {
     </div>
   );
 
-  // ── DESKTOP: video fills screen, chat sidebar right ───────────────────────
+  // ââ DESKTOP: video fills screen, chat sidebar right âââââââââââââââââââââââ
   if (desktop) return (
     <div style={{ position:"fixed", inset:0, background:"#000", zIndex:9999, display:"flex", flexDirection:"row", overflow:"hidden" }}>
       <div style={{ flex:1, position:"relative", overflow:"hidden" }}>{videoSection}</div>
@@ -293,10 +293,10 @@ export default function StreamPage() {
     </div>
   );
 
-  // ── MOBILE: video 16:9 on top, chat fills rest ────────────────────────────
+  // ââ MOBILE: video 16:9 on top, chat fills rest ââââââââââââââââââââââââââââ
   return (
     <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-      <div style={{ position:"relative", width:"100%", height:"min(56.25vw, 42dvh)", flexShrink:0, overflow:"hidden" }}>{videoSection}</div>
+      <div style={{ position:"relative", width:"100%", height:"min(56.25vw, 36dvh)", flexShrink:0, overflow:"hidden" }}>{videoSection}</div>
       <div style={{ flex:1, minHeight:0 }}>{chatSection}</div>
     </div>
   );
