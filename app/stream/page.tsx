@@ -31,6 +31,9 @@ export default function StreamPage() {
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
+  const [leads, setLeads] = useState<{name:string;email:string;phone:string;ts:number}[]>([]);
+  const [showLeads, setShowLeads] = useState(false);
+  const isHost = new URLSearchParams(window.location.search).has("host");
   const [muted, setMuted]         = useState(true);
   const [desktop, setDesktop]     = useState(false);
 
@@ -78,6 +81,20 @@ export default function StreamPage() {
     check(); const iv = setInterval(check, 5000); return () => clearInterval(iv);
   }, []);
 
+  useEffect(() => {
+    if (!isHost) return;
+    const load = async () => {
+      try {
+        const r = await fetch(`${RTDB_URL}/leads.json`);
+        const d = await r.json();
+        if (d) setLeads(Object.values(d).sort((a: any, b: any) => b.ts - a.ts) as any);
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, [isHost]);
+
   const startPeer = useCallback(() => {
     loadPeerJS(() => {
       const PeerJS = (window as any).Peer;
@@ -93,7 +110,7 @@ export default function StreamPage() {
           if (d?.t === "vc") setViewers(d.count ?? 0);
           if (d?.t === "chat") {
             const id = d.id ?? uid();
-            if (seenIds.current.has(id)) return;
+            if (seenIds.current.has(id) || (!d.id && d.name === name)) return;
             seenIds.current.add(id);
             setChat(prev => [...prev.slice(-299), { id, name: d.name, text: d.msg, ts: Date.now() }]);
           }
@@ -165,7 +182,7 @@ export default function StreamPage() {
         </div>
         <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
         <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your info to join the stream</p>
-        <form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; setNameSet(true);}}>
+        <form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); setNameSet(true);}}>
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
             style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
           <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" type="email"
@@ -292,18 +309,44 @@ export default function StreamPage() {
   );
 
   // Ã¢ÂÂÃ¢ÂÂ DESKTOP: video fills screen, chat sidebar right Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-  if (desktop) return (
+  const leadsPanel = showLeads ? (
+    <div style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(0,0,0,0.88)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }} onClick={()=>setShowLeads(false)}>
+      <div style={{ background:"#111", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:24, width:"100%", maxWidth:560, maxHeight:"80dvh", overflow:"auto" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <p style={{ color:"#fff", fontWeight:800, fontSize:18, margin:0 }}>Leads ({leads.length})</p>
+          <button onClick={()=>setShowLeads(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,0.5)", fontSize:22, cursor:"pointer", lineHeight:1, padding:0 }}>✕</button>
+        </div>
+        {leads.length === 0 ? (
+          <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, margin:0 }}>No leads yet — share the stream link!</p>
+        ) : leads.map((l, i) => (
+          <div key={i} style={{ padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ color:"#00FF85", fontWeight:700, width:120, flexShrink:0, fontSize:14 }}>{l.name}</span>
+            <span style={{ color:"#fff", flex:1, minWidth:150, fontSize:14 }}>{l.email}</span>
+            {l.phone && <span style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>{l.phone}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  if (desktop) return (<>
     <div style={{ position:"fixed", inset:0, background:"#000", zIndex:9999, display:"flex", flexDirection:"row", overflow:"hidden" }}>
       <div style={{ flex:1, position:"relative", overflow:"hidden" }}>{videoSection}</div>
       <div style={{ width:320, flexShrink:0, display:"flex", flexDirection:"column" }}>{chatSection}</div>
     </div>
+      {isHost && <button onClick={()=>setShowLeads(v=>!v)} style={{ position:"fixed", top:14, left:14, zIndex:99998, background:"#00FF85", border:"none", borderRadius:10, padding:"8px 16px", fontWeight:700, fontSize:13, cursor:"pointer", color:"#080808", boxShadow:"0 4px 16px rgba(0,255,133,0.35)" }}>Leads ({leads.length})</button>}
+      {leadsPanel}
+    </>
   );
 
   // Ã¢ÂÂÃ¢ÂÂ MOBILE: video 16:9 on top, chat fills rest Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-  return (
+  return (<>
     <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <div style={{ position:"relative", width:"100%", height:"min(56.25vw, 36dvh)", flexShrink:0, overflow:"hidden" }}>{videoSection}</div>
       <div style={{ flex:1, minHeight:0 }}>{chatSection}</div>
     </div>
+      {isHost && <button onClick={()=>setShowLeads(v=>!v)} style={{ position:"fixed", top:14, left:14, zIndex:99998, background:"#00FF85", border:"none", borderRadius:10, padding:"8px 16px", fontWeight:700, fontSize:13, cursor:"pointer", color:"#080808", boxShadow:"0 4px 16px rgba(0,255,133,0.35)" }}>Leads ({leads.length})</button>}
+      {leadsPanel}
+    </>
   );
 }
