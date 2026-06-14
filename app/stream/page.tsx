@@ -20,23 +20,16 @@ function loadPeerJS(cb: () => void) {
   document.body.appendChild(s);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Layout logic (no rotation ever):
-//   Portrait  → video fills width at 16:9 ratio (top), chat fills space below
-//   Landscape → video fills height (left), 280px chat panel (right)
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function StreamPage() {
   const [name, setName]           = useState("");
   const [nameSet, setNameSet]     = useState(false);
   const [isLive, setIsLive]       = useState(false);
-  const [title, setTitle]         = useState("The Greenprint \u2022 Live");
+  const [title, setTitle]         = useState("The Greenprint • Live");
   const [connected, setConnected] = useState(false);
   const [viewers, setViewers]     = useState(0);
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
-  const [isLandscape, setIsLandscape] = useState(false);
 
   const videoRef   = useRef<HTMLVideoElement>(null);
   const peerRef    = useRef<any>(null);
@@ -47,14 +40,8 @@ export default function StreamPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
-  // ── Orientation detection (no lock) ──────────────────────────────────────
+  // Hide global chrome (disclaimer bar etc.)
   useEffect(() => {
-    const check = () => setIsLandscape(window.innerWidth > window.innerHeight);
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-
-    // Hide disclaimer bar + prevent body scroll
     document.body.style.overflow = "hidden";
     const style = document.createElement("style");
     style.id = "__stream-clean";
@@ -63,16 +50,13 @@ export default function StreamPage() {
       body { overflow: hidden !important; background: #000 !important; }
     `;
     document.head.appendChild(style);
-
     return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
       document.body.style.overflow = "";
       document.getElementById("__stream-clean")?.remove();
     };
   }, []);
 
-  // ── Firebase poll ─────────────────────────────────────────────────────────
+  // Firebase poll
   useEffect(() => {
     const check = async () => {
       try {
@@ -96,7 +80,7 @@ export default function StreamPage() {
     return () => clearInterval(iv);
   }, []);
 
-  // ── PeerJS ────────────────────────────────────────────────────────────────
+  // PeerJS
   const startPeer = useCallback(() => {
     loadPeerJS(() => {
       const PeerJS = (window as any).Peer;
@@ -172,7 +156,7 @@ export default function StreamPage() {
     inputRef.current?.blur();
   }
 
-  // ── Name gate ─────────────────────────────────────────────────────────────
+  // Name gate
   if (!nameSet) {
     return (
       <div style={{ position: "fixed", inset: 0, background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px", zIndex: 9999 }}>
@@ -199,147 +183,131 @@ export default function StreamPage() {
     );
   }
 
-  // ── Main stream view ───────────────────────────────────────────────────────
-  const CHAT_W = 280; // chat panel width in landscape
-
+  // ── MAIN VIEW ─────────────────────────────────────────────────────────────
+  // Video fills entire fixed canvas (objectFit: contain = full 16:9 content, no cropping)
+  // Overlays sit on top: top-bar over the top letterbox area, chat over the bottom area
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "#000", zIndex: 9999,
-      display: "flex",
-      flexDirection: isLandscape ? "row" : "column",
-      overflow: "hidden",
-    }}>
+    <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 9999, overflow: "hidden" }}>
 
-      {/* ── VIDEO SECTION ─────────────────────────────────────────────────── */}
-      <div style={{
-        position: "relative",
-        flexShrink: 0,
-        // Landscape: fills remaining width after chat panel, full height
-        // Portrait:  full width, 16:9 height
-        width:  isLandscape ? `calc(100% - ${CHAT_W}px)` : "100%",
-        height: isLandscape ? "100%"                       : undefined,
-        aspectRatio: isLandscape ? undefined : "16 / 9",
-        background: "#000",
-        overflow: "hidden",
-      }}>
+      {/* VIDEO — full screen background, content always fully visible */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "contain",
+          background: "#000",
+          display: connected ? "block" : "none",
+        }}
+      />
 
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          style={{
-            width: "100%", height: "100%",
-            objectFit: "contain",
-            background: "#000",
-            display: connected ? "block" : "none",
-          }}
-        />
+      {/* OFFLINE STATE */}
+      {!connected && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 22, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 48px rgba(0,255,133,0.35)", position: "relative" }}>
+            <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
+              <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {isLive && (
+              <div style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", border: "2.5px solid #000" }}/>
+            )}
+          </div>
+          <div style={{ textAlign: "center", padding: "0 32px" }}>
+            <p style={{ color: "#fff", fontWeight: 900, fontSize: 18, margin: "0 0 8px" }}>
+              {isLive ? "Connecting to stream…" : "No live session right now"}
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, margin: 0 }}>
+              {isLive ? "Loading video, hang tight…" : "The Greenprint will go live soon"}
+            </p>
+          </div>
+        </div>
+      )}
 
-        {/* Offline / connecting state */}
-        {!connected && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 20, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 40px rgba(0,255,133,0.3)", position: "relative" }}>
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
-                <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {isLive && <div style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, background: "#ef4444", borderRadius: "50%", border: "2px solid #000" }}/>}
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#fff", fontWeight: 900, fontSize: 17, margin: "0 0 6px" }}>
-                {isLive ? "Connecting to stream\u2026" : "No live session right now"}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: 0 }}>
-                {isLive ? "Loading video, hang tight\u2026" : "The Greenprint will go live soon"}
-              </p>
-            </div>
+      {/* TOP GRADIENT (blends into content) */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 110, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, transparent 100%)" }}/>
+
+      {/* TOP BAR — sits in the dark area above the 16:9 video on portrait phones */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 10, padding: "16px 16px 0", zIndex: 20 }}>
+        {/* Avatar */}
+        <div style={{ width: 38, height: 38, borderRadius: "50%", border: "2.5px solid #00FF85", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span style={{ color: "#080808", fontWeight: 900, fontSize: 14 }}>G</span>
+        </div>
+        {/* Title */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ color: "#fff", fontWeight: 700, fontSize: 14, margin: 0, lineHeight: 1.2 }}>The Greenprint</p>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+        </div>
+        {/* LIVE badge */}
+        {isLive && connected && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 8, padding: "4px 9px", flexShrink: 0 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171" }}/>
+            <span style={{ color: "#f87171", fontSize: 11, fontWeight: 900, letterSpacing: 2 }}>LIVE</span>
           </div>
         )}
-
-        {/* Top gradient */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 90, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)" }}/>
-
-        {/* Top bar: avatar, title, LIVE badge, viewers, timer */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 10, padding: "14px 14px 0" }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", border: "2px solid #00FF85", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ color: "#080808", fontWeight: 900, fontSize: 13 }}>G</span>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: "#fff", fontWeight: 700, fontSize: 13, margin: 0, lineHeight: 1.2 }}>The Greenprint</p>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
-          </div>
-          {isLive && connected && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 8, padding: "4px 8px", flexShrink: 0 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#f87171" }}/>
-              <span style={{ color: "#f87171", fontSize: 10, fontWeight: 900, letterSpacing: 2 }}>LIVE</span>
-            </div>
-          )}
-          {connected && (
-            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: "monospace", flexShrink: 0 }}>
-              \u{1F441} {viewers || 1}
-            </span>
-          )}
-          {connected && (
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: "monospace", flexShrink: 0 }}>{elapsed}</span>
-          )}
-        </div>
+        {/* Viewers */}
+        {connected && (
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: "monospace", flexShrink: 0 }}>
+            👁 {viewers || 1}
+          </span>
+        )}
+        {/* Timer */}
+        {connected && (
+          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "monospace", flexShrink: 0 }}>{elapsed}</span>
+        )}
       </div>
 
-      {/* ── CHAT PANEL ────────────────────────────────────────────────────── */}
-      <div style={{
-        flexShrink: 0,
-        width:      isLandscape ? CHAT_W         : "100%",
-        flex:       isLandscape ? undefined       : 1,        // fill remaining height in portrait
-        background: "#0a0a0a",
-        borderLeft: isLandscape ? "1px solid rgba(255,255,255,0.07)" : "none",
-        borderTop:  isLandscape ? "none"          : "1px solid rgba(255,255,255,0.07)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        minHeight: 0,
-      }}>
-        {/* Header */}
-        <div style={{ padding: "11px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: isLive && connected ? "#00FF85" : "rgba(255,255,255,0.2)" }}/>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: 700, margin: 0, letterSpacing: 1.5, textTransform: "uppercase" }}>Live Chat</p>
-        </div>
+      {/* BOTTOM GRADIENT */}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 320, pointerEvents: "none", background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 55%, transparent 100%)" }}/>
 
+      {/* CHAT + INPUT — overlaid at bottom, sits in the dark gradient area */}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20, padding: "0 14px 18px" }}>
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {chat.length === 0 && (
-            <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 12, textAlign: "center", marginTop: 24 }}>Chat will appear here\u2026</p>
-          )}
-          {chat.map((m, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: "#080808", marginTop: 1 }}>
+        <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 7, maxHeight: 200, overflowY: "auto" }}>
+          {chat.slice(-7).map((m, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, maxWidth: "85%" }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: "#080808", marginTop: 2 }}>
                 {m.name[0]?.toUpperCase()}
               </div>
-              <div style={{ lineHeight: 1.45 }}>
+              <div style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px 14px 14px 3px", padding: "7px 11px" }}>
                 <span style={{ color: "#00FF85", fontSize: 11, fontWeight: 700, marginRight: 6 }}>{m.name}</span>
-                <span style={{ color: "rgba(255,255,255,0.82)", fontSize: 12, wordBreak: "break-word" }}>{m.text}</span>
+                <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 12 }}>{m.text}</span>
               </div>
             </div>
           ))}
           <div ref={chatEndRef}/>
         </div>
 
-        {/* Input */}
-        <form onSubmit={sendChat} style={{ padding: "10px 12px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+        {/* Input row */}
+        <form onSubmit={sendChat} style={{ display: "flex", gap: 9, alignItems: "center" }}>
           <input
             ref={inputRef}
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
-            placeholder="Say something\u2026"
-            style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "9px 14px", fontSize: 13, color: "#fff", outline: "none" }}
-            onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,133,0.55)")}
-            onBlur={e =>  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)")}
+            placeholder="Say something…"
+            style={{
+              flex: 1, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(14px)",
+              border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999,
+              padding: "11px 16px", fontSize: 14, color: "#fff", outline: "none",
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,133,0.6)")}
+            onBlur={e  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)")}
           />
           <button
             type="submit"
             disabled={!chatInput.trim()}
-            style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: chatInput.trim() ? 1 : 0.3 }}
+            style={{
+              width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg,#00FF85,#00cc6a)",
+              border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: chatInput.trim() ? 1 : 0.3,
+              boxShadow: chatInput.trim() ? "0 0 16px rgba(0,255,133,0.4)" : "none",
+            }}
           >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </form>
