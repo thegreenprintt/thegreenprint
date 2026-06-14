@@ -1,8 +1,6 @@
 "use client";
 import { useState } from "react";
 
-const PASSWORD = "legacy";
-
 const APPS = [
   { name: "1House", desc: "Community platform", ios: "https://apps.apple.com/us/app/1house/id6754260060", android: "" },
   { name: "TradingView", desc: "Charts & analysis", ios: "https://apps.apple.com/us/app/tradingview-stock-market/id1205990992", android: "https://play.google.com/store/apps/details?id=com.tradingview.tradingviewapp" },
@@ -19,184 +17,184 @@ const BROKER_STEPS = [
   { n: 4, title: "Connect to TradeLocker", desc: "Open TradeLocker, add a new account, and enter your GenesisFX credentials." },
 ];
 
-const TOTAL_STEPS = 5;
+const DEMO_STEPS = [
+  { n: 1, title: "Open TradeLocker", desc: "Launch the TradeLocker app on your device." },
+  { n: 2, title: "Add a Demo Account", desc: "Tap the account selector at the top, then tap “Add Account” and choose Demo." },
+  { n: 3, title: "Practice the Platform", desc: "Use virtual funds to explore charts, place trades, and get comfortable before going live." },
+];
+
+const TOTAL_STEPS = 6;
 
 export default function OnboardPage() {
-  const [pw, setPw] = useState("");
-  const [pwErr, setPwErr] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
   const [step, setStep] = useState(1);
-
-  function handleUnlock(e: any) {
-    e.preventDefault();
-    if (pw === PASSWORD) {
-      setUnlocked(true);
-    } else {
-      setPwErr(true);
-      setTimeout(() => setPwErr(false), 2000);
-    }
-  }
 
   const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
   const prev = () => setStep(s => Math.max(s - 1, 1));
   const pct = Math.round((step / TOTAL_STEPS) * 100);
 
-  if (!unlocked) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6">
-        <div className="w-full max-w-sm text-center">
-          <div className="w-14 h-14 bg-[#00FF85] rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-black font-black text-2xl">G</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Member Onboarding</h1>
-          <p className="text-white/40 text-sm mb-8">Enter your access code to get started.</p>
-          <form onSubmit={handleUnlock} className="flex flex-col gap-3">
-            <input
-              type="password"
-              value={pw}
-              onChange={e => { setPw(e.target.value); setPwErr(false); }}
-              placeholder="Access code"
-              autoFocus
-              className={`w-full px-4 py-3 rounded-xl bg-white/5 border ${pwErr ? "border-red-500" : "border-white/10"} text-white placeholder-white/30 focus:outline-none focus:border-[#00FF85]/50 text-center tracking-widest`}
-            />
-            {pwErr && <p className="text-red-400 text-sm">Incorrect code. Try again.</p>}
-            <button type="submit" className="w-full py-3 rounded-xl bg-[#00FF85] text-black font-bold text-base">
-              Get Started
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-white/10 z-50">
-        <div className="h-full bg-[#00FF85] transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-[#00FF85] transition-all duration-500" style={{ width: pct + "%" }} />
       </div>
 
-      <div className="max-w-lg mx-auto px-6 pt-12 pb-20">
-        <p className="text-white/30 text-xs tracking-widest uppercase mb-10">
-          Step {step} of {TOTAL_STEPS}
-        </p>
+      <div className="max-w-lg mx-auto px-6 pt-12 pb-24">
+        <p className="text-white/30 text-xs tracking-widest uppercase mb-10">Step {step} of {TOTAL_STEPS}</p>
 
+        {/* Step 1: Welcome */}
         {step === 1 && (
           <div>
-            <h2 className="text-4xl font-black mb-4">Welcome to<br />The Greenprint.</h2>
-            <p className="text-white/60 text-base leading-relaxed mb-4">
-              You're officially in. This setup takes about 5 minutes — follow each step and you'll be trading alongside the community by the end.
+            <div className="w-14 h-14 bg-[#00FF85] rounded-2xl flex items-center justify-center mb-8">
+              <span className="text-black font-black text-2xl">G</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-4">Welcome to The Greenprint.</h1>
+            <p className="text-white/50 text-base leading-relaxed mb-6">
+              You’re now part of something built for real results. Over the next few steps we’ll get you fully set up — from the right apps to your broker account — so you’re ready to trade alongside the community.
             </p>
-            <p className="text-white/60 text-base leading-relaxed mb-10">
-              We'll get your apps downloaded, your broker set up, and your community access activated.
-            </p>
-            <button onClick={next} className="w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base">
-              Let's Go →
-            </button>
+            <p className="text-white/30 text-sm">This takes about 10 minutes. Let’s go.</p>
           </div>
         )}
 
+        {/* Step 2: Watch Arin's Clips */}
         {step === 2 && (
           <div>
-            <h2 className="text-4xl font-black mb-4">Join the<br />Community.</h2>
-            <p className="text-white/60 text-base leading-relaxed mb-8">
-              Our Telegram is where everything happens — real-time trade alerts, live session announcements, and the full community. Join before anything else.
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education First</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin’s Clips</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
+              Before anything else, get your foundation right. Watch Arin’s long-form breakdowns — these cover everything from how to read price action to how we structure our trades inside The Greenprint.
             </p>
             <a
-              href="https://t.me/+thegreenprint"
+              href="https://www.youtube.com/@arinlong"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-[#229ED9] text-white font-bold text-base mb-4"
+              className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors mb-3"
             >
-              Join Telegram Community →
+              <div className="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.59 6.69a4.83 4.83 0 01-3.77-2.73 12.18 12.18 0 00-8.45 2.73A4.83 4.83 0 013.6 9.42a12.18 12.18 0 000 5.16 4.83 4.83 0 013.77 2.73 12.18 12.18 0 008.45-2.73 4.83 4.83 0 013.77-2.73 12.18 12.18 0 000-5.16zM9.75 15V9l5.25 3-5.25 3z"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">Arin’s Long Clips</p>
+                <p className="text-white/40 text-xs">youtube.com/@arinlong</p>
+              </div>
+              <span className="ml-auto text-white/30 text-sm">→</span>
             </a>
-            <button onClick={next} className="w-full py-4 rounded-2xl border border-white/10 text-white/50 font-semibold text-base">
-              Already in → Continue
-            </button>
-            <button onClick={prev} className="mt-6 text-white/25 text-sm block mx-auto">← Back</button>
+            <p className="text-white/30 text-xs mt-4">Watch at least one full video before moving on.</p>
           </div>
         )}
 
+        {/* Step 3: Download Apps */}
         {step === 3 && (
           <div>
-            <h2 className="text-4xl font-black mb-4">Download<br />Your Apps.</h2>
-            <p className="text-white/60 text-base mb-8">Get all of these on your phone. You'll use every one of them.</p>
-            <div className="flex flex-col gap-3 mb-8">
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Download Your Apps</h2>
+            <p className="text-white/50 text-sm mb-6">These are the tools you’ll use every day inside The Greenprint.</p>
+            <div className="flex flex-col gap-3">
               {APPS.map(app => (
-                <div key={app.name} className="flex items-center justify-between bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div key={app.name} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
                   <div>
-                    <p className="font-bold text-white">{app.name}</p>
-                    <p className="text-white/40 text-xs mt-0.5">{app.desc}</p>
+                    <p className="text-white font-semibold text-sm">{app.name}</p>
+                    <p className="text-white/40 text-xs">{app.desc}</p>
                   </div>
                   <div className="flex gap-2">
                     {app.ios && (
-                      <a href={app.ios} target="_blank" rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/80 hover:bg-white/20 font-medium">
-                        iOS
-                      </a>
+                      <a href={app.ios} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] text-xs font-semibold border border-[#00FF85]/30 px-2 py-1 rounded-lg hover:bg-[#00FF85]/10 transition-colors">iOS</a>
                     )}
                     {app.android && (
-                      <a href={app.android} target="_blank" rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/80 hover:bg-white/20 font-medium">
-                        Android
-                      </a>
+                      <a href={app.android} target="_blank" rel="noopener noreferrer" className="text-white/60 text-xs font-semibold border border-white/20 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors">Android</a>
                     )}
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={next} className="w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base">
-              Got them all → Next
-            </button>
-            <button onClick={prev} className="mt-6 text-white/25 text-sm block mx-auto">← Back</button>
           </div>
         )}
 
+        {/* Step 4: Create Demo Account */}
         {step === 4 && (
           <div>
-            <h2 className="text-4xl font-black mb-4">Set Up<br />Your Broker.</h2>
-            <p className="text-white/60 text-base mb-8">
-              We trade through GenesisFX connected to TradeLocker. Follow these four steps to get your account live.
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Practice</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Create a Demo Account</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
+              Before you go live, set up a demo account in TradeLocker. Practice executing trades, reading charts, and building your process — risk-free.
             </p>
-            <div className="flex flex-col gap-4 mb-8">
-              {BROKER_STEPS.map(s => (
-                <div key={s.n} className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                  <div className="flex items-start gap-3">
-                    <span className="w-7 h-7 rounded-full bg-[#00FF85] text-black text-xs font-black flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {s.n}
-                    </span>
-                    <div>
-                      <p className="font-bold text-white">{s.title}</p>
-                      <p className="text-white/40 text-sm mt-1">{s.desc}</p>
-                      {s.href && (
-                        <a href={s.href} target="_blank" rel="noopener noreferrer"
-                          className="inline-block mt-2 text-sm text-[#00FF85] font-semibold">
-                          {s.linkLabel}
-                        </a>
-                      )}
-                    </div>
+            <div className="flex flex-col gap-4">
+              {DEMO_STEPS.map(s => (
+                <div key={s.n} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#00FF85] text-xs font-bold">{s.n}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
+                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={next} className="w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base">
-              Broker is set up → Next
-            </button>
-            <button onClick={prev} className="mt-6 text-white/25 text-sm block mx-auto">← Back</button>
           </div>
         )}
 
+        {/* Step 5: Broker Setup */}
         {step === 5 && (
-          <div className="text-center">
-            <div className="w-20 h-20 bg-[#00FF85] rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-black text-3xl font-black">✓</span>
-            </div>
-            <h2 className="text-4xl font-black mb-4">You're All Set.</h2>
-            <p className="text-white/60 text-base leading-relaxed mb-10">
-              Welcome to The Greenprint family. Check Telegram for your first trade alert and watch for the next live session announcement. Let's build.
+          <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Set Up Your Broker</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
+              We use GenesisFX as our broker. Follow these steps to open and fund your live account, then connect it to TradeLocker.
             </p>
-            <a href="/" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
-              Go to The Greenprint →
+            <div className="flex flex-col gap-4">
+              {BROKER_STEPS.map(s => (
+                <div key={s.n} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#00FF85] text-xs font-bold">{s.n}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
+                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
+                    {s.href && (
+                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[#00FF85] text-sm font-semibold">{s.linkLabel}</a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Complete */}
+        {step === 6 && (
+          <div className="text-center pt-8">
+            <div className="w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center mx-auto mb-8">
+              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">You’re All Set.</h2>
+            <p className="text-white/50 text-base leading-relaxed mb-10">
+              You’ve got the apps, the broker, and the knowledge to get started. Welcome to The Greenprint — we’ll see you inside.
+            </p>
+            <a href="https://t.me/+thegreenprint" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
+              Join the Telegram →
             </a>
+            <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
+              Back to Home
+            </a>
+          </div>
+        )}
+
+        {/* Navigation */}
+        {step < TOTAL_STEPS && (
+          <div className="flex gap-3 mt-12">
+            {step > 1 && (
+              <button onClick={prev} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">
+                Back
+              </button>
+            )}
+            <button onClick={next} className="flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base">
+              {step === 1 ? "Get Started" : "Continue"}
+            </button>
           </div>
         )}
       </div>
