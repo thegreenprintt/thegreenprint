@@ -11,16 +11,13 @@ const ICE = [
 ];
 
 interface ChatMsg { id: string; name: string; text: string; ts: number; }
-
+function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 function loadPeerJS(cb: () => void) {
   if ((window as any).Peer) { cb(); return; }
   const s = document.createElement("script");
   s.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
-  s.onload = cb;
-  document.body.appendChild(s);
+  s.onload = cb; document.body.appendChild(s);
 }
-
-function msgId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
 export default function StreamPage() {
   const [name, setName]           = useState("");
@@ -33,30 +30,34 @@ export default function StreamPage() {
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
   const [muted, setMuted]         = useState(true);
+  const [desktop, setDesktop]     = useState(false);
 
-  const videoRef   = useRef<HTMLVideoElement>(null);
-  const peerRef    = useRef<any>(null);
-  const connRef    = useRef<any>(null);
-  const timerRef   = useRef<any>(null);
-  const startRef   = useRef<number | null>(null);
-  const liveRef    = useRef(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const seenIds    = useRef<Set<string>>(new Set());
+  const videoRef    = useRef<HTMLVideoElement>(null);
+  const bgVideoRef  = useRef<HTMLVideoElement>(null);
+  const peerRef     = useRef<any>(null);
+  const connRef     = useRef<any>(null);
+  const timerRef    = useRef<any>(null);
+  const startRef    = useRef<number | null>(null);
+  const liveRef     = useRef(false);
+  const chatEndRef  = useRef<HTMLDivElement>(null);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const seenIds     = useRef<Set<string>>(new Set());
+
+  // Responsive: desktop = side-by-side, mobile = stacked
+  useEffect(() => {
+    const check = () => setDesktop(window.innerWidth >= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const style = document.createElement("style");
-    style.id = "__stream-clean";
-    style.textContent = `
-      [class*="fixed"][class*="bottom-0"][class*="z-50"] { display: none !important; }
-      body { overflow: hidden !important; background: #000 !important; }
-    `;
+    style.id = "__sc";
+    style.textContent = `[class*="fixed"][class*="bottom-0"][class*="z-50"]{display:none!important}body{overflow:hidden!important;background:#000!important}`;
     document.head.appendChild(style);
-    return () => {
-      document.body.style.overflow = "";
-      document.getElementById("__stream-clean")?.remove();
-    };
+    return () => { document.body.style.overflow = ""; document.getElementById("__sc")?.remove(); };
   }, []);
 
   useEffect(() => {
@@ -67,15 +68,12 @@ export default function StreamPage() {
         if (d?.title) setTitle(d.title);
         const nowLive = !!d?.isLive;
         if (nowLive !== liveRef.current) {
-          liveRef.current = nowLive;
-          setIsLive(nowLive);
+          liveRef.current = nowLive; setIsLive(nowLive);
           if (!nowLive) { setConnected(false); setViewers(0); if (videoRef.current) videoRef.current.srcObject = null; }
         }
       } catch {}
     };
-    check();
-    const iv = setInterval(check, 5000);
-    return () => clearInterval(iv);
+    check(); const iv = setInterval(check, 5000); return () => clearInterval(iv);
   }, []);
 
   const startPeer = useCallback(() => {
@@ -84,7 +82,6 @@ export default function StreamPage() {
       if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
       const peer = new PeerJS(undefined, { debug: 0, config: { iceServers: ICE } });
       peerRef.current = peer;
-
       peer.on("open", () => {
         const conn = peer.connect(HOST_PEER_ID, { reliable: true });
         connRef.current = conn;
@@ -93,8 +90,7 @@ export default function StreamPage() {
           if (d?.t === "end") { setConnected(false); if (videoRef.current) videoRef.current.srcObject = null; }
           if (d?.t === "vc") setViewers(d.count ?? 0);
           if (d?.t === "chat") {
-            // Deduplicate: skip if we already added this message (e.g. our own send)
-            const id = d.id ?? (d.name + d.msg + d.ts);
+            const id = d.id ?? uid();
             if (seenIds.current.has(id)) return;
             seenIds.current.add(id);
             setChat(prev => [...prev.slice(-299), { id, name: d.name, text: d.msg, ts: Date.now() }]);
@@ -102,7 +98,6 @@ export default function StreamPage() {
         });
         conn.on("close", () => setConnected(false));
       });
-
       peer.on("call", (call: any) => {
         call.answer();
         call.on("stream", (stream: MediaStream) => {
@@ -110,9 +105,13 @@ export default function StreamPage() {
             videoRef.current.srcObject = stream;
             videoRef.current.muted = true;
             videoRef.current.play().catch(() => {});
-            setMuted(true);
           }
-          setConnected(true);
+          if (bgVideoRef.current) {
+            bgVideoRef.current.srcObject = stream;
+            bgVideoRef.current.muted = true;
+            bgVideoRef.current.play().catch(() => {});
+          }
+          setConnected(true); setMuted(true);
           startRef.current = Date.now();
           clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
@@ -122,29 +121,18 @@ export default function StreamPage() {
         });
         call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
       });
-
-      peer.on("error", (e: any) => {
-        if (e.type === "peer-unavailable") setTimeout(() => startPeer(), 5000);
-      });
+      peer.on("error", (e: any) => { if (e.type === "peer-unavailable") setTimeout(() => startPeer(), 5000); });
     });
   }, [name]);
 
   useEffect(() => { if (nameSet && isLive) startPeer(); }, [nameSet, isLive, startPeer]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
+  useEffect(() => () => { clearInterval(timerRef.current); try { peerRef.current?.destroy(); } catch {} }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
-
-  useEffect(() => () => {
-    clearInterval(timerRef.current);
-    try { peerRef.current?.destroy(); } catch {}
-  }, []);
-
-  // Keep viewer screen awake while connected — prevents stream going black on phone lock
   useEffect(() => {
     if (!connected) return;
     let wl: any = null;
-    (navigator as any).wakeLock?.request("screen").then((lock: any) => { wl = lock; }).catch(() => {});
+    (navigator as any).wakeLock?.request("screen").then((l: any) => { wl = l; }).catch(() => {});
     return () => { wl?.release().catch(() => {}); };
   }, [connected]);
 
@@ -160,135 +148,156 @@ export default function StreamPage() {
     e.preventDefault();
     const txt = chatInput.trim();
     if (!txt || !connRef.current) return;
-    const id = msgId();
-    // Mark as seen BEFORE sending so we don't double-add when broadcaster echoes it back
+    const id = uid();
     seenIds.current.add(id);
     connRef.current.send({ t: "chat", name, msg: txt, id });
     setChat(prev => [...prev.slice(-299), { id, name, text: txt, ts: Date.now() }]);
-    setChatInput("");
-    inputRef.current?.blur();
+    setChatInput(""); inputRef.current?.blur();
   }
 
-  // Name gate
-  if (!nameSet) {
-    return (
-      <div style={{ position:"fixed", inset:0, background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px", zIndex:9999 }}>
-        <div style={{ width:"100%", maxWidth:320 }}>
-          <div style={{ width:52, height:52, borderRadius:16, margin:"0 auto 20px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 32px rgba(0,255,133,0.35)" }}>
-            <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </div>
-          <p style={{ color:"#fff", fontWeight:900, fontSize:22, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
-          <p style={{ color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center", margin:"0 0 28px" }}>Enter your name to join</p>
-          <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }}>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoFocus
-              style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, padding:"13px 16px", fontSize:14, color:"#fff", outline:"none", marginBottom:12 }}/>
-            <button type="submit" disabled={!name.trim()}
-              style={{ display:"block", width:"100%", padding:"13px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:14, fontWeight:900, color:"#080808", cursor:"pointer", opacity:name.trim()?1:0.3 }}>
-              Join Stream
-            </button>
-          </form>
+  if (!nameSet) return (
+    <div style={{ position:"fixed", inset:0, background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px", zIndex:9999 }}>
+      <div style={{ width:"100%", maxWidth:340 }}>
+        <div style={{ width:56, height:56, borderRadius:18, margin:"0 auto 22px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 40px rgba(0,255,133,0.4)" }}>
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    // 100dvh = dynamic viewport height â accounts for mobile browser chrome so nothing clips
-    <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-
-      {/* VIDEO â fills width, 16:9 height, max 45dvh so chat always has room */}
-      <div style={{ position:"relative", width:"100%", flexShrink:0, background:"#000", overflow:"hidden", height:"min(56.25vw, 45dvh)" }}>
-        <video ref={videoRef} autoPlay playsInline muted
-          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain", background:"#000", display:connected?"block":"none" }}/>
-
-        {!connected && (
-          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
-            <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 36px rgba(0,255,133,0.3)", position:"relative" }}>
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              {isLive && <div style={{ position:"absolute", top:-4, right:-4, width:12, height:12, background:"#ef4444", borderRadius:"50%", border:"2px solid #000" }}/>}
-            </div>
-            <p style={{ color:"#fff", fontWeight:800, fontSize:14, margin:0 }}>{isLive?"Connecting...":"Not live yet"}</p>
-            <p style={{ color:"rgba(255,255,255,0.35)", fontSize:11, margin:0 }}>{isLive?"Loading stream...":"The Greenprint will go live soon"}</p>
-          </div>
-        )}
-
-        {/* Top gradient + bar */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:72, background:"linear-gradient(to bottom,rgba(0,0,0,0.82),transparent)", pointerEvents:"none" }}/>
-        <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", alignItems:"center", gap:8, padding:"10px 12px 0", zIndex:10 }}>
-          <div style={{ width:30, height:30, borderRadius:"50%", border:"2px solid #00FF85", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <span style={{ color:"#080808", fontWeight:900, fontSize:11 }}>G</span>
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <p style={{ color:"#fff", fontWeight:700, fontSize:12, margin:0, lineHeight:1.2 }}>The Greenprint</p>
-            <p style={{ color:"rgba(255,255,255,0.4)", fontSize:9, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
-          </div>
-          {isLive && connected && (
-            <div style={{ display:"flex", alignItems:"center", gap:4, background:"rgba(239,68,68,0.25)", border:"1px solid rgba(239,68,68,0.5)", borderRadius:6, padding:"3px 7px", flexShrink:0 }}>
-              <div style={{ width:5, height:5, borderRadius:"50%", background:"#f87171" }}/>
-              <span style={{ color:"#f87171", fontSize:9, fontWeight:900, letterSpacing:1.5 }}>LIVE</span>
-            </div>
-          )}
-          {connected && <span style={{ color:"rgba(255,255,255,0.4)", fontSize:10, fontFamily:"monospace", flexShrink:0 }}>{viewers||1} watching</span>}
-          {connected && <span style={{ color:"rgba(255,255,255,0.25)", fontSize:9, fontFamily:"monospace", flexShrink:0 }}>{elapsed}</span>}
-        </div>
-
-        {/* Tap to unmute */}
-        {connected && muted && (
-          <button onClick={toggleMute} style={{ position:"absolute", bottom:8, right:8, zIndex:10, display:"flex", alignItems:"center", gap:5, background:"rgba(0,0,0,0.78)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:999, padding:"6px 11px", cursor:"pointer", color:"#fff", fontSize:11, fontWeight:700 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-            Tap to unmute
-          </button>
-        )}
-        {connected && !muted && (
-          <button onClick={toggleMute} style={{ position:"absolute", bottom:8, right:8, zIndex:10, width:30, height:30, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"1px solid rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-          </button>
-        )}
-      </div>
-
-      {/* CHAT â takes all remaining height below video */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
-
-        {/* Header */}
-        <div style={{ padding:"9px 14px 7px", borderBottom:"1px solid rgba(255,255,255,0.06)", flexShrink:0, display:"flex", alignItems:"center", gap:7 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:isLive&&connected?"#00FF85":"rgba(255,255,255,0.2)", flexShrink:0 }}/>
-          <span style={{ color:"rgba(255,255,255,0.55)", fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase" }}>
-            Live Chat{chat.length>0 ? ` (${chat.length})` : ""}
-          </span>
-        </div>
-
-        {/* All messages, scrollable */}
-        <div style={{ flex:1, overflowY:"auto", padding:"10px 14px", display:"flex", flexDirection:"column", gap:10, minHeight:0 }}>
-          {chat.length === 0 && (
-            <p style={{ color:"rgba(255,255,255,0.18)", fontSize:12, textAlign:"center", marginTop:16 }}>Chat will appear here...</p>
-          )}
-          {chat.map((m, i) => (
-            <div key={m.id || i} style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
-              <div style={{ width:26, height:26, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:900, color:"#080808", marginTop:1 }}>
-                {m.name[0]?.toUpperCase()}
-              </div>
-              <div style={{ flex:1, lineHeight:1.5 }}>
-                <span style={{ color:"#00FF85", fontSize:11, fontWeight:700, marginRight:5 }}>{m.name}</span>
-                <span style={{ color:"rgba(255,255,255,0.85)", fontSize:13, wordBreak:"break-word" }}>{m.text}</span>
-              </div>
-            </div>
-          ))}
-          <div ref={chatEndRef}/>
-        </div>
-
-        {/* Input â always visible, never pushed off screen */}
-        <form onSubmit={sendChat} style={{ padding:"9px 12px 12px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-          <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Say something..."
-            style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:999, padding:"10px 15px", fontSize:14, color:"#fff", outline:"none", minWidth:0 }}
-            onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.55)")}
-            onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.14)")}/>
-          <button type="submit" disabled={!chatInput.trim()}
-            style={{ width:42, height:42, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:chatInput.trim()?1:0.3 }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
+        <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your name to join the stream</p>
+        <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }}>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
+          <button type="submit" disabled={!name.trim()}
+            style={{ display:"block", width:"100%", padding:"14px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:15, fontWeight:900, color:"#080808", cursor:"pointer", opacity:name.trim()?1:0.3 }}>
+            Join Stream
           </button>
         </form>
       </div>
+    </div>
+  );
 
+  // ── VIDEO SECTION (shared between layouts) ────────────────────────────────
+  const videoSection = (
+    <div style={{ position:"relative", width:"100%", height:"100%", background:"#000", overflow:"hidden", flexShrink:0 }}>
+
+      {/* Blurred background fill — eliminates black bars by showing blurred stream behind */}
+      {connected && (
+        <video ref={bgVideoRef} autoPlay playsInline muted
+          style={{ position:"absolute", inset:"-5%", width:"110%", height:"110%", objectFit:"cover", filter:"blur(28px) brightness(0.35)", pointerEvents:"none" }}/>
+      )}
+
+      {/* Main crisp video */}
+      <video ref={videoRef} autoPlay playsInline muted
+        style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"contain", display:connected?"block":"none", zIndex:1 }}/>
+
+      {/* Offline */}
+      {!connected && (
+        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, zIndex:2 }}>
+          <div style={{ width:64, height:64, borderRadius:20, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 48px rgba(0,255,133,0.35)", position:"relative" }}>
+            <svg width="26" height="26" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {isLive && <div style={{ position:"absolute", top:-4, right:-4, width:14, height:14, background:"#ef4444", borderRadius:"50%", border:"2.5px solid #000" }}/>}
+          </div>
+          <div style={{ textAlign:"center" }}>
+            <p style={{ color:"#fff", fontWeight:800, fontSize:16, margin:"0 0 6px" }}>{isLive?"Connecting to stream...":"Stream is offline"}</p>
+            <p style={{ color:"rgba(255,255,255,0.35)", fontSize:13, margin:0 }}>{isLive?"Loading video, hang tight...":"The Greenprint will go live soon"}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Top gradient */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:90, background:"linear-gradient(to bottom,rgba(0,0,0,0.85),transparent)", pointerEvents:"none", zIndex:2 }}/>
+
+      {/* Top bar */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", alignItems:"center", gap:10, padding:"16px 18px 0", zIndex:3 }}>
+        <div style={{ width:36, height:36, borderRadius:"50%", border:"2.5px solid #00FF85", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <span style={{ color:"#080808", fontWeight:900, fontSize:14 }}>G</span>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ color:"#fff", fontWeight:700, fontSize:14, margin:0, lineHeight:1.2 }}>The Greenprint</p>
+          <p style={{ color:"rgba(255,255,255,0.45)", fontSize:11, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
+        </div>
+        {isLive && connected && (
+          <div style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(239,68,68,0.22)", border:"1px solid rgba(239,68,68,0.5)", borderRadius:7, padding:"4px 10px", flexShrink:0 }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:"#f87171" }}/>
+            <span style={{ color:"#f87171", fontSize:10, fontWeight:900, letterSpacing:2 }}>LIVE</span>
+          </div>
+        )}
+        {connected && <span style={{ color:"rgba(255,255,255,0.45)", fontSize:11, fontFamily:"monospace", flexShrink:0 }}>{viewers||1} watching</span>}
+        {connected && <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, fontFamily:"monospace", flexShrink:0 }}>{elapsed}</span>}
+      </div>
+
+      {/* Unmute */}
+      {connected && muted && (
+        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, right:14, zIndex:3, display:"flex", alignItems:"center", gap:6, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:999, padding:"8px 14px", cursor:"pointer", color:"#fff", fontSize:13, fontWeight:700 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          Tap to unmute
+        </button>
+      )}
+      {connected && !muted && (
+        <button onClick={toggleMute} style={{ position:"absolute", bottom:14, right:14, zIndex:3, width:36, height:36, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"1px solid rgba(255,255,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
+      )}
+    </div>
+  );
+
+  // ── CHAT SECTION (shared) ─────────────────────────────────────────────────
+  const chatSection = (
+    <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, height:"100%",
+      background: desktop ? "rgba(10,10,12,0.97)" : "#0a0a0a",
+      borderLeft: desktop ? "1px solid rgba(255,255,255,0.08)" : "none",
+      borderTop:  desktop ? "none" : "1px solid rgba(255,255,255,0.07)",
+    }}>
+      <div style={{ padding:"12px 16px 10px", borderBottom:"1px solid rgba(255,255,255,0.07)", flexShrink:0, display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ width:7, height:7, borderRadius:"50%", background:isLive&&connected?"#00FF85":"rgba(255,255,255,0.2)" }}/>
+        <span style={{ color:"rgba(255,255,255,0.6)", fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase" }}>
+          Live Chat{chat.length>0?` (${chat.length})`:""}
+        </span>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:12, minHeight:0 }}>
+        {chat.length===0 && (
+          <p style={{ color:"rgba(255,255,255,0.18)", fontSize:13, textAlign:"center", marginTop:24 }}>Chat will appear here...</p>
+        )}
+        {chat.map((m,i) => (
+          <div key={m.id||i} style={{ display:"flex", alignItems:"flex-start", gap:9 }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, color:"#080808", marginTop:1 }}>
+              {m.name[0]?.toUpperCase()}
+            </div>
+            <div style={{ flex:1, lineHeight:1.5 }}>
+              <span style={{ color:"#00FF85", fontSize:12, fontWeight:700, marginRight:6 }}>{m.name}</span>
+              <span style={{ color:"rgba(255,255,255,0.85)", fontSize:13, wordBreak:"break-word" }}>{m.text}</span>
+            </div>
+          </div>
+        ))}
+        <div ref={chatEndRef}/>
+      </div>
+
+      <form onSubmit={sendChat} style={{ padding:"10px 14px 16px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+        <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Say something..."
+          style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:999, padding:"10px 16px", fontSize:14, color:"#fff", outline:"none", minWidth:0 }}
+          onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.55)")}
+          onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.14)")}/>
+        <button type="submit" disabled={!chatInput.trim()}
+          style={{ width:42, height:42, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:chatInput.trim()?1:0.3 }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+      </form>
+    </div>
+  );
+
+  // ── DESKTOP: video fills screen, chat sidebar right ───────────────────────
+  if (desktop) return (
+    <div style={{ position:"fixed", inset:0, background:"#000", zIndex:9999, display:"flex", flexDirection:"row", overflow:"hidden" }}>
+      <div style={{ flex:1, position:"relative", overflow:"hidden" }}>{videoSection}</div>
+      <div style={{ width:320, flexShrink:0, display:"flex", flexDirection:"column" }}>{chatSection}</div>
+    </div>
+  );
+
+  // ── MOBILE: video 16:9 on top, chat fills rest ────────────────────────────
+  return (
+    <div style={{ position:"fixed", inset:0, height:"100dvh", background:"#0a0a0a", zIndex:9999, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ position:"relative", width:"100%", height:"min(56.25vw, 42dvh)", flexShrink:0, overflow:"hidden" }}>{videoSection}</div>
+      <div style={{ flex:1, minHeight:0 }}>{chatSection}</div>
     </div>
   );
 }
