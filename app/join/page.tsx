@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ComplianceCheckbox } from "@/components/ui/ComplianceCheckbox";
 
-const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const WHOP_CHECKOUT = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
 const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
 
