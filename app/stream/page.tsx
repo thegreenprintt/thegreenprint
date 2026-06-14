@@ -22,6 +22,8 @@ function loadPeerJS(cb: () => void) {
 export default function StreamPage() {
   const [name, setName]           = useState("");
   const [nameSet, setNameSet]     = useState(false);
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isLive, setIsLive]       = useState(false);
   const [title, setTitle]         = useState("The Greenprint Live");
   const [connected, setConnected] = useState(false);
@@ -162,18 +164,22 @@ export default function StreamPage() {
           <svg width="24" height="24" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
         <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
-        <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your name to join the stream</p>
-        <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }}>
+        <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your info to join the stream</p>
+        <form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; setNameSet(true);}}>
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
             style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
-          <button type="submit" disabled={!name.trim()}
-            style={{ display:"block", width:"100%", padding:"14px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:15, fontWeight:900, color:"#080808", cursor:"pointer", opacity:name.trim()?1:0.3 }}>
+          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" type="email"
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
+          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Phone number (optional)" type="tel"
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
+          <button type="submit" disabled={!name.trim()||!email.trim()}
+            style={{ display:"block", width:"100%", padding:"14px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:15, fontWeight:900, color:"#080808", cursor:"pointer", opacity:(name.trim()&&email.trim())?1:0.3 }}>
             Join Stream
           </button>
         </form>
       </div>
     </div>
-  );
+  )
 
   // Ã¢ÂÂÃ¢ÂÂ VIDEO SECTION (shared between layouts) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const videoSection = (
