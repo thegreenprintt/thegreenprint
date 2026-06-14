@@ -187,7 +187,7 @@ export default function StreamPage() {
         autoPlay
         playsInline
         className="absolute inset-0 w-full h-full"
-        style={{ objectFit: "cover", display: connected ? "block" : "none" }}
+        style={{ objectFit: "contain", display: connected ? "block" : "none" }}
       />
 
       {/* Offline / connecting state */}
