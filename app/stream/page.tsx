@@ -177,7 +177,7 @@ export default function StreamPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden">
+    <div className="fixed inset-0 bg-black overflow-hidden z-[100]">
 
       {/* Full-screen video -- covers entire viewport */}
       <video
