@@ -57,7 +57,7 @@ export default function OnboardPage() {
         )}
 
      Step 2: Watch Arin's Clips */}
-        {step === 2 && (
+        {step === 5 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education First</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin's Clips</h2>
@@ -93,7 +93,7 @@ export default function OnboardPage() {
         )}
 
         {/*    {/* Step 3: Download Apps */}
-        {step === 3 && (
+        {step === 2 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Download Your Apps</h2>
@@ -120,7 +120,7 @@ export default function OnboardPage() {
         )}
 
         {/* Step 4: Create Demo Account */}
-        {step === 4 && (
+        {step === 3 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Practice</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Create a Demo Account</h2>
@@ -144,7 +144,95 @@ export default function OnboardPage() {
         )}
 
         {/* Step 5: Broker Setup */}
-        {step === 5 && (
+        {step === 4 && (
+          <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Set Up Your Broker</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
+              We use GenesisFX as our broker. Follow these steps to open and fund your live account, then connect it to TradeLocker.
+            </p>
+            <div className="flex flex-col gap-4">
+              {BROKER_STEPS.map(s => (
+                <div key={s.n} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#00FF85] text-xs font-bold">{s.n}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
+                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
+                    {s.href && (
+                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[#00FF85] text-sm font-semibold">{s.linkLabel}</a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Complete */}
+        {step === 6 && (
+          <div className="text-center pt-8">
+            <div className="w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center mx-auto mb-8">
+              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">You’re All Set.</h2>
+            <p className="text-white/50 text-base leading-relaxed mb-10">
+              You’ve got the apps, the broker, and the knowledge to get started. Welcome to The Greenprint — we’ll see you inside.
+            </p>
+            <a href="https://t.me/+thegreenprint" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
+              Join the Telegram →
+            </a>
+            <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
+              Back to Home
+            </a>
+          </div>
+        )}
+
+        {/* Navigation */}
+        {step < TOTAL_STEPS && (
+          <div className="flex gap-3 mt-12">
+            {step > 1 && (
+              <button onClick={prev} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">
+                Back
+              </button>
+            )}
+            <button onClick={next} className="flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base">
+              {step === 1 ? "Get Started" : "Continue"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}        {/* Step 3: Create Demo Account */}
+        {step === 3 && (
+          <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Practice</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Create a Demo Account</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
+              Before you go live, set up a demo account in TradeLocker. Practice executing trades, reading charts, and building your process — risk-free.
+            </p>
+            <div className="flex flex-col gap-4">
+              {DEMO_STEPS.map(s => (
+                <div key={s.n} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[#00FF85] text-xs font-bold">{s.n}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
+                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Broker Setup */}
+        {step === 4 && (
           <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Set Up Your Broker</h2>
