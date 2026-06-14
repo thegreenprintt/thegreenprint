@@ -2,7 +2,6 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 
@@ -76,10 +75,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <motion.div
-        initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.4}}
-        className="w-full max-w-sm"
-      >
+      <div className="w-full max-w-sm">
         <div className="bg-surface border border-border rounded-card p-8">
           <div className="text-center mb-8">
             <div className="w-10 h-10 bg-accent rounded flex items-center justify-center mx-auto mb-4">
@@ -98,7 +94,7 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
