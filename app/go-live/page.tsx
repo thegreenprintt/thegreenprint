@@ -6,15 +6,11 @@ const RTDB_URL =
   "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const HOST_PEER_ID = "gp-greenprint-live";
 
-// Password: Greenprint1!
-// To change password: run  echo -n "YourNewPassword" | sha256sum  then paste hash below
 const PWD_HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 interface Viewer { name: string; conn: any; call: any; }
@@ -28,22 +24,19 @@ const ICE_SERVERS = [
 ];
 
 export default function GoLivePage() {
-  // Auth
   const [authed, setAuthed]         = useState(false);
   const [pwd, setPwd]               = useState("");
   const [authErr, setAuthErr]       = useState("");
   const [authLocked, setAuthLocked] = useState(false);
   const [attempts, setAttempts]     = useState(0);
 
-  // Stream state
   const [isLive, setIsLive]       = useState(false);
   const [title, setTitle]         = useState("");
   const [micOn, setMicOn]         = useState(true);
   const [camOn, setCamOn]         = useState(false);
-  const [statusLog, setStatusLog] = useState("Ready ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ press Go Live to start.");
+  const [statusLog, setStatusLog] = useState("Ready - press Go Live to start.");
   const [elapsed, setElapsed]     = useState("00:00:00");
 
-  // Refs
   const screenVideoRef  = useRef<HTMLVideoElement>(null);
   const camVideoRef     = useRef<HTMLVideoElement>(null);
   const peerRef         = useRef<any>(null);
@@ -60,7 +53,6 @@ export default function GoLivePage() {
   const pipRafRef       = useRef<number | null>(null);
   const chatToastTimer  = useRef<any>(null);
 
-  // Chat + leads + stats
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatToast, setChatToast] = useState<{name:string,msg:string}|null>(null);
   const [leads, setLeads]         = useState<Lead[]>([]);
@@ -69,7 +61,6 @@ export default function GoLivePage() {
 
   const log = (msg: string) => setStatusLog(msg);
 
-  // Restore auth from session
   useEffect(() => {
     try {
       const s = JSON.parse(sessionStorage.getItem("gp_golive_v3") || "null");
@@ -77,14 +68,13 @@ export default function GoLivePage() {
     } catch {}
   }, []);
 
-  // Timer
   useEffect(() => {
     if (isLive) {
       startTimeRef.current = Date.now();
       timerRef.current = setInterval(() => {
         const s = Math.floor((Date.now() - (startTimeRef.current ?? Date.now())) / 1000);
         setElapsed(
-          `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
+          `${String(Math.floor(s / 3600)).padStart(2,"0")}:${String(Math.floor((s % 3600) / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`
         );
       }, 1000);
     } else {
@@ -142,7 +132,7 @@ export default function GoLivePage() {
     peerRef.current = peer;
 
     peer.on("open", (id: string) => {
-      log(`ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Broadcaster ready ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ ID: ${id}. Press Go Live when ready.`);
+      log(`Broadcaster ready - ID: ${id}. Press Go Live when ready.`);
     });
 
     peer.on("connection", (conn: any) => {
@@ -178,9 +168,9 @@ export default function GoLivePage() {
 
     peer.on("error", (err: any) => {
       if (err.type === "unavailable-id") {
-        log("ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¯ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¸ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Stream ID already in use ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you may already be live in another tab.");
+        log("Stream ID already in use - you may already be live in another tab.");
       } else {
-        log(`Peer error: ${err.message}. ReconnectingÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦`);
+        log(`Peer error: ${err.message}. Reconnecting...`);
         setTimeout(() => startPeer(), 3000);
       }
     });
@@ -205,10 +195,10 @@ export default function GoLivePage() {
 
   async function goLive() {
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      log("ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¯ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¸ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Use Chrome or Edge on desktop for screen sharing.");
+      log("Use Chrome or Edge on desktop for screen sharing.");
       return;
     }
-    log("Choose your screen ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ select 'Share Audio' if you want system sound.");
+    log("Choose your screen - select 'Share Audio' if you want system sound.");
     try {
       const scrn = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: { ideal: 60 }, cursor: "always" } as any,
@@ -221,14 +211,13 @@ export default function GoLivePage() {
         screenVideoRef.current.style.display = "block";
       }
 
-      log("Screen captured ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ requesting micÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦");
+      log("Screen captured - requesting mic...");
       const mic = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
         video: false,
       });
       micStreamRef.current = mic;
 
-      // Mix screen audio + mic
       try {
         const ctx = new AudioContext();
         audioCtxRef.current = ctx;
@@ -238,14 +227,14 @@ export default function GoLivePage() {
         const screenAudio = scrn.getAudioTracks();
         if (screenAudio.length > 0) {
           ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
-          log("ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Screen + mic audio mixed. Going liveÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦");
+          log("Screen + mic audio mixed. Going live...");
         } else {
-          log("ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Mic ready (no screen audio selected). Going liveÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦");
+          log("Mic ready (no screen audio selected). Going live...");
         }
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
-        log("ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Mic ready. Going liveÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦");
+        log("Mic ready. Going live...");
       }
 
       // PiP canvas compositor: screen fills frame, camera as corner overlay
@@ -257,11 +246,11 @@ export default function GoLivePage() {
             setTimeout(res, 2000);
           });
         }
-        const pipCanvas = document.createElement('canvas');
+        const pipCanvas = document.createElement("canvas");
         pipCanvasRef.current = pipCanvas;
         pipCanvas.width  = svr.videoWidth  || 1920;
         pipCanvas.height = svr.videoHeight || 1080;
-        const pipCtx = pipCanvas.getContext('2d')!;
+        const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
           pipCtx.drawImage(svr, 0, 0, pipCanvas.width, pipCanvas.height);
           const cv = camVideoRef.current;
@@ -293,15 +282,15 @@ export default function GoLivePage() {
         const canvasStream = pipCanvas.captureStream(30);
         const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
         outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
-        log("PiP compositor active — canvas stream sent to viewers.");
-      } catch (e) {
+        log("PiP active - canvas stream with camera overlay sent to viewers.");
+      } catch {
         log("PiP setup failed, using raw screen stream.");
       }
 
       const liveTitle = title || "The Greenprint - Live Session";
       setIsLive(true);
       await setLiveStatus(true, liveTitle);
-      log(`ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ´ LIVE ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewersÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¦`);
+      log(`LIVE - broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewers...`);
 
       Object.keys(viewersRef.current).forEach((pid, i) => {
         setTimeout(() => callViewer(pid), i * 100);
@@ -323,21 +312,15 @@ export default function GoLivePage() {
     await setLiveStatus(false, "");
     if (pipRafRef.current) { cancelAnimationFrame(pipRafRef.current); pipRafRef.current = null; }
     pipCanvasRef.current = null;
-        screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    screenStreamRef.current?.getTracks().forEach(t => t.stop());
     micStreamRef.current?.getTracks().forEach(t => t.stop());
     camStreamRef.current?.getTracks().forEach(t => t.stop());
     try { audioCtxRef.current?.close(); } catch {}
     screenStreamRef.current = null;
     micStreamRef.current = null;
     outStreamRef.current = null;
-    if (screenVideoRef.current) {
-      screenVideoRef.current.srcObject = null;
-      screenVideoRef.current.style.display = "none";
-    }
-    if (camVideoRef.current) {
-      camVideoRef.current.srcObject = null;
-      camVideoRef.current.style.display = "none";
-    }
+    if (screenVideoRef.current) { screenVideoRef.current.srcObject = null; screenVideoRef.current.style.display = "none"; }
+    if (camVideoRef.current) { camVideoRef.current.srcObject = null; camVideoRef.current.style.display = "none"; }
     setIsLive(false);
     setCamOn(false);
     log("Stream ended. Thanks for going live.");
@@ -358,10 +341,7 @@ export default function GoLivePage() {
       try {
         const cam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         camStreamRef.current = cam;
-        if (camVideoRef.current) {
-          camVideoRef.current.srcObject = cam;
-          camVideoRef.current.style.display = "block";
-        }
+        if (camVideoRef.current) { camVideoRef.current.srcObject = cam; camVideoRef.current.style.display = "block"; }
         setCamOn(true);
       } catch { log("Camera access denied."); }
     }
@@ -376,10 +356,7 @@ export default function GoLivePage() {
   }
 
   function downloadCSV() {
-    const rows = [
-      ["Name", "Email", "Joined"].join(","),
-      ...leads.map(l => [l.name, l.email, new Date(l.ts).toISOString()].join(","))
-    ];
+    const rows = [["Name","Email","Joined"].join(","), ...leads.map(l => [l.name,l.email,new Date(l.ts).toISOString()].join(","))];
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -387,7 +364,6 @@ export default function GoLivePage() {
     a.click();
   }
 
-  // Init peer after auth
   useEffect(() => {
     if (!authed) return;
     loadPeerJS(() => startPeer());
@@ -395,7 +371,6 @@ export default function GoLivePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
-  /* ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Auth gate ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ */
   if (!authed) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center px-4 relative overflow-hidden">
@@ -409,25 +384,15 @@ export default function GoLivePage() {
             </svg>
           </div>
           <h1 className="text-center font-bold text-white mb-1">Broadcaster Access</h1>
-          <p className="text-center text-xs text-white/30 mb-6">The Greenprint ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Go Live Control Room</p>
+          <p className="text-center text-xs text-white/30 mb-6">The Greenprint - Go Live Control Room</p>
           <form onSubmit={doAuth} className="space-y-4">
-            <input
-              type="password"
-              placeholder="Password"
-              required
-              value={pwd}
-              onChange={e => setPwd(e.target.value)}
-              disabled={authLocked}
-              className="w-full bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#00FF85]/50 transition-colors disabled:opacity-40"
-            />
+            <input type="password" placeholder="Password" required value={pwd} onChange={e => setPwd(e.target.value)} disabled={authLocked}
+              className="w-full bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#00FF85]/50 transition-colors disabled:opacity-40"/>
             {authErr && <p className="text-xs text-red-400">{authErr}</p>}
-            <button
-              type="submit"
-              disabled={authLocked}
+            <button type="submit" disabled={authLocked}
               className="w-full bg-[#00FF85] text-black font-black py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#00e676] transition-all"
-              style={{ boxShadow: "0 0 24px rgba(0,255,133,0.3)" }}
-            >
-              Enter ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
+              style={{ boxShadow: "0 0 24px rgba(0,255,133,0.3)" }}>
+              Enter
             </button>
           </form>
         </div>
@@ -435,7 +400,6 @@ export default function GoLivePage() {
     );
   }
 
-  /* ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Broadcaster control room ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ */
   return (
     <div className="min-h-screen bg-[#080808] flex flex-col font-sans">
       {/* Top bar */}
@@ -446,22 +410,17 @@ export default function GoLivePage() {
             {isLive ? "LIVE" : "OFFLINE"}
           </span>
         </div>
-        <span className="text-xs text-white/30 flex-1 truncate">
-          The Greenprint ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Go Live Control Room
-        </span>
+        <span className="text-xs text-white/30 flex-1 truncate">The Greenprint - Go Live</span>
         <span className="font-mono text-xs text-white/25">
           {Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}
         </span>
-        {isLive && (
-          <span className="font-mono text-xs text-[#00FF85]">{elapsed}</span>
-        )}
+        {isLive && <span className="font-mono text-xs text-[#00FF85]">{elapsed}</span>}
       </div>
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         {/* Video stage */}
         <div className="flex-1 bg-black relative min-h-[220px]">
-          <video ref={screenVideoRef} autoPlay muted playsInline
-            className="w-full h-full object-contain" style={{ display: "none" }}/>
+          <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" style={{ display: "none" }}/>
           <video ref={camVideoRef} autoPlay muted playsInline
             className="absolute bottom-3 right-3 w-52 h-36 object-cover rounded-xl border border-white/10"
             style={{ display: "none", transform: "scaleX(-1)" }}/>
@@ -482,66 +441,50 @@ export default function GoLivePage() {
 
         {/* Right panel */}
         <div className="w-full lg:w-80 bg-[#0d0d0d] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0">
-          {/* Controls */}
           <div className="p-4 border-b border-white/5">
-            <input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Session title (e.g. NVDA Options Play)"
-              className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors mb-3"
-            />
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Session title (e.g. NVDA Options Play)"
+              className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors mb-3"/>
             <div className="flex gap-2 flex-wrap">
               {!isLive ? (
                 <button onClick={goLive}
                   className="flex-1 bg-[#00FF85] text-black font-black py-2.5 rounded-xl text-xs hover:bg-[#00e676] transition-all"
                   style={{ boxShadow: "0 0 16px rgba(0,255,133,0.3)" }}>
-                  ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ´ Go Live
+                  Go Live
                 </button>
               ) : (
                 <button onClick={endStream}
                   className="flex-1 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-2.5 rounded-xl text-xs hover:bg-red-500/20 transition-colors">
-                  ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¹ End Stream
+                  End Stream
                 </button>
               )}
               <button onClick={toggleMic}
-                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
-                  micOn ? "border-white/10 text-white/40 hover:text-white" : "border-red-500/30 text-red-400 bg-red-500/5"
-                }`}>
-                ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {micOn ? "Mic On" : "Muted"}
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${micOn ? "border-white/10 text-white/40 hover:text-white" : "border-red-500/30 text-red-400 bg-red-500/5"}`}>
+                {micOn ? "Mic On" : "Muted"}
               </button>
               <button onClick={toggleCam}
-                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${
-                  camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"
-                }`}>
-                ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ· Cam
+                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"}`}>
+                Cam
               </button>
             </div>
             <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
           </div>
 
-          {/* App QR ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ show on stream so viewers can join */}
           <div className="p-3 border-b border-white/5">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Join App</p>
+            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream - Join App</p>
             <div className="flex items-center gap-3">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
-                alt="Join App QR"
-                className="w-16 h-16 rounded-lg border border-white/10"
-              />
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
+                alt="Join App QR" className="w-16 h-16 rounded-lg border border-white/10"/>
               <div>
                 <p className="text-[11px] text-white/60 font-semibold mb-0.5">The Greenprint App</p>
-                <p className="text-[10px] text-white/25 leading-relaxed">$29.99/mo ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ scan to join<br/>full access + mobile app</p>
-                <button
-                  onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
-                  className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors"
-                >
+                <p className="text-[10px] text-white/25 leading-relaxed">$29.99/mo - scan to join<br/>full access + mobile app</p>
+                <button onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
+                  className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors">
                   Copy Link
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Live stats */}
           {isLive && (
             <div className="grid grid-cols-3 border-b border-white/5">
               {[
@@ -557,12 +500,11 @@ export default function GoLivePage() {
             </div>
           )}
 
-          {/* Who's watching */}
           {Object.keys(viewers).length > 0 && (
             <div className="px-3 py-2 border-b border-white/5">
               <p className="text-[10px] text-white/25 font-mono uppercase tracking-widest mb-1.5">Watching</p>
               <div className="flex flex-wrap gap-1">
-                {Object.values(viewers).slice(0, 12).map((name, i) => (
+                {Object.values(viewers).slice(0,12).map((name, i) => (
                   <span key={i} className="bg-white/5 text-white/40 text-[10px] px-2 py-0.5 rounded-full">{name}</span>
                 ))}
                 {Object.keys(viewers).length > 12 && (
@@ -572,7 +514,6 @@ export default function GoLivePage() {
             </div>
           )}
 
-          {/* Chat */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-white/5">
               <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Live Chat</p>
@@ -590,12 +531,9 @@ export default function GoLivePage() {
             </div>
           </div>
 
-          {/* Leads */}
           <div className="border-t border-white/5 p-3 shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">
-                Leads ({leads.length})
-              </p>
+              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Leads ({leads.length})</p>
               <div className="flex gap-1">
                 {[
                   { label: "Copy", fn: () => copyLeads(false) },
@@ -623,10 +561,11 @@ export default function GoLivePage() {
         </div>
       </div>
 
-      {/* Chat toast overlay */}
       {chatToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-white/10 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-2xl animate-fade-in max-w-xs w-full">
-          <div className="w-7 h-7 rounded-full bg-[#00FF85]/20 flex items-center justify-center shrink-0 text-[#00FF85] text-xs font-bold mt-0.5">{chatToast.name[0]?.toUpperCase() || "?"}</div>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-white/10 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-2xl max-w-xs w-full">
+          <div className="w-7 h-7 rounded-full bg-[#00FF85]/20 flex items-center justify-center shrink-0 text-[#00FF85] text-xs font-bold mt-0.5">
+            {chatToast.name[0]?.toUpperCase() || "?"}
+          </div>
           <div>
             <p className="text-[#00FF85] text-xs font-semibold">{chatToast.name}</p>
             <p className="text-white/80 text-sm">{chatToast.msg}</p>
