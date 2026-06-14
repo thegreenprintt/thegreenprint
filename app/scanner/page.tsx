@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -133,7 +132,6 @@ export default function ScannerPage() {
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence>
                   {loading ? (
                     Array.from({length:8}).map((_,i) => (
                       <tr key={i} className="border-b border-border/50">
@@ -149,9 +147,7 @@ export default function ScannerPage() {
                   ) : (
                     filteredAlerts.map((a, i) => (
                       <>
-                        <motion.tr key={a.id}
-                          initial={i === 0 ? {opacity:0,y:-10} : {opacity:1,y:0}}
-                          animate={{opacity:1,y:0}} transition={{duration:0.3}}
+                        <tr key={a.id}
                           onClick={() => setExpanded(expanded === a.id ? null : a.id)}
                           className="border-b border-border/50 cursor-pointer hover:bg-surface2 transition-colors"
                         >
@@ -166,7 +162,7 @@ export default function ScannerPage() {
                           <td className="px-4 py-3 text-muted">
                             {new Date(a.created_at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
                           </td>
-                        </motion.tr>
+                        </tr>
                         {expanded === a.id && (
                           <tr key={a.id+"exp"} className="bg-surface2 border-b border-border/50">
                             <td colSpan={5} className="px-4 py-3">
@@ -178,7 +174,6 @@ export default function ScannerPage() {
                       </>
                     ))
                   )}
-                </AnimatePresence>
               </tbody>
             </table>
           </div>
