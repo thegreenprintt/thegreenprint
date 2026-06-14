@@ -224,13 +224,8 @@ export default function GoLivePage() {
         const dst = ctx.createMediaStreamDestination();
         audioDstRef.current = dst;
         ctx.createMediaStreamSource(mic).connect(dst);
-        const screenAudio = scrn.getAudioTracks();
-        if (screenAudio.length > 0) {
-          ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
-          log("Screen + mic audio mixed. Going live...");
-        } else {
-          log("Mic ready (no screen audio selected). Going live...");
-        }
+        // Mic-only audio — screen audio NOT mixed in to prevent echo/feedback
+        log("Mic ready. Going live...");
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
@@ -252,7 +247,7 @@ export default function GoLivePage() {
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          // Screen: COVER fill — scales to fill 1920x1080, crops edges on ultrawide (no black bars)
+          // Screen: COVER fill â scales to fill 1920x1080, crops edges on ultrawide (no black bars)
           const srcW = svr.videoWidth || 1920;
           const srcH = svr.videoHeight || 1080;
           const scale = Math.max(1920 / srcW, 1080 / srcH);
