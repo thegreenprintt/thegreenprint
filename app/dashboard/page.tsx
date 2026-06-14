@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -187,11 +186,6 @@ export default function DashboardPage() {
   const name = profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
   const tier = profile?.tier || "member";
 
-  const widgetVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.4 } }),
-  };
-
   return (
     <div className="min-h-screen bg-bg">
       <Sidebar name={name} tier={tier} />
@@ -207,9 +201,7 @@ export default function DashboardPage() {
 
           {/* Live banner */}
           {isLive && (
-            <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}
-              className="mb-6 bg-red/10 border border-red/30 rounded-card p-4 flex items-center justify-between"
-            >
+            <div className="mb-6 bg-red/10 border border-red/30 rounded-card p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="w-2 h-2 rounded-full bg-red pulse-dot" />
                 <span className="text-sm font-semibold text-text">Jay is live right now</span>
@@ -217,13 +209,13 @@ export default function DashboardPage() {
               <Link href="/stream">
                 <Button size="sm">Join Session →</Button>
               </Link>
-            </motion.div>
+            </div>
           )}
 
           {/* Widgets 2-col grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Watchlist */}
-            <motion.div custom={0} variants={widgetVariants} initial="hidden" animate="visible">
+            <div>
               <Card>
                 <div className="flex items-center justify-between mb-4">
                   <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Today&apos;s Watchlist</p>
@@ -243,10 +235,10 @@ export default function DashboardPage() {
                 )}
                 <p className="text-[10px] text-muted mt-3">Added by Jay</p>
               </Card>
-            </motion.div>
+            </div>
 
             {/* Scanner signals */}
-            <motion.div custom={1} variants={widgetVariants} initial="hidden" animate="visible">
+            <div>
               <Card className="relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -288,12 +280,10 @@ export default function DashboardPage() {
                   </div>
                 )}
               </Card>
-            </motion.div>
+            </div>
 
             {/* Next session — full width */}
-            <motion.div custom={2} variants={widgetVariants} initial="hidden" animate="visible"
-              className="md:col-span-2"
-            >
+            <div className="md:col-span-2">
               <Card>
                 <p className="font-mono text-[10px] tracking-widest uppercase text-muted mb-4">Next Live Session</p>
                 {liveSession ? (
@@ -321,12 +311,10 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted">No sessions scheduled yet. Check back soon.</p>
                 )}
               </Card>
-            </motion.div>
+            </div>
 
             {/* Recent alerts */}
-            <motion.div custom={3} variants={widgetVariants} initial="hidden" animate="visible"
-              className="md:col-span-2"
-            >
+            <div className="md:col-span-2">
               <Card>
                 <div className="flex items-center justify-between mb-4">
                   <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Recent Alerts</p>
@@ -353,7 +341,7 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-[9px] text-muted mt-4">For educational purposes only.</p>
               </Card>
-            </motion.div>
+            </div>
           </div>
         </div>
       </main>
