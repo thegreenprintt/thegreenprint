@@ -1,19 +1,19 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+/* Fonts loaded via next/font in layout.tsx — no @import needed */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg:        #080808;
-  --surface:   #111111;
+  --bg: #080808;
+  --surface: #111111;
   --surface-2: #1A1A1A;
-  --border:    #1E1E1E;
-  --accent:    #00FF85;
-  --gold:      #C9A84C;
-  --text:      #F5F5F5;
-  --muted:     #666666;
-  --red:       #FF4444;
+  --border: #1E1E1E;
+  --accent: #00FF85;
+  --gold: #C9A84C;
+  --text: #F5F5F5;
+  --muted: #666666;
+  --red: #FF4444;
 }
 
 * { box-sizing: border-box; }
@@ -21,46 +21,57 @@
 html, body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Scrollbar ── */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #333; }
 
-/* ── Selection ── */
+/* Selection */
 ::selection { background: rgba(0,255,133,.18); color: var(--text); }
 
-/* ── Focus ring ── */
+/* Focus ring */
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
-/* ── Smooth scroll ── */
+/* Smooth scroll */
 html { scroll-behavior: smooth; }
 
-/* ── Ticker ── */
+/* Ticker — GPU-accelerated via transform, forced onto its own compositor layer */
 @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.ticker-inner { animation: ticker 30s linear infinite; }
+.ticker-inner {
+  animation: ticker 30s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+}
 .ticker-inner:hover { animation-play-state: paused; }
 
-/* ── Scanner row flash ── */
+/* Scanner row flash */
 @keyframes flashGreen {
-  0%   { background: rgba(0,255,133,.12); }
+  0% { background: rgba(0,255,133,.12); }
   100% { background: transparent; }
 }
 .flash-new { animation: flashGreen 1.5s ease-out forwards; }
 
-/* ── Pulse dot ── */
+/* Pulse dot — GPU layer */
 @keyframes pulseDot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: .5; transform: scale(1.4); }
+  50% { opacity: .5; transform: scale(1.4); }
 }
-.pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
+.pulse-dot {
+  animation: pulseDot 1.5s ease-in-out infinite;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
 
-/* ── Neon glow text ── */
+/* Neon glow text */
 .glow-green {
   text-shadow: 0 0 40px rgba(0,255,133,0.5), 0 0 80px rgba(0,255,133,0.2);
 }
@@ -68,21 +79,23 @@ html { scroll-behavior: smooth; }
   text-shadow: 0 0 40px rgba(201,168,76,0.5), 0 0 80px rgba(201,168,76,0.2);
 }
 
-/* ── Glass card ── */
+/* Glass card — CSS containment isolates layout/paint for performance */
 .glass {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  contain: layout style paint;
 }
 .glass-accent {
   background: rgba(0,255,133,0.04);
   border: 1px solid rgba(0,255,133,0.15);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  contain: layout style paint;
 }
 
-/* ── Grid background ── */
+/* Grid background */
 .bg-grid {
   background-image:
     linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
@@ -90,10 +103,8 @@ html { scroll-behavior: smooth; }
   background-size: 64px 64px;
 }
 
-/* ── Gradient border ── */
-.border-gradient-green {
-  position: relative;
-}
+/* Gradient border */
+.border-gradient-green { position: relative; }
 .border-gradient-green::before {
   content: "";
   position: absolute;
@@ -108,18 +119,19 @@ html { scroll-behavior: smooth; }
   pointer-events: none;
 }
 
-/* ── Shimmer loading skeleton ── */
+/* Shimmer loading skeleton */
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
+  0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 .shimmer {
   background: linear-gradient(90deg, #111 0%, #1a1a1a 50%, #111 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+  will-change: background-position;
 }
 
-/* ── Button styles ── */
+/* Button styles — transitions only affect transform/opacity (GPU, no layout reflow) */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -129,14 +141,17 @@ html { scroll-behavior: smooth; }
   font-weight: 700;
   padding: 14px 28px;
   border-radius: 9999px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-shadow: 0 0 32px rgba(0,255,133,0.3);
+  will-change: transform;
 }
 .btn-primary:hover {
   background: #00e676;
   box-shadow: 0 0 48px rgba(0,255,133,0.45);
   transform: translateY(-1px);
 }
+.btn-primary:active { transform: translateY(0); }
+
 .btn-outline {
   display: inline-flex;
   align-items: center;
@@ -147,14 +162,14 @@ html { scroll-behavior: smooth; }
   padding: 14px 28px;
   border-radius: 9999px;
   border: 1px solid rgba(255,255,255,0.15);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 .btn-outline:hover {
   border-color: rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.05);
 }
 
-/* ── Reduced motion ── */
+/* Reduced motion — respect user preference */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
