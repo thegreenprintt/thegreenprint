@@ -5,63 +5,82 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { ComplianceCheckbox } from "@/components/ui/ComplianceCheckbox";
 
+const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
+const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
+const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
+
 const TIERS = [
   {
-    name: "Member", price: "$47", period: "/month",
-    tagline: "Get in the room.",
-    desc: "The foundation. Learn how Jay trades, follow daily setups, and get inside the community.",
-    popular: false, gold: false, elite: false,
-    cta: "Get Started →",
-    whopUrl: "https://whop.com/the-greenprint/",
+    name: "The Greenprint",
+    price: "$29", cents: ".99", period: "/month",
+    tagline: "Limited spots available.",
+    desc: "Full access to everything — live streams, real-time alerts, mobile app, scanner, and the private community.",
+    highlight: true,
+    badge: "⚡ LIMITED SPOTS",
+    badgeColor: "#00FF85",
+    cta: "Join The Greenprint — $29.99/mo",
+    ctaStyle: "green",
+    url: WHOP_CHECKOUT,
+    affiliate: false,
     included: [
-      "The Greenprint community (Telegram)",
-      "Daily trade alerts before market open",
-      "Daily watchlist from Jay",
-      "Weekly live trading session (1x/week)",
-      "Session replays (last 4 weeks)",
-      "Onboarding guide + broker setup",
-    ],
-    locked: ["App access","Scanner","Pre-market breakdowns","1-on-1 coaching"],
-  },
-  {
-    name: "Trader", price: "$97", period: "/month",
-    tagline: "Trade with the tools.",
-    desc: "The full platform. Real-time scanner, app access, and daily live breakdowns.",
-    popular: true, gold: true, elite: false,
-    cta: "Get Started →",
-    whopUrl: "https://whop.com/the-greenprint/",
-    included: [
-      "Everything in Member",
-      "Full app access (iOS + Android)",
+      "All live trading sessions with Jay",
+      "Real-time trade alerts",
+      "Mobile app access (iOS + Android)",
       "Scanner — real-time signals",
-      "Pre-market live breakdown (daily)",
-      "2x live sessions per week",
-      "Premium alerts channel",
-      "Dedicated Trader Telegram channel",
-      "Trade recap videos after close",
+      "Private member community (Telegram)",
+      "Stream replay library",
+      "Weekly market breakdowns",
+      "Trading playbook & education",
+      "New content added weekly",
     ],
-    locked: ["1-on-1 coaching","Elite channel","Portfolio review"],
   },
   {
-    name: "Elite", price: "$297", period: "/month",
-    tagline: "Direct access. No filter.",
-    desc: "Jay's time. Limited to 20 members. Price locked forever once you're in.",
-    popular: false, gold: true, elite: true,
-    cta: "Apply for Elite →",
-    whopUrl: "https://whop.com/the-greenprint/",
+    name: "1House Global — Stream",
+    price: "$99", cents: "", period: "/month",
+    tagline: "Via our affiliate partner.",
+    desc: "Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more.",
+    highlight: false,
+    badge: "Affiliate Partner",
+    badgeColor: "rgba(255,255,255,0.2)",
+    cta: "Subscribe via 1House — $99/mo",
+    ctaStyle: "outline",
+    url: ONEHOUSE_STREAM,
+    affiliate: true,
     included: [
-      "Everything in Trader",
-      "Monthly 45-min 1-on-1 with Jay",
-      "Private Elite Telegram channel",
-      "Real-time alerts (live as Jay takes them)",
-      "Monthly portfolio review",
-      "Direct DM access to Jay",
-      "Early access to all new features",
-      "Founding Elite badge",
-      "Price locked forever",
+      "Unlimited live stream access",
+      "100+ expert creators",
+      "Stocks, Crypto, Real Estate & more",
+      "Day Trading & Options education",
+      "E-commerce, AI & Business content",
+      "On-demand replay library",
+      "1House mobile app included",
+      "Live stream alerts & notifications",
+      "3-day money-back guarantee",
     ],
-    locked: [],
-    spotsNote: "Limited to 20 members.",
+  },
+  {
+    name: "1House Global — Startup",
+    price: "$165", cents: "", period: "/month",
+    priceSub: "+ $200 one-time setup",
+    tagline: "Build your own brand.",
+    desc: "Everything in Stream, plus tools to launch and grow your own creator business on the 1House platform.",
+    highlight: false,
+    badge: "Affiliate Partner",
+    badgeColor: "rgba(201,168,76,0.3)",
+    cta: "Apply for Startup",
+    ctaStyle: "gold",
+    url: ONEHOUSE_STARTUP,
+    affiliate: true,
+    included: [
+      "Everything in 1House Stream",
+      "Launch your own creator platform",
+      "Custom branded stream page",
+      "Monetize your own audience",
+      "1House creator dashboard",
+      "Integrated payment & subscriptions",
+      "Done-for-you setup support",
+      "Access to founder community",
+    ],
   },
 ];
 
@@ -100,40 +119,71 @@ export default function JoinPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
           {TIERS.map((tier, i) => (
-            <motion.div key={tier.name}
-              initial={{opacity:0,y:30}} animate={{opacity:1,y:0}}
-              transition={{delay:i*0.1,duration:0.4}}
-              className={`relative bg-surface rounded-card p-6 border flex flex-col ${
-                tier.elite ? "border-gold/50" :
-                tier.popular ? "border-gold/30" : "border-border"
-              }`}
-            >
-              {tier.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gold text-bg text-[10px] font-black px-3 py-1 rounded font-mono tracking-widest uppercase">
-                    Most Popular
-                  </span>
-                </div>
-              )}
-              <div className="mb-5">
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted mb-1">{tier.name}</p>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className={`text-4xl font-black ${tier.elite ? "text-gold" : "text-text"}`}>{tier.price}</span>
-                  <span className="text-muted text-sm mb-1">{tier.period}</span>
-                </div>
-                <p className={`text-xs font-mono mb-2 ${tier.elite ? "text-gold" : "text-accent"}`}>{tier.tagline}</p>
-                <p className="text-xs text-muted leading-relaxed">{tier.desc}</p>
+          <div key={i} className="relative flex flex-col rounded-2xl p-7 border transition-all"
+            style={{
+              border: tier.highlight ? "2px solid #00FF85" : tier.ctaStyle === "gold" ? "1px solid rgba(201,168,76,0.25)" : "1px solid rgba(255,255,255,0.1)",
+              background: tier.highlight ? "rgba(0,255,133,0.05)" : tier.ctaStyle === "gold" ? "rgba(201,168,76,0.03)" : "rgba(255,255,255,0.03)",
+            }}>
+            {/* Badge */}
+            {tier.highlight && (
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap"
+                style={{ background: "#00FF85" }}>
+                {tier.badge}
               </div>
-              <div className="space-y-2 mb-6 flex-1">
-                {tier.included.map(item => (
-                  <div key={item} className="flex items-start gap-2.5">
-                    <Check gold={tier.elite} />
-                    <span className="text-xs text-text leading-relaxed">{item}</span>
-                  </div>
-                ))}
+            )}
+            {tier.affiliate && (
+              <div className="mb-3">
+                <span className="text-[10px] font-bold tracking-widest uppercase border px-2 py-0.5 rounded-full"
+                  style={{ color: "rgba(255,255,255,0.3)", borderColor: "rgba(255,255,255,0.12)" }}>
+                  Affiliate Partner
+                </span>
+              </div>
+            )}
+
+            <p className="font-bold text-sm mb-1" style={{ color: tier.highlight ? "#00FF85" : tier.ctaStyle === "gold" ? "#C9A84C" : "rgba(255,255,255,0.55)" }}>
+              {tier.name}
+            </p>
+            <div className="flex items-baseline gap-0.5 mb-1">
+              <span className="text-xl" style={{ color: "rgba(255,255,255,0.3)" }}>$</span>
+              <span className="text-6xl font-black text-white">{tier.price.replace("$","")}</span>
+              {tier.cents && <span className="text-2xl font-black text-white">{tier.cents}</span>}
+              <span className="text-sm ml-1" style={{ color: "rgba(255,255,255,0.3)" }}>{tier.period}</span>
+            </div>
+            {tier.priceSub && <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>{tier.priceSub}</p>}
+            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>{tier.desc}</p>
+
+            <ul className="space-y-3 mb-8 flex-1">
+              {tier.included.map((f: string) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="7" fill={tier.highlight ? "#00FF85" : tier.ctaStyle === "gold" ? "#C9A84C" : "#6366f1"} fillOpacity="0.15"/>
+                    <path d="M5 8l2 2 4-4" stroke={tier.highlight ? "#00FF85" : tier.ctaStyle === "gold" ? "#C9A84C" : "#818cf8"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            <a href={tier.url} target="_blank" rel="noopener noreferrer"
+              className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
+              style={tier.ctaStyle === "green"
+                ? { background: "#00FF85", color: "#080808", boxShadow: "0 0 24px rgba(0,255,133,0.3)" }
+                : tier.ctaStyle === "gold"
+                ? { background: "rgba(201,168,76,0.12)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }
+                : { background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
+              {tier.cta}
+            </a>
+            {tier.affiliate && (
+              <p className="text-xs text-center mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>Via our affiliate link at 1House Global.</p>
+            )}
+            {!tier.affiliate && (
+              <p className="text-xs text-center mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>Cancel anytime. Limited spots available.</p>
+            )}
+          </div>
+        ))}
                 {tier.locked.map(item => (
                   <div key={item} className="flex items-start gap-2.5 opacity-30">
-                    <span className="text-muted text-xs mt-0.5 flex-shrink-0">—</span>
+                    <span className="text-muted text-xs mt-0.5 flex-shrink-0">â</span>
                     <span className="text-xs text-muted">{item}</span>
                   </div>
                 ))}
