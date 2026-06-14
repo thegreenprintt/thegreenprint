@@ -11,7 +11,7 @@ const RTDB_URL =
 
 interface ChatMsg { name: string; text: string; ts: number; }
 
-/* âââ Email Gate âââââââââââââââââââââââââââââââââââââââââââââââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Email Gate Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,7 +25,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
     setLoading(true);
     setError("");
 
-    // Store subscriber info â you can wire this to your email list / Supabase later
+    // Store subscriber info Ã¢ÂÂ you can wire this to your email list / Supabase later
     try {
       sessionStorage.setItem("gp_stream_access", JSON.stringify({ name: name.trim(), email: email.trim(), ts: Date.now() }));
     } catch {}
@@ -115,10 +115,10 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  Getting you inâ¦
+                  Getting you inÃ¢ÂÂ¦
                 </span>
               ) : (
-                "Watch Free â Get Access"
+                "Watch Free Ã¢ÂÂ Get Access"
               )}
             </button>
           </form>
@@ -134,7 +134,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
 
         <div className="flex justify-center mt-6">
           <Link href="/" className="text-white/25 text-xs hover:text-white/50 transition-colors">
-            â Back to The Greenprint
+            Ã¢ÂÂ Back to The Greenprint
           </Link>
         </div>
       </div>
@@ -142,7 +142,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
   );
 }
 
-/* âââ Stream Player ââââââââââââââââââââââââââââââââââââââââââââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Stream Player Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerRef = useRef<any>(null);
@@ -151,7 +151,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   const [liveTitle, setLiveTitle] = useState("");
   const [viewerCount, setViewerCount] = useState(0);
   const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState("Checking stream statusâ¦");
+  const [status, setStatus] = useState("Checking stream statusÃ¢ÂÂ¦");
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
 
@@ -163,7 +163,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
         const d = await r.json();
         if (d?.isLive) {
           setIsLive(true);
-          setLiveTitle(d.title || "The Greenprint â Live Session");
+          setLiveTitle(d.title || "The Greenprint Ã¢ÂÂ Live Session");
         } else {
           setIsLive(false);
           setConnected(false);
@@ -179,7 +179,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   // Load PeerJS and connect when live
   useEffect(() => {
     if (!isLive) return;
-    setStatus("Connecting to streamâ¦");
+    setStatus("Connecting to streamÃ¢ÂÂ¦");
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
     script.onload = () => initPeer();
@@ -199,7 +199,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
     peerRef.current = peer;
 
     peer.on("open", (id: string) => {
-      setStatus("Waiting for streamâ¦");
+      setStatus("Waiting for streamÃ¢ÂÂ¦");
       try {
         const conn = peer.connect(HOST_PEER_ID, { reliable: true });
         connRef.current = conn;
@@ -227,7 +227,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
         setConnected(true);
         setStatus("");
       });
-      call.on("close", () => { setConnected(false); setStatus("Reconnectingâ¦"); setTimeout(initPeer, 3000); });
+      call.on("close", () => { setConnected(false); setStatus("ReconnectingÃ¢ÂÂ¦"); setTimeout(initPeer, 3000); });
     });
 
     peer.on("error", () => { setTimeout(() => { if (isLive) initPeer(); }, 4000); });
@@ -273,12 +273,12 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         {/* Video area */}
-        <div className="flex-1 bg-black relative min-h-[200px]">
+        <div className="flex-1 bg-black relative min-h-[50vh] lg:min-h-0">
           <video
             ref={videoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-contain"
+            className="w-full h-full object-cover"
             style={{ display: connected ? "block" : "none" }}
           />
           {!connected && (
@@ -301,11 +301,11 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
                     The Greenprint will be live soon. When a session starts, it will appear here automatically.
                   </p>
                   <p className="text-xs text-white/20">
-                    Hi, {viewerName} â you&apos;re subscribed. You&apos;ll get access the moment the stream goes live.
+                    Hi, {viewerName} Ã¢ÂÂ you&apos;re subscribed. You&apos;ll get access the moment the stream goes live.
                   </p>
                   {!isAppMode && (
                     <Link href="/#pricing" className="mt-6 inline-block text-[#00FF85] text-sm font-semibold hover:underline">
-                      Upgrade for more access â
+                      Upgrade for more access Ã¢ÂÂ
                     </Link>
                   )}
                 </div>
@@ -341,7 +341,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendChat()}
-              placeholder="Say somethingâ¦"
+              placeholder="Say somethingÃ¢ÂÂ¦"
               className="flex-1 bg-white/5 border border-white/8 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors min-w-0"
             />
             <button onClick={sendChat}
@@ -362,7 +362,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   );
 }
 
-/* âââ Root âââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Root Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function StreamInner() {
   const searchParams = useSearchParams();
   const isAppMode = searchParams.get("app") === "1";
@@ -378,7 +378,11 @@ function StreamInner() {
       }
     } catch {}
     // App mode bypasses the gate
-    if (isAppMode) setViewerName("Member");
+    if (isAppMode) {
+      const params = new URLSearchParams(window.location.search);
+      const urlName = params.get("name");
+      setViewerName(urlName || "Member");
+    }
   }, [isAppMode]);
 
   if (!viewerName) {
