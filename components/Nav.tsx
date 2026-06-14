@@ -20,6 +20,7 @@ export function Nav() {
     { label: "Real Estate", href: "/#real-estate" },
     { label: "Members", href: "/#members" },
     { label: "Watch Live", href: "/stream" },
+    { label: "Onboarding", href: "/onboard" },
   ];
 
   return (
