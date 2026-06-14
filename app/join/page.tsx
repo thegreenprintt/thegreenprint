@@ -14,11 +14,11 @@ const TIERS = [
     name: "The Greenprint",
     price: "$29", cents: ".99", period: "/month",
     tagline: "Limited spots available.",
-    desc: "Full access to everything — live streams, real-time alerts, mobile app, scanner, and the private community.",
+    desc: "Full access to everything â live streams, real-time alerts, mobile app, scanner, and the private community.",
     highlight: true,
-    badge: "⚡ LIMITED SPOTS",
+    badge: "â¡ LIMITED SPOTS",
     badgeColor: "#00FF85",
-    cta: "Join The Greenprint — $29.99/mo",
+    cta: "Join The Greenprint â $29.99/mo",
     ctaStyle: "green",
     url: WHOP_CHECKOUT,
     affiliate: false,
@@ -26,7 +26,7 @@ const TIERS = [
       "All live trading sessions with Jay",
       "Real-time trade alerts",
       "Mobile app access (iOS + Android)",
-      "Scanner — real-time signals",
+      "Scanner â real-time signals",
       "Private member community (Telegram)",
       "Stream replay library",
       "Weekly market breakdowns",
@@ -35,14 +35,14 @@ const TIERS = [
     ],
   },
   {
-    name: "1House Global — Stream",
+    name: "1House Global â Stream",
     price: "$99", cents: "", period: "/month",
     tagline: "Via our affiliate partner.",
     desc: "Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more.",
     highlight: false,
     badge: "Affiliate Partner",
     badgeColor: "rgba(255,255,255,0.2)",
-    cta: "Subscribe via 1House — $99/mo",
+    cta: "Subscribe via 1House â $99/mo",
     ctaStyle: "outline",
     url: ONEHOUSE_STREAM,
     affiliate: true,
@@ -59,7 +59,7 @@ const TIERS = [
     ],
   },
   {
-    name: "1House Global — Startup",
+    name: "1House Global â Startup",
     price: "$165", cents: "", period: "/month",
     priceSub: "+ $200 one-time setup",
     tagline: "Build your own brand.",
@@ -181,31 +181,6 @@ export default function JoinPage() {
             )}
           </div>
         ))}
-                {tier.locked.map(item => (
-                  <div key={item} className="flex items-start gap-2.5 opacity-30">
-                    <span className="text-muted text-xs mt-0.5 flex-shrink-0">â</span>
-                    <span className="text-xs text-muted">{item}</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <a href={agreed ? tier.whopUrl : undefined} target="_blank" rel="noopener noreferrer"
-                  onClick={e => !agreed && e.preventDefault()}>
-                  <Button
-                    variant={tier.elite ? "gold" : "accent"}
-                    fullWidth
-                    disabled={!agreed}
-                  >
-                    {tier.cta}
-                  </Button>
-                </a>
-                {tier.spotsNote && (
-                  <p className="text-[10px] text-gold/60 text-center mt-2 font-mono">{tier.spotsNote}</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
 
         {/* Compliance checkbox */}
         <div className="bg-surface border border-border rounded-card p-5 mb-4 max-w-xl mx-auto">
