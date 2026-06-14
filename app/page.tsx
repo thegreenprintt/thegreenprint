@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 /* âââ Constants âââââââââââââââââââââââââââââââââââââââââââââââ */
