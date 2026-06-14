@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-const PASSWORD = "greenprint";
+const PASSWORD = "legacy";
 
 const TOTAL_STEPS = 8;
 
