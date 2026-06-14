@@ -30,7 +30,7 @@ export default function StreamPage() {
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
-  const [chatOpen, setChatOpen]   = useState(true);
+  const [portrait, setPortrait]   = useState(false);
 
   const videoRef   = useRef<HTMLVideoElement>(null);
   const peerRef    = useRef<any>(null);
@@ -41,29 +41,44 @@ export default function StreamPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
-  // Lock body scroll + hide global chrome
+  // ── FORCE LANDSCAPE ──────────────────────────────────────────────────────
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    // 1. Try Screen Orientation API (works on Android Chrome)
+    const tryLock = async () => {
+      try {
+        await (screen.orientation as any).lock("landscape");
+      } catch {}
+    };
+    tryLock();
+
+    // 2. CSS rotation fallback — detect portrait and apply rotation
+    const checkOrientation = () => {
+      setPortrait(window.innerWidth < window.innerHeight);
+    };
+    checkOrientation();
+    window.addEventListener("resize", checkOrientation);
+    window.addEventListener("orientationchange", checkOrientation);
+
+    // 3. Kill global chrome (disclaimer bar, etc.)
     document.body.style.overflow = "hidden";
-    // Hide DisclaimerBar and any nav rendered by global layout
     const style = document.createElement("style");
-    style.id = "__stream-overrides";
-    style.textContent = `
-      body > *:not(#__stream-root) { display: none !important; }
-    `;
-    // Instead just blast the disclaimer bar specifically
+    style.id = "__stream-ls";
     style.textContent = `
       [class*="fixed"][class*="bottom-0"][class*="z-50"] { display: none !important; }
+      body { overflow: hidden !important; }
     `;
     document.head.appendChild(style);
+
     return () => {
-      document.body.style.overflow = prev;
-      document.getElementById("__stream-overrides")?.remove();
-      style.remove();
+      try { (screen.orientation as any).unlock(); } catch {}
+      window.removeEventListener("resize", checkOrientation);
+      window.removeEventListener("orientationchange", checkOrientation);
+      document.body.style.overflow = "";
+      document.getElementById("__stream-ls")?.remove();
     };
   }, []);
 
-  // Poll Firebase for live status
+  // ── FIREBASE POLL ────────────────────────────────────────────────────────
   useEffect(() => {
     const check = async () => {
       try {
@@ -87,6 +102,7 @@ export default function StreamPage() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── PEER ─────────────────────────────────────────────────────────────────
   const startPeer = useCallback(() => {
     loadPeerJS(() => {
       const PeerJS = (window as any).Peer;
@@ -123,9 +139,7 @@ export default function StreamPage() {
           clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
             const s = Math.floor((Date.now() - (startRef.current ?? Date.now())) / 1000);
-            setElapsed(
-              `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
-            );
+            setElapsed(`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`);
           }, 1000);
         });
         call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
@@ -160,199 +174,241 @@ export default function StreamPage() {
     inputRef.current?.blur();
   }
 
-  // ── Name gate ──────────────────────────────────────────────────────────────
+  // ── Container style: CSS rotation trick for portrait phones ──────────────
+  // When portrait: render a landscape-sized box and rotate 90° to fill screen
+  const wrapStyle: React.CSSProperties = portrait
+    ? {
+        position: "fixed",
+        zIndex: 9999,
+        width: "100vh",   // swapped — becomes visual height
+        height: "100vw",  // swapped — becomes visual width
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%) rotate(90deg)",
+        overflow: "hidden",
+        background: "#000",
+      }
+    : {
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        overflow: "hidden",
+        background: "#000",
+      };
+
+  // ── NAME GATE ────────────────────────────────────────────────────────────
   if (!nameSet) {
     return (
-      <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center px-6">
-        <div className="w-full max-w-xs">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)" }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+      <div style={wrapStyle}>
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 32px",
+        }}>
+          <div style={{ width: "100%", maxWidth: 320 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, margin: "0 auto 20px",
+              background: "linear-gradient(135deg,#00FF85,#00cc6a)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 0 32px rgba(0,255,133,0.35)",
+            }}>
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <p style={{ color:"#fff", fontWeight:900, fontSize:22, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
+            <p style={{ color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center", margin:"0 0 28px" }}>Enter your name to join</p>
+            <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }}>
+              <input
+                value={name} onChange={e => setName(e.target.value)}
+                placeholder="Your name" autoFocus
+                style={{
+                  display:"block", width:"100%", boxSizing:"border-box",
+                  background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)",
+                  borderRadius:14, padding:"13px 16px", fontSize:14, color:"#fff",
+                  outline:"none", marginBottom:12,
+                }}
+              />
+              <button type="submit" disabled={!name.trim()} style={{
+                display:"block", width:"100%", padding:"13px",
+                background:"linear-gradient(135deg,#00FF85,#00cc6a)",
+                border:"none", borderRadius:14, fontSize:14, fontWeight:900,
+                color:"#080808", cursor:"pointer", opacity: name.trim() ? 1 : 0.3,
+              }}>
+                Join Stream
+              </button>
+            </form>
           </div>
-          <p className="text-white font-black text-xl text-center mb-1">The Greenprint</p>
-          <p className="text-white/40 text-xs text-center mb-7">Enter your name to join the stream</p>
-          <form onSubmit={e => { e.preventDefault(); if (name.trim()) setNameSet(true); }} className="space-y-3">
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Your name"
-              autoFocus
-              className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#00FF85]/60 transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={!name.trim()}
-              className="w-full font-black py-3.5 rounded-2xl text-sm text-black disabled:opacity-25 transition-all"
-              style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)", boxShadow: "0 0 30px rgba(0,255,133,0.25)" }}
-            >
-              Join Stream
-            </button>
-          </form>
         </div>
       </div>
     );
   }
 
-  // ── Main stream view ────────────────────────────────────────────────────────
+  // ── MAIN STREAM VIEW ─────────────────────────────────────────────────────
   return (
-    <div
-      id="__stream-root"
-      className="fixed inset-0 bg-black overflow-hidden"
-      style={{ zIndex: 9999 }}
-    >
-      {/* VIDEO — fills entire screen, cover crops edges */}
+    <div style={wrapStyle}>
+
+      {/* VIDEO — fills the rotated landscape container edge to edge */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted={false}
-        className="absolute inset-0 w-full h-full"
-        style={{ objectFit: "cover", display: connected ? "block" : "none" }}
+        style={{
+          position: "absolute", inset: 0,
+          width: "100%", height: "100%",
+          objectFit: "contain",          // show FULL desktop — no cropping
+          background: "#000",
+          display: connected ? "block" : "none",
+        }}
       />
 
-      {/* Offline / waiting state */}
+      {/* OFFLINE STATE */}
       {!connected && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)", boxShadow: "0 0 40px rgba(0,255,133,0.3)" }}>
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+        <div style={{
+          position:"absolute", inset:0,
+          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16,
+        }}>
+          <div style={{
+            width:64, height:64, borderRadius:20,
+            background:"linear-gradient(135deg,#00FF85,#00cc6a)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            boxShadow:"0 0 40px rgba(0,255,133,0.3)", position:"relative",
+          }}>
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+              <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             {isLive && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-black animate-pulse"/>
+              <div style={{
+                position:"absolute", top:-4, right:-4, width:14, height:14,
+                background:"#ef4444", borderRadius:"50%", border:"2px solid #000",
+                animation:"pulse 1.5s infinite",
+              }}/>
             )}
           </div>
-          <div>
-            <p className="text-white font-black text-lg mb-1">
+          <div style={{ textAlign:"center" }}>
+            <p style={{ color:"#fff", fontWeight:900, fontSize:17, margin:"0 0 6px" }}>
               {isLive ? "Connecting to stream…" : "No live session right now"}
             </p>
-            <p className="text-white/40 text-sm">
-              {isLive ? "Hang tight, loading video…" : "The Greenprint will go live soon"}
+            <p style={{ color:"rgba(255,255,255,0.4)", fontSize:13, margin:0 }}>
+              {isLive ? "Loading video, hang tight…" : "The Greenprint will go live soon"}
             </p>
           </div>
         </div>
       )}
 
       {/* TOP GRADIENT */}
-      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-        height: 120,
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.80) 0%, transparent 100%)",
-        zIndex: 10,
+      <div style={{
+        position:"absolute", top:0, left:0, right:0, height:100, pointerEvents:"none", zIndex:10,
+        background:"linear-gradient(to bottom, rgba(0,0,0,0.80) 0%, transparent 100%)",
       }}/>
 
       {/* TOP BAR */}
-      <div className="absolute top-0 left-0 right-0 flex items-center px-4 pt-12 pb-3 gap-3" style={{ zIndex: 20 }}>
-        {/* Avatar + name */}
-        <div className="w-9 h-9 rounded-full border-2 border-[#00FF85] shrink-0 overflow-hidden flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)" }}>
-          <span className="text-black font-black text-sm">G</span>
+      <div style={{
+        position:"absolute", top:0, left:0, right:0, zIndex:20,
+        display:"flex", alignItems:"center", gap:10, padding:"16px 16px 10px",
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width:36, height:36, borderRadius:"50%",
+          border:"2px solid #00FF85",
+          background:"linear-gradient(135deg,#00FF85,#00cc6a)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          flexShrink:0,
+        }}>
+          <span style={{ color:"#080808", fontWeight:900, fontSize:13 }}>G</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-sm leading-none truncate">The Greenprint</p>
-          <p className="text-white/50 text-[10px] mt-0.5 truncate">{title}</p>
+
+        {/* Title */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ color:"#fff", fontWeight:700, fontSize:13, margin:0, lineHeight:1.2 }}>The Greenprint</p>
+          <p style={{ color:"rgba(255,255,255,0.45)", fontSize:10, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
         </div>
+
         {/* LIVE badge */}
         {isLive && connected && (
-          <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 shrink-0"
-            style={{ background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)" }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"/>
-            <span className="text-red-400 text-[10px] font-black tracking-widest">LIVE</span>
+          <div style={{
+            display:"flex", alignItems:"center", gap:5,
+            background:"rgba(239,68,68,0.25)", border:"1px solid rgba(239,68,68,0.5)",
+            borderRadius:8, padding:"4px 8px", flexShrink:0,
+          }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:"#f87171" }}/>
+            <span style={{ color:"#f87171", fontSize:10, fontWeight:900, letterSpacing:2 }}>LIVE</span>
           </div>
         )}
-        {/* Viewer count */}
+
+        {/* Viewers */}
         {connected && (
-          <div className="flex items-center gap-1 shrink-0">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M6 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-4 5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
-            <span className="text-white/50 text-[11px] font-mono">{viewers || 1}</span>
-          </div>
+          <span style={{ color:"rgba(255,255,255,0.45)", fontSize:11, fontFamily:"monospace", flexShrink:0 }}>
+            👁 {viewers || 1}
+          </span>
         )}
+
         {/* Timer */}
         {connected && (
-          <span className="text-white/30 text-[10px] font-mono shrink-0">{elapsed}</span>
+          <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, fontFamily:"monospace", flexShrink:0 }}>{elapsed}</span>
         )}
       </div>
 
-      {/* CHAT TOGGLE BUTTON (right side, middle) */}
-      <button
-        onClick={() => setChatOpen(o => !o)}
-        className="absolute right-3 flex items-center justify-center w-9 h-9 rounded-full"
-        style={{
-          top: "50%", transform: "translateY(-50%)",
-          background: "rgba(0,0,0,0.50)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          zIndex: 20,
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d={chatOpen ? "M9 2L4 7l5 5" : "M5 2l5 5-5 5"} stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
       {/* BOTTOM GRADIENT */}
-      <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{
-        height: 380,
-        background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 50%, transparent 100%)",
-        zIndex: 10,
+      <div style={{
+        position:"absolute", bottom:0, left:0, right:0, height:280, pointerEvents:"none", zIndex:10,
+        background:"linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.45) 55%, transparent 100%)",
       }}/>
 
-      {/* CHAT + INPUT */}
-      <div
-        className="absolute bottom-0 left-0 right-0 px-3"
-        style={{
-          zIndex: 20,
-          paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))",
-          transform: chatOpen ? "translateX(0)" : "translateX(-110%)",
-          transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
-        }}
-      >
+      {/* CHAT MESSAGES + INPUT */}
+      <div style={{
+        position:"absolute", bottom:0, left:0, right:0, zIndex:20,
+        padding:"0 12px 16px",
+      }}>
         {/* Messages */}
-        <div className="mb-3 flex flex-col gap-1.5" style={{ maxHeight: 220, overflowY: "auto" }}>
-          {chat.slice(-8).map((m, i) => (
-            <div key={i} className="flex items-start gap-2 w-fit max-w-[82%]">
-              <div className="w-6 h-6 rounded-full shrink-0 mt-0.5 flex items-center justify-center text-[9px] font-black text-black"
-                style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)" }}>
+        <div style={{ marginBottom:10, display:"flex", flexDirection:"column", gap:6, maxHeight:160, overflowY:"auto" }}>
+          {chat.slice(-6).map((m, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:7, maxWidth:"75%" }}>
+              <div style={{
+                width:24, height:24, borderRadius:"50%", flexShrink:0, marginTop:2,
+                background:"linear-gradient(135deg,#00FF85,#00cc6a)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:9, fontWeight:900, color:"#080808",
+              }}>
                 {m.name[0]?.toUpperCase()}
               </div>
-              <div className="rounded-2xl rounded-tl-sm px-3 py-2"
-                style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <span className="text-[#00FF85] text-[11px] font-bold mr-1.5">{m.name}</span>
-                <span className="text-white/85 text-xs">{m.text}</span>
+              <div style={{
+                background:"rgba(0,0,0,0.55)", backdropFilter:"blur(8px)",
+                border:"1px solid rgba(255,255,255,0.07)",
+                borderRadius:"14px 14px 14px 2px", padding:"6px 10px",
+              }}>
+                <span style={{ color:"#00FF85", fontSize:11, fontWeight:700, marginRight:6 }}>{m.name}</span>
+                <span style={{ color:"rgba(255,255,255,0.85)", fontSize:12 }}>{m.text}</span>
               </div>
             </div>
           ))}
           <div ref={chatEndRef}/>
         </div>
 
-        {/* Input row */}
-        <form onSubmit={sendChat} className="flex gap-2 items-center">
+        {/* Input */}
+        <form onSubmit={sendChat} style={{ display:"flex", gap:8, alignItems:"center" }}>
           <input
             ref={inputRef}
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
             placeholder="Say something..."
-            className="flex-1 text-sm text-white placeholder:text-white/35 focus:outline-none"
             style={{
-              background: "rgba(255,255,255,0.10)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 999,
-              padding: "10px 18px",
-              transition: "border-color 0.2s",
+              flex:1, background:"rgba(255,255,255,0.10)", backdropFilter:"blur(12px)",
+              border:"1px solid rgba(255,255,255,0.18)", borderRadius:999,
+              padding:"9px 16px", fontSize:13, color:"#fff", outline:"none",
             }}
-            onFocus={e => e.target.style.borderColor = "rgba(0,255,133,0.5)"}
-            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
+            onFocus={e => e.currentTarget.style.borderColor = "rgba(0,255,133,0.6)"}
+            onBlur={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"}
           />
           <button
             type="submit"
             disabled={!chatInput.trim()}
-            className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90"
-            style={{ background: "linear-gradient(135deg,#00FF85,#00cc6a)" }}
+            style={{
+              width:40, height:40, borderRadius:"50%", flexShrink:0,
+              background:"linear-gradient(135deg,#00FF85,#00cc6a)",
+              border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+              opacity: chatInput.trim() ? 1 : 0.3,
+            }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -360,6 +416,7 @@ export default function StreamPage() {
           </button>
         </form>
       </div>
+
     </div>
   );
 }
