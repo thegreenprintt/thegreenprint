@@ -224,7 +224,7 @@ export default function GoLivePage() {
         const dst = ctx.createMediaStreamDestination();
         audioDstRef.current = dst;
         ctx.createMediaStreamSource(mic).connect(dst);
-        // Mic-only audio — screen audio NOT mixed in to prevent echo/feedback
+        // Mic-only audio â screen audio NOT mixed in to prevent echo/feedback
         log("Mic ready. Going live...");
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
@@ -247,7 +247,7 @@ export default function GoLivePage() {
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          // Screen: COVER fill â scales to fill 1920x1080, crops edges on ultrawide (no black bars)
+          // Screen: COVER fill Ã¢ÂÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
           const srcW = svr.videoWidth || 1920;
           const srcH = svr.videoHeight || 1080;
           const scale = Math.max(1920 / srcW, 1080 / srcH);
@@ -316,6 +316,8 @@ export default function GoLivePage() {
       }
 
       const liveTitle = title || "The Greenprint - Live Session";
+      // Keep broadcaster screen awake during stream
+      try { (navigator as any).wakeLock?.request("screen"); } catch {}
       setIsLive(true);
       await setLiveStatus(true, liveTitle);
       log(`LIVE - broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewers...`);
