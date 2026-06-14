@@ -248,11 +248,21 @@ export default function GoLivePage() {
         }
         const pipCanvas = document.createElement("canvas");
         pipCanvasRef.current = pipCanvas;
-        pipCanvas.width  = svr.videoWidth  || 1920;
-        pipCanvas.height = svr.videoHeight || 1080;
+        pipCanvas.width  = 1920;
+        pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext("2d")!;
         const drawPip = () => {
-          pipCtx.drawImage(svr, 0, 0, pipCanvas.width, pipCanvas.height);
+          // Scale screen to fit 1920x1080 letterboxed (handles ultrawide / any aspect ratio)
+          const srcW = svr.videoWidth || 1920;
+          const srcH = svr.videoHeight || 1080;
+          const scale = Math.min(1920 / srcW, 1080 / srcH);
+          const dw = srcW * scale;
+          const dh = srcH * scale;
+          const dx = (1920 - dw) / 2;
+          const dy = (1080 - dh) / 2;
+          pipCtx.fillStyle = "#000";
+          pipCtx.fillRect(0, 0, 1920, 1080);
+          pipCtx.drawImage(svr, dx, dy, dw, dh);
           const cv = camVideoRef.current;
           if (camStreamRef.current && cv && cv.readyState >= 2) {
             const pw = Math.round(pipCanvas.width * 0.22);
