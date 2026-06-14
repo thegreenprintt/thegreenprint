@@ -33,7 +33,7 @@ export default function StreamPage() {
   const [elapsed, setElapsed]     = useState("00:00:00");
   const [leads, setLeads] = useState<{name:string;email:string;phone:string;ts:number}[]>([]);
   const [showLeads, setShowLeads] = useState(false);
-  const isHost = new URLSearchParams(window.location.search).has("host");
+  const [isHost] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("host"));
   const [muted, setMuted]         = useState(true);
   const [desktop, setDesktop]     = useState(false);
 
