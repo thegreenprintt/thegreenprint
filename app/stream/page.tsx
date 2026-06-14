@@ -24,12 +24,13 @@ export default function StreamPage() {
   const [name, setName]           = useState("");
   const [nameSet, setNameSet]     = useState(false);
   const [isLive, setIsLive]       = useState(false);
-  const [title, setTitle]         = useState("The Greenprint • Live");
+  const [title, setTitle]         = useState("The Greenprint Live");
   const [connected, setConnected] = useState(false);
   const [viewers, setViewers]     = useState(0);
   const [chat, setChat]           = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [elapsed, setElapsed]     = useState("00:00:00");
+  const [muted, setMuted]         = useState(true); // start muted, user taps to unmute
 
   const videoRef   = useRef<HTMLVideoElement>(null);
   const peerRef    = useRef<any>(null);
@@ -40,7 +41,7 @@ export default function StreamPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
-  // Hide global chrome (disclaimer bar etc.)
+  // Hide disclaimer bar
   useEffect(() => {
     document.body.style.overflow = "hidden";
     const style = document.createElement("style");
@@ -99,7 +100,7 @@ export default function StreamPage() {
           }
           if (d?.t === "vc") setViewers(d.count ?? 0);
           if (d?.t === "chat") {
-            setChat(prev => [...prev.slice(-79), { name: d.name, text: d.msg, ts: Date.now() }]);
+            setChat(prev => [...prev.slice(-199), { name: d.name, text: d.msg, ts: Date.now() }]);
           }
         });
         conn.on("close", () => setConnected(false));
@@ -110,7 +111,10 @@ export default function StreamPage() {
         call.on("stream", (stream: MediaStream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
+            // Start muted so autoplay works, user taps to unmute
+            videoRef.current.muted = true;
             videoRef.current.play().catch(() => {});
+            setMuted(true);
           }
           setConnected(true);
           startRef.current = Date.now();
@@ -137,6 +141,7 @@ export default function StreamPage() {
     if (nameSet && isLive) startPeer();
   }, [nameSet, isLive, startPeer]);
 
+  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
@@ -146,17 +151,27 @@ export default function StreamPage() {
     try { peerRef.current?.destroy(); } catch {}
   }, []);
 
+  function toggleMute() {
+    if (!videoRef.current) return;
+    const nowMuted = !muted;
+    videoRef.current.muted = nowMuted;
+    if (!nowMuted) {
+      videoRef.current.play().catch(() => {});
+    }
+    setMuted(nowMuted);
+  }
+
   function sendChat(e: React.FormEvent) {
     e.preventDefault();
     const txt = chatInput.trim();
     if (!txt || !connRef.current) return;
     connRef.current.send({ t: "chat", name, msg: txt });
-    setChat(prev => [...prev.slice(-79), { name, text: txt, ts: Date.now() }]);
+    setChat(prev => [...prev.slice(-199), { name, text: txt, ts: Date.now() }]);
     setChatInput("");
     inputRef.current?.blur();
   }
 
-  // Name gate
+  // ── Name gate ─────────────────────────────────────────────────────────────
   if (!nameSet) {
     return (
       <div style={{ position: "fixed", inset: 0, background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px", zIndex: 9999 }}>
@@ -183,128 +198,148 @@ export default function StreamPage() {
     );
   }
 
-  // ── MAIN VIEW ─────────────────────────────────────────────────────────────
-  // Video fills entire fixed canvas (objectFit: contain = full 16:9 content, no cropping)
-  // Overlays sit on top: top-bar over the top letterbox area, chat over the bottom area
+  // ── Main view ─────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 9999, overflow: "hidden" }}>
+    <div style={{ position: "fixed", inset: 0, background: "#0a0a0a", zIndex: 9999, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* VIDEO — full screen background, content always fully visible */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{
-          position: "absolute", inset: 0,
-          width: "100%", height: "100%",
-          objectFit: "contain",
-          background: "#000",
-          display: connected ? "block" : "none",
-        }}
-      />
+      {/* ── VIDEO (fills width at 16:9) ── */}
+      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", flexShrink: 0, background: "#000", overflow: "hidden" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#000", display: connected ? "block" : "none" }}
+        />
 
-      {/* OFFLINE STATE */}
-      {!connected && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-          <div style={{ width: 72, height: 72, borderRadius: 22, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 48px rgba(0,255,133,0.35)", position: "relative" }}>
-            <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
-              <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        {/* Offline */}
+        {!connected && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 40px rgba(0,255,133,0.3)", position: "relative" }}>
+              <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                <path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {isLive && <div style={{ position: "absolute", top: -4, right: -4, width: 13, height: 13, background: "#ef4444", borderRadius: "50%", border: "2px solid #000" }}/>}
+            </div>
+            <p style={{ color: "#fff", fontWeight: 800, fontSize: 15, margin: 0, textAlign: "center" }}>
+              {isLive ? "Connecting..." : "Not live yet"}
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0, textAlign: "center" }}>
+              {isLive ? "Hang tight, loading video..." : "The Greenprint will go live soon"}
+            </p>
+          </div>
+        )}
+
+        {/* Top gradient */}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom,rgba(0,0,0,0.8),transparent)", pointerEvents: "none" }}/>
+
+        {/* Top bar */}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 8, padding: "12px 12px 0", zIndex: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid #00FF85", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "#080808", fontWeight: 900, fontSize: 12 }}>G</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ color: "#fff", fontWeight: 700, fontSize: 12, margin: 0, lineHeight: 1.2 }}>The Greenprint</p>
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+          </div>
+          {isLive && connected && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 6, padding: "3px 7px", flexShrink: 0 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#f87171" }}/>
+              <span style={{ color: "#f87171", fontSize: 9, fontWeight: 900, letterSpacing: 1.5 }}>LIVE</span>
+            </div>
+          )}
+          {connected && <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontFamily: "monospace", flexShrink: 0 }}>{viewers || 1} watching</span>}
+          {connected && <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: "monospace", flexShrink: 0 }}>{elapsed}</span>}
+        </div>
+
+        {/* Tap to unmute button */}
+        {connected && muted && (
+          <button
+            onClick={toggleMute}
+            style={{
+              position: "absolute", bottom: 10, right: 10, zIndex: 10,
+              display: "flex", alignItems: "center", gap: 6,
+              background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999,
+              padding: "7px 12px", cursor: "pointer", color: "#fff", fontSize: 12, fontWeight: 700,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
+              <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            {isLive && (
-              <div style={{ position: "absolute", top: -5, right: -5, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", border: "2.5px solid #000" }}/>
-            )}
-          </div>
-          <div style={{ textAlign: "center", padding: "0 32px" }}>
-            <p style={{ color: "#fff", fontWeight: 900, fontSize: 18, margin: "0 0 8px" }}>
-              {isLive ? "Connecting to stream…" : "No live session right now"}
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, margin: 0 }}>
-              {isLive ? "Loading video, hang tight…" : "The Greenprint will go live soon"}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* TOP GRADIENT (blends into content) */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 110, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, transparent 100%)" }}/>
-
-      {/* TOP BAR — sits in the dark area above the 16:9 video on portrait phones */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 10, padding: "16px 16px 0", zIndex: 20 }}>
-        {/* Avatar */}
-        <div style={{ width: 38, height: 38, borderRadius: "50%", border: "2.5px solid #00FF85", background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span style={{ color: "#080808", fontWeight: 900, fontSize: 14 }}>G</span>
-        </div>
-        {/* Title */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: "#fff", fontWeight: 700, fontSize: 14, margin: 0, lineHeight: 1.2 }}>The Greenprint</p>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
-        </div>
-        {/* LIVE badge */}
-        {isLive && connected && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 8, padding: "4px 9px", flexShrink: 0 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171" }}/>
-            <span style={{ color: "#f87171", fontSize: 11, fontWeight: 900, letterSpacing: 2 }}>LIVE</span>
-          </div>
+            Tap to unmute
+          </button>
         )}
-        {/* Viewers */}
-        {connected && (
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: "monospace", flexShrink: 0 }}>
-            👁 {viewers || 1}
-          </span>
-        )}
-        {/* Timer */}
-        {connected && (
-          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "monospace", flexShrink: 0 }}>{elapsed}</span>
+
+        {/* Mute/unmute toggle when already unmuted */}
+        {connected && !muted && (
+          <button
+            onClick={toggleMute}
+            style={{
+              position: "absolute", bottom: 10, right: 10, zIndex: 10,
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
+              <path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
         )}
       </div>
 
-      {/* BOTTOM GRADIENT */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 320, pointerEvents: "none", background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 55%, transparent 100%)" }}/>
+      {/* ── CHAT SECTION (fills remaining screen below video) ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
 
-      {/* CHAT + INPUT — overlaid at bottom, sits in the dark gradient area */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20, padding: "0 14px 18px" }}>
-        {/* Messages */}
-        <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 7, maxHeight: 200, overflowY: "auto" }}>
-          {chat.slice(-7).map((m, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, maxWidth: "85%" }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: "#080808", marginTop: 2 }}>
+        {/* Chat header */}
+        <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, display: "flex", alignItems: "center", gap: 7 }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: isLive && connected ? "#00FF85" : "rgba(255,255,255,0.2)", flexShrink: 0 }}/>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, margin: 0, letterSpacing: 1.5, textTransform: "uppercase" }}>
+            Live Chat {chat.length > 0 && <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>({chat.length})</span>}
+          </p>
+        </div>
+
+        {/* Messages — scrollable, shows ALL messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+          {chat.length === 0 && (
+            <p style={{ color: "rgba(255,255,255,0.18)", fontSize: 12, textAlign: "center", marginTop: 20 }}>
+              Chat will appear here...
+            </p>
+          )}
+          {chat.map((m, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#080808", marginTop: 1 }}>
                 {m.name[0]?.toUpperCase()}
               </div>
-              <div style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px 14px 14px 3px", padding: "7px 11px" }}>
-                <span style={{ color: "#00FF85", fontSize: 11, fontWeight: 700, marginRight: 6 }}>{m.name}</span>
-                <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 12 }}>{m.text}</span>
+              <div style={{ flex: 1, lineHeight: 1.5 }}>
+                <span style={{ color: "#00FF85", fontSize: 12, fontWeight: 700, marginRight: 6 }}>{m.name}</span>
+                <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, wordBreak: "break-word" }}>{m.text}</span>
               </div>
             </div>
           ))}
           <div ref={chatEndRef}/>
         </div>
 
-        {/* Input row */}
-        <form onSubmit={sendChat} style={{ display: "flex", gap: 9, alignItems: "center" }}>
+        {/* Input */}
+        <form onSubmit={sendChat} style={{ padding: "10px 14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 9, alignItems: "center", flexShrink: 0 }}>
           <input
             ref={inputRef}
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
-            placeholder="Say something…"
-            style={{
-              flex: 1, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(14px)",
-              border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999,
-              padding: "11px 16px", fontSize: 14, color: "#fff", outline: "none",
-            }}
-            onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,133,0.6)")}
-            onBlur={e  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)")}
+            placeholder="Say something..."
+            style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none" }}
+            onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,255,133,0.55)")}
+            onBlur={e  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)")}
           />
           <button
             type="submit"
             disabled={!chatInput.trim()}
-            style={{
-              width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg,#00FF85,#00cc6a)",
-              border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              opacity: chatInput.trim() ? 1 : 0.3,
-              boxShadow: chatInput.trim() ? "0 0 16px rgba(0,255,133,0.4)" : "none",
-            }}
+            style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, background: "linear-gradient(135deg,#00FF85,#00cc6a)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: chatInput.trim() ? 1 : 0.3 }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 7h12M7 1l6 6-6 6" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
