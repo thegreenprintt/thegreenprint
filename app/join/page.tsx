@@ -192,7 +192,7 @@ export default function JoinPage() {
         )}
 
         <p className="text-[10px] text-muted text-center max-w-lg mx-auto">
-          Payments processed securely via Whop. Cancel anytime from your dashboard.{" "}
+          Payments processed securely via Stripe. Cancel anytime from your dashboard.{" "}
           <Link href="/refund-policy" className="underline">See Refund Policy</Link> for full details.
         </p>
       </div>
