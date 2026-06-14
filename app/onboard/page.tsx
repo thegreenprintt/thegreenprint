@@ -54,8 +54,8 @@ export default function OnboardPage() {
           </div>
           <span className="font-bold tracking-widest uppercase text-text text-sm">The Greenprint</span>
         </div>
-        <h1 className="text-2xl font-bold text-text text-center mb-2">Member Onboarding</h1>
-        <p className="text-muted text-sm text-center mb-8">Enter the access code to continue.</p>
+        <h1 className="text-2xl font-bold text-text text-center mb-2">Welcome to The Greenprint</h1>
+        <p className="text-muted text-sm text-center mb-8">New member or already enrolled? Enter your access code below to get started.</p>
         <input
           type="password"
           value={pw}
