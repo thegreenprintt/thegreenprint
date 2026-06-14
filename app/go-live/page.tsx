@@ -183,6 +183,24 @@ export default function GoLivePage() {
     try {
       const call = peerRef.current.call(pid, outStreamRef.current);
       viewersRef.current[pid].call = call;
+      // Boost WebRTC video bitrate to 20Mbps for crisp 4K-quality stream
+      const boostBitrate = () => {
+        try {
+          const pc = (call as any).peerConnection;
+          if (!pc) return;
+          pc.getSenders().forEach((s: any) => {
+            if (s.track?.kind === "video") {
+              const p = s.getParameters();
+              if (!p.encodings?.length) p.encodings = [{}];
+              p.encodings[0].maxBitrate = 20_000_000; // 20 Mbps
+              p.encodings[0].maxFramerate = 60;
+              s.setParameters(p).catch(() => {});
+            }
+          });
+        } catch {}
+      };
+      setTimeout(boostBitrate, 1000);
+      setTimeout(boostBitrate, 3000);
       call.on("error", () => { try { call.close(); } catch {} });
     } catch {}
   }
@@ -229,7 +247,7 @@ export default function GoLivePage() {
           ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
           log("Screen + mic audio mixed. Going live...");
         } else {
-          log("Mic ready (no screen audio â remember to tick Share Audio in Chrome). Going live...");
+          log("Mic ready (no screen audio Ã¢ÂÂ remember to tick Share Audio in Chrome). Going live...");
         }
         outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
       } catch {
@@ -248,21 +266,17 @@ export default function GoLivePage() {
         }
         const pipCanvas = document.createElement("canvas");
         pipCanvasRef.current = pipCanvas;
-        pipCanvas.width  = 1920;
-        pipCanvas.height = 1080;
+        pipCanvas.width  = svr.videoWidth  || 1920;
+        pipCanvas.height = svr.videoHeight || 1080;
+        const CW = pipCanvas.width;
+        const CH = pipCanvas.height;
         const pipCtx = pipCanvas.getContext("2d")!;
+        pipCtx.imageSmoothingEnabled = true;
+        pipCtx.imageSmoothingQuality = "high"; // maximum quality scaling for trading clarity
         const drawPip = () => {
-          // Screen: COVER fill ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ scales to fill 1920x1080, crops edges on ultrawide (no black bars)
-          const srcW = svr.videoWidth || 1920;
-          const srcH = svr.videoHeight || 1080;
-          const scale = Math.max(1920 / srcW, 1080 / srcH);
-          const dw = srcW * scale;
-          const dh = srcH * scale;
-          const dx = (1920 - dw) / 2;
-          const dy = (1080 - dh) / 2;
-          pipCtx.fillStyle = "#000";
-          pipCtx.fillRect(0, 0, 1920, 1080);
-          pipCtx.drawImage(svr, dx, dy, dw, dh);
+          // Draw screen at native resolution — 1:1 pixel mapping, no downscale blur
+          pipCtx.clearRect(0, 0, CW, CH);
+          pipCtx.drawImage(svr, 0, 0, CW, CH);
 
           // Camera PiP: bottom-right, 18% width, 16:9, rounded corners, green border
           const cv = camVideoRef.current;
