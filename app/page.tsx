@@ -743,6 +743,41 @@ function Testimonials() {
 }
 
 /* ─── Book a Call ───────────────────────────────────────────────── */
+function MemberAccess() {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(false);
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pw === 'legacy') {
+      window.location.href = '/onboard';
+    } else {
+      setErr(true);
+      setTimeout(() => setErr(false), 2000);
+    }
+  }
+  return (
+    <section id='member-access' className="py-24 px-6 border-t border-white/5">
+      <div className="max-w-md mx-auto text-center">
+        <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Member Access</span>
+        <h2 className="text-3xl sm:text-4xl font-bold text-white mt-3 mb-4">Already Enrolled?</h2>
+        <p className="text-white/50 mb-10">New member or returning — enter your access code to begin your onboarding.</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input
+            type="password"
+            value={pw}
+            onChange{}e {} { setPw(e.target.value); setErr(false); }}
+            placeholder="Enter access code"
+            className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none text-center text-lg tracking-widest"
+          />
+          {err && <p className="text-red-400 text-sm mt-1">Incorrect access code. Try again.</p>}
+          <button type="submit" className="w-full py-4 rounded-xl bg-[#00FF85] text-black font-bold text-base">
+            Get Started →
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
 function BookACall() {
   return (
     <section className="py-24">
@@ -875,6 +910,7 @@ export default function HomePage() {
       <LiveCallout />
       <Pricing />
       <Testimonials />
+      <MemberAccess />
       <BookACall />
       <Footer />
     </main>
