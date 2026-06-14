@@ -11,7 +11,7 @@ const RTDB_URL =
 
 interface ChatMsg { name: string; text: string; ts: number; }
 
-/* ─── Email Gate ─────────────────────────────────────────────── */
+/* âââ Email Gate âââââââââââââââââââââââââââââââââââââââââââââââ */
 function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,7 +25,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
     setLoading(true);
     setError("");
 
-    // Store subscriber info — you can wire this to your email list / Supabase later
+    // Store subscriber info â you can wire this to your email list / Supabase later
     try {
       sessionStorage.setItem("gp_stream_access", JSON.stringify({ name: name.trim(), email: email.trim(), ts: Date.now() }));
     } catch {}
@@ -115,10 +115,10 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  Getting you in…
+                  Getting you inâ¦
                 </span>
               ) : (
-                "Watch Free — Get Access"
+                "Watch Free â Get Access"
               )}
             </button>
           </form>
@@ -134,7 +134,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
 
         <div className="flex justify-center mt-6">
           <Link href="/" className="text-white/25 text-xs hover:text-white/50 transition-colors">
-            ← Back to The Greenprint
+            â Back to The Greenprint
           </Link>
         </div>
       </div>
@@ -142,7 +142,7 @@ function EmailGate({ onAccess }: { onAccess: (name: string) => void }) {
   );
 }
 
-/* ─── Stream Player ──────────────────────────────────────────── */
+/* âââ Stream Player ââââââââââââââââââââââââââââââââââââââââââââ */
 function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerRef = useRef<any>(null);
@@ -151,7 +151,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   const [liveTitle, setLiveTitle] = useState("");
   const [viewerCount, setViewerCount] = useState(0);
   const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState("Checking stream status…");
+  const [status, setStatus] = useState("Checking stream statusâ¦");
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
 
@@ -163,7 +163,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
         const d = await r.json();
         if (d?.isLive) {
           setIsLive(true);
-          setLiveTitle(d.title || "The Greenprint — Live Session");
+          setLiveTitle(d.title || "The Greenprint â Live Session");
         } else {
           setIsLive(false);
           setConnected(false);
@@ -179,7 +179,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   // Load PeerJS and connect when live
   useEffect(() => {
     if (!isLive) return;
-    setStatus("Connecting to stream…");
+    setStatus("Connecting to streamâ¦");
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
     script.onload = () => initPeer();
@@ -195,11 +195,11 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   function initPeer() {
     if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
     const PeerJS = (window as any).Peer;
-    const peer = new PeerJS(undefined, { debug: 0 });
+    const peer = new PeerJS(undefined, { debug: 0, config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" },{ urls: "stun:stun1.l.google.com:19302" },{ urls: "stun:stun2.l.google.com:19302" }] } });
     peerRef.current = peer;
 
     peer.on("open", (id: string) => {
-      setStatus("Waiting for stream…");
+      setStatus("Waiting for streamâ¦");
       try {
         const conn = peer.connect(HOST_PEER_ID, { reliable: true });
         connRef.current = conn;
@@ -227,7 +227,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
         setConnected(true);
         setStatus("");
       });
-      call.on("close", () => { setConnected(false); setStatus("Reconnecting…"); setTimeout(initPeer, 3000); });
+      call.on("close", () => { setConnected(false); setStatus("Reconnectingâ¦"); setTimeout(initPeer, 3000); });
     });
 
     peer.on("error", () => { setTimeout(() => { if (isLive) initPeer(); }, 4000); });
@@ -301,11 +301,11 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
                     The Greenprint will be live soon. When a session starts, it will appear here automatically.
                   </p>
                   <p className="text-xs text-white/20">
-                    Hi, {viewerName} — you&apos;re subscribed. You&apos;ll get access the moment the stream goes live.
+                    Hi, {viewerName} â you&apos;re subscribed. You&apos;ll get access the moment the stream goes live.
                   </p>
                   {!isAppMode && (
                     <Link href="/#pricing" className="mt-6 inline-block text-[#00FF85] text-sm font-semibold hover:underline">
-                      Upgrade for more access →
+                      Upgrade for more access â
                     </Link>
                   )}
                 </div>
@@ -341,7 +341,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendChat()}
-              placeholder="Say something…"
+              placeholder="Say somethingâ¦"
               className="flex-1 bg-white/5 border border-white/8 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors min-w-0"
             />
             <button onClick={sendChat}
@@ -362,7 +362,7 @@ function StreamPlayer({ viewerName, isAppMode }: { viewerName: string; isAppMode
   );
 }
 
-/* ─── Root ───────────────────────────────────────────────────── */
+/* âââ Root âââââââââââââââââââââââââââââââââââââââââââââââââââââ */
 function StreamInner() {
   const searchParams = useSearchParams();
   const isAppMode = searchParams.get("app") === "1";
