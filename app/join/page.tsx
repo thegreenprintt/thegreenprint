@@ -9,31 +9,7 @@ const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
 const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
 
 const TIERS = [
-  {
-    name: "The Greenprint",
-    price: "$29", cents: ".99", period: "/month",
-    tagline: "Limited spots available.",
-    desc: "Full access to everything â live streams, real-time alerts, mobile app, scanner, and the private community.",
-    highlight: true,
-    badge: "â¡ LIMITED SPOTS",
-    badgeColor: "#00FF85",
-    cta: "Join The Greenprint â $29.99/mo",
-    ctaStyle: "green",
-    url: WHOP_CHECKOUT,
-    affiliate: false,
-    included: [
-      "All live trading sessions with Jay",
-      "Real-time trade alerts",
-      "Mobile app access (iOS + Android)",
-      "Scanner â real-time signals",
-      "Private member community (Telegram)",
-      "Stream replay library",
-      "Weekly market breakdowns",
-      "Trading playbook & education",
-      "New content added weekly",
-    ],
-  },
-  {
+ {
     name: "1House Global â Stream",
     price: "$99", cents: "", period: "/month",
     tagline: "Via our affiliate partner.",
