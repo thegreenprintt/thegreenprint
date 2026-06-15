@@ -41,11 +41,11 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdnjs.cloudflare.com",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https:",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss: https://api.stripe.com https:",
               "frame-src https://js.stripe.com https://checkout.stripe.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
