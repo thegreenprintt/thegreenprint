@@ -211,149 +211,149 @@ export default function GoLivePage() {
     });
   }
 
-  async function goLive() {
+    async function goLive() {
     if (!navigator.mediaDevices?.getDisplayMedia) {
       log("Use Chrome or Edge on desktop for screen sharing.");
       return;
     }
-    log("Choose your screen - select 'Share Audio' if you want system sound.");
-    try {
-      const scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60 }, width: { ideal: 3840 }, height: { ideal: 2160 }, cursor: "always" } as any,
-        audio: { echoCancellation: false, noiseSuppression: false } as any,
-      });
-      screenStreamRef.current = scrn;
-      if (screenVideoRef.current) {
-        screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
-        screenVideoRef.current.muted = true;
-        screenVideoRef.current.style.display = "block";
-      }
 
-      log("Screen captured - requesting mic...");
-      const mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000, channelCount: { ideal: 2 } },
+    // Step 1: Screen share — own try/catch, returns early on failure
+    log("Select your screen or window to share...");
+    let scrn: MediaStream;
+    try {
+      scrn = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: true,
+      });
+    } catch (err: any) {
+      if (err.name === "NotAllowedError" || err.name === "AbortError") {
+        log("Screen share cancelled. Press Go Live to try again.");
+      } else {
+        log("Screen share error: " + (err.message || "unknown") + ". On Mac: System Settings > Privacy > Screen Recording > enable Chrome.");
+      }
+      return;
+    }
+
+    screenStreamRef.current = scrn;
+    if (screenVideoRef.current) {
+      screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
+      screenVideoRef.current.muted = true;
+      screenVideoRef.current.style.display = "block";
+    }
+
+    // Step 2: Mic — optional, stream continues even if mic denied
+    log("Screen captured. Requesting microphone...");
+    let mic: MediaStream | null = null;
+    try {
+      mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 },
         video: false,
       });
       micStreamRef.current = mic;
-
-      try {
-        const ctx = new AudioContext();
-        audioCtxRef.current = ctx;
-        const dst = ctx.createMediaStreamDestination();
-        audioDstRef.current = dst;
-        ctx.createMediaStreamSource(mic).connect(dst);
-        const screenAudio = scrn.getAudioTracks();
-        if (screenAudio.length > 0) {
-          ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
-          log("Screen + mic audio mixed. Going live...");
-        } else {
-          log("Mic ready (no screen audio Ã¢ÂÂ remember to tick Share Audio in Chrome). Going live...");
-        }
-        outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], dst.stream.getAudioTracks()[0]]);
-      } catch {
-        outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...mic.getAudioTracks()]);
-        log("Mic ready. Going live...");
-      }
-
-      // PiP canvas compositor: screen fills frame, camera as corner overlay
-      try {
-        const svr = screenVideoRef.current!;
-        if (svr.videoWidth === 0) {
-          await new Promise<void>(res => {
-            svr.onloadedmetadata = () => res();
-            setTimeout(res, 2000);
-          });
-        }
-        const pipCanvas = document.createElement("canvas");
-        pipCanvasRef.current = pipCanvas;
-        pipCanvas.width  = svr.videoWidth  || 1920;
-        pipCanvas.height = svr.videoHeight || 1080;
-        const CW = pipCanvas.width;
-        const CH = pipCanvas.height;
-        const pipCtx = pipCanvas.getContext("2d")!;
-        pipCtx.imageSmoothingEnabled = true;
-        pipCtx.imageSmoothingQuality = "high"; // maximum quality scaling for trading clarity
-        const drawPip = () => {
-          // Draw screen at native resolution — 1:1 pixel mapping, no downscale blur
-          pipCtx.clearRect(0, 0, CW, CH);
-          pipCtx.drawImage(svr, 0, 0, CW, CH);
-
-          // Camera PiP: bottom-right, 18% width, 16:9, rounded corners, green border
-          const cv = camVideoRef.current;
-          if (camStreamRef.current && cv && cv.readyState >= 2) {
-            const pw = Math.round(pipCanvas.width * 0.18);   // ~346px
-            const ph = Math.round(pw * 9 / 16);               // 16:9 = ~195px
-            const px = pipCanvas.width  - pw - 36;
-            const py = pipCanvas.height - ph - 36;
-            const r  = 22;
-
-            // Helper: draw rounded rect path
-            const rr = () => {
-              pipCtx.beginPath();
-              pipCtx.moveTo(px + r, py);
-              pipCtx.lineTo(px + pw - r, py);
-              pipCtx.quadraticCurveTo(px + pw, py, px + pw, py + r);
-              pipCtx.lineTo(px + pw, py + ph - r);
-              pipCtx.quadraticCurveTo(px + pw, py + ph, px + pw - r, py + ph);
-              pipCtx.lineTo(px + r, py + ph);
-              pipCtx.quadraticCurveTo(px, py + ph, px, py + ph - r);
-              pipCtx.lineTo(px, py + r);
-              pipCtx.quadraticCurveTo(px, py, px + r, py);
-              pipCtx.closePath();
-            };
-
-            // 1. Glow shadow
-            pipCtx.save();
-            pipCtx.shadowColor = "rgba(0,255,133,0.55)";
-            pipCtx.shadowBlur  = 30;
-            pipCtx.fillStyle   = "#00FF85";
-            rr(); pipCtx.fill();
-            pipCtx.restore();
-
-            // 2. Clip + draw camera
-            pipCtx.save();
-            rr(); pipCtx.clip();
-            pipCtx.drawImage(cv, px, py, pw, ph);
-            pipCtx.restore();
-
-            // 3. Green border stroke on top
-            pipCtx.save();
-            pipCtx.strokeStyle = "#00FF85";
-            pipCtx.lineWidth   = 4;
-            rr(); pipCtx.stroke();
-            pipCtx.restore();
-          }
-          pipRafRef.current = requestAnimationFrame(drawPip);
-        };
-        drawPip();
-        const canvasStream = pipCanvas.captureStream(60);
-        const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
-        outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
-        log("PiP active - canvas stream with camera overlay sent to viewers.");
-      } catch {
-        log("PiP setup failed, using raw screen stream.");
-      }
-
-      const liveTitle = title || "The Greenprint - Live Session";
-      // Keep broadcaster screen awake during stream
-      try { (navigator as any).wakeLock?.request("screen"); } catch {}
-      setIsLive(true);
-      await setLiveStatus(true, liveTitle);
-      log(`LIVE - broadcasting to ${Object.keys(viewersRef.current).length} viewer(s). Calling all waiting viewers...`);
-
-      Object.keys(viewersRef.current).forEach((pid, i) => {
-        setTimeout(() => callViewer(pid), i * 100);
-      });
-      setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 100 + 300);
-
-      scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
-    } catch (err: any) {
-      if (err.name === "NotAllowedError") {
-        log("Screen share cancelled.");
-      } else {
-        log(`Error: ${err.message}`);
-      }
+    } catch {
+      log("Mic unavailable or denied - streaming without mic. Going live...");
     }
+
+    // Step 3: Mix audio
+    try {
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const dst = ctx.createMediaStreamDestination();
+      audioDstRef.current = dst;
+      const screenAudio = scrn.getAudioTracks();
+      if (screenAudio.length > 0) ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
+      if (mic) ctx.createMediaStreamSource(mic).connect(dst);
+      const mixed = dst.stream.getAudioTracks();
+      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...(mixed.length ? [mixed[0]] : [])]);
+      const audioDesc = mic && screenAudio.length ? "Mic + screen audio mixed." : mic ? "Mic audio ready." : screenAudio.length ? "Screen audio only." : "Video only (no audio).";
+      log(audioDesc + " Going live...");
+    } catch {
+      const audioTracks = mic ? mic.getAudioTracks() : scrn.getAudioTracks();
+      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...audioTracks]);
+      log("Audio setup issue - using fallback. Going live...");
+    }
+
+    // Step 4: PiP canvas compositor: screen fills frame, camera as corner overlay
+    try {
+      const svr = screenVideoRef.current!;
+      if (svr.videoWidth === 0) {
+        await new Promise<void>(res => {
+          svr.onloadedmetadata = () => res();
+          setTimeout(res, 2000);
+        });
+      }
+      const pipCanvas = document.createElement("canvas");
+      pipCanvasRef.current = pipCanvas;
+      pipCanvas.width = svr.videoWidth || 1920;
+      pipCanvas.height = svr.videoHeight || 1080;
+      const CW = pipCanvas.width;
+      const CH = pipCanvas.height;
+      const pipCtx = pipCanvas.getContext("2d")!;
+      pipCtx.imageSmoothingEnabled = true;
+      pipCtx.imageSmoothingQuality = "high";
+      const drawPip = () => {
+        pipCtx.clearRect(0, 0, CW, CH);
+        pipCtx.drawImage(svr, 0, 0, CW, CH);
+        const cv = camVideoRef.current;
+        if (camStreamRef.current && cv && cv.readyState >= 2) {
+          const pw = Math.round(pipCanvas.width * 0.18);
+          const ph = Math.round(pw * 9 / 16);
+          const px = pipCanvas.width - pw - 36;
+          const py = pipCanvas.height - ph - 36;
+          const r = 22;
+          const rr = () => {
+            pipCtx.beginPath();
+            pipCtx.moveTo(px + r, py);
+            pipCtx.lineTo(px + pw - r, py);
+            pipCtx.quadraticCurveTo(px + pw, py, px + pw, py + r);
+            pipCtx.lineTo(px + pw, py + ph - r);
+            pipCtx.quadraticCurveTo(px + pw, py + ph, px + pw - r, py + ph);
+            pipCtx.lineTo(px + r, py + ph);
+            pipCtx.quadraticCurveTo(px, py + ph, px, py + ph - r);
+            pipCtx.lineTo(px, py + r);
+            pipCtx.quadraticCurveTo(px, py, px + r, py);
+            pipCtx.closePath();
+          };
+          pipCtx.save();
+          pipCtx.shadowColor = "rgba(0,255,133,0.55)";
+          pipCtx.shadowBlur = 30;
+          pipCtx.fillStyle = "#00FF85";
+          rr(); pipCtx.fill();
+          pipCtx.restore();
+          pipCtx.save();
+          rr(); pipCtx.clip();
+          pipCtx.drawImage(cv, px, py, pw, ph);
+          pipCtx.restore();
+          pipCtx.save();
+          pipCtx.strokeStyle = "#00FF85";
+          pipCtx.lineWidth = 4;
+          rr(); pipCtx.stroke();
+          pipCtx.restore();
+        }
+        pipRafRef.current = requestAnimationFrame(drawPip);
+      };
+      drawPip();
+      const canvasStream = pipCanvas.captureStream(60);
+      const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
+      outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
+      log("PiP active - canvas compositor running at 60fps. Broadcasting...");
+    } catch {
+      log("PiP setup failed, using direct screen stream.");
+    }
+
+    // Step 5: Go live
+    const liveTitle = title || "The Greenprint - Live Session";
+    try { (navigator as any).wakeLock?.request("screen"); } catch {}
+    setIsLive(true);
+    await setLiveStatus(true, liveTitle);
+    log("LIVE - broadcasting to " + Object.keys(viewersRef.current).length + " viewer(s). Calling all waiting viewers...");
+
+    Object.keys(viewersRef.current).forEach((pid, i) => {
+      setTimeout(() => callViewer(pid), i * 100);
+    });
+    setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 100 + 300);
+
+    scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
   }
 
   async function endStream() {
