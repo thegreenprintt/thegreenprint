@@ -60,7 +60,7 @@ export default function StreamPage() {
     document.body.style.overflow = "hidden";
     const style = document.createElement("style");
     style.id = "__sc";
-    style.textContent = `[class*="fixed"][class*="bottom-0"][class*="z-50"]{display:none!important}body{overflow:hidden!important;background:#000!important}`;
+    style.textContent = `[class*="fixed"][class*="bottom-0"][class*="z-50"]{display:none!important}body{overflow:hidden!important;background:#000!important}@keyframes gpMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`;
     document.head.appendChild(style);
     return () => { document.body.style.overflow = ""; document.getElementById("__sc")?.remove(); };
   }, []);
@@ -175,28 +175,63 @@ export default function StreamPage() {
   }
 
   if (!nameSet) return (
-    <div style={{ position:"fixed", inset:0, background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px", zIndex:9999 }}>
-      <div style={{ width:"100%", maxWidth:340 }}>
-        <div style={{ width:56, height:56, borderRadius:18, margin:"0 auto 22px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 40px rgba(0,255,133,0.4)" }}>
-          <svg width="24" height="24" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+<div style={{ position:"fixed", inset:0, background:"#040404", display:"flex", alignItems:"center", justifyContent:"center", padding:"0 20px", zIndex:9999, overflow:"hidden" }}>
+  <div style={{ position:"absolute", top:"20%", left:"50%", transform:"translateX(-50%)", width:600, height:600, borderRadius:"50%", background:"radial-gradient(circle, rgba(0,255,133,0.06) 0%, transparent 65%)", pointerEvents:"none" }}/>
+  <div style={{ position:"absolute", bottom:"15%", right:"15%", width:350, height:350, borderRadius:"50%", background:"radial-gradient(circle, rgba(0,200,100,0.04) 0%, transparent 65%)", pointerEvents:"none" }}/>
+  <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)", backgroundSize:"52px 52px", pointerEvents:"none" }}/>
+  <div style={{ position:"relative", width:"100%", maxWidth:360 }}>
+    {isLive && (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:22 }}>
+        <div style={{ position:"relative", width:8, height:8 }}>
+          <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"#ef4444" }}/>
+          <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"#ef4444", animation:"gpLivePulse 1.8s ease-out infinite" }}/>
         </div>
-        <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
-        <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your info to join the stream</p>
-        <form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); setNameSet(true);}}>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
-            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
-          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" type="email"
-            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
-          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Phone number (optional)" type="tel"
-            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
-          <button type="submit" disabled={!name.trim()||!email.trim()}
-            style={{ display:"block", width:"100%", padding:"14px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:15, fontWeight:900, color:"#080808", cursor:"pointer", opacity:(name.trim()&&email.trim())?1:0.3 }}>
-            Join Stream
-          </button>
-        </form>
+        <span style={{ color:"#f87171", fontSize:10, fontWeight:800, letterSpacing:3.5, textTransform:"uppercase" }}>Live Right Now</span>
       </div>
+    )}
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:26 }}>
+      <div style={{ width:62, height:62, borderRadius:21, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 0 1px rgba(0,255,133,0.25), 0 0 52px rgba(0,255,133,0.22)", marginBottom:14 }}>
+        <svg width="26" height="26" viewBox="0 0 20 20" fill="none"><path d="M3 14L8 8L12 12L17 5" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </div>
+      <p style={{ color:"#fff", fontWeight:900, fontSize:22, margin:"0 0 4px", letterSpacing:-0.5 }}>The <span style={{ color:"#00FF85" }}>Greenprint</span></p>
+      <p style={{ color:"rgba(255,255,255,0.32)", fontSize:13, margin:0, letterSpacing:0.2 }}>Live Trading Education Session</p>
     </div>
-  )
+    <div style={{ background:"rgba(255,255,255,0.028)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:22, padding:"26px 22px 22px", backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)" }}>
+      <form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); setNameSet(true);}}>
+        <div style={{ marginBottom:11 }}>
+          <label style={{ display:"block", color:"rgba(255,255,255,0.38)", fontSize:10, fontWeight:700, letterSpacing:2.2, textTransform:"uppercase", marginBottom:7 }}>Your Name</label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="First name" autoFocus
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.055)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:13, padding:"13px 16px", fontSize:15, color:"#fff", outline:"none", transition:"border-color 0.18s" }}
+            onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.5)")}
+            onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.1)")}/>
+        </div>
+        <div style={{ marginBottom:11 }}>
+          <label style={{ display:"block", color:"rgba(255,255,255,0.38)", fontSize:10, fontWeight:700, letterSpacing:2.2, textTransform:"uppercase", marginBottom:7 }}>Email Address</label>
+          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" type="email"
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.055)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:13, padding:"13px 16px", fontSize:15, color:"#fff", outline:"none", transition:"border-color 0.18s" }}
+            onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.5)")}
+            onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.1)")}/>
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:"block", color:"rgba(255,255,255,0.38)", fontSize:10, fontWeight:700, letterSpacing:2.2, textTransform:"uppercase", marginBottom:7 }}>Phone <span style={{ color:"rgba(255,255,255,0.2)", fontWeight:400, letterSpacing:0, textTransform:"none" }}>(optional)</span></label>
+          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(000) 000-0000" type="tel"
+            style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.055)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:13, padding:"13px 16px", fontSize:15, color:"#fff", outline:"none", transition:"border-color 0.18s" }}
+            onFocus={e=>(e.currentTarget.style.borderColor="rgba(0,255,133,0.5)")}
+            onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.1)")}/>
+        </div>
+        <button type="submit" disabled={!name.trim()||!email.trim()}
+          style={{ display:"block", width:"100%", padding:"15px", background:"linear-gradient(135deg,#00FF85,#00cc6a)", border:"none", borderRadius:14, fontSize:15, fontWeight:900, color:"#080808", cursor:(name.trim()&&email.trim())?"pointer":"not-allowed", opacity:(name.trim()&&email.trim())?1:0.3, boxShadow:(name.trim()&&email.trim())?"0 0 36px rgba(0,255,133,0.32), 0 4px 16px rgba(0,255,133,0.2)":"none", transition:"all 0.2s", letterSpacing:0.2 }}>
+          Join Live Session →
+        </button>
+      </form>
+    </div>
+    <p style={{ color:"rgba(255,255,255,0.13)", fontSize:11, textAlign:"center", marginTop:14, lineHeight:1.75 }}>
+      Free access · Educational content only · Not financial advice
+    </p>
+  </div>
+  <style>{`@keyframes gpLivePulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(3.8)} }`}</style>
+</div>
+)
 
   // Ã¢ÂÂÃ¢ÂÂ VIDEO SECTION (shared between layouts) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const videoSection = (
@@ -281,18 +316,21 @@ export default function StreamPage() {
         {chat.length===0 && (
           <p style={{ color:"rgba(255,255,255,0.18)", fontSize:13, textAlign:"center", marginTop:24 }}>Chat will appear here...</p>
         )}
-        {chat.map((m,i) => (
-          <div key={m.id||i} style={{ display:"flex", alignItems:"flex-start", gap:9 }}>
-            <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#00FF85,#00cc6a)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, color:"#080808", marginTop:1 }}>
+        {chat.map((m,i) => {
+        const palette = ['#00FF85','#38bdf8','#fb923c','#c084fc','#f472b6','#facc15'];
+        const col = palette[m.name.charCodeAt(0) % palette.length];
+        return (
+          <div key={m.id||i} style={{ display:"flex", alignItems:"flex-start", gap:9, animation:"gpMsgIn 0.18s ease-out" }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, background:`linear-gradient(135deg,${col},${col}99)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, color:"#080808", marginTop:1 }}>
               {m.name[0]?.toUpperCase()}
             </div>
-            <div style={{ flex:1, lineHeight:1.5 }}>
-              <span style={{ color:"#00FF85", fontSize:12, fontWeight:700, marginRight:6 }}>{m.name}</span>
-              <span style={{ color:"rgba(255,255,255,0.85)", fontSize:13, wordBreak:"break-word" }}>{m.text}</span>
+            <div style={{ flex:1, lineHeight:1.55 }}>
+              <span style={{ color:col, fontSize:12, fontWeight:700, marginRight:6 }}>{m.name}</span>
+              <span style={{ color:"rgba(255,255,255,0.82)", fontSize:13, wordBreak:"break-word" }}>{m.text}</span>
             </div>
           </div>
-        ))}
-        <div ref={chatEndRef}/>
+        );
+      })} <div ref={chatEndRef}/>
       </div>
 
       <form onSubmit={sendChat} style={{ padding:"10px 14px calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid rgba(255,255,255,0.07)", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
