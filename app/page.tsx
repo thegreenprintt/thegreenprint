@@ -156,7 +156,7 @@ function Nav() {
             className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2">
             Book a Call
           </Link>
-          <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+          <Link href="/join" target="_blank" rel="noopener noreferrer"
             className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all"
             style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}>
             Join Now
@@ -186,65 +186,7 @@ function Nav() {
             ))}
             <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
               className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
-            <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-              className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center">
-              Join Now
-            </Link>
-          </div>
-        </div>
-      )}
-    </nav>
-  );
-}
-
-/* ─── Hero ──────────────────────────────────────────────────────── */
-function Hero() {
-  return (
-    <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
-      {/* Background hidden on mobile for performance */}
-      <div className="absolute inset-0 pointer-events-none hidden sm:block">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
-        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
-        <div className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "64px 64px",
-          }}
-        />
-      </div>
-      <div className="absolute inset-0 pointer-events-none sm:hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
-      </div>
-
-      <div className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
-        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
-        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community &middot; 2,400+ Members</span>
-      </div>
-
-      <h1
-        className="text-center font-black leading-[0.88] tracking-tight px-4"
-        style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
-      >
-        <span className="block text-white">TRADE</span>
-        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 60px rgba(0,255,133,0.45)" }}>
-          SMARTER.
-        </span>
-        <span className="block text-white">WIN BIGGER.</span>
-      </h1>
-
-      <p className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
-        Real-time trade alerts, live sessions, and a proven system &ndash; built to help you level up.
-      </p>
-
-      <div className="mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
-        <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
-          style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
-          Get Access
-          <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </Link>
+            
         <Link href="/stream"
           className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all w-full sm:w-auto justify-center">
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
@@ -426,7 +368,7 @@ function LiveCallout() {
                       <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </Link>
-                  <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
+                  <Link href="/join" target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 border border-white/15 text-white font-semibold px-7 py-3.5 rounded-full hover:bg-white/5 transition-all">
                     Join the Community
                   </Link>
@@ -499,58 +441,6 @@ function Pricing() {
         </FadeIn>
 
         <div className="grid md:grid-cols-3 gap-5 items-start">
-
-          <FadeIn delay={0}>
-            <div className="relative rounded-2xl p-7 flex flex-col border-2 border-[#00FF85]/50 bg-[#00FF85]/5">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
-                ⚡ LIMITED SPOTS
-              </div>
-
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-5 h-5 rounded-md bg-[#00FF85] flex items-center justify-center shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <span className="text-[#00FF85] text-sm font-bold">The Greenprint</span>
-              </div>
-
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-white/30 text-xl">$</span>
-                <span className="text-6xl font-black text-white">29</span>
-                <span className="text-white text-2xl font-black">.99</span>
-                <span className="text-white/30 text-sm">/mo</span>
-              </div>
-              <p className="text-white/40 text-sm mb-6">
-                Full access to everything The Greenprint &ndash; streams, alerts, app, and community. Priced to stay accessible.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "All live trading sessions",
-                  "Real-time trade alerts",
-                  "Mobile app access (iOS + Android)",
-                  "Private member community",
-                  "Stream replay library",
-                  "Weekly market breakdowns",
-                  "Trading playbook & education",
-                  "New content added weekly",
-                ].map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-white/70 text-sm">
-                    <Check color="#00FF85"/>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href={WHOP_CHECKOUT} target="_blank" rel="noopener noreferrer"
-                className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
-                style={{ background: "#00FF85", color: "#080808", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>
-                Join The Greenprint &ndash; $29.99/mo
-              </Link>
-              <p className="text-white/20 text-xs text-center mt-3">Cancel anytime. Limited spots available.</p>
-            </div>
-          </FadeIn>
 
           <FadeIn delay={0.12}>
             <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
@@ -863,7 +753,7 @@ function Footer() {
               {[
                 { label: "Programs", href: "#pricing", ext: false },
                 { label: "Book a Call", href: CALENDLY, ext: true },
-                { label: "Join Now", href: WHOP_URL, ext: true },
+                { label: "Join Now", href: "/join", ext: true },
                 { label: "Login", href: "/login", ext: false },
               ].map(l => (
                 <li key={l.label}>
