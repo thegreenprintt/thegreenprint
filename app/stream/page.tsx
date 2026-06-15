@@ -5,9 +5,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const HOST_PEER_ID = "gp-greenprint-live";
 const RTDB_URL = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const ICE = [
-{ urls: "stun:stun.l.google.com:19302" },
-{ urls: "stun:stun1.l.google.com:19302" },
-{ urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "turn:openrelay.metered.ca:80",               username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443",              username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:80?transport=tcp",  username: "openrelayproject", credential: "openrelayproject" },
 ];
 
 interface ChatMsg { id: string; name: string; text: string; ts: number; }
@@ -140,6 +146,17 @@ setElapsed(`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s
 call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
 });
 peer.on("error", (e: any) => { if (e.type === "peer-unavailable") setTimeout(() => startPeer(), 5000); });
+
+    peer.on('disconnected', () => {
+      if (peer && !peer.destroyed) {
+        setTimeout(() => { try { peer.reconnect(); } catch (e) {} }, 2000);
+      }
+    });
+
+    peer.on('close', () => {
+      // Peer closed — re-poll will trigger host to call again
+    });
+
 });
 }, [name]);
 
