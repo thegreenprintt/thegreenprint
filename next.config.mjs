@@ -29,7 +29,7 @@ const nextConfig = {
           // Safe referrer
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // Lock down browser features
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()" },
           // Force HTTPS for 2 years
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           // XSS filter
