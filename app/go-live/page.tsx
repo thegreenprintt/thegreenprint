@@ -525,7 +525,6 @@ export default function GoLivePage() {
                 alt="Join App QR" className="w-16 h-16 rounded-lg border border-white/10"/>
               <div>
                 <p className="text-[11px] text-white/60 font-semibold mb-0.5">The Greenprint App</p>
-                <p className="text-[10px] text-white/25 leading-relaxed">$29.99/mo - scan to join<br/>full access + mobile app</p>
                 <button onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
                   className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors">
                   Copy Link
