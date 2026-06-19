@@ -110,9 +110,7 @@ if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
       debug: 0,
       config: {
         iceServers: ICE,
-        iceTransportPolicy: "relay",
         iceCandidatePoolSize: 10,
-        bundlePolicy: "max-bundle",
       },
     });
     peerRef.current = peer;
