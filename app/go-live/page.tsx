@@ -140,7 +140,7 @@ export default function GoLivePage() {
 
   function startPeer() {
     const PeerJS = (window as any).Peer;
-    if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
+    if (peerRef.current) { try { peerRef.current.removeAllListeners(); } catch {} try { peerRef.current.destroy(); } catch {} peerRef.current = null; }
     const peer = new PeerJS(HOST_PEER_ID, {
       debug: 0,
       config: {
@@ -205,14 +205,14 @@ export default function GoLivePage() {
     });
 
         peer.on('disconnected', () => {
-      if (peer && !peer.destroyed && _shouldReconnect) {
+      if (peer && !peer.destroyed && _shouldReconnect && peerRef.current === peer) {
         log('Connection lost — reconnecting…');
-        setTimeout(() => { try { if (_shouldReconnect) peer.reconnect(); } catch (e) {} }, 2000);
+        setTimeout(() => { try { if (_shouldReconnect && peerRef.current === peer && !peer.destroyed) peer.reconnect(); } catch (e) {} }, 2000);
       }
     });
 
         peer.on('close', () => {
-      if (_shouldReconnect) {
+      if (_shouldReconnect && peerRef.current === peer) {
         log('Reconnecting…');
         setTimeout(() => { if (_shouldReconnect) startPeer(); }, 2000);
       }
