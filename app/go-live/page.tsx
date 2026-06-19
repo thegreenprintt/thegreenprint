@@ -274,7 +274,7 @@ export default function GoLivePage() {
       if (outStreamRef.current) {
         const _xpc = viewerPcsRef.current[viewerId];
         const _st = _xpc?.connectionState;
-        if (!_xpc || _st === 'failed' || _st === 'closed' || _st === 'disconnected' || _st === 'new') {
+        if (!_xpc || _st === 'failed' || _st === 'closed' || _st === 'disconnected') {
           callViewerWebRTC(viewerId, name);
         }
       }
