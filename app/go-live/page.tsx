@@ -240,9 +240,10 @@ export default function GoLivePage() {
     let scrn: MediaStream;
     try {
       scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: true,
+        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 2560, max: 3840 }, height: { ideal: 1440, max: 2160 } },
+        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
       });
+      scrn.getVideoTracks().forEach(t => { t.contentHint = "detail"; });
     } catch (err: any) {
       if (err.name === "NotAllowedError" || err.name === "AbortError") {
         log("Screen share cancelled. Press Go Live to try again.");;alert("Go Live failed — screen sharing was cancelled or blocked. Tap Go Live again and allow screen sharing when prompted.");
