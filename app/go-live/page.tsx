@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 const RTDB_URL =
   process.env.NEXT_PUBLIC_FIREBASE_RTDB_URL ||
   "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const HOST_PEER_ID = "gp-greenprint-live";
 
 const PWD_HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
 
@@ -15,7 +14,7 @@ async function sha256(text: string): Promise<string> {
 
 interface Viewer { name: string; conn: any; call: any; }
 interface ChatMsg { name: string; text: string; ts: number; }
-interface Lead   { name: string; email: string; ts: number; }
+interface Lead { name: string; email: string; ts: number; }
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -25,51 +24,75 @@ const ICE_SERVERS = [
   { urls: "stun:stun4.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
   { urls: "stun:stun.stunprotocol.org:3478" },
-  { urls: "turn:openrelay.metered.ca:80",               username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:443",              username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:80?transport=tcp",  username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:80?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
 ];
 
-let _retryCount = 0;
-let _shouldReconnect = true;
+async function fbPut(path: string, data: any) {
+  try {
+    await fetch(`${RTDB_URL}/${path}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  } catch {}
+}
 
+async function fbGet(path: string) {
+  try {
+    const r = await fetch(`${RTDB_URL}/${path}.json`, { cache: "no-store" });
+    return await r.json();
+  } catch { return null; }
+}
+
+async function fbDelete(path: string) {
+  try {
+    await fetch(`${RTDB_URL}/${path}.json`, { method: "DELETE" });
+  } catch {}
+}
 
 export default function GoLivePage() {
-  const [authed, setAuthed]         = useState(false);
-  const [pwd, setPwd]               = useState("");
-  const [authErr, setAuthErr]       = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [pwd, setPwd] = useState("");
+  const [authErr, setAuthErr] = useState("");
   const [authLocked, setAuthLocked] = useState(false);
-  const [attempts, setAttempts]     = useState(0);
+  const [attempts, setAttempts] = useState(0);
 
-  const [isLive, setIsLive]       = useState(false);
-  const [title, setTitle]         = useState("");
-  const [micOn, setMicOn]         = useState(true);
-  const [camOn, setCamOn]         = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const [title, setTitle] = useState("");
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(false);
   const [camFacing, setCamFacing] = useState<"user"|"environment">("environment");
-  const [statusLog, setStatusLog] = useState("Ready - press Go Live to start.");
-  const [elapsed, setElapsed]     = useState("00:00:00");
+  const [statusLog, setStatusLog] = useState("Ready — press Go Live to start.");
+  const [elapsed, setElapsed] = useState("00:00:00");
 
-  const screenVideoRef  = useRef<HTMLVideoElement>(null);
-  const camVideoRef     = useRef<HTMLVideoElement>(null);
-  const peerRef         = useRef<any>(null);
+  const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const camVideoRef = useRef<HTMLVideoElement>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const micStreamRef    = useRef<MediaStream | null>(null);
-  const camStreamRef    = useRef<MediaStream | null>(null);
-  const outStreamRef    = useRef<MediaStream | null>(null);
-  const viewersRef      = useRef<Record<string, Viewer>>({});
-  const audioCtxRef     = useRef<AudioContext | null>(null);
-  const audioDstRef     = useRef<MediaStreamAudioDestinationNode | null>(null);
-  const startTimeRef    = useRef<number | null>(null);
-  const timerRef        = useRef<any>(null);
-  const pipCanvasRef    = useRef<HTMLCanvasElement | null>(null);
-  const pipRafRef       = useRef<number | null>(null);
-  const chatToastTimer  = useRef<any>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const camStreamRef = useRef<MediaStream | null>(null);
+  const outStreamRef = useRef<MediaStream | null>(null);
+  const viewersRef = useRef<Record<string, Viewer>>({});
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioDstRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const timerRef = useRef<any>(null);
+  const pipCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pipRafRef = useRef<number | null>(null);
+  const chatToastTimer = useRef<any>(null);
 
-  const [chat, setChat]           = useState<ChatMsg[]>([]);
+  const viewerPcsRef = useRef<Record<string, RTCPeerConnection>>({});
+  const viewerCleanupRef = useRef<Record<string, () => void>>({});
+  const watchSseRef = useRef<EventSource | null>(null);
+  const watchCleanupRef = useRef<(() => void) | null>(null);
+  const seenViewersRef = useRef<Set<string>>(new Set());
+
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const [chatToast, setChatToast] = useState<{name:string,msg:string}|null>(null);
-  const [leads, setLeads]         = useState<Lead[]>([]);
-  const [viewers, setViewers]     = useState<Record<string, string>>({});
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [viewers, setViewers] = useState<Record<string, string>>({});
   const [peakViewers, setPeakViewers] = useState(0);
 
   const log = (msg: string) => setStatusLog(msg);
@@ -129,191 +152,243 @@ export default function GoLivePage() {
     } catch (e) { console.warn("Firebase sync error:", e); }
   }
 
-  function loadPeerJS(cb: () => void) {
-    if ((window as any).Peer) { cb(); return; }
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js";
-    s.onload = cb;
-    s.onerror = () => log("Failed to load PeerJS. Check your internet connection.");
-    document.body.appendChild(s);
-  }
+  async function callViewerWebRTC(viewerId: string, viewerName: string) {
+    if (!outStreamRef.current) return;
+    if (viewerPcsRef.current[viewerId]) {
+      try { viewerCleanupRef.current[viewerId]?.(); } catch {}
+    }
 
-  function startPeer() {
-    const PeerJS = (window as any).Peer;
-    if (peerRef.current) { try { peerRef.current.removeAllListeners(); } catch {} try { peerRef.current.destroy(); } catch {} peerRef.current = null; }
-    const peer = new PeerJS(HOST_PEER_ID, {
-      debug: 0,
-      config: {
-        iceServers: ICE_SERVERS,
-        iceCandidatePoolSize: 10,
-      },
-    });
-    peerRef.current = peer;
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 });
+    viewerPcsRef.current[viewerId] = pc;
 
-        peer.on("open", (id: string) => {
-      _retryCount = 0;
-      log("Ready — press Go Live to start broadcasting.");
-      if (outStreamRef.current) {
-        Object.keys(viewersRef.current).forEach((pid, i) => setTimeout(() => callViewer(pid), i * 200));
+    const iceCandidates: RTCIceCandidateInit[] = [];
+    let answerPollId: any;
+    let icePollId: any;
+    let gotAnswer = false;
+
+    const cleanup = () => {
+      clearInterval(answerPollId);
+      clearInterval(icePollId);
+      try { pc.close(); } catch {}
+      fbDelete(`live/offers/${viewerId}`);
+      fbDelete(`live/answers/${viewerId}`);
+      fbDelete(`live/ice_b/${viewerId}`);
+      fbDelete(`live/ice_v/${viewerId}`);
+      delete viewerPcsRef.current[viewerId];
+      delete viewerCleanupRef.current[viewerId];
+    };
+    viewerCleanupRef.current[viewerId] = cleanup;
+
+    outStreamRef.current.getTracks().forEach(t => pc.addTrack(t, outStreamRef.current!));
+
+    pc.onicecandidate = async (e) => {
+      if (e.candidate) {
+        iceCandidates.push(e.candidate.toJSON());
+        await fbPut(`live/ice_b/${viewerId}`, iceCandidates);
       }
-    });
+    };
 
-    peer.on("connection", (conn: any) => {
-      conn.on("data", (d: any) => {
-        if (d?.t === "join" || d?.t === "request") {
-          const pid = conn.peer;
-          viewersRef.current[pid] = { name: d.name || "Viewer", conn, call: null };
-          setViewers(prev => {
-            const n = { ...prev, [pid]: d.name || "Viewer" };
-            setPeakViewers(p => Math.max(p, Object.keys(n).length));
-            return n;
-          });
-          broadcast({ t: "vc", count: Object.keys(viewersRef.current).length });
-          if (outStreamRef.current) callViewer(pid);
-        }
-        if (d?.t === "chat") {
-          setChat(prev => [...prev.slice(-199), { name: d.name, text: d.msg, ts: Date.now() }]);
-          broadcast({ t: "chat", name: d.name, msg: d.msg });
-          if (chatToastTimer.current) clearTimeout(chatToastTimer.current);
-          setChatToast({ name: d.name, msg: d.msg });
-          chatToastTimer.current = setTimeout(() => setChatToast(null), 4000);
-        }
-        if (d?.t === "lead") {
-          setLeads(prev => [...prev, { name: d.name, email: d.email, ts: Date.now() }]);
-        }
-      });
-      conn.on("close", () => {
-        delete viewersRef.current[conn.peer];
-        setViewers(prev => { const n = { ...prev }; delete n[conn.peer]; return n; });
-        broadcast({ t: "vc", count: Object.keys(viewersRef.current).length });
-      });
-    });
-
-        peer.on("error", (err: any) => {
-      if (err.type === "unavailable-id") {
-        _retryCount += 1;
-        if (_retryCount <= 12) {
-          log("Previous session closing — retrying in 3s… (" + _retryCount + "/12)");
-          setTimeout(() => { if (_shouldReconnect) startPeer(); }, 3000);
-        } else {
-          log("Stream ID stuck. Click ↺ Reset or refresh the page.");
-        }
-      } else {
-        log("Connection dropped — reconnecting in 3s…");
-        setTimeout(() => { if (_shouldReconnect) startPeer(); }, 3000);
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        const boost = () => {
+          try {
+            pc.getSenders().forEach(s => {
+              if (s.track?.kind === "video") {
+                const p = s.getParameters();
+                if (!p.encodings?.length) p.encodings = [{}];
+                p.encodings[0].maxBitrate = 8_000_000;
+                s.setParameters(p).catch(() => {});
+              }
+            });
+          } catch {}
+        };
+        setTimeout(boost, 1000);
+        setTimeout(boost, 3000);
+        log(`${viewerName} connected. ${Object.keys(viewerPcsRef.current).length} viewer(s).`);
       }
-    });
-
-        peer.on('disconnected', () => {
-      if (peer && !peer.destroyed && _shouldReconnect && peerRef.current === peer) {
-        log('Connection lost — reconnecting…');
-        setTimeout(() => { try { if (_shouldReconnect && peerRef.current === peer && !peer.destroyed) peer.reconnect(); } catch (e) {} }, 2000);
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        clearInterval(answerPollId);
+        clearInterval(icePollId);
+        delete viewerPcsRef.current[viewerId];
+        delete viewerCleanupRef.current[viewerId];
+        delete viewersRef.current[viewerId];
+        setViewers(prev => { const n = {...prev}; delete n[viewerId]; return n; });
       }
-    });
+    };
 
-        peer.on('close', () => {
-      if (_shouldReconnect && peerRef.current === peer) {
-        log('Reconnecting…');
-        setTimeout(() => { if (_shouldReconnect) startPeer(); }, 2000);
-      }
-    });
-
-  }
-
-  function callViewer(pid: string, attempt = 0) {
-    if (!outStreamRef.current || !peerRef.current) return;
-    const v = viewersRef.current[pid];
-    if (!v) return;
     try {
-      const call = peerRef.current.call(pid, outStreamRef.current);
-      viewersRef.current[pid].call = call;
-      // Boost WebRTC video bitrate to 20Mbps for crisp 4K-quality stream
-      const boostBitrate = () => {
-        try {
-          const pc = (call as any).peerConnection;
-          if (!pc) return;
-          pc.getSenders().forEach((s: any) => {
-            if (s.track?.kind === "video") {
-              const p = s.getParameters();
-              if (!p.encodings?.length) p.encodings = [{}];
-              p.encodings[0].maxBitrate = 20_000_000; // 20 Mbps
-              p.encodings[0].maxFramerate = 60;
-              s.setParameters(p).catch(() => {});
-            }
-          });
-        } catch {}
-      };
-      setTimeout(boostBitrate, 1000);
-      setTimeout(boostBitrate, 3000);
-      call.on("error", () => {
-      try { call.close(); } catch {}
-      if (attempt < 3 && viewersRef.current[pid]) setTimeout(() => callViewer(pid, attempt + 1), 4000);
-    });
-    } catch {}
-  }
-
-  function broadcast(data: object) {
-    Object.values(viewersRef.current).forEach(v => {
-      try { v.conn?.send(data); } catch {}
-    });
-  }
-
-    async function goLive() {
-  const onMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-    (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform) && !navigator.userAgent.includes('Win'));
-  if (onMobile) {
-    log("Starting camera and mic…");
-    let mobileStream: MediaStream;
-    try {
-      mobileStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, facingMode: camFacing },
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-    } catch (err: any) {
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        log("Camera blocked — allow access in browser settings, then press Go Live again.");
-        alert("Please allow camera and microphone access, then press Go Live again.");
-      } else {
-        log("Camera error: " + (err.message || "unknown"));
-      }
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await fbPut(`live/offers/${viewerId}`, { type: offer.type, sdp: offer.sdp });
+    } catch {
+      cleanup();
       return;
     }
-    screenStreamRef.current = mobileStream;
-    outStreamRef.current = mobileStream;
-    if (screenVideoRef.current) {
-      screenVideoRef.current.srcObject = mobileStream;
-      screenVideoRef.current.muted = true;
-      screenVideoRef.current.style.display = "block";
-    }
-    try { (navigator as any).wakeLock?.request("screen"); } catch {}
-    const liveTitle = title || "The Greenprint - Live";
-    setIsLive(true);
-    await setLiveStatus(true, liveTitle);
-    log("LIVE — broadcasting from camera. " + Object.keys(viewersRef.current).length + " viewer(s).");
-    Object.keys(viewersRef.current).forEach((pid, i) => setTimeout(() => callViewer(pid), i * 100));
-    mobileStream.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
-    return;
+
+    answerPollId = setInterval(async () => {
+      if (gotAnswer) return;
+      const answer = await fbGet(`live/answers/${viewerId}`);
+      if (answer?.sdp) {
+        gotAnswer = true;
+        clearInterval(answerPollId);
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch {}
+      }
+    }, 1000);
+
+    const seenIce = new Set<string>();
+    icePollId = setInterval(async () => {
+      const data = await fbGet(`live/ice_v/${viewerId}`);
+      if (!data) return;
+      const arr: any[] = Array.isArray(data) ? data : Object.values(data);
+      for (const c of arr) {
+        const k = JSON.stringify(c);
+        if (!seenIce.has(k)) {
+          seenIce.add(k);
+          if (pc.remoteDescription) {
+            pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+          }
+        }
+      }
+    }, 1000);
   }
 
-        if (!navigator.mediaDevices?.getDisplayMedia) {
-      const msg = "Go Live needs screen sharing — open this page in Chrome or Edge on a laptop or desktop.";
+  function startViewerWatch() {
+    watchSseRef.current?.close();
+    seenViewersRef.current.clear();
+
+    const es = new EventSource(`${RTDB_URL}/live/viewers.json`);
+    watchSseRef.current = es;
+
+    const handleViewerData = (viewerId: string, data: any) => {
+      if (!data || seenViewersRef.current.has(viewerId)) return;
+      seenViewersRef.current.add(viewerId);
+      const name = data.name || "Viewer";
+      viewersRef.current[viewerId] = { name, conn: null, call: null };
+      setViewers(prev => {
+        const n = { ...prev, [viewerId]: name };
+        setPeakViewers(p => Math.max(p, Object.keys(n).length));
+        return n;
+      });
+      if (outStreamRef.current) {
+        callViewerWebRTC(viewerId, name);
+      }
+    };
+
+    es.addEventListener("put", (e: any) => {
+      try {
+        const { path, data } = JSON.parse(e.data);
+        if (!data) return;
+        if (path === "/") {
+          Object.entries(data).forEach(([id, d]) => handleViewerData(id, d));
+        } else {
+          const id = path.replace(/^\//, "");
+          if (id && !id.includes("/")) handleViewerData(id, data);
+        }
+      } catch {}
+    });
+
+    es.addEventListener("patch", (e: any) => {
+      try {
+        const { data } = JSON.parse(e.data);
+        if (data) Object.entries(data).forEach(([id, d]) => handleViewerData(id, d));
+      } catch {}
+    });
+
+    const staleCheckId = setInterval(async () => {
+      const data = await fbGet("live/viewers");
+      const current = new Set(data ? Object.keys(data) : []);
+      seenViewersRef.current.forEach(id => {
+        if (!current.has(id)) {
+          seenViewersRef.current.delete(id);
+          viewerCleanupRef.current[id]?.();
+          delete viewersRef.current[id];
+          setViewers(prev => { const n = {...prev}; delete n[id]; return n; });
+        }
+      });
+    }, 15000);
+
+    let lastChatTs = Date.now();
+    const chatPollId = setInterval(async () => {
+      const data = await fbGet("live/chat");
+      if (!data) return;
+      const msgs = Object.values(data) as any[];
+      msgs.forEach(m => {
+        if (m.ts > lastChatTs) {
+          lastChatTs = m.ts;
+          setChat(prev => [...prev.slice(-199), { name: m.name, text: m.msg, ts: m.ts }]);
+          if (chatToastTimer.current) clearTimeout(chatToastTimer.current);
+          setChatToast({ name: m.name, msg: m.msg });
+          chatToastTimer.current = setTimeout(() => setChatToast(null), 4000);
+        }
+      });
+    }, 2000);
+
+    watchCleanupRef.current = () => {
+      clearInterval(staleCheckId);
+      clearInterval(chatPollId);
+      es.close();
+    };
+  }
+
+  async function goLive() {
+    const onMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+    if (onMobile) {
+      log("Starting camera and mic…");
+      let mobileStream: MediaStream;
+      try {
+        mobileStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, facingMode: camFacing },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+      } catch (err: any) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          log("Camera blocked — allow access in browser settings, then press Go Live again.");
+          alert("Please allow camera and microphone access, then press Go Live again.");
+        } else {
+          log("Camera error: " + (err.message || "unknown"));
+        }
+        return;
+      }
+      screenStreamRef.current = mobileStream;
+      outStreamRef.current = mobileStream;
+      if (screenVideoRef.current) {
+        screenVideoRef.current.srcObject = mobileStream;
+        screenVideoRef.current.muted = true;
+        screenVideoRef.current.style.display = "block";
+      }
+      try { (navigator as any).wakeLock?.request("screen"); } catch {}
+      const liveTitle = title || "The Greenprint - Live";
+      setIsLive(true);
+      await setLiveStatus(true, liveTitle);
+      log("LIVE — broadcasting from camera.");
+      Object.entries(viewersRef.current).forEach(([pid, v], i) => {
+        setTimeout(() => callViewerWebRTC(pid, v.name), i * 150);
+      });
+      mobileStream.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      const msg = "Go Live needs screen sharing — open in Chrome or Edge on a desktop.";
       log(msg); alert(msg); return;
     }
 
-    // Step 1: Screen share — own try/catch, returns early on failure
     log("Select your screen or window to share...");
     let scrn: MediaStream;
     try {
       scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 2560, max: 3840 }, height: { ideal: 1440, max: 2160 } },
+        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 2560 }, height: { ideal: 1440 } },
         audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
       });
       scrn.getVideoTracks().forEach(t => { t.contentHint = "detail"; });
     } catch (err: any) {
       if (err.name === "NotAllowedError" || err.name === "AbortError") {
-        log("Screen share cancelled. Press Go Live to try again.");;alert("Go Live failed — screen sharing was cancelled or blocked. Tap Go Live again and allow screen sharing when prompted.");
+        log("Screen share cancelled. Press Go Live to try again.");
       } else {
-        log("Screen share error: " + (err.message || "unknown") + ". On Mac: System Settings > Privacy > Screen Recording > enable Chrome.");
+        log("Screen share error: " + (err.message || "unknown"));
       }
       return;
     }
@@ -325,7 +400,6 @@ export default function GoLivePage() {
       screenVideoRef.current.style.display = "block";
     }
 
-    // Step 2: Mic — optional, stream continues even if mic denied
     log("Screen captured. Requesting microphone...");
     let mic: MediaStream | null = null;
     try {
@@ -335,11 +409,10 @@ export default function GoLivePage() {
       });
       micStreamRef.current = mic;
     } catch {
-      log("Mic unavailable or denied - streaming without mic. Going live...");
+      log("Mic unavailable — streaming without mic.");
     }
 
-    // Step 3: Mix audio
-    try {
+ try {
       const ctx = new AudioContext();
       audioCtxRef.current = ctx;
       const dst = ctx.createMediaStreamDestination();
@@ -349,70 +422,40 @@ export default function GoLivePage() {
       if (mic) ctx.createMediaStreamSource(mic).connect(dst);
       const mixed = dst.stream.getAudioTracks();
       outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...(mixed.length ? [mixed[0]] : [])]);
-      const audioDesc = mic && screenAudio.length ? "Mic + screen audio mixed." : mic ? "Mic audio ready." : screenAudio.length ? "Screen audio only." : "Video only (no audio).";
-      log(audioDesc + " Going live...");
     } catch {
       const audioTracks = mic ? mic.getAudioTracks() : scrn.getAudioTracks();
       outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...audioTracks]);
-      log("Audio setup issue - using fallback. Going live...");
     }
 
-    // Step 4: PiP canvas compositor: screen fills frame, camera as corner overlay
     try {
       const svr = screenVideoRef.current!;
       if (svr.videoWidth === 0) {
-        await new Promise<void>(res => {
-          svr.onloadedmetadata = () => res();
-          setTimeout(res, 2000);
-        });
+        await new Promise<void>(res => { svr.onloadedmetadata = () => res(); setTimeout(res, 2000); });
       }
       const pipCanvas = document.createElement("canvas");
       pipCanvasRef.current = pipCanvas;
       pipCanvas.width = svr.videoWidth || 1920;
       pipCanvas.height = svr.videoHeight || 1080;
-      const CW = pipCanvas.width;
-      const CH = pipCanvas.height;
+      const CW = pipCanvas.width; const CH = pipCanvas.height;
       const pipCtx = pipCanvas.getContext("2d")!;
-      pipCtx.imageSmoothingEnabled = true;
-      pipCtx.imageSmoothingQuality = "high";
+      pipCtx.imageSmoothingEnabled = true; pipCtx.imageSmoothingQuality = "high";
       const drawPip = () => {
         pipCtx.clearRect(0, 0, CW, CH);
         pipCtx.drawImage(svr, 0, 0, CW, CH);
         const cv = camVideoRef.current;
         if (camStreamRef.current && cv && cv.readyState >= 2) {
-          const pw = Math.round(pipCanvas.width * 0.18);
-          const ph = Math.round(pw * 9 / 16);
-          const px = pipCanvas.width - pw - 36;
-          const py = pipCanvas.height - ph - 36;
-          const r = 22;
+          const pw = Math.round(pipCanvas.width * 0.18); const ph = Math.round(pw * 9 / 16);
+          const px = pipCanvas.width - pw - 36; const py = pipCanvas.height - ph - 36; const r = 22;
           const rr = () => {
-            pipCtx.beginPath();
-            pipCtx.moveTo(px + r, py);
-            pipCtx.lineTo(px + pw - r, py);
-            pipCtx.quadraticCurveTo(px + pw, py, px + pw, py + r);
-            pipCtx.lineTo(px + pw, py + ph - r);
-            pipCtx.quadraticCurveTo(px + pw, py + ph, px + pw - r, py + ph);
-            pipCtx.lineTo(px + r, py + ph);
-            pipCtx.quadraticCurveTo(px, py + ph, px, py + ph - r);
-            pipCtx.lineTo(px, py + r);
-            pipCtx.quadraticCurveTo(px, py, px + r, py);
-            pipCtx.closePath();
+            pipCtx.beginPath(); pipCtx.moveTo(px+r,py); pipCtx.lineTo(px+pw-r,py);
+            pipCtx.quadraticCurveTo(px+pw,py,px+pw,py+r); pipCtx.lineTo(px+pw,py+ph-r);
+            pipCtx.quadraticCurveTo(px+pw,py+ph,px+pw-r,py+ph); pipCtx.lineTo(px+r,py+ph);
+            pipCtx.quadraticCurveTo(px,py+ph,px,py+ph-r); pipCtx.lineTo(px,py+r);
+            pipCtx.quadraticCurveTo(px,py,px+r,py); pipCtx.closePath();
           };
-          pipCtx.save();
-          pipCtx.shadowColor = "rgba(0,255,133,0.55)";
-          pipCtx.shadowBlur = 30;
-          pipCtx.fillStyle = "#00FF85";
-          rr(); pipCtx.fill();
-          pipCtx.restore();
-          pipCtx.save();
-          rr(); pipCtx.clip();
-          pipCtx.drawImage(cv, px, py, pw, ph);
-          pipCtx.restore();
-          pipCtx.save();
-          pipCtx.strokeStyle = "#00FF85";
-          pipCtx.lineWidth = 4;
-          rr(); pipCtx.stroke();
-          pipCtx.restore();
+          pipCtx.save(); pipCtx.shadowColor="rgba(0,255,133,0.55)"; pipCtx.shadowBlur=30; pipCtx.fillStyle="#00FF85"; rr(); pipCtx.fill(); pipCtx.restore();
+          pipCtx.save(); rr(); pipCtx.clip(); pipCtx.drawImage(cv,px,py,pw,ph); pipCtx.restore();
+          pipCtx.save(); pipCtx.strokeStyle="#00FF85"; pipCtx.lineWidth=4; rr(); pipCtx.stroke(); pipCtx.restore();
         }
         pipRafRef.current = requestAnimationFrame(drawPip);
       };
@@ -420,42 +463,52 @@ export default function GoLivePage() {
       const canvasStream = pipCanvas.captureStream(60);
       const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
       outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
-      log("PiP active - canvas compositor running at 60fps. Broadcasting...");
+      log("PiP active. Broadcasting...");
     } catch {
-      log("PiP setup failed, using direct screen stream.");
+      log("PiP skipped. Broadcasting...");
     }
 
-    // Step 5: Go live
     const liveTitle = title || "The Greenprint - Live Session";
     try { (navigator as any).wakeLock?.request("screen"); } catch {}
     setIsLive(true);
     await setLiveStatus(true, liveTitle);
-    log("LIVE - broadcasting to " + Object.keys(viewersRef.current).length + " viewer(s). Calling all waiting viewers...");
+    log("LIVE — broadcasting. Calling waiting viewers…");
 
-    Object.keys(viewersRef.current).forEach((pid, i) => {
-      setTimeout(() => callViewer(pid), i * 100);
+    Object.entries(viewersRef.current).forEach(([pid, v], i) => {
+      setTimeout(() => callViewerWebRTC(pid, v.name), i * 150);
     });
-    setTimeout(() => broadcast({ t: "live" }), Object.keys(viewersRef.current).length * 100 + 300);
 
     scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
   }
 
   async function endStream() {
-    broadcast({ t: "end" });
+    await fbPut("live/endSignal", { ts: Date.now() });
+    setTimeout(() => fbDelete("live/endSignal"), 5000);
     await setLiveStatus(false, "");
+
     if (pipRafRef.current) { cancelAnimationFrame(pipRafRef.current); pipRafRef.current = null; }
     pipCanvasRef.current = null;
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
     micStreamRef.current?.getTracks().forEach(t => t.stop());
     camStreamRef.current?.getTracks().forEach(t => t.stop());
     try { audioCtxRef.current?.close(); } catch {}
-    screenStreamRef.current = null;
-    micStreamRef.current = null;
-    outStreamRef.current = null;
+    screenStreamRef.current = null; micStreamRef.current = null; outStreamRef.current = null;
     if (screenVideoRef.current) { screenVideoRef.current.srcObject = null; screenVideoRef.current.style.display = "none"; }
     if (camVideoRef.current) { camVideoRef.current.srcObject = null; camVideoRef.current.style.display = "none"; }
-    setIsLive(false);
-    setCamOn(false);
+
+    Object.values(viewerCleanupRef.current).forEach(fn => { try { fn(); } catch {} });
+    viewerPcsRef.current = {}; viewerCleanupRef.current = {};
+    viewersRef.current = {};
+    setViewers({});
+
+    await fbDelete("live/viewers");
+    await fbDelete("live/offers");
+    await fbDelete("live/answers");
+    await fbDelete("live/ice_b");
+    await fbDelete("live/ice_v");
+    await fbDelete("live/chat");
+
+    setIsLive(false); setCamOn(false);
     log("Stream ended. Thanks for going live.");
   }
 
@@ -481,9 +534,7 @@ export default function GoLivePage() {
   }
 
   function copyLeads(emailsOnly = false) {
-    const text = emailsOnly
-      ? leads.map(l => l.email).join(", ")
-      : leads.map(l => `${l.name} <${l.email}>`).join("\n");
+    const text = emailsOnly ? leads.map(l => l.email).join(", ") : leads.map(l => `${l.name} <${l.email}>`).join("\n");
     navigator.clipboard.writeText(text);
     log(`${emailsOnly ? "Emails" : "All leads"} copied to clipboard.`);
   }
@@ -491,16 +542,18 @@ export default function GoLivePage() {
   function downloadCSV() {
     const rows = [["Name","Email","Joined"].join(","), ...leads.map(l => [l.name,l.email,new Date(l.ts).toISOString()].join(","))];
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `greenprint-leads-${Date.now()}.csv`;
-    a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `greenprint-leads-${Date.now()}.csv`; a.click();
   }
 
   useEffect(() => {
     if (!authed) return;
-    loadPeerJS(() => startPeer());
-    return () => { _shouldReconnect = false; if (peerRef.current) try { peerRef.current.destroy(); } catch {} };
+    startViewerWatch();
+    return () => {
+      watchCleanupRef.current?.();
+      watchSseRef.current?.close();
+      Object.values(viewerCleanupRef.current).forEach(fn => { try { fn(); } catch {} });
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
@@ -517,7 +570,7 @@ export default function GoLivePage() {
             </svg>
           </div>
           <h1 className="text-center font-bold text-white mb-1">Broadcaster Access</h1>
-          <p className="text-center text-xs text-white/30 mb-6">The Greenprint - Go Live Control Room</p>
+          <p className="text-center text-xs text-white/30 mb-6">The Greenprint — Go Live Control Room</p>
           <form onSubmit={doAuth} className="space-y-4">
             <input type="password" placeholder="Password" required value={pwd} onChange={e => setPwd(e.target.value)} disabled={authLocked}
               className="w-full bg-[#0d0d0d] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#00FF85]/50 transition-colors disabled:opacity-40"/>
@@ -535,7 +588,6 @@ export default function GoLivePage() {
 
   return (
     <div className="min-h-screen bg-[#080808] flex flex-col font-sans">
-      {/* Top bar */}
       <div className="h-12 bg-[#0d0d0d] border-b border-white/5 flex items-center px-4 gap-4 shrink-0">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${isLive ? "bg-red-500 animate-pulse" : "bg-white/20"}`}/>
@@ -543,7 +595,7 @@ export default function GoLivePage() {
             {isLive ? "LIVE" : "OFFLINE"}
           </span>
         </div>
-        <span className="text-xs text-white/30 flex-1 truncate">The Greenprint - Go Live</span>
+        <span className="text-xs text-white/30 flex-1 truncate">The Greenprint — Go Live</span>
         <span className="font-mono text-xs text-white/25">
           {Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}
         </span>
@@ -551,7 +603,6 @@ export default function GoLivePage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        {/* Video stage */}
         <div className="flex-1 bg-black relative min-h-[220px]">
           <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" style={{ display: "none" }}/>
           <video ref={camVideoRef} autoPlay muted playsInline
@@ -572,7 +623,6 @@ export default function GoLivePage() {
           )}
         </div>
 
-        {/* Right panel */}
         <div className="w-full lg:w-80 bg-[#0d0d0d] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0">
           <div className="p-4 border-b border-white/5">
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Session title (e.g. NVDA Options Play)"
@@ -598,35 +648,30 @@ export default function GoLivePage() {
                 className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"}`}>
                 Cam
               </button>
-            <button onClick={() => { _retryCount = 0; _shouldReconnect = true; startPeer(); log("Forcing reconnect…"); }}
-              className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
-              ↺ Reset
-            </button>
-            <button onClick={async () => {
-              const next = camFacing === "user" ? "environment" : "user";
-              setCamFacing(next);
-              if (!isLive || !outStreamRef.current) return;
-              try {
-                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
-                const vt = s.getVideoTracks()[0];
-                Object.values(viewersRef.current).forEach(v => {
-                  const pc = (v.call as any)?.peerConnection;
-                  pc?.getSenders().forEach((sd: any) => { if (sd.track?.kind === "video") sd.replaceTrack(vt).catch(()=>{}); });
-                });
-                outStreamRef.current.getVideoTracks().forEach(t => { outStreamRef.current!.removeTrack(t); t.stop(); });
-                outStreamRef.current.addTrack(vt);
-                if (screenVideoRef.current) screenVideoRef.current.srcObject = outStreamRef.current;
-              } catch {}
-            }}
-              className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
-              ⟳ Flip Cam
-            </button>
+              <button onClick={async () => {
+                const next = camFacing === "user" ? "environment" : "user";
+                setCamFacing(next);
+                if (!outStreamRef.current) return;
+                try {
+                  const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
+                  const vt = s.getVideoTracks()[0];
+                  Object.values(viewerPcsRef.current).forEach(pc => {
+                    pc.getSenders().forEach(sd => { if (sd.track?.kind === "video") sd.replaceTrack(vt).catch(()=>{}); });
+                  });
+                  outStreamRef.current.getVideoTracks().forEach(t => { outStreamRef.current!.removeTrack(t); t.stop(); });
+                  outStreamRef.current.addTrack(vt);
+                  if (screenVideoRef.current) screenVideoRef.current.srcObject = outStreamRef.current;
+                } catch {}
+              }}
+                className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
+                Flip
+              </button>
             </div>
             <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
           </div>
 
           <div className="p-3 border-b border-white/5">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream - Join App</p>
+            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream — Join App</p>
             <div className="flex items-center gap-3">
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
                 alt="Join App QR" className="w-16 h-16 rounded-lg border border-white/10"/>
@@ -727,6 +772,6 @@ export default function GoLivePage() {
           </div>
         </div>
       )}
-    </div>
+   </div>
   );
 }
