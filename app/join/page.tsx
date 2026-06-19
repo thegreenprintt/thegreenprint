@@ -10,14 +10,14 @@ const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
 
 const TIERS = [
  {
-    name: "1House Global â Stream",
+    name: "1House Global Stream",
     price: "$99", cents: "", period: "/month",
     tagline: "Via our affiliate partner.",
     desc: "Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more.",
     highlight: false,
     badge: "Affiliate Partner",
     badgeColor: "rgba(255,255,255,0.2)",
-    cta: "Subscribe via 1House â $99/mo",
+    cta: "Subscribe via 1House $99/mo",
     ctaStyle: "outline",
     url: ONEHOUSE_STREAM,
     affiliate: true,
@@ -34,7 +34,7 @@ const TIERS = [
     ],
   },
   {
-    name: "1House Global â Startup",
+    name: "1House Global Startup",
     price: "$165", cents: "", period: "/month",
     priceSub: "+ $200 one-time setup",
     tagline: "Build your own brand.",
