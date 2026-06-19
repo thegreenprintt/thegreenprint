@@ -10,8 +10,10 @@ const ICE = [
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "turn:openrelay.metered.ca:80",               username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:443",              username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+  { urls: "stun:stun.stunprotocol.org:3478" },
+  { urls: "turn:openrelay.metered.ca:80",              username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443",             username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:80?transport=tcp",  username: "openrelayproject", credential: "openrelayproject" },
 ];
@@ -104,9 +106,16 @@ const startPeer = useCallback(() => {
 loadPeerJS(() => {
 const PeerJS = (window as any).Peer;
 if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const peer = new PeerJS(undefined, { debug: 0, config: { iceServers: ICE, ...(isSafari ? { iceTransportPolicy: "relay" } : {}) } });
-peerRef.current = peer;
+    const peer = new PeerJS(undefined, {
+      debug: 0,
+      config: {
+        iceServers: ICE,
+        iceTransportPolicy: "relay",
+        iceCandidatePoolSize: 10,
+        bundlePolicy: "max-bundle",
+      },
+    });
+    peerRef.current = peer;
 peer.on("open", () => {
 const conn = peer.connect(HOST_PEER_ID, { reliable: true });
 connRef.current = conn;
