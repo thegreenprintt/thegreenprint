@@ -137,8 +137,9 @@ export default function GoLivePage() {
     const peer = new PeerJS(HOST_PEER_ID, { debug: 0, config: { iceServers: ICE_SERVERS } });
     peerRef.current = peer;
 
-    peer.on("open", (id: string) => {
-      log(`Broadcaster ready - ID: ${id}. Press Go Live when ready.`);
+        peer.on("open", (id: string) => {
+      retryRef.current = 0;
+      log("Ready — press Go Live to start broadcasting.");
     });
 
     peer.on("connection", (conn: any) => {
@@ -172,24 +173,34 @@ export default function GoLivePage() {
       });
     });
 
-    peer.on("error", (err: any) => {
+        peer.on("error", (err: any) => {
       if (err.type === "unavailable-id") {
-        log("Stream ID already in use - you may already be live in another tab.");
+        retryRef.current += 1;
+        const delay = Math.min(retryRef.current * 5000, 30000);
+        if (retryRef.current <= 12) {
+          log("Previous session still closing — auto-retry " + retryRef.current + "/12 in " + (delay/1000) + "s…");
+          setTimeout(() => { if (shouldReconnectRef.current) startPeer(); }, delay);
+        } else {
+          log("Stream ID stuck. Click ↺ Reset or refresh the page.");
+        }
       } else {
-        log(`Peer error: ${err.message}. Reconnecting...`);
-        setTimeout(() => startPeer(), 3000);
+        log("Connection dropped — reconnecting in 3s…");
+        setTimeout(() => { if (shouldReconnectRef.current) startPeer(); }, 3000);
       }
     });
 
-    peer.on('disconnected', () => {
-      if (peer && !peer.destroyed) {
-        log('Connection lost — reconnecting...');
-        setTimeout(() => { try { peer.reconnect(); } catch (e) {} }, 2000);
+        peer.on('disconnected', () => {
+      if (peer && !peer.destroyed && shouldReconnectRef.current) {
+        log('Connection lost — reconnecting…');
+        setTimeout(() => { try { if (shouldReconnectRef.current) peer.reconnect(); } catch (e) {} }, 2000);
       }
     });
 
-    peer.on('close', () => {
-      log('Stream peer closed. Press Go Live to restart.');
+        peer.on('close', () => {
+      if (shouldReconnectRef.current) {
+        log('Stream connection closed — restarting in 2s…');
+        setTimeout(() => { if (shouldReconnectRef.current) startPeer(); }, 2000);
+      }
     });
 
   }
@@ -435,7 +446,7 @@ export default function GoLivePage() {
   useEffect(() => {
     if (!authed) return;
     loadPeerJS(() => startPeer());
-    return () => { if (peerRef.current) try { peerRef.current.destroy(); } catch {} };
+    return () => { shouldReconnectRef.current = false; if (peerRef.current) try { peerRef.current.destroy(); } catch {} };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
@@ -533,6 +544,10 @@ export default function GoLivePage() {
                 className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"}`}>
                 Cam
               </button>
+            <button onClick={() => { retryRef.current = 0; shouldReconnectRef.current = true; startPeer(); log("Forcing reconnect…"); }}
+              className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
+              ↺ Reset
+            </button>
             </div>
             <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
           </div>
