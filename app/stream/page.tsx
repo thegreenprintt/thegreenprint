@@ -53,6 +53,7 @@ const timerRef = useRef<any>(null);
 const startRef = useRef<number | null>(null);
 const liveRef = useRef(false);
 const connectedRef = useRef(false);
+const connOpenRef = useRef(false);
 const chatEndRef = useRef<HTMLDivElement>(null);
 const inputRef = useRef<HTMLInputElement>(null);
 const seenIds = useRef<Set<string>>(new Set());
@@ -106,7 +107,7 @@ return () => clearInterval(t);
 const startPeer = useCallback(() => {
 loadPeerJS(() => {
 const PeerJS = (window as any).Peer;
-if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
+if (peerRef.current) { try { peerRef.current.removeAllListeners(); } catch {} try { peerRef.current.destroy(); } catch {} peerRef.current = null; }
     const peer = new PeerJS(undefined, {
       debug: 0,
       config: {
@@ -119,7 +120,8 @@ peer.on("open", () => {
 const conn = peer.connect(HOST_PEER_ID, { reliable: true });
 connRef.current = conn;
 conn.on("open", () => {
-  conn.send({ t: "join", name });
+  connOpenRef.current = true;
+        conn.send({ t: "join", name });
   const _reqId = setInterval(() => {
     if (connectedRef.current) { clearInterval(_reqId); return; }
     try { conn.send({ t: "request", name }); } catch { clearInterval(_reqId); }
@@ -135,7 +137,7 @@ seenIds.current.add(id);
 setChat(prev => [...prev.slice(-299), { id, name: d.name, text: d.msg, ts: Date.now() }]);
 }
 });
-conn.on("close", () => { connectedRef.current = false; setConnected(false); });
+conn.on("close", () => { connOpenRef.current = false; connectedRef.current = false; setConnected(false); });
 });
 peer.on("call", (call: any) => {
 call.answer();
@@ -179,7 +181,7 @@ useEffect(() => { if (nameSet && isLive) startPeer(); }, [nameSet, isLive, start
 
   useEffect(() => {
     if (!nameSet || !isLive || connected) return;
-    const wd = setInterval(() => { if (!connected) startPeer(); }, 8000);
+    const wd = setInterval(() => { if (!connected && !connOpenRef.current) startPeer(); }, 20000);
     return () => clearInterval(wd);
   }, [nameSet, isLive, connected, startPeer]);useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 useEffect(() => () => { clearInterval(timerRef.current); try { peerRef.current?.destroy(); } catch {} }, []);
