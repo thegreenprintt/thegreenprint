@@ -230,9 +230,9 @@ export default function GoLivePage() {
   }
 
     async function goLive() {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      log("Use Chrome or Edge on desktop for screen sharing.");
-      return;
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+      const msg = "Go Live needs screen sharing — open this page in Chrome or Edge on a laptop or desktop.";
+      log(msg); alert(msg); return;
     }
 
     // Step 1: Screen share — own try/catch, returns early on failure
@@ -245,7 +245,7 @@ export default function GoLivePage() {
       });
     } catch (err: any) {
       if (err.name === "NotAllowedError" || err.name === "AbortError") {
-        log("Screen share cancelled. Press Go Live to try again.");
+        log("Screen share cancelled. Press Go Live to try again.");;alert("Go Live failed — screen sharing was cancelled or blocked. Tap Go Live again and allow screen sharing when prompted.");
       } else {
         log("Screen share error: " + (err.message || "unknown") + ". On Mac: System Settings > Privacy > Screen Recording > enable Chrome.");
       }
