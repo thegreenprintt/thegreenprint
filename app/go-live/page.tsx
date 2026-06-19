@@ -262,7 +262,7 @@ export default function GoLivePage() {
     watchSseRef.current = es;
 
     const handleViewerData = (viewerId: string, data: any) => {
-      if (!data || seenViewersRef.current.has(viewerId)) return;
+      if (!data) return;
       seenViewersRef.current.add(viewerId);
       const name = data.name || "Viewer";
       viewersRef.current[viewerId] = { name, conn: null, call: null };
@@ -272,7 +272,11 @@ export default function GoLivePage() {
         return n;
       });
       if (outStreamRef.current) {
-        callViewerWebRTC(viewerId, name);
+        const _xpc = viewerPcsRef.current[viewerId];
+        const _st = _xpc?.connectionState;
+        if (!_xpc || _st === 'failed' || _st === 'closed' || _st === 'disconnected' || _st === 'new') {
+          callViewerWebRTC(viewerId, name);
+        }
       }
     };
 
@@ -325,9 +329,15 @@ export default function GoLivePage() {
       });
     }, 2000);
 
+    const viewerPollId = setInterval(async () => {
+      const vdata = await fbGet("live/viewers");
+      if (!vdata) return;
+      Object.entries(vdata).forEach(([vid, vd]) => handleViewerData(vid, vd as any));
+    }, 3000);
     watchCleanupRef.current = () => {
       clearInterval(staleCheckId);
       clearInterval(chatPollId);
+      clearInterval(viewerPollId);
       es.close();
     };
   }
