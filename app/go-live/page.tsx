@@ -145,9 +145,7 @@ export default function GoLivePage() {
       debug: 0,
       config: {
         iceServers: ICE_SERVERS,
-        iceTransportPolicy: "relay",
         iceCandidatePoolSize: 10,
-        bundlePolicy: "max-bundle",
       },
     });
     peerRef.current = peer;
