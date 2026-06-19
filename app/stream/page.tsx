@@ -204,7 +204,7 @@ if (!nameSet) return (
 </div>
 <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
 <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your info to join the stream</p>
-<form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); localStorage.setItem("gp_name",name.trim());localStorage.setItem("gp_email",email.trim());setNameSet(true));}}>
+<form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); localStorage.setItem("gp_name",name.trim());localStorage.setItem("gp_email",email.trim());setNameSet(true);}}>
 <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
 style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
 <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" type="email"
