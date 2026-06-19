@@ -46,6 +46,7 @@ export default function GoLivePage() {
   const [title, setTitle]         = useState("");
   const [micOn, setMicOn]         = useState(true);
   const [camOn, setCamOn]         = useState(false);
+  const [camFacing, setCamFacing] = useState<"user"|"environment">("environment");
   const [statusLog, setStatusLog] = useState("Ready - press Go Live to start.");
   const [elapsed, setElapsed]     = useState("00:00:00");
 
@@ -212,7 +213,7 @@ export default function GoLivePage() {
 
         peer.on('close', () => {
       if (_shouldReconnect) {
-        log('Stream connection closed — restarting in 2s…');
+        log('Reconnecting…');
         setTimeout(() => { if (_shouldReconnect) startPeer(); }, 2000);
       }
     });
@@ -255,6 +256,42 @@ export default function GoLivePage() {
   }
 
     async function goLive() {
+  const onMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform) && !navigator.userAgent.includes('Win'));
+  if (onMobile) {
+    log("Starting camera and mic…");
+    let mobileStream: MediaStream;
+    try {
+      mobileStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, facingMode: camFacing },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+    } catch (err: any) {
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        log("Camera blocked — allow access in browser settings, then press Go Live again.");
+        alert("Please allow camera and microphone access, then press Go Live again.");
+      } else {
+        log("Camera error: " + (err.message || "unknown"));
+      }
+      return;
+    }
+    screenStreamRef.current = mobileStream;
+    outStreamRef.current = mobileStream;
+    if (screenVideoRef.current) {
+      screenVideoRef.current.srcObject = mobileStream;
+      screenVideoRef.current.muted = true;
+      screenVideoRef.current.style.display = "block";
+    }
+    try { (navigator as any).wakeLock?.request("screen"); } catch {}
+    const liveTitle = title || "The Greenprint - Live";
+    setIsLive(true);
+    await setLiveStatus(true, liveTitle);
+    log("LIVE — broadcasting from camera. " + Object.keys(viewersRef.current).length + " viewer(s).");
+    Object.keys(viewersRef.current).forEach((pid, i) => setTimeout(() => callViewer(pid), i * 100));
+    mobileStream.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
+    return;
+  }
+
         if (!navigator.mediaDevices?.getDisplayMedia) {
       const msg = "Go Live needs screen sharing — open this page in Chrome or Edge on a laptop or desktop.";
       log(msg); alert(msg); return;
@@ -561,6 +598,25 @@ export default function GoLivePage() {
             <button onClick={() => { _retryCount = 0; _shouldReconnect = true; startPeer(); log("Forcing reconnect…"); }}
               className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
               ↺ Reset
+            </button>
+            <button onClick={async () => {
+              const next = camFacing === "user" ? "environment" : "user";
+              setCamFacing(next);
+              if (!isLive || !outStreamRef.current) return;
+              try {
+                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
+                const vt = s.getVideoTracks()[0];
+                Object.values(viewersRef.current).forEach(v => {
+                  const pc = (v.call as any)?.peerConnection;
+                  pc?.getSenders().forEach((sd: any) => { if (sd.track?.kind === "video") sd.replaceTrack(vt).catch(()=>{}); });
+                });
+                outStreamRef.current.getVideoTracks().forEach(t => { outStreamRef.current!.removeTrack(t); t.stop(); });
+                outStreamRef.current.addTrack(vt);
+                if (screenVideoRef.current) screenVideoRef.current.srcObject = outStreamRef.current;
+              } catch {}
+            }}
+              className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
+              ⟳ Flip Cam
             </button>
             </div>
             <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
