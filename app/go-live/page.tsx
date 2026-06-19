@@ -23,8 +23,10 @@ const ICE_SERVERS = [
   { urls: "stun:stun2.l.google.com:19302" },
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "turn:openrelay.metered.ca:80",              username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:443",             username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+  { urls: "stun:stun.stunprotocol.org:3478" },
+  { urls: "turn:openrelay.metered.ca:80",               username: "openrelayproject", credential: "openrelayproject" },
+  { urls: "turn:openrelay.metered.ca:443",              username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:80?transport=tcp",  username: "openrelayproject", credential: "openrelayproject" },
 ];
@@ -138,7 +140,15 @@ export default function GoLivePage() {
   function startPeer() {
     const PeerJS = (window as any).Peer;
     if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
-    const peer = new PeerJS(HOST_PEER_ID, { debug: 0, config: { iceServers: ICE_SERVERS } });
+    const peer = new PeerJS(HOST_PEER_ID, {
+      debug: 0,
+      config: {
+        iceServers: ICE_SERVERS,
+        iceTransportPolicy: "relay",
+        iceCandidatePoolSize: 10,
+        bundlePolicy: "max-bundle",
+      },
+    });
     peerRef.current = peer;
 
         peer.on("open", (id: string) => {
