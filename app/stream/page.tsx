@@ -26,9 +26,9 @@ s.onload = cb; document.body.appendChild(s);
 }
 
 export default function StreamPage() {
-const [name, setName] = useState("");
-const [nameSet, setNameSet] = useState(false);
-const [email, setEmail] = useState("");
+  const [name, setName] = useState(() => (typeof window !== "undefined" && localStorage.getItem("gp_name")) || "");
+  const [nameSet, setNameSet] = useState(() => !!(typeof window !== "undefined" && localStorage.getItem("gp_name") && localStorage.getItem("gp_email")));
+  const [email, setEmail] = useState(() => (typeof window !== "undefined" && localStorage.getItem("gp_email")) || "");
 const [phone, setPhone] = useState("");
 const [isLive, setIsLive] = useState(false);
 const [title, setTitle] = useState("The Greenprint Live");
@@ -104,7 +104,8 @@ const startPeer = useCallback(() => {
 loadPeerJS(() => {
 const PeerJS = (window as any).Peer;
 if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
-const peer = new PeerJS(undefined, { debug: 0, config: { iceServers: ICE } });
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const peer = new PeerJS(undefined, { debug: 0, config: { iceServers: ICE, ...(isSafari ? { iceTransportPolicy: "relay" } : {}) } });
 peerRef.current = peer;
 peer.on("open", () => {
 const conn = peer.connect(HOST_PEER_ID, { reliable: true });
@@ -145,7 +146,7 @@ setElapsed(`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s
 });
 call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
 });
-peer.on("error", (e: any) => { if (e.type === "peer-unavailable") setTimeout(() => startPeer(), 5000); });
+    peer.on("error", () => { setTimeout(() => startPeer(), 5000); });
 
     peer.on('disconnected', () => {
       if (peer && !peer.destroyed) {
@@ -161,7 +162,12 @@ peer.on("error", (e: any) => { if (e.type === "peer-unavailable") setTimeout(() 
 }, [name]);
 
 useEffect(() => { if (nameSet && isLive) startPeer(); }, [nameSet, isLive, startPeer]);
-useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
+
+  useEffect(() => {
+    if (!nameSet || !isLive || connected) return;
+    const wd = setInterval(() => { if (!connected) startPeer(); }, 20000);
+    return () => clearInterval(wd);
+  }, [nameSet, isLive, connected, startPeer]);useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 useEffect(() => () => { clearInterval(timerRef.current); try { peerRef.current?.destroy(); } catch {} }, []);
 
 useEffect(() => {
@@ -198,7 +204,7 @@ if (!nameSet) return (
 </div>
 <p style={{ color:"#fff", fontWeight:900, fontSize:24, textAlign:"center", margin:"0 0 6px" }}>The Greenprint</p>
 <p style={{ color:"rgba(255,255,255,0.4)", fontSize:14, textAlign:"center", margin:"0 0 32px" }}>Enter your info to join the stream</p>
-<form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); setNameSet(true);}}>
+<form onSubmit={e=>{e.preventDefault(); if(!name.trim()||!email.trim()) return; fetch(`${RTDB_URL}/leads/${Date.now()}.json`,{method:"PUT",body:JSON.stringify({name:name.trim(),email:email.trim(),phone:phone.trim(),ts:Date.now()})}); localStorage.setItem("gp_name",name.trim());localStorage.setItem("gp_email",email.trim());setNameSet(true));}}>
 <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus
 style={{ display:"block", width:"100%", boxSizing:"border-box", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:"14px 18px", fontSize:15, color:"#fff", outline:"none", marginBottom:12 }}/>
 <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" type="email"
