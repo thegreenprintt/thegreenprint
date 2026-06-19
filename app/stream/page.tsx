@@ -106,7 +106,14 @@ export default function StreamPage() {
     let offerPollId: any;
     let gotOffer = false;
 
+    // Re-register every 5s until offer arrives (handles missed SSE events)
+    const reRegId = setInterval(async () => {
+      if (gotOffer) { clearInterval(reRegId); return; }
+      await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
+    }, 5000);
+
     const cleanup = () => {
+      clearInterval(reRegId);
       clearInterval(offerPollId);
       clearInterval(icePollId);
       try { pc.close(); } catch {}
