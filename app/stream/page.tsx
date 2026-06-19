@@ -52,6 +52,7 @@ const connRef = useRef<any>(null);
 const timerRef = useRef<any>(null);
 const startRef = useRef<number | null>(null);
 const liveRef = useRef(false);
+const connectedRef = useRef(false);
 const chatEndRef = useRef<HTMLDivElement>(null);
 const inputRef = useRef<HTMLInputElement>(null);
 const seenIds = useRef<Set<string>>(new Set());
@@ -117,7 +118,13 @@ if (peerRef.current) { try { peerRef.current.destroy(); } catch {} }
 peer.on("open", () => {
 const conn = peer.connect(HOST_PEER_ID, { reliable: true });
 connRef.current = conn;
-conn.on("open", () => conn.send({ t: "join", name }));
+conn.on("open", () => {
+  conn.send({ t: "join", name });
+  const _reqId = setInterval(() => {
+    if (connectedRef.current) { clearInterval(_reqId); return; }
+    try { conn.send({ t: "request", name }); } catch { clearInterval(_reqId); }
+  }, 7000);
+});
 conn.on("data", (d: any) => {
 if (d?.t === "end") { setConnected(false); if (videoRef.current) videoRef.current.srcObject = null; }
 if (d?.t === "vc") setViewers(d.count ?? 0);
@@ -128,7 +135,7 @@ seenIds.current.add(id);
 setChat(prev => [...prev.slice(-299), { id, name: d.name, text: d.msg, ts: Date.now() }]);
 }
 });
-conn.on("close", () => setConnected(false));
+conn.on("close", () => { connectedRef.current = false; setConnected(false); });
 });
 peer.on("call", (call: any) => {
 call.answer();
@@ -143,7 +150,7 @@ bgVideoRef.current.srcObject = stream;
 bgVideoRef.current.muted = true;
 bgVideoRef.current.play().catch(() => {});
 }
-setConnected(true); setMuted(true);
+connectedRef.current = true; setConnected(true); setMuted(true);
 startRef.current = Date.now();
 clearInterval(timerRef.current);
 timerRef.current = setInterval(() => {
@@ -151,7 +158,7 @@ const s = Math.floor((Date.now() - (startRef.current ?? Date.now())) / 1000);
 setElapsed(`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`);
 }, 1000);
 });
-call.on("close", () => { setConnected(false); clearInterval(timerRef.current); });
+call.on("close", () => { connectedRef.current = false; setConnected(false); clearInterval(timerRef.current); });
 });
     peer.on("error", () => { setTimeout(() => startPeer(), 5000); });
 
