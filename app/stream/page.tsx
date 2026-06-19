@@ -83,7 +83,7 @@ if (!nowLive) { setConnected(false); setViewers(0); if (videoRef.current) videoR
 }
 } catch {}
 };
-check(); const iv = setInterval(check, 5000); return () => clearInterval(iv);
+check(); const iv = setInterval(check, 3000); return () => clearInterval(iv);
 }, []);
 
 useEffect(() => {
@@ -165,7 +165,7 @@ useEffect(() => { if (nameSet && isLive) startPeer(); }, [nameSet, isLive, start
 
   useEffect(() => {
     if (!nameSet || !isLive || connected) return;
-    const wd = setInterval(() => { if (!connected) startPeer(); }, 20000);
+    const wd = setInterval(() => { if (!connected) startPeer(); }, 8000);
     return () => clearInterval(wd);
   }, [nameSet, isLive, connected, startPeer]);useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 useEffect(() => () => { clearInterval(timerRef.current); try { peerRef.current?.destroy(); } catch {} }, []);
@@ -237,6 +237,7 @@ style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"c
 <div style={{ textAlign:"center" }}>
 <p style={{ color:"#fff", fontWeight:800, fontSize:16, margin:"0 0 6px" }}>{isLive?"Connecting to stream...":"Stream is offline"}</p>
 <p style={{ color:"rgba(255,255,255,0.35)", fontSize:13, margin:0 }}>{isLive?"Loading video, hang tight...":"The Greenprint will go live soon"}</p>
+      {isLive && <button onClick={startPeer} style={{ marginTop:14, background:"rgba(0,255,133,0.12)", border:"1px solid rgba(0,255,133,0.35)", borderRadius:999, padding:"10px 26px", color:"#00FF85", fontSize:13, fontWeight:700, cursor:"pointer", letterSpacing:"0.3px" }}>↻ Tap to reconnect</button>}
 </div>
 </div>
 )}
