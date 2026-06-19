@@ -153,11 +153,14 @@ export default function GoLivePage() {
         peer.on("open", (id: string) => {
       _retryCount = 0;
       log("Ready — press Go Live to start broadcasting.");
+      if (outStreamRef.current) {
+        Object.keys(viewersRef.current).forEach((pid, i) => setTimeout(() => callViewer(pid), i * 200));
+      }
     });
 
     peer.on("connection", (conn: any) => {
       conn.on("data", (d: any) => {
-        if (d?.t === "join") {
+        if (d?.t === "join" || d?.t === "request") {
           const pid = conn.peer;
           viewersRef.current[pid] = { name: d.name || "Viewer", conn, call: null };
           setViewers(prev => {
@@ -189,10 +192,9 @@ export default function GoLivePage() {
         peer.on("error", (err: any) => {
       if (err.type === "unavailable-id") {
         _retryCount += 1;
-        const delay = Math.min(_retryCount * 5000, 30000);
         if (_retryCount <= 12) {
-          log("Previous session still closing — auto-retry " + _retryCount + "/12 in " + (delay/1000) + "s…");
-          setTimeout(() => { if (_shouldReconnect) startPeer(); }, delay);
+          log("Previous session closing — retrying in 3s… (" + _retryCount + "/12)");
+          setTimeout(() => { if (_shouldReconnect) startPeer(); }, 3000);
         } else {
           log("Stream ID stuck. Click ↺ Reset or refresh the page.");
         }
@@ -218,7 +220,7 @@ export default function GoLivePage() {
 
   }
 
-  function callViewer(pid: string) {
+  function callViewer(pid: string, attempt = 0) {
     if (!outStreamRef.current || !peerRef.current) return;
     const v = viewersRef.current[pid];
     if (!v) return;
@@ -243,7 +245,10 @@ export default function GoLivePage() {
       };
       setTimeout(boostBitrate, 1000);
       setTimeout(boostBitrate, 3000);
-      call.on("error", () => { try { call.close(); } catch {} });
+      call.on("error", () => {
+      try { call.close(); } catch {}
+      if (attempt < 3 && viewersRef.current[pid]) setTimeout(() => callViewer(pid, attempt + 1), 4000);
+    });
     } catch {}
   }
 
