@@ -65,6 +65,8 @@ export default function GoLivePage() {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(false);
   const [camFacing, setCamFacing] = useState<"user"|"environment">("environment");
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCamId, setSelectedCamId] = useState<string>("");
   const [statusLog, setStatusLog] = useState("Ready — press Go Live to start.");
   const [elapsed, setElapsed] = useState("00:00:00");
 
@@ -96,6 +98,12 @@ export default function GoLivePage() {
   const [peakViewers, setPeakViewers] = useState(0);
 
   const log = (msg: string) => setStatusLog(msg);
+
+  useEffect(() => {
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      setVideoDevices(devices.filter(d => d.kind === "videoinput"));
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -566,7 +574,7 @@ export default function GoLivePage() {
       setCamOn(false);
     } else {
       try {
-        const cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 }, facingMode: "user" }, audio: false });
+        const cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 }, ...(selectedCamId ? { deviceId: { exact: selectedCamId } } : { facingMode: "user" }) }, audio: false });
         camStreamRef.current = cam;
         if (camVideoRef.current) { camVideoRef.current.srcObject = cam; camVideoRef.current.style.display = "block"; }
         setCamOn(true);
@@ -689,6 +697,12 @@ export default function GoLivePage() {
                 className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"}`}>
                 Cam
               </button>
+              {videoDevices.length > 0 && (
+                <select value={selectedCamId} onChange={e => setSelectedCamId(e.target.value)} className="ml-2 text-xs bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-white/60 max-w-[150px]">
+                  <option value="">Default cam</option>
+                  {videoDevices.map(d => (<option key={d.deviceId} value={d.deviceId}>{d.label || "Camera"}</option>))}
+                </select>
+              )}
               <button onClick={async () => {
                 const next = camFacing === "user" ? "environment" : "user";
                 setCamFacing(next);
