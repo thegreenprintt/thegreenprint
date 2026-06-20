@@ -94,7 +94,7 @@ export default function StreamPage() {
     }
   }, []);
 
-  async function joinStream(displayName: string) {
+  async async function joinStream(displayName: string) {
     const myId = myIdRef.current;
     log("Registering…");
     await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
