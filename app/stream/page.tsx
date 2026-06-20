@@ -56,6 +56,11 @@ export default function StreamPage() {
   const [status, setStatus] = useState("Checking if stream is live…");
   const [muted, setMuted] = useState(true);
   const [needsPlayGesture, setNeedsPlayGesture] = useState(false);
+
+  // Sync muted toggle to video element (video starts muted for autoplay, unmuted after play())
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
   const [viewerCount, setViewerCount] = useState(0);
 
   const [chat, setChat] = useState<ChatMsg[]>([]);
@@ -129,7 +134,9 @@ export default function StreamPage() {
       if (videoRef.current && e.streams[0]) {
         videoRef.current.srcObject = e.streams[0];
         videoRef.current.muted = true;
-        videoRef.current.play().catch(() => {
+        videoRef.current.play().then(() => {
+          if (videoRef.current) videoRef.current.muted = false;
+        }).catch(() => {
           setNeedsPlayGesture(true);
         });
         connectedRef.current = true;
@@ -392,7 +399,7 @@ export default function StreamPage() {
           {needsPlayGesture && (
             <div
               className="absolute inset-0 flex items-center justify-center z-20 bg-black/60 cursor-pointer"
-              onClick={() => { videoRef.current?.play().catch(()=>{}); setNeedsPlayGesture(false); }}
+              onClick={() => { if (videoRef.current) { videoRef.current.muted = false; videoRef.current.play().catch(()=>{}); } setNeedsPlayGesture(false); }}
             >
               <div className="flex flex-col items-center gap-3">
                 <div className="w-20 h-20 rounded-full bg-[#00FF85] flex items-center justify-center shadow-lg">
