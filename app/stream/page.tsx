@@ -236,7 +236,30 @@ export default function StreamPage() {
     return () => clearInterval(liveCheckRef.current);
   }, []);
 
-  // When live status changes, join or leave
+  // When live sta
+  // Poll chat messages for this viewer
+  function startChatPoll() {
+    chatPollRef.current = setInterval(async () => {
+      const snap = await fbGet(`chat`);
+      if (!snap) return;
+      const msgs = Object.values(snap) as any[];
+      const fresh = msgs.filter((m: any) => m.ts > lastChatTsRef.current);
+      if (fresh.length === 0) return;
+      fresh.sort((a: any, b: any) => a.ts - b.ts);
+      lastChatTsRef.current = fresh[fresh.length - 1].ts;
+            setChat((prev: any[]) => [...prev, ...fresh]);
+    }, 2000);
+  }
+
+  // Poll viewer count
+  function startViewerCountPoll() {
+    viewerCountPollRef.current = setInterval(async () => {
+      const viewers = await fbGet(`live/viewers`);
+      if (viewers) setViewerCount(Object.keys(viewers).length);
+    }, 5000);
+  }
+
+tus changes, join or leave
   useEffect(() => {
     if (isLive && nameSet && !connectedRef.current) {
       joinStream(name);
