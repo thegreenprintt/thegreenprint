@@ -12,11 +12,15 @@ const ICE_SERVERS = [
   { urls: "stun:stun3.l.google.com:19302" },
   { urls: "stun:stun4.l.google.com:19302" },
   { urls: "stun:stun.cloudflare.com:3478" },
-  { urls: "stun:stun.stunprotocol.org:3478" },
+  // TURN UDP — basic relay
   { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+  // TURN TCP — bypasses UDP-blocking ISPs/firewalls
+  { urls: "turn:openrelay.metered.ca:80?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+  // TURN port 443 TCP — works through most corporate firewalls
   { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
   { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:80?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+  // TURNS TLS — most permissive, works on virtually any network including mobile in Hawaii
+  { urls: "turns:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
 ];
 
 async function fbGet(path: string) {
@@ -104,7 +108,7 @@ export default function StreamPage() {
     // Wait for broadcaster's offer
     log("Waiting for stream offer…");
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 });
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 0 });
     pcRef.current = pc;
 
     const iceCandidates: RTCIceCandidateInit[] = [];
