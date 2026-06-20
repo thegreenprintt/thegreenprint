@@ -174,14 +174,19 @@ export default function StreamPage() {
 
     // SSE: receive broadcaster ICE candidates instantly
     const seenIce = new Set<string>();
+    const pendingIce: any[] = [];
     const applyBroadcasterIce = (data: any) => {
       if (!data) return;
       const arr: any[] = Array.isArray(data) ? data : Object.values(data);
       for (const c of arr) {
         const k = JSON.stringify(c);
-        if (!seenIce.has(k) && pc.remoteDescription) {
+        if (!seenIce.has(k)) {
           seenIce.add(k);
-          pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+          if (pc.remoteDescription) {
+            pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+          } else {
+            pendingIce.push(c);
+          }
         }
       }
     };
@@ -197,6 +202,7 @@ export default function StreamPage() {
       offerEs?.close(); offerEs = null;
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        for (const qc of pendingIce) { pc.addIceCandidate(new RTCIceCandidate(qc)).catch(()=>{}); } pendingIce.length = 0;
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await fbPut(`live/answers/${myId}`, { type: answer.type, sdp: answer.sdp });
