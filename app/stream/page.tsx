@@ -55,6 +55,7 @@ export default function StreamPage() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Checking if stream is live…");
   const [muted, setMuted] = useState(true);
+  const [needsPlayGesture, setNeedsPlayGesture] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
 
   const [chat, setChat] = useState<ChatMsg[]>([]);
@@ -129,7 +130,7 @@ export default function StreamPage() {
         videoRef.current.srcObject = e.streams[0];
         videoRef.current.muted = true;
         videoRef.current.play().catch(() => {
-          videoRef.current?.addEventListener("click", () => videoRef.current?.play().catch(()=>{}), { once: true });
+          setNeedsPlayGesture(true);
         });
         connectedRef.current = true;
         setConnected(true);
@@ -385,9 +386,22 @@ export default function StreamPage() {
             ref={videoRef}
             autoPlay
             playsInline
-            muted={muted}
+            muted
             className="w-full h-full object-contain"
           />
+          {needsPlayGesture && (
+            <div
+              className="absolute inset-0 flex items-center justify-center z-20 bg-black/60 cursor-pointer"
+              onClick={() => { videoRef.current?.play().catch(()=>{}); setNeedsPlayGesture(false); }}
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-20 h-20 rounded-full bg-[#00FF85] flex items-center justify-center shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black" width="40" height="40"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span className="text-white font-bold text-lg">Tap to Play</span>
+              </div>
+            </div>
+          )}
           {!connected && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
               <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center">
