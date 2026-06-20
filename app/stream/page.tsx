@@ -139,13 +139,12 @@ export default function StreamPage() {
         videoRef.current.srcObject = e.streams[0];
         videoRef.current.muted = true;
         videoRef.current.play().then(() => {
-          if (videoRef.current) videoRef.current.muted = false;
+          if (videoRef.current) { videoRef.current.muted = false; setMuted(false); }
         }).catch(() => {
           setNeedsPlayGesture(true);
         });
         connectedRef.current = true;
         setConnected(true);
-        setMuted(true);
         log("Stream connected!");
         if (!startTimeRef.current) {
           startTimeRef.current = Date.now();
