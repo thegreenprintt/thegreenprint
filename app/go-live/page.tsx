@@ -451,7 +451,7 @@ export default function GoLivePage() {
       pipCtx.imageSmoothingEnabled = true; pipCtx.imageSmoothingQuality = "high";
       const drawPip = () => {
         pipCtx.clearRect(0, 0, CW, CH);
-        pipCtx.drawImage(svr, 0, 0, CW, CH);
+        if (svr.readyState >= 2) { pipCtx.drawImage(svr, 0, 0, CW, CH); }
         const cv = camVideoRef.current;
         if (camStreamRef.current && cv && cv.readyState >= 2) {
           const pw = Math.round(pipCanvas.width * 0.18); const ph = Math.round(pw * 9 / 16);
@@ -467,7 +467,7 @@ export default function GoLivePage() {
           pipCtx.save(); rr(); pipCtx.clip(); pipCtx.drawImage(cv,px,py,pw,ph); pipCtx.restore();
           pipCtx.save(); pipCtx.strokeStyle="#00FF85"; pipCtx.lineWidth=4; rr(); pipCtx.stroke(); pipCtx.restore();
         }
-        pipRafRef.current = requestAnimationFrame(drawPip);
+        pipRafRef.current = setTimeout(drawPip, 33) as unknown as number;
       };
       drawPip();
       const canvasStream = pipCanvas.captureStream(60);
@@ -496,7 +496,7 @@ export default function GoLivePage() {
     setTimeout(() => fbDelete("live/endSignal"), 5000);
     await setLiveStatus(false, "");
 
-    if (pipRafRef.current) { cancelAnimationFrame(pipRafRef.current); pipRafRef.current = null; }
+    if (pipRafRef.current) { clearTimeout(pipRafRef.current); pipRafRef.current = null; }
     pipCanvasRef.current = null;
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
     micStreamRef.current?.getTracks().forEach(t => t.stop());
