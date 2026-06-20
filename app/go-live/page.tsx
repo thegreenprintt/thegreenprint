@@ -225,33 +225,62 @@ export default function GoLivePage() {
       return;
     }
 
-    answerPollId = setInterval(async () => {
-      if (gotAnswer) return;
-      const answer = await fbGet(`live/answers/${viewerId}`);
-      if (answer?.sdp) {
-        gotAnswer = true;
-        clearInterval(answerPollId);
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        } catch {}
-      }
-    }, 1000);
+    // SSE: receive viewer's answer instantly
+    let answerEs: EventSource | null = new EventSource(`${RTDB_URL}/live/answers/${viewerId}.json`);
+    const processAnswer = async (answer: any) => {
+      if (!answer?.sdp || gotAnswer) return;
+      gotAnswer = true;
+      answerEs?.close(); answerEs = null;
+      clearInterval(answerPollId);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        log("Answer received — connected!");
+      } catch (err) { log("Answer error: " + err); cleanup(); }
+    };
+    answerEs.addEventListener("put",   (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    answerEs.addEventListener("patch", (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    answerEs.onerror = () => {
+      answerEs?.close(); answerEs = null;
+      // fallback poll
+      answerPollId = setInterval(async () => {
+        if (gotAnswer) { clearInterval(answerPollId); return; }
+        const answer = await fbGet(`live/answers/${viewerId}`);
+        if (answer?.sdp) processAnswer(answer);
+      }, 500);
+    };
 
+    // SSE: receive viewer's ICE candidates instantly
     const seenIce = new Set<string>();
-    icePollId = setInterval(async () => {
-      const data = await fbGet(`live/ice_v/${viewerId}`);
-      if (!data) return;
+    const applyViewerIce = (data: any) => {
+      if (!data || !pc.remoteDescription) return;
       const arr: any[] = Array.isArray(data) ? data : Object.values(data);
       for (const c of arr) {
         const k = JSON.stringify(c);
         if (!seenIce.has(k)) {
-          if (pc.remoteDescription) {
+          seenIce.add(k);
+          pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        }
+      }
+    };
+    let iceEs: EventSource | null = new EventSource(`${RTDB_URL}/live/ice_v/${viewerId}.json`);
+    iceEs.addEventListener("put",   (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)); } catch {} });
+    iceEs.addEventListener("patch", (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)); } catch {} });
+    iceEs.onerror = () => {
+      iceEs?.close(); iceEs = null;
+      // fallback poll
+      icePollId = setInterval(async () => {
+        const ices = await fbGet(`live/ice_v/${viewerId}`);
+        if (!ices || !pc.remoteDescription) return;
+        const arr: any[] = Array.isArray(ices) ? ices : Object.values(ices);
+        for (const c of arr) {
+          const k = JSON.stringify(c);
+          if (!seenIce.has(k)) {
             seenIce.add(k);
             pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
           }
         }
-      }
-    }, 1000);
+      }, 1000);
+    }
   }
 
   function startViewerWatch() {
