@@ -343,6 +343,15 @@ export default function GoLivePage() {
           setViewers(prev => { const n = {...prev}; delete n[id]; return n; });
         }
       });
+      if (data) {
+        for (const [id, vdata] of Object.entries(data as Record<string, any>)) {
+          const xpc = viewerPcsRef.current[id];
+          const st = xpc?.connectionState;
+          if (!xpc || st === 'failed' || st === 'closed' || st === 'disconnected') {
+            callViewerWebRTC(id, (vdata as any)?.name || 'Viewer');
+          }
+        }
+      }
     }, 15000);
 
     let lastChatTs = Date.now();
