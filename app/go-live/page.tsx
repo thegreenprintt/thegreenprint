@@ -696,6 +696,18 @@ export default function GoLivePage() {
               <p style={{ margin: 0, color: "#2a2a2a", fontSize: "12px", borderTop: "1px solid #0f0f0f", paddingTop: "8px" }}>{statusLog}</p>
             )}
 
+            {/* Chat */}
+            {chat.length > 0 && (
+              <div style={{ marginTop: 12, maxHeight: 200, overflowY: "auto", border: "1px solid #222", borderRadius: 6, padding: "8px 10px" }}>
+                <p style={{ margin: "0 0 6px", fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em" }}>Chat</p>
+                {chat.map((m, i) => (
+                  <div key={i} style={{ marginBottom: 4, fontSize: 13 }}>
+                    <span style={{ color: "#4a9d6f", fontWeight: 600 }}>{m.name}: </span>
+                    <span style={{ color: "#ddd" }}>{m.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Leads export */}
             {leads.length > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #0f0f0f", paddingTop: "8px" }}>
