@@ -245,8 +245,8 @@ export default function GoLivePage() {
         log("Answer received — connected!");
       } catch (err) { log("Answer error: " + err); cleanup(); }
     };
-    answerEs.addEventListener("put",   (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)); } catch {} });
-    answerEs.addEventListener("patch", (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    answerEs.addEventListener("put",   (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
+    answerEs.addEventListener("patch", (e: any) => { try { processAnswer(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
     answerEs.onerror = () => {
       answerEs?.close(); answerEs = null;
       // fallback poll
@@ -271,8 +271,8 @@ export default function GoLivePage() {
       }
     };
     let iceEs: EventSource | null = new EventSource(`${RTDB_URL}/live/ice_v/${viewerId}.json`);
-    iceEs.addEventListener("put",   (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)); } catch {} });
-    iceEs.addEventListener("patch", (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)); } catch {} });
+    iceEs.addEventListener("put",   (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
+    iceEs.addEventListener("patch", (e: any) => { try { applyViewerIce(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
     iceEs.onerror = () => {
       iceEs?.close(); iceEs = null;
       // fallback poll
