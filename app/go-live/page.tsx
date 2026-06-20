@@ -472,9 +472,7 @@ export default function GoLivePage() {
         pipRafRef.current = setTimeout(drawPip, 33) as unknown as number;
       };
       drawPip();
-      const canvasStream = pipCanvas.captureStream(60);
-      const audioTracks = outStreamRef.current?.getAudioTracks() ?? [];
-      outStreamRef.current = new MediaStream([canvasStream.getVideoTracks()[0], ...audioTracks]);
+      // canvas draw loop runs for broadcaster preview; stream uses direct screen capture
       log("PiP active. Broadcasting...");
     } catch {
       log("PiP skipped. Broadcasting...");
