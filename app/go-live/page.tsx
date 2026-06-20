@@ -227,7 +227,8 @@ export default function GoLivePage() {
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await fbPut(`live/offers/${viewerId}`, { type: offer.type, sdp: offer.sdp });
+      await new Promise<void>(r => { if (pc.iceGatheringState === 'complete') { r(); return; } pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 8000); });
+      await fbPut(`live/offers/${viewerId}`, { type: pc.localDescription!.type, sdp: pc.localDescription!.sdp });
     } catch {
       cleanup();
       return;
