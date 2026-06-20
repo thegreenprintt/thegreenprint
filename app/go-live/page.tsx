@@ -14,22 +14,15 @@ async function sha256(text: string): Promise<string> {
 
 interface Viewer { name: string; conn: any; call: any; }
 interface ChatMsg { name: string; text: string; ts: number; }
-interface Lead { name: string; email: string; ts: number; }
-
-async function getIceServers(): Promise<RTCIceServer[]> {
-  try {
-    const r = await fetch(
-      "/api/ice"
-    );
-    if (r.ok) return await r.json();
-  } catch {}
+interface Lead { name: string; email: string; ts: numberasync function getIceServers(): Promise<RTCIceServer[]> {
   return [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
+    { urls: "stun:stun.relay.metered.ca:80" },
+    { urls: "turn:global.relay.metered.ca:80", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turn:global.relay.metered.ca:443", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
   ];
 }
-
 async function fbPut(path: string, data: any) {
   try {
     await fetch(`${RTDB_URL}/${path}.json`, {
@@ -227,8 +220,7 @@ export default function GoLivePage() {
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await new Promise<void>(r => { if (pc.iceGatheringState === 'complete') { r(); return; } pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 8000); });
-      await fbPut(`live/offers/${viewerId}`, { type: pc.localDescription!.type, sdp: pc.localDescription!.sdp });
+      await fbPut(`live/offers/${viewerId}`, { type: offer.type, sdp: offer.sdp });
     } catch {
       cleanup();
       return;
