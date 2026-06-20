@@ -556,198 +556,156 @@ export default function GoLivePage() {
     );
   }
 
+  // Auto-select OBS Virtual Camera when devices load
+  useEffect(() => {
+    if (videoDevices.length > 0 && !selectedCamId) {
+      const obs = videoDevices.find(d => d.label.toLowerCase().includes("obs"));
+      setSelectedCamId(obs ? obs.deviceId : videoDevices[0].deviceId);
+    }
+  }, [videoDevices]);
+
   return (
-    <div className="min-h-screen bg-[#080808] flex flex-col font-sans">
-      <div className="h-12 bg-[#0d0d0d] border-b border-white/5 flex items-center px-4 gap-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${isLive ? "bg-red-500 animate-pulse" : "bg-white/20"}`}/>
-          <span className={`text-xs font-black tracking-widest ${isLive ? "text-red-400" : "text-white/25"}`}>
-            {isLive ? "LIVE" : "OFFLINE"}
-          </span>
-        </div>
-        <span className="text-xs text-white/30 flex-1 truncate">The Greenprint — Go Live</span>
-        <span className="font-mono text-xs text-white/25">
-          {Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}
-        </span>
-        {isLive && <span className="font-mono text-xs text-[#00FF85]">{elapsed}</span>}
-      </div>
+    <div style={{ background: "#0a0a0a", minHeight: "100vh", display: "flex", flexDirection: "column", color: "#fff" }}>
 
-      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        <div className="flex-1 bg-black relative min-h-[220px]">
-          <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" style={{ display: "none" }}/>
-          <video ref={camVideoRef} autoPlay muted playsInline
-            className="absolute inset-0 w-full h-full object-contain"
-            style={{ display: "none" }}/>
-          {!isLive && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="3" fill="#00FF85"/>
-                  <path d="M12 5a7 7 0 100 14A7 7 0 0012 5z" stroke="white" strokeWidth="1.5" strokeOpacity="0.2"/>
-                  <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="1" strokeOpacity="0.1"/>
+      {/* AUTH GATE */}
+      {!authed && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+          <form onSubmit={doAuth} style={{ background: "#111", border: "1px solid #1a1a1a", borderRadius: "12px", padding: "40px", width: "320px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <span style={{ color: "#22c55e", fontWeight: 700, fontSize: "11px", letterSpacing: "0.14em" }}>THE GREENPRINT STUDIO</span>
+            <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 700 }}>Broadcaster Access</h2>
+            <input
+              type="password"
+              value={pwd}
+              onChange={e => setPwd(e.target.value)}
+              placeholder="Access code"
+              disabled={authLocked}
+              autoFocus
+              style={{ background: "#1a1a1a", border: `1px solid ${authErr ? "#ef4444" : "#252525"}`, borderRadius: "8px", padding: "12px 14px", color: "#fff", fontSize: "15px", outline: "none", fontFamily: "inherit" }}
+            />
+            {authErr && <p style={{ margin: 0, color: "#ef4444", fontSize: "13px" }}>{authErr}</p>}
+            <button
+              type="submit"
+              disabled={authLocked || !pwd}
+              style={{ background: authLocked ? "#111" : "#16a34a", color: authLocked ? "#444" : "#fff", border: "none", borderRadius: "8px", padding: "12px", fontSize: "15px", fontWeight: 700, cursor: authLocked ? "not-allowed" : "pointer" }}
+            >
+              {authLocked ? "Locked…" : "Enter"}
+            </button>
+          </form>
+        </div>
+      )}
+      {/* STUDIO */}
+      {authed && (
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh", padding: "14px", gap: "10px", boxSizing: "border-box" }}>
+
+          {/* Header bar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <span style={{ color: "#22c55e", fontWeight: 700, fontSize: "11px", letterSpacing: "0.14em" }}>THE GREENPRINT STUDIO</span>
+            {isLive && (
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <span style={{ background: "#dc2626", color: "#fff", padding: "3px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>&#9679; LIVE</span>
+                <span style={{ color: "#888", fontFamily: "monospace", fontSize: "13px" }}>{elapsed}</span>
+                <span style={{ color: "#555", fontSize: "13px" }}>{Object.keys(viewers).length} viewer{Object.keys(viewers).length !== 1 ? "s" : ""}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Camera preview */}
+          <div style={{ flex: 1, position: "relative", background: "#070707", borderRadius: "10px", overflow: "hidden", minHeight: 0 }}>
+            <video ref={camVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", display: camOn ? "block" : "none" }} />
+            <video ref={screenVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
+            {!camOn && (
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", color: "#252525" }}>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <path d="M15 10l4.553-2.07A1 1 0 0121 8.83v6.34a1 1 0 01-1.447.9L15 14M4 8a2 2 0 012-2h9a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" />
                 </svg>
+                <span style={{ fontSize: "14px" }}>No camera preview</span>
+                {selectedCamId && <span style={{ fontSize: "12px", color: "#1a1a1a" }}>Click Preview to start</span>}
               </div>
-              <p className="text-white/20 text-xs">Press Go Live to start broadcasting</p>
-              <p className="text-white/10 text-xs">Viewers at thegreenprint.trade/stream will connect automatically</p>
-            </div>
-          )}
-        </div>
-
-        <div className="w-full lg:w-80 bg-[#0d0d0d] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0">
-          <div className="p-4 border-b border-white/5">
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Session title (e.g. NVDA Options Play)"
-              className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#00FF85]/40 transition-colors mb-3"/>
-            <div className="flex gap-2 flex-wrap">
-              {!isLive ? (
-                <button onClick={goLive}
-                  className="flex-1 bg-[#00FF85] text-black font-black py-2.5 rounded-xl text-xs hover:bg-[#00e676] transition-all"
-                  style={{ boxShadow: "0 0 16px rgba(0,255,133,0.3)" }}>
-                  Go Live
-                </button>
-              ) : (
-                <button onClick={endStream}
-                  className="flex-1 bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-2.5 rounded-xl text-xs hover:bg-red-500/20 transition-colors">
-                  End Stream
-                </button>
-              )}
-              <button onClick={toggleMic}
-                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${micOn ? "border-white/10 text-white/40 hover:text-white" : "border-red-500/30 text-red-400 bg-red-500/5"}`}>
-                {micOn ? "Mic On" : "Muted"}
-              </button>
-              <button onClick={toggleCam}
-                className={`px-3 py-2.5 rounded-xl text-xs border transition-colors ${camOn ? "border-[#00FF85]/30 text-[#00FF85] bg-[#00FF85]/5" : "border-white/10 text-white/40 hover:text-white"}`}>
-                Cam
-              </button>
-              {videoDevices.length > 0 && (
-                <select value={selectedCamId} onChange={e => setSelectedCamId(e.target.value)} className="ml-2 text-xs bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-white/60 max-w-[150px]">
-                  <option value="">Default cam</option>
-                  {videoDevices.map(d => (<option key={d.deviceId} value={d.deviceId}>{d.label || "Camera"}</option>))}
-                </select>
-              )}
-              <button onClick={async () => {
-                const next = camFacing === "user" ? "environment" : "user";
-                setCamFacing(next);
-                if (!outStreamRef.current) return;
-                try {
-                  const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
-                  const vt = s.getVideoTracks()[0];
-                  Object.values(viewerPcsRef.current).forEach(pc => {
-                    pc.getSenders().forEach(sd => { if (sd.track?.kind === "video") sd.replaceTrack(vt).catch(()=>{}); });
-                  });
-                  outStreamRef.current.getVideoTracks().forEach(t => { outStreamRef.current!.removeTrack(t); t.stop(); });
-                  outStreamRef.current.addTrack(vt);
-                  if (screenVideoRef.current) screenVideoRef.current.srcObject = outStreamRef.current;
-                } catch {}
-              }}
-                className="px-3 py-2.5 rounded-xl text-xs border border-white/10 text-white/40 hover:text-[#00FF85] hover:border-[#00FF85]/30 transition-colors">
-                Flip
-              </button>
-            </div>
-            <p className="text-[10px] text-white/30 mt-2.5 font-mono leading-relaxed">{statusLog}</p>
+            )}
           </div>
-
-          <div className="p-3 border-b border-white/5">
-            <p className="font-mono text-[10px] tracking-widest uppercase text-white/25 mb-2">Show on Stream — Join App</p>
-            <div className="flex items-center gap-3">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/&color=00FF85&bgcolor=0d0d0d&qzone=1"
-                alt="Join App QR" className="w-16 h-16 rounded-lg border border-white/10"/>
-              <div>
-                <p className="text-[11px] text-white/60 font-semibold mb-0.5">The Greenprint App</p>
-                <button onClick={() => navigator.clipboard.writeText("https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/")}
-                  className="mt-1.5 text-[9px] text-[#00FF85]/50 hover:text-[#00FF85] border border-white/8 rounded-lg px-2 py-0.5 transition-colors">
-                  Copy Link
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {isLive && (
-            <div className="grid grid-cols-3 border-b border-white/5">
-              {[
-                { label: "Live", val: Object.keys(viewers).length },
-                { label: "Peak", val: peakViewers },
-                { label: "Time", val: elapsed },
-              ].map(s => (
-                <div key={s.label} className="p-3 text-center border-r border-white/5 last:border-0">
-                  <div className="font-mono text-base font-black text-[#00FF85]">{s.val}</div>
-                  <div className="font-mono text-[9px] text-white/25 uppercase tracking-widest">{s.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {Object.keys(viewers).length > 0 && (
-            <div className="px-3 py-2 border-b border-white/5">
-              <p className="text-[10px] text-white/25 font-mono uppercase tracking-widest mb-1.5">Watching</p>
-              <div className="flex flex-wrap gap-1">
-                {Object.values(viewers).slice(0,12).map((name, i) => (
-                  <span key={i} className="bg-white/5 text-white/40 text-[10px] px-2 py-0.5 rounded-full">{name}</span>
-                ))}
-                {Object.keys(viewers).length > 12 && (
-                  <span className="text-white/25 text-[10px]">+{Object.keys(viewers).length - 12} more</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-3 py-2 border-b border-white/5">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Live Chat</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[100px] max-h-[200px] lg:max-h-none">
-              {chat.length === 0
-                ? <p className="text-[10px] text-white/20">Chat appears here once viewers start watching.</p>
-                : chat.map((m, i) => (
-                  <div key={i} className="text-xs">
-                    <span className="text-[#00FF85] font-semibold">{m.name}: </span>
-                    <span className="text-white/40">{m.text}</span>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-
-          <div className="border-t border-white/5 p-3 shrink-0">
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-white/25">Leads ({leads.length})</p>
-              <div className="flex gap-1">
-                {[
-                  { label: "Copy", fn: () => copyLeads(false) },
-                  { label: "Emails", fn: () => copyLeads(true) },
-                  { label: "CSV", fn: downloadCSV },
-                ].map(b => (
-                  <button key={b.label} onClick={b.fn}
-                    className="text-[9px] text-white/25 hover:text-white border border-white/8 rounded-lg px-1.5 py-0.5 transition-colors">
-                    {b.label}
+          {/* Controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "9px", flexShrink: 0 }}>
+            {!isLive ? (
+              <>
+                {/* Camera select + preview toggle */}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <select
+                    value={selectedCamId}
+                    onChange={e => setSelectedCamId(e.target.value)}
+                    style={{ flex: 1, background: "#0e0e0e", border: "1px solid #1c1c1c", color: selectedCamId ? "#fff" : "#555", padding: "10px 12px", borderRadius: "7px", fontSize: "13px", fontFamily: "inherit" }}
+                  >
+                    <option value="">&#8212; Select camera &#8212;</option>
+                    {videoDevices.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || ("Camera " + d.deviceId.slice(0, 8))}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={toggleCam}
+                    disabled={!selectedCamId && !camOn}
+                    style={{ background: camOn ? "#0c1c0c" : "#0e0e0e", border: `1px solid ${camOn ? "#22c55e" : "#1c1c1c"}`, color: camOn ? "#22c55e" : "#555", padding: "10px 16px", borderRadius: "7px", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" }}
+                  >
+                    {camOn ? "\u25cf On" : "Preview"}
                   </button>
-                ))}
-              </div>
-            </div>
-            <div className="max-h-20 overflow-y-auto space-y-0.5">
-              {leads.length === 0
-                ? <p className="text-[10px] text-white/20">Stream subscriber emails appear here.</p>
-                : leads.map((l, i) => (
-                  <div key={i} className="text-[10px] font-mono text-white/30">
-                    {l.name} &lt;{l.email}&gt;
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      </div>
+                </div>
 
-      {chatToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-white/10 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-2xl max-w-xs w-full">
-          <div className="w-7 h-7 rounded-full bg-[#00FF85]/20 flex items-center justify-center shrink-0 text-[#00FF85] text-xs font-bold mt-0.5">
-            {chatToast.name[0]?.toUpperCase() || "?"}
-          </div>
-          <div>
-            <p className="text-[#00FF85] text-xs font-semibold">{chatToast.name}</p>
-            <p className="text-white/80 text-sm">{chatToast.msg}</p>
+                {/* Stream title */}
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Stream title (optional)"
+                  style={{ background: "#0e0e0e", border: "1px solid #1c1c1c", color: "#fff", padding: "10px 12px", borderRadius: "7px", fontSize: "13px", outline: "none", fontFamily: "inherit" }}
+                />
+                {/* Mic toggle */}
+                <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }} onClick={toggleMic}>
+                  <div style={{ width: "34px", height: "18px", background: micOn ? "#16a34a" : "#1c1c1c", borderRadius: "9px", position: "relative", flexShrink: 0, transition: "background 0.15s" }}>
+                    <div style={{ position: "absolute", top: "2px", left: micOn ? "18px" : "2px", width: "14px", height: "14px", background: "#fff", borderRadius: "50%", transition: "left 0.15s" }} />
+                  </div>
+                  <span style={{ fontSize: "13px", color: "#555" }}>Mic {micOn ? "on" : "off"}</span>
+                </label>
+
+                {/* GO LIVE button */}
+                <button
+                  onClick={goLive}
+                  disabled={!camOn}
+                  style={{ background: camOn ? "#15803d" : "#0a0a0a", color: camOn ? "#fff" : "#1e1e1e", border: `1px solid ${camOn ? "#16a34a" : "#111"}`, borderRadius: "8px", padding: "14px", fontSize: "15px", fontWeight: 700, cursor: camOn ? "pointer" : "not-allowed", letterSpacing: "0.05em" }}
+                >
+                  &#9654;&#160;&#160;GO LIVE
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Mic toggle while live */}
+                <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }} onClick={toggleMic}>
+                  <div style={{ width: "34px", height: "18px", background: micOn ? "#16a34a" : "#1c1c1c", borderRadius: "9px", position: "relative", flexShrink: 0, transition: "background 0.15s" }}>
+                    <div style={{ position: "absolute", top: "2px", left: micOn ? "18px" : "2px", width: "14px", height: "14px", background: "#fff", borderRadius: "50%", transition: "left 0.15s" }} />
+                  </div>
+                  <span style={{ fontSize: "13px", color: "#555" }}>Mic {micOn ? "on" : "off"}</span>
+                </label>
+
+                {/* END STREAM button */}
+                <button
+                  onClick={endStream}
+                  style={{ background: "#110505", color: "#ef4444", border: "1px solid #2a0808", borderRadius: "8px", padding: "14px", fontSize: "15px", fontWeight: 700, cursor: "pointer", letterSpacing: "0.05em" }}
+                >
+                  &#9632;&#160;&#160;END STREAM
+                </button>
+              </>
+            )}
+            {/* Status message */}
+            {statusLog && (
+              <p style={{ margin: 0, color: "#2a2a2a", fontSize: "12px", borderTop: "1px solid #0f0f0f", paddingTop: "8px" }}>{statusLog}</p>
+            )}
+
+            {/* Leads export */}
+            {leads.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #0f0f0f", paddingTop: "8px" }}>
+                <span style={{ color: "#2a2a2a", fontSize: "12px" }}>{leads.length} lead{leads.length !== 1 ? "s" : ""}</span>
+                <button onClick={downloadCSV} style={{ background: "none", border: "1px solid #1a1a1a", color: "#333", padding: "3px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "11px" }}>Export CSV</button>
+              </div>
+            )}
           </div>
         </div>
       )}
-   </div>
+    </div>
   );
 }
