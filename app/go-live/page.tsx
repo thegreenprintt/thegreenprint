@@ -427,7 +427,7 @@ export default function GoLivePage() {
     }
     const mic = micStreamRef.current;
     outStreamRef.current = new MediaStream([
-      cam.getVideoTracks()[0],
+      cam.getVideoTracks()[0]!,
       ...(mic ? mic.getAudioTracks() : [])
     ]);
     if (screenVideoRef.current) {
