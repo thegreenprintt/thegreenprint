@@ -152,7 +152,7 @@ export default function GoLivePage() {
     } catch (e) { console.warn("Firebase sync error:", e); }
   }
 
-  async function callViewerWebRTC(viewerId: string, viewerName: string) {
+  async async function callViewerWebRTC(viewerId: string, viewerName: string) {
     if (!outStreamRef.current) return;
     if (viewerPcsRef.current[viewerId]) {
       try { viewerCleanupRef.current[viewerId]?.(); } catch {}
