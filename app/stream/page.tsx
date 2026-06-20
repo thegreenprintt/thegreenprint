@@ -157,16 +157,21 @@ export default function StreamPage() {
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        if (pcRef.current !== pc) return; // already superseded by a newer connection
         connectedRef.current = false;
         setConnected(false);
         clearInterval(timerRef.current);
-        log("Connection lost — re-registering…");
-        // Re-register after a short delay
-        setTimeout(async () => {
-          if (pcRef.current === pc) {
-            await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
-          }
-        }, 2000);
+        log("Connection lost — reconnecting…");
+        // Stop this PC's intervals before restarting
+        clearInterval(reRegId);
+        clearInterval(offerPollId);
+        clearInterval(icePollId);
+        try { pc.close(); } catch {}
+        pcRef.current = null;
+        // Remove stale signaling but keep viewer presence alive
+        Promise.all([fbDelete(`live/answers/${myId}`), fbDelete(`live/ice_v/${myId}`)]).catch(()=>{});
+        // Full restart: new PC + fresh offer poll
+        setTimeout(() => { if (!pcRef.current) joinStream(displayName); }, 2000);
       }
     };
 
