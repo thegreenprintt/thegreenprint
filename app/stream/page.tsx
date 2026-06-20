@@ -100,32 +100,27 @@ export default function StreamPage() {
 
   async function joinStream(displayName: string) {
     const myId = myIdRef.current;
-    log("Registering with stream…");
-
-    // Write viewer presence to Firebase
+    log("Registering…");
     await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
-
-    // Wait for broadcaster's offer
-    log("Waiting for stream offer…");
+    log("Waiting for offer…");
 
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 0 });
     pcRef.current = pc;
-
-    const iceCandidates: RTCIceCandidateInit[] = [];
-    let icePollId: any;
-    let offerPollId: any;
     let gotOffer = false;
 
-    // Re-register every 5s until offer arrives (handles missed SSE events)
+    // Re-register every 5 s so broadcaster keeps us visible
     const reRegId = setInterval(async () => {
       if (gotOffer) { clearInterval(reRegId); return; }
       await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
     }, 5000);
 
+    let offerEs: EventSource | null = null;
+    let iceEs:   EventSource | null = null;
+
     const cleanup = () => {
       clearInterval(reRegId);
-      clearInterval(offerPollId);
-      clearInterval(icePollId);
+      offerEs?.close();
+      iceEs?.close();
       try { pc.close(); } catch {}
       fbDelete(`live/viewers/${myId}`);
       fbDelete(`live/answers/${myId}`);
@@ -134,134 +129,95 @@ export default function StreamPage() {
     };
     cleanupRef.current = cleanup;
 
+    // Send our ICE candidates to the broadcaster
+    const myIce: RTCIceCandidateInit[] = [];
+    pc.onicecandidate = async (e) => {
+      if (e.candidate) {
+        myIce.push(e.candidate.toJSON());
+        await fbPut(`live/ice_v/${myId}`, myIce);
+      }
+    };
+
+    // Handle incoming media tracks
     pc.ontrack = (e) => {
-      if (videoRef.current && e.streams[0]) {
-        videoRef.current.srcObject = e.streams[0];
+      if (!videoRef.current) return;
+      const stream = e.streams[0] ?? new MediaStream([e.track]);
+      videoRef.current.srcObject = stream;
+      if (e.track.kind === "video") {
         videoRef.current.muted = true;
         videoRef.current.play().then(() => {
           if (videoRef.current) { videoRef.current.muted = false; setMuted(false); }
-        }).catch(() => {
-          setNeedsPlayGesture(true);
-        });
+        }).catch(() => setNeedsPlayGesture(true));
         connectedRef.current = true;
         setConnected(true);
-        log("Stream connected!");
         if (!startTimeRef.current) {
           startTimeRef.current = Date.now();
           timerRef.current = setInterval(() => {
-            const s = Math.floor((Date.now() - (startTimeRef.current ?? Date.now())) / 1000);
-            setElapsed(
-              `${String(Math.floor(s / 3600)).padStart(2,"0")}:${String(Math.floor((s % 3600) / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`
-            );
+            const s2 = Math.floor((Date.now() - (startTimeRef.current ?? Date.now())) / 1000);
+            setElapsed(`${String(Math.floor(s2/3600)).padStart(2,"0")}:${String(Math.floor((s2%3600)/60)).padStart(2,"0")}:${String(s2%60).padStart(2,"0")}`);
           }, 1000);
         }
+        log("Stream connected!");
       }
     };
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-        if (pcRef.current !== pc) return; // already superseded by a newer connection
+        if (pcRef.current !== pc) return;
         connectedRef.current = false;
         setConnected(false);
         clearInterval(timerRef.current);
         log("Connection lost — reconnecting…");
-        // Stop this PC's intervals before restarting
-        clearInterval(reRegId);
-        clearInterval(offerPollId);
-        clearInterval(icePollId);
-        try { pc.close(); } catch {}
-        pcRef.current = null;
-        // Remove stale signaling but keep viewer presence alive
-        Promise.all([fbDelete(`live/answers/${myId}`), fbDelete(`live/ice_v/${myId}`)]).catch(()=>{});
-        // Full restart: new PC + fresh offer poll
+        cleanup();
         setTimeout(() => { if (!pcRef.current) joinStream(displayName); }, 2000);
       }
     };
 
-    // Send our ICE candidates to Firebase
-    pc.onicecandidate = async (e) => {
-      if (e.candidate) {
-        iceCandidates.push(e.candidate.toJSON());
-        await fbPut(`live/ice_v/${myId}`, iceCandidates);
+    // SSE: receive broadcaster ICE candidates instantly
+    const seenIce = new Set<string>();
+    const applyBroadcasterIce = (data: any) => {
+      if (!data) return;
+      const arr: any[] = Array.isArray(data) ? data : Object.values(data);
+      for (const c of arr) {
+        const k = JSON.stringify(c);
+        if (!seenIce.has(k) && pc.remoteDescription) {
+          seenIce.add(k);
+          pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        }
       }
     };
+    iceEs = new EventSource(`${RTDB_URL}/live/ice_b/${myId}.json`);
+    iceEs.addEventListener("put",   (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)); } catch {} });
+    iceEs.addEventListener("patch", (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)); } catch {} });
 
-    // Poll for broadcaster's offer
-    offerPollId = setInterval(async () => {
-      if (gotOffer) return;
-      const offer = await fbGet(`live/offers/${myId}`);
-      if (!offer?.sdp) return;
+    // SSE: receive broadcaster offer instantly (fallback to 500 ms poll on error)
+    const processOffer = async (offer: any) => {
+      if (!offer?.sdp || gotOffer) return;
       gotOffer = true;
-      clearInterval(offerPollId);
-
+      clearInterval(reRegId);
+      offerEs?.close(); offerEs = null;
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await fbPut(`live/answers/${myId}`, { type: answer.type, sdp: answer.sdp });
-      } catch {
-        log("SDP error — retrying registration…");
-        await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
-        gotOffer = false;
-      }
-    }, 1000);
+        log("Answer sent — connecting…");
+      } catch (err) { log("Offer error: " + err); }
+    };
 
-    // Poll for broadcaster's ICE candidates
-    const seenIce = new Set<string>();
-    icePollId = setInterval(async () => {
-      const data = await fbGet(`live/ice_b/${myId}`);
-      if (!data) return;
-      const arr: any[] = Array.isArray(data) ? data : Object.values(data);
-      for (const c of arr) {
-        const k = JSON.stringify(c);
-        if (!seenIce.has(k)) {
-          seenIce.add(k);
-          if (pc.remoteDescription) {
-            pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-          }
-        }
-      }
-    }, 1000);
-
-    // Listen for stream end signal
-    const _joinTs = Date.now();
-    const endEs = new EventSource(`${RTDB_URL}/live/endSignal.json`);
-    endSseRef.current = endEs;
-    endEs.addEventListener("put", (e: any) => {
-      try {
-        const { data } = JSON.parse(e.data);
-        if (data && data.ts && data.ts > _joinTs) {
-          connectedRef.current = false;
-          setConnected(false);
-          clearInterval(timerRef.current);
-          log("Stream ended.");
-        }
-      } catch {}
-    });
+    let fallbackPollId: any;
+    offerEs = new EventSource(`${RTDB_URL}/live/offers/${myId}.json`);
+    offerEs.addEventListener("put",   (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    offerEs.addEventListener("patch", (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    offerEs.onerror = () => {
+      offerEs?.close(); offerEs = null;
+      fallbackPollId = setInterval(async () => {
+        if (gotOffer) { clearInterval(fallbackPollId); return; }
+        const offer = await fbGet(`live/offers/${myId}`);
+        if (offer?.sdp) processOffer(offer);
+      }, 500);
+    };
   }
-
-  function startChatPoll() {
-    lastChatTsRef.current = Date.now();
-    chatPollRef.current = setInterval(async () => {
-      const data = await fbGet("live/chat");
-      if (!data) return;
-      const msgs = Object.values(data) as any[];
-      msgs.forEach(m => {
-        if (m.ts > lastChatTsRef.current) {
-          lastChatTsRef.current = m.ts;
-          setChat(prev => [...prev.slice(-199), { name: m.name, text: m.msg, ts: m.ts }]);
-        }
-      });
-    }, 2000);
-  }
-
-  function startViewerCountPoll() {
-    viewerCountPollRef.current = setInterval(async () => {
-      const data = await fbGet("live/viewers");
-      setViewerCount(data ? Object.keys(data).length : 0);
-    }, 5000);
-  }
-
   // Poll for live status
   useEffect(() => {
     const check = async () => {
