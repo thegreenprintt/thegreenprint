@@ -427,6 +427,7 @@ export default function GoLivePage() {
  try {
       const ctx = new AudioContext();
       audioCtxRef.current = ctx;
+      await ctx.resume();
       const dst = ctx.createMediaStreamDestination();
       audioDstRef.current = dst;
       const screenAudio = scrn.getAudioTracks();
