@@ -368,6 +368,7 @@ export default function GoLivePage() {
         screenVideoRef.current.srcObject = mobileStream;
         screenVideoRef.current.muted = true;
         screenVideoRef.current.style.display = "block";
+        screenVideoRef.current.play().catch(() => {});
       }
       try { (navigator as any).wakeLock?.request("screen"); } catch {}
       const liveTitle = title || "The Greenprint - Live";
@@ -408,6 +409,7 @@ export default function GoLivePage() {
       screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
       screenVideoRef.current.muted = true;
       screenVideoRef.current.style.display = "block";
+      screenVideoRef.current.play().catch(() => {});
     }
 
     log("Screen captured. Requesting microphone...");
