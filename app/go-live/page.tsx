@@ -419,103 +419,24 @@ export default function GoLivePage() {
       return;
     }
 
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      const msg = "Go Live needs screen sharing — open in Chrome or Edge on a desktop.";
-      log(msg); alert(msg); return;
-    }
-
-    log("Select your screen or window to share...");
-    let scrn: MediaStream;
-    try {
-      scrn = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 60, max: 60 }, width: { ideal: 2560 }, height: { ideal: 1440 } },
-        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
-      });
-      scrn.getVideoTracks().forEach(t => { t.contentHint = "detail"; });
-    } catch (err: any) {
-      if (err.name === "NotAllowedError" || err.name === "AbortError") {
-        log("Screen share cancelled. Press Go Live to try again.");
-      } else {
-        log("Screen share error: " + (err.message || "unknown"));
-      }
+    // Camera-only — OBS Virtual Camera or any selected camera
+    const cam = camStreamRef.current;
+    if (!cam || cam.getVideoTracks().length === 0) {
+      log("Click Cam, select your camera (e.g. OBS Virtual Camera), then Go Live.");
       return;
     }
-
-    screenStreamRef.current = scrn;
+    const mic = micStreamRef.current;
+    outStreamRef.current = new MediaStream([
+      cam.getVideoTracks()[0],
+      ...(mic ? mic.getAudioTracks() : [])
+    ]);
     if (screenVideoRef.current) {
-      screenVideoRef.current.srcObject = new MediaStream(scrn.getVideoTracks());
-      screenVideoRef.current.muted = true;
+      screenVideoRef.current.srcObject = outStreamRef.current;
       screenVideoRef.current.style.display = "block";
+      screenVideoRef.current.muted = true;
       screenVideoRef.current.play().catch(() => {});
     }
-
-    log("Screen captured. Requesting microphone...");
-    let mic: MediaStream | null = null;
-    try {
-      mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 },
-        video: false,
-      });
-      micStreamRef.current = mic;
-    } catch {
-      log("Mic unavailable — streaming without mic.");
-    }
-
- try {
-      const ctx = new AudioContext();
-      audioCtxRef.current = ctx;
-      await ctx.resume();
-      const dst = ctx.createMediaStreamDestination();
-      audioDstRef.current = dst;
-      const screenAudio = scrn.getAudioTracks();
-      if (screenAudio.length > 0) ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
-      if (mic) ctx.createMediaStreamSource(mic).connect(dst);
-      const mixed = dst.stream.getAudioTracks();
-      const directAudio = mixed.length > 0 ? mixed : (mic ? mic.getAudioTracks() : scrn.getAudioTracks());
-      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...directAudio]);
-    } catch {
-      const audioTracks = mic ? mic.getAudioTracks() : scrn.getAudioTracks();
-      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...audioTracks]);
-    }
-
-    try {
-      const svr = screenVideoRef.current!;
-      if (svr.videoWidth === 0) {
-        await new Promise<void>(res => { svr.onloadedmetadata = () => res(); setTimeout(res, 2000); });
-      }
-      const pipCanvas = document.createElement("canvas");
-      pipCanvasRef.current = pipCanvas;
-      pipCanvas.width = svr.videoWidth || 1920;
-      pipCanvas.height = svr.videoHeight || 1080;
-      const CW = pipCanvas.width; const CH = pipCanvas.height;
-      const pipCtx = pipCanvas.getContext("2d")!;
-      pipCtx.imageSmoothingEnabled = true; pipCtx.imageSmoothingQuality = "high";
-      const drawPip = () => {
-        pipCtx.clearRect(0, 0, CW, CH);
-        pipCtx.drawImage(svr, 0, 0, CW, CH);
-        const cv = camVideoRef.current;
-        if (camStreamRef.current && cv && cv.readyState >= 2) {
-          const pw = Math.round(pipCanvas.width * 0.18); const ph = Math.round(pw * 9 / 16);
-          const px = pipCanvas.width - pw - 36; const py = pipCanvas.height - ph - 36; const r = 22;
-          const rr = () => {
-            pipCtx.beginPath(); pipCtx.moveTo(px+r,py); pipCtx.lineTo(px+pw-r,py);
-            pipCtx.quadraticCurveTo(px+pw,py,px+pw,py+r); pipCtx.lineTo(px+pw,py+ph-r);
-            pipCtx.quadraticCurveTo(px+pw,py+ph,px+pw-r,py+ph); pipCtx.lineTo(px+r,py+ph);
-            pipCtx.quadraticCurveTo(px,py+ph,px,py+ph-r); pipCtx.lineTo(px,py+r);
-            pipCtx.quadraticCurveTo(px,py,px+r,py); pipCtx.closePath();
-          };
-          pipCtx.save(); pipCtx.shadowColor="rgba(0,255,133,0.55)"; pipCtx.shadowBlur=30; pipCtx.fillStyle="#00FF85"; rr(); pipCtx.fill(); pipCtx.restore();
-          pipCtx.save(); rr(); pipCtx.clip(); pipCtx.drawImage(cv,px,py,pw,ph); pipCtx.restore();
-          pipCtx.save(); pipCtx.strokeStyle="#00FF85"; pipCtx.lineWidth=4; rr(); pipCtx.stroke(); pipCtx.restore();
-        }
-        pipRafRef.current = setTimeout(drawPip, 33) as unknown as number;
-      };
-      drawPip();
-      // canvas draw loop runs for broadcaster preview; stream uses direct screen capture
-      log("PiP active. Broadcasting...");
-    } catch {
-      log("PiP skipped. Broadcasting...");
-    }
+    if (camVideoRef.current) camVideoRef.current.style.display = "none";
 
     const liveTitle = title || "The Greenprint - Live Session";
     try { (navigator as any).wakeLock?.request("screen"); } catch {}
@@ -655,8 +576,8 @@ export default function GoLivePage() {
         <div className="flex-1 bg-black relative min-h-[220px]">
           <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" style={{ display: "none" }}/>
           <video ref={camVideoRef} autoPlay muted playsInline
-            className="absolute bottom-3 right-3 w-52 h-36 object-cover rounded-xl border border-white/10"
-            style={{ display: "none", transform: "scaleX(-1)" }}/>
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ display: "none" }}/>
           {!isLive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
               <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-2">
