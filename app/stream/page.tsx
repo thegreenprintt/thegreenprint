@@ -6,19 +6,14 @@ const RTDB_URL =
   "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 
 async function getIceServers(): Promise<RTCIceServer[]> {
-  try {
-    const r = await fetch(
-      "/api/ice"
-    );
-    if (r.ok) return await r.json();
-  } catch {}
   return [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
+    { urls: "stun:stun.relay.metered.ca:80" },
+    { urls: "turn:global.relay.metered.ca:80", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turn:global.relay.metered.ca:443", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
+    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
   ];
 }
-
 async function fbGet(path: string) {
   try {
     const r = await fetch(`${RTDB_URL}/${path}.json`, { cache: "no-store" });
@@ -205,8 +200,7 @@ export default function StreamPage() {
         for (const qc of pendingIce) { pc.addIceCandidate(new RTCIceCandidate(qc)).catch(()=>{}); } pendingIce.length = 0;
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        await new Promise<void>(r => { if (pc.iceGatheringState === 'complete') { r(); return; } pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 8000); });
-        await fbPut(`live/answers/${myId}`, { type: pc.localDescription!.type, sdp: pc.localDescription!.sdp });
+        await fbPut(`live/answers/${myId}`, { type: answer.type, sdp: answer.sdp });
         log("Answer sent — connecting…");
       } catch (err) { log("Offer error: " + err); }
     };
