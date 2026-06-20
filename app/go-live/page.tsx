@@ -563,14 +563,6 @@ export default function GoLivePage() {
     );
   }
 
-  // Auto-select OBS Virtual Camera when devices load
-  useEffect(() => {
-    if (videoDevices.length > 0 && !selectedCamId) {
-      const obs = videoDevices.find(d => d.label.toLowerCase().includes("obs"));
-      setSelectedCamId(obs ? obs.deviceId : videoDevices[0].deviceId);
-    }
-  }, [videoDevices]);
-
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", display: "flex", flexDirection: "column", color: "#fff" }}>
 
