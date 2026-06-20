@@ -5,23 +5,19 @@ const RTDB_URL =
   process.env.NEXT_PUBLIC_FIREBASE_RTDB_URL ||
   "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 
-const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun3.l.google.com:19302" },
-  { urls: "stun:stun4.l.google.com:19302" },
-  { urls: "stun:stun.cloudflare.com:3478" },
-  // TURN UDP — basic relay
-  { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-  // TURN TCP — bypasses UDP-blocking ISPs/firewalls
-  { urls: "turn:openrelay.metered.ca:80?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
-  // TURN port 443 TCP — works through most corporate firewalls
-  { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-  { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
-  // TURNS TLS — most permissive, works on virtually any network including mobile in Hawaii
-  { urls: "turns:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-];
+async function getIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const r = await fetch(
+      "https://thegreenprint.metered.live/api/v1/turn/credentials?apiKey=5F8_ODeQi0c5SzzowPMIz2apHx4NPItp9aoVVxToeF_FbZoE"
+    );
+    if (r.ok) return await r.json();
+  } catch {}
+  return [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+  ];
+}
 
 async function fbGet(path: string) {
   try {
@@ -104,7 +100,7 @@ export default function StreamPage() {
     await fbPut(`live/viewers/${myId}`, { name: displayName, ts: Date.now() });
     log("Waiting for offer…");
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 0 });
+    const pc = new RTCPeerConnection({ iceServers: await getIceServers(), iceCandidatePoolSize: 0 });
     pcRef.current = pc;
     let gotOffer = false;
 
