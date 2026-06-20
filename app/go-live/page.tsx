@@ -434,7 +434,8 @@ export default function GoLivePage() {
       if (screenAudio.length > 0) ctx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dst);
       if (mic) ctx.createMediaStreamSource(mic).connect(dst);
       const mixed = dst.stream.getAudioTracks();
-      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...(mixed.length ? [mixed[0]] : [])]);
+      const directAudio = mixed.length > 0 ? mixed : (mic ? mic.getAudioTracks() : scrn.getAudioTracks());
+      outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...directAudio]);
     } catch {
       const audioTracks = mic ? mic.getAudioTracks() : scrn.getAudioTracks();
       outStreamRef.current = new MediaStream([scrn.getVideoTracks()[0], ...audioTracks]);
