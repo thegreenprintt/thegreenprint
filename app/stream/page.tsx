@@ -139,7 +139,7 @@ export default function StreamPage() {
       if (!videoRef.current) return;
       const stream = e.streams[0] ?? new MediaStream([e.track]);
       videoRef.current.srcObject = stream;
-      if (e.track.kind === "video") {
+      if (!connectedRef.current) {
         videoRef.current.muted = true;
         videoRef.current.play().then(() => {
           if (videoRef.current) { videoRef.current.muted = false; setMuted(false); }
@@ -158,7 +158,10 @@ export default function StreamPage() {
     };
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+      if (pc.connectionState === "connected" && !connectedRef.current) {
+        connectedRef.current = true;
+        setConnected(true);
+      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         if (pcRef.current !== pc) return;
         connectedRef.current = false;
         setConnected(false);
