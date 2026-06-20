@@ -245,8 +245,8 @@ export default function GoLivePage() {
       for (const c of arr) {
         const k = JSON.stringify(c);
         if (!seenIce.has(k)) {
-          seenIce.add(k);
           if (pc.remoteDescription) {
+            seenIce.add(k);
             pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
           }
         }
