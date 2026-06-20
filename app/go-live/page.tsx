@@ -517,6 +517,13 @@ export default function GoLivePage() {
   }
 
   useEffect(() => {
+    if (videoDevices.length > 0 && !selectedCamId) {
+      const obs = videoDevices.find(d => d.label?.toLowerCase().includes('obs'));
+      setSelectedCamId(obs ? obs.deviceId : videoDevices[0].deviceId);
+    }
+  }, [videoDevices]);
+
+  useEffect(() => {
     if (!authed) return;
     startViewerWatch();
     return () => {
