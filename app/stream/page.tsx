@@ -27,6 +27,7 @@ async function fbPut(path: string, data: any) {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+      keepalive: true,
     });
   } catch {}
 }
