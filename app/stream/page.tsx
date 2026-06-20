@@ -205,7 +205,8 @@ export default function StreamPage() {
         for (const qc of pendingIce) { pc.addIceCandidate(new RTCIceCandidate(qc)).catch(()=>{}); } pendingIce.length = 0;
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        await fbPut(`live/answers/${myId}`, { type: answer.type, sdp: answer.sdp });
+        await new Promise<void>(r => { if (pc.iceGatheringState === 'complete') { r(); return; } pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') r(); }; setTimeout(r, 8000); });
+        await fbPut(`live/answers/${myId}`, { type: pc.localDescription!.type, sdp: pc.localDescription!.sdp });
         log("Answer sent — connecting…");
       } catch (err) { log("Offer error: " + err); }
     };
