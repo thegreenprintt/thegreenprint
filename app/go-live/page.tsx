@@ -14,7 +14,9 @@ async function sha256(text: string): Promise<string> {
 
 interface Viewer { name: string; conn: any; call: any; }
 interface ChatMsg { name: string; text: string; ts: number; }
-interface Lead { name: string; email: string; ts: numberasync function getIceServers(): Promise<RTCIceServer[]> {
+interface Lead { name: string; email: string; ts: number; }
+
+async function getIceServers(): Promise<RTCIceServer[]> {
   return [
     { urls: "stun:stun.relay.metered.ca:80" },
     { urls: "turn:global.relay.metered.ca:80", username: "93c505beb914bb4b2330bc55", credential: "nMvZib7+ScgCeG8t" },
