@@ -19,7 +19,7 @@ interface Lead { name: string; email: string; ts: number; }
 async function getIceServers(): Promise<RTCIceServer[]> {
   try {
     const r = await fetch(
-      "https://thegreenprint.metered.live/api/v1/turn/credentials?apiKey=5F8_ODeQi0c5SzzowPMIz2apHx4NPItp9aoVVxToeF_FbZoE"
+      "/api/ice"
     );
     if (r.ok) return await r.json();
   } catch {}
