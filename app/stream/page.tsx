@@ -127,7 +127,10 @@ export default function StreamPage() {
     pc.ontrack = (e) => {
       if (videoRef.current && e.streams[0]) {
         videoRef.current.srcObject = e.streams[0];
-        videoRef.current.play().catch(() => {});
+        videoRef.current.muted = true;
+        videoRef.current.play().catch(() => {
+          videoRef.current?.addEventListener("click", () => videoRef.current?.play().catch(()=>{}), { once: true });
+        });
         connectedRef.current = true;
         setConnected(true);
         setMuted(true);
@@ -205,12 +208,13 @@ export default function StreamPage() {
     }, 1000);
 
     // Listen for stream end signal
+    const _joinTs = Date.now();
     const endEs = new EventSource(`${RTDB_URL}/live/endSignal.json`);
     endSseRef.current = endEs;
     endEs.addEventListener("put", (e: any) => {
       try {
         const { data } = JSON.parse(e.data);
-        if (data && data.ts) {
+        if (data && data.ts && data.ts > _joinTs) {
           connectedRef.current = false;
           setConnected(false);
           clearInterval(timerRef.current);
