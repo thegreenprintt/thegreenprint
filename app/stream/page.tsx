@@ -191,8 +191,8 @@ export default function StreamPage() {
       }
     };
     iceEs = new EventSource(`${RTDB_URL}/live/ice_b/${myId}.json`);
-    iceEs.addEventListener("put",   (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)); } catch {} });
-    iceEs.addEventListener("patch", (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)); } catch {} });
+    iceEs.addEventListener("put",   (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
+    iceEs.addEventListener("patch", (e: any) => { try { applyBroadcasterIce(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
 
     // SSE: receive broadcaster offer instantly (fallback to 500 ms poll on error)
     const processOffer = async (offer: any) => {
@@ -212,8 +212,8 @@ export default function StreamPage() {
 
     let fallbackPollId: any;
     offerEs = new EventSource(`${RTDB_URL}/live/offers/${myId}.json`);
-    offerEs.addEventListener("put",   (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)); } catch {} });
-    offerEs.addEventListener("patch", (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)); } catch {} });
+    offerEs.addEventListener("put",   (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
+    offerEs.addEventListener("patch", (e: any) => { try { processOffer(JSON.parse((e as MessageEvent).data)?.data); } catch {} });
     offerEs.onerror = () => {
       offerEs?.close(); offerEs = null;
       fallbackPollId = setInterval(async () => {
