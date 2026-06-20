@@ -453,7 +453,7 @@ export default function GoLivePage() {
       pipCtx.imageSmoothingEnabled = true; pipCtx.imageSmoothingQuality = "high";
       const drawPip = () => {
         pipCtx.clearRect(0, 0, CW, CH);
-        if (svr.readyState >= 2) { pipCtx.drawImage(svr, 0, 0, CW, CH); }
+        pipCtx.drawImage(svr, 0, 0, CW, CH);
         const cv = camVideoRef.current;
         if (camStreamRef.current && cv && cv.readyState >= 2) {
           const pw = Math.round(pipCanvas.width * 0.18); const ph = Math.round(pw * 9 / 16);
