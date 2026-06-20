@@ -333,7 +333,7 @@ export default function GoLivePage() {
       const vdata = await fbGet("live/viewers");
       if (!vdata) return;
       Object.entries(vdata).forEach(([vid, vd]) => handleViewerData(vid, vd as any));
-    }, 3000);
+    }, 500);
     watchCleanupRef.current = () => {
       clearInterval(staleCheckId);
       clearInterval(chatPollId);
