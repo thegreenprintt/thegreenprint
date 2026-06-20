@@ -236,7 +236,6 @@ export default function StreamPage() {
     return () => clearInterval(liveCheckRef.current);
   }, []);
 
-  // When live sta
   // Poll chat messages for this viewer
   function startChatPoll() {
     chatPollRef.current = setInterval(async () => {
@@ -259,7 +258,7 @@ export default function StreamPage() {
     }, 5000);
   }
 
-tus changes, join or leave
+  // When live status changes, join or leave
   useEffect(() => {
     if (isLive && nameSet && !connectedRef.current) {
       joinStream(name);
