@@ -448,7 +448,7 @@ export default function GoLivePage() {
       setTimeout(() => callViewerWebRTC(pid, v.name), i * 150);
     });
 
-    scrn.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
+    cam.getVideoTracks()[0]?.addEventListener("ended", () => endStream());
   }
 
   async function endStream() {
