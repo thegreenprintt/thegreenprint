@@ -74,22 +74,32 @@ export default function StreamPage() {
   }, [chat]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function check() {
-      const data = await fbGet("livestatus");
-      if (cancelled) return;
+    // Immediate check
+    fbGet("livestatus").then(data => {
       const live = data?.live === true;
       isLiveRef.current = live;
       setIsLive(live);
-      if (!live) {
-        setStatus("Stream is offline");
-        setTimeout(check, 5000);
-      } else {
-        setStatus("Stream is live!");
+      setStatus(live ? "Stream is live!" : "Stream is offline");
+    });
+    // Real-time updates via SSE — no polling delay
+    const es = new EventSource(`${RTDB_URL}/livestatus.json`);
+    es.addEventListener("put", (e: MessageEvent) => {
+      const d = JSON.parse(e.data);
+      const live = d.data?.live === true;
+      isLiveRef.current = live;
+      setIsLive(live);
+      setStatus(live ? "Stream is live!" : "Stream is offline");
+    });
+    es.addEventListener("patch", (e: MessageEvent) => {
+      const d = JSON.parse(e.data);
+      if (typeof d.data?.live === "boolean") {
+        const live = d.data.live === true;
+        isLiveRef.current = live;
+        setIsLive(live);
+        setStatus(live ? "Stream is live!" : "Stream is offline");
       }
-    }
-    check();
-    return () => { cancelled = true; };
+    });
+    return () => es.close();
   }, []);
 
   useEffect(() => {
