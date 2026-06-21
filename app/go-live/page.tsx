@@ -1,11 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import {
-  Room,
-  RoomEvent,
-  Track,
-  createLocalScreenTracks,
-  createLocalVideoTrack,
+  Room, RoomEvent, Track,
+  createLocalScreenTracks, createLocalVideoTrack,
 } from "livekit-client";
 
 const HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
@@ -21,20 +18,6 @@ const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.js
 const del = async (p: string) => { try { await fetch(`${FB}/${p}.json`, { method: "DELETE" }); } catch {} };
 
 type ChatMsg = { name: string; msg: string; ts: number };
-
-function parseFirebaseMsg(d: any): ChatMsg | null {
-  if (!d?.data) return null;
-  // Format A: {"path":"/","data":{"-key":{name,msg,ts}}}
-  const vals = Object.values(d.data);
-  if (vals.length > 0 && typeof vals[0] === "object" && (vals[0] as any)?.msg) {
-    return vals[0] as ChatMsg;
-  }
-  // Format B: {"path":"/-key","data":{name,msg,ts}}
-  if (typeof d.data === "object" && (d.data as any)?.msg) {
-    return d.data as ChatMsg;
-  }
-  return null;
-}
 
 export default function GoLive() {
   const [pw, setPw] = useState("");
@@ -53,48 +36,27 @@ export default function GoLive() {
   const hbRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const camTrackRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const seenMsgs = useRef(new Set<string>());
   const sendingRef = useRef(false);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
-  const addMsg = (m: ChatMsg) => {
-    if (!m?.msg) return;
-    const key = `${m.ts}_${m.name}_${m.msg}`;
-    if (seenMsgs.current.has(key)) return;
-    seenMsgs.current.add(key);
-    setChat(prev => [...prev, m].slice(-50));
-  };
-
+  // Simple poll — no SSE parsing issues
   useEffect(() => {
     if (!authed) return;
-    seenMsgs.current.clear();
-    const es = new EventSource(`${FB}/live/chat.json`);
-    es.addEventListener("put", (e: MessageEvent) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (d?.data && typeof d.data === "object") {
-          seenMsgs.current.clear();
-          const msgs = (Object.values(d.data) as ChatMsg[])
-            .filter(m => m?.msg)
-            .sort((a, b) => a.ts - b.ts)
-            .slice(-50);
-          msgs.forEach(m => seenMsgs.current.add(`${m.ts}_${m.name}_${m.msg}`));
-          setChat(msgs);
-        }
-      } catch {}
-    });
-    es.addEventListener("patch", (e: MessageEvent) => {
-      try {
-        const d = JSON.parse(e.data);
-        const msg = parseFirebaseMsg(d);
-        if (msg) addMsg(msg);
-      } catch {}
-    });
-    return () => es.close();
+    const poll = async () => {
+      const data = await get("live/chat");
+      if (!data || typeof data !== "object") { setChat([]); return; }
+      const msgs = (Object.values(data) as ChatMsg[])
+        .filter(m => m?.msg && m?.name)
+        .sort((a, b) => a.ts - b.ts)
+        .slice(-50);
+      setChat(msgs);
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
   }, [authed]);
 
   const startStream = async () => {
@@ -103,36 +65,26 @@ export default function GoLive() {
       const screenTracks = await createLocalScreenTracks({ audio: true });
       const videoTrack = screenTracks.find(t => t.kind === Track.Kind.Video);
       const audioTrack = screenTracks.find(t => t.kind === Track.Kind.Audio);
-
-      if (!videoTrack) throw new Error("No video track from screen share");
+      if (!videoTrack) throw new Error("No video track");
       if (screenRef.current) videoTrack.attach(screenRef.current);
 
-      setStatus("Connecting to LiveKit...");
+      setStatus("Connecting...");
       const res = await fetch("/api/lk-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isHost: true }),
       });
       const { token, url } = await res.json();
-      if (!url) { setStatus("Add NEXT_PUBLIC_LIVEKIT_URL to Vercel env vars."); return; }
+      if (!url) { setStatus("Missing NEXT_PUBLIC_LIVEKIT_URL env var."); return; }
 
       const room = new Room({ adaptiveStream: true, dynacast: true });
       roomRef.current = room;
-
       room.on(RoomEvent.ParticipantConnected, () => setViewerCount(room.remoteParticipants.size));
       room.on(RoomEvent.ParticipantDisconnected, () => setViewerCount(room.remoteParticipants.size));
 
       await room.connect(url, token);
-      setStatus("Publishing stream...");
-
-      await room.localParticipant.publishTrack(videoTrack, {
-        name: "screen", source: Track.Source.ScreenShare, simulcast: false,
-      });
-      if (audioTrack) {
-        await room.localParticipant.publishTrack(audioTrack, {
-          name: "screen-audio", source: Track.Source.ScreenShareAudio,
-        });
-      }
+      setStatus("Publishing...");
+      await room.localParticipant.publishTrack(videoTrack, { name: "screen", source: Track.Source.ScreenShare, simulcast: false });
+      if (audioTrack) await room.localParticipant.publishTrack(audioTrack, { name: "screen-audio", source: Track.Source.ScreenShareAudio });
 
       setLive(true);
       setStatus("Live");
@@ -149,11 +101,9 @@ export default function GoLive() {
     if (hbRef.current) clearInterval(hbRef.current);
     if (roomRef.current) { await roomRef.current.disconnect(); roomRef.current = null; }
     await put("livestatus", { live: false, ts: Date.now() });
-    setLive(false);
-    setStatus("");
-    setViewerCount(0);
-    setCamOn(false);
+    setLive(false); setStatus(""); setViewerCount(0); setCamOn(false);
     if (camTrackRef.current) { camTrackRef.current.stop(); camTrackRef.current = null; }
+    if (camRef.current) camRef.current.srcObject = null;
   };
 
   const toggleCam = async () => {
@@ -165,17 +115,13 @@ export default function GoLive() {
           camTrackRef.current.stop();
           camTrackRef.current = null;
         }
-        // Detach from video element
         if (camRef.current) camRef.current.srcObject = null;
         setCamOn(false);
       } else {
         const track = await createLocalVideoTrack({ facingMode: "user" });
         camTrackRef.current = track;
-        // camRef is always in DOM (hidden), so this never fails
         if (camRef.current) track.attach(camRef.current);
-        await roomRef.current.localParticipant.publishTrack(track, {
-          name: "camera", source: Track.Source.Camera, simulcast: true,
-        });
+        await roomRef.current.localParticipant.publishTrack(track, { name: "camera", source: Track.Source.Camera, simulcast: true });
         setCamOn(true);
       }
     } catch (err: any) {
@@ -238,7 +184,6 @@ export default function GoLive() {
           <div>
             <div style={{ position: "relative", background: "#111", borderRadius: 12, overflow: "hidden", aspectRatio: "16/9" }}>
               <video ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }} />
-              {/* Camera PiP — always in DOM, just hidden when off */}
               <div style={{ position: "absolute", bottom: 16, right: 16, width: 180, height: 101, borderRadius: 8, overflow: "hidden", border: "2px solid #00ff87", display: camOn ? "block" : "none" }}>
                 <video ref={camRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
               </div>
@@ -249,13 +194,11 @@ export default function GoLive() {
                 </div>
               )}
             </div>
-
             <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-              {!live ? (
-                <button onClick={startStream} style={{ background: "#00ff87", border: "none", borderRadius: 8, color: "#000", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>🔴 Go Live</button>
-              ) : (
-                <button onClick={stopStream} style={{ background: "#ff0033", border: "none", borderRadius: 8, color: "#fff", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>⏹ End Stream</button>
-              )}
+              {!live
+                ? <button onClick={startStream} style={{ background: "#00ff87", border: "none", borderRadius: 8, color: "#000", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>🔴 Go Live</button>
+                : <button onClick={stopStream} style={{ background: "#ff0033", border: "none", borderRadius: 8, color: "#fff", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>⏹ End Stream</button>
+              }
               <button onClick={toggleCam} disabled={!live} style={{ background: camOn ? "#00ff87" : "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: camOn ? "#000" : "#fff", padding: "10px 20px", cursor: live ? "pointer" : "not-allowed", opacity: live ? 1 : 0.4, fontWeight: 600 }}>{camOn ? "📸 Cam ON" : "📷 Cam OFF"}</button>
               <button onClick={toggleMic} disabled={!live} style={{ background: micOn ? "#00ff87" : "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: micOn ? "#000" : "#fff", padding: "10px 20px", cursor: live ? "pointer" : "not-allowed", opacity: live ? 1 : 0.4, fontWeight: 600 }}>{micOn ? "🎤 Mic ON" : "🔇 Mic OFF"}</button>
               {status && <span style={{ color: status.startsWith("Error") || status.startsWith("Cam") ? "#ff4444" : "#00ff87", fontSize: 13 }}>{status}</span>}
