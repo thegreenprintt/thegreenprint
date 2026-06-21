@@ -3,12 +3,16 @@ import{useState,useEffect,useRef}from"react";
 const FB="https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const HASH="f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
 const ICE=[
-  {urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"},
-  {urls:"turn:global.relay.metered.ca:80",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turn:global.relay.metered.ca:80?transport=tcp",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turn:global.relay.metered.ca:443",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turns:global.relay.metered.ca:443?transport=tcp",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
+  {urls:"stun:stun.l.google.com:19302"},
+  {urls:"stun:stun1.l.google.com:19302"},
+  {urls:"stun:stun2.l.google.com:19302"},
+  {urls:"stun:stun3.l.google.com:19302"},
+  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:80?transport=tcp",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turns:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
 ];
+const PC={iceServers:ICE,iceCandidatePoolSize:10,bundlePolicy:"max-bundle" as RTCBundlePolicy};
 const sha=async(s:string)=>{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");};
 const put=async(p:string,d:any)=>{try{await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true});}catch{}};
 const get=async(p:string)=>{try{return await(await fetch(`${FB}/${p}.json`,{cache:"no-store"})).json();}catch{return null;}};
@@ -81,7 +85,7 @@ export default function GoLive(){
   }
   async function dial(id:string){
     if(!scrRef.current||!liveRef.current)return;
-    const pc=new RTCPeerConnection({iceServers:ICE});
+    const pc=new RTCPeerConnection(PC);
     pcs.current[id]=pc;
     scrRef.current.getTracks().forEach(t=>pc.addTrack(t,scrRef.current!));
     pc.onicecandidate=e=>{if(e.candidate)push("live/ice_b/"+id,e.candidate.toJSON());};
