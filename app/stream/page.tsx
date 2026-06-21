@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Room, RoomEvent, Track, RemoteTrack } from "livekit-client";
+import { Room, RoomEvent, Track, RemoteTrack, RemoteTrackPublication } from "livekit-client";
 
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`, { cache: "no-store" }); return await r.json(); } catch { return null; } };
 const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); } catch {} };
+
+type ChatMsg = { name: string; msg: string; ts: number };
 
 export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
@@ -12,71 +14,102 @@ export default function StreamPage() {
   const [joined, setJoined] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [statusText, setStatusText] = useState("Checking stream...");
-  const [chat, setChat] = useState<{ name: string; msg: string; ts: number }[]>([]);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const [chatMsg, setChatMsg] = useState("");
   const [viewerCount, setViewerCount] = useState(0);
   const [hasVideo, setHasVideo] = useState(false);
+  const [hasCam, setHasCam] = useState(false);
   const [needsClick, setNeedsClick] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const screenRef = useRef<HTMLVideoElement>(null);
+  const camRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null);
-  const pendingVideoRef = useRef<RemoteTrack | null>(null);
+  const pendingScreenRef = useRef<RemoteTrack | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  // Dedup: track seen message fingerprints
+  const seenMsgs = useRef(new Set<string>());
 
-  // Live status polling
+  const addMsg = (m: ChatMsg) => {
+    const key = `${m.ts}_${m.name}_${m.msg}`;
+    if (seenMsgs.current.has(key)) return;
+    seenMsgs.current.add(key);
+    setChat(prev => [...prev, m].slice(-50));
+  };
+
+  const setAllMsgs = (msgs: ChatMsg[]) => {
+    seenMsgs.current.clear();
+    msgs.forEach(m => seenMsgs.current.add(`${m.ts}_${m.name}_${m.msg}`));
+    setChat(msgs);
+  };
+
+  // Auto-scroll chat
   useEffect(() => {
-    const apply = (live: boolean) => setIsLive(live);
-    get("livestatus").then(d => apply(!!d?.live));
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat]);
+
+  // Live status
+  useEffect(() => {
+    get("livestatus").then(d => setIsLive(!!d?.live));
     const es = new EventSource(`${FB}/livestatus.json`);
     es.addEventListener("put", (e: MessageEvent) => {
-      try { const d = JSON.parse(e.data); apply(!!d?.data?.live); } catch {}
+      try { const d = JSON.parse(e.data); setIsLive(!!d?.data?.live); } catch {}
     });
-    const poll = setInterval(() => get("livestatus").then(d => apply(!!d?.live)), 3000);
+    const poll = setInterval(() => get("livestatus").then(d => setIsLive(!!d?.live)), 3000);
     return () => { es.close(); clearInterval(poll); };
   }, []);
 
-  // Once video element exists, attach any pending track
+  // Attach pending screen track once video element renders
   useEffect(() => {
-    if (joined && videoRef.current && pendingVideoRef.current) {
-      pendingVideoRef.current.attach(videoRef.current);
-      videoRef.current.play().catch(() => setNeedsClick(true));
+    if (joined && screenRef.current && pendingScreenRef.current) {
+      pendingScreenRef.current.attach(screenRef.current);
+      screenRef.current.play().catch(() => setNeedsClick(true));
       setHasVideo(true);
-      pendingVideoRef.current = null;
+      pendingScreenRef.current = null;
     }
   }, [joined]);
 
   // Chat SSE
   useEffect(() => {
     if (!joined) return;
+    seenMsgs.current.clear();
     const es = new EventSource(`${FB}/live/chat.json`);
     es.addEventListener("put", (e: MessageEvent) => {
       try {
         const d = JSON.parse(e.data);
         if (d?.data && typeof d.data === "object") {
-          const msgs = Object.values(d.data) as { name: string; msg: string; ts: number }[];
-          setChat(msgs.sort((a, b) => a.ts - b.ts).slice(-50));
+          const msgs = (Object.values(d.data) as ChatMsg[]).sort((a, b) => a.ts - b.ts).slice(-50);
+          setAllMsgs(msgs);
         }
       } catch {}
     });
     es.addEventListener("patch", (e: MessageEvent) => {
       try {
         const d = JSON.parse(e.data);
-        if (d?.data) {
-          const newMsg = Object.values(d.data)[0] as { name: string; msg: string; ts: number };
-          if (newMsg) setChat(prev => [...prev, newMsg].slice(-50));
+        if (d?.data && typeof d.data === "object") {
+          // d.data is { "-key": { name, msg, ts } }
+          const newMsg = Object.values(d.data)[0] as ChatMsg;
+          if (newMsg?.msg) addMsg(newMsg);
         }
       } catch {}
     });
     return () => es.close();
   }, [joined]);
 
-  const attachVideo = (track: RemoteTrack) => {
-    if (videoRef.current) {
-      track.attach(videoRef.current);
-      videoRef.current.play().catch(() => setNeedsClick(true));
+  const attachScreen = (track: RemoteTrack) => {
+    if (screenRef.current) {
+      track.attach(screenRef.current);
+      screenRef.current.play().catch(() => setNeedsClick(true));
       setHasVideo(true);
     } else {
-      // Video element not in DOM yet — store and attach after render
-      pendingVideoRef.current = track;
+      pendingScreenRef.current = track;
+    }
+  };
+
+  const attachCam = (track: RemoteTrack) => {
+    if (camRef.current) {
+      track.attach(camRef.current);
+      camRef.current.play().catch(() => {});
+      setHasCam(true);
     }
   };
 
@@ -96,10 +129,15 @@ export default function StreamPage() {
       const room = new Room({ adaptiveStream: true });
       roomRef.current = room;
 
-      room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+      room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
         if (track.kind === Track.Kind.Video) {
-          attachVideo(track);
-          setStatusText("Live");
+          if (pub.source === Track.Source.Camera) {
+            attachCam(track);
+          } else {
+            // ScreenShare or unknown — goes to main video
+            attachScreen(track);
+            setStatusText("Live");
+          }
         }
         if (track.kind === Track.Kind.Audio) {
           const el = track.attach();
@@ -108,9 +146,12 @@ export default function StreamPage() {
         }
       });
 
-      room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+      room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
         track.detach();
-        if (track.kind === Track.Kind.Video) setHasVideo(false);
+        if (track.kind === Track.Kind.Video) {
+          if (pub.source === Track.Source.Camera) setHasCam(false);
+          else setHasVideo(false);
+        }
       });
 
       room.on(RoomEvent.ParticipantConnected, () => setViewerCount(room.remoteParticipants.size));
@@ -120,6 +161,7 @@ export default function StreamPage() {
         setJoined(false);
         setConnecting(false);
         setHasVideo(false);
+        setHasCam(false);
       });
 
       await room.connect(url, token);
@@ -132,7 +174,10 @@ export default function StreamPage() {
         p.trackPublications.forEach(pub => {
           if (pub.track) {
             const t = pub.track;
-            if (t.kind === Track.Kind.Video) attachVideo(t);
+            if (t.kind === Track.Kind.Video) {
+              if (pub.source === Track.Source.Camera) attachCam(t);
+              else { attachScreen(t); setStatusText("Live"); }
+            }
             if (t.kind === Track.Kind.Audio) {
               const el = t.attach();
               el.autoplay = true;
@@ -150,12 +195,13 @@ export default function StreamPage() {
 
   const sendChat = async () => {
     if (!chatMsg.trim()) return;
-    await push("live/chat", { name: name || "Viewer", msg: chatMsg.trim(), ts: Date.now() });
+    const m = chatMsg.trim();
     setChatMsg("");
+    await push("live/chat", { name: name || "Viewer", msg: m, ts: Date.now() });
   };
 
   const handleVideoClick = () => {
-    videoRef.current?.play().catch(() => {});
+    screenRef.current?.play().catch(() => {});
     setNeedsClick(false);
   };
 
@@ -194,12 +240,9 @@ export default function StreamPage() {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .stream-grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
-        .chat-box{height:420px}
-        @media(max-width:768px){
-          .stream-grid{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-          .chat-box{height:280px}
-        }
+        .sg{display:grid;grid-template-columns:1fr 320px;gap:16px}
+        .cb{height:420px}
+        @media(max-width:768px){.sg{grid-template-columns:1fr}.cb{height:260px}}
       `}</style>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -212,10 +255,16 @@ export default function StreamPage() {
           </div>
         </div>
 
-        <div className="stream-grid">
+        <div className="sg">
           <div>
             <div style={{ background: "#111", borderRadius: 12, overflow: "hidden", position: "relative", aspectRatio: "16/9" }} onClick={handleVideoClick}>
-              <video ref={videoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }} />
+              <video ref={screenRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }} />
+              {/* Camera PiP overlay */}
+              {hasCam && (
+                <div style={{ position: "absolute", bottom: 12, right: 12, width: 160, height: 90, borderRadius: 8, overflow: "hidden", border: "2px solid #00ff87", zIndex: 10 }}>
+                  <video ref={camRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              )}
               {!hasVideo && (
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
                   <div style={{ width: 36, height: 36, border: "3px solid #00ff87", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
@@ -232,7 +281,7 @@ export default function StreamPage() {
 
           <div style={{ background: "#111", borderRadius: 12, border: "1px solid #222", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #222", fontWeight: 600, fontSize: 14 }}>💬 Live Chat</div>
-            <div className="chat-box" style={{ overflowY: "auto", padding: 12, flex: 1 }}>
+            <div className="cb" style={{ overflowY: "auto", padding: 12 }}>
               {chat.length === 0 && <p style={{ color: "#444", fontSize: 13, textAlign: "center", marginTop: 20 }}>No messages yet</p>}
               {chat.map((m, i) => (
                 <div key={i} style={{ marginBottom: 8 }}>
@@ -240,6 +289,7 @@ export default function StreamPage() {
                   <span style={{ color: "#ddd", fontSize: 13 }}>{m.msg}</span>
                 </div>
               ))}
+              <div ref={chatEndRef} />
             </div>
             <div style={{ padding: 10, borderTop: "1px solid #222", display: "flex", gap: 8 }}>
               <input value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} placeholder="Say something..."
