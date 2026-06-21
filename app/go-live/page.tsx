@@ -1,174 +1,204 @@
 "use client";
-import{useState,useEffect,useRef}from"react";
-const FB="https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const HASH="f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
-const ICE=[
-  {urls:"stun:stun.l.google.com:19302"},
-  {urls:"stun:stun1.l.google.com:19302"},
-  {urls:"stun:stun2.l.google.com:19302"},
-  {urls:"stun:stun3.l.google.com:19302"},
-  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:80?transport=tcp",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turns:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
-];
-const PC={iceServers:ICE,iceCandidatePoolSize:10,bundlePolicy:"max-bundle" as RTCBundlePolicy};
-const sha=async(s:string)=>{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");};
-const put=async(p:string,d:any)=>{try{await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true});}catch{}};
-const get=async(p:string)=>{try{return await(await fetch(`${FB}/${p}.json`,{cache:"no-store"})).json();}catch{return null;}};
-const del=async(p:string)=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE",keepalive:true});}catch{}};
-const push=async(p:string,d:any)=>{try{await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});}catch{}};
-interface M{id?:string;name:string;text:string;ts:number}
-export default function GoLive(){
-  const[pw,setPw]=useState("");
-  const[authed,setAuthed]=useState(false);
-  const[live,setLive]=useState(false);
-  const[sharing,setSharing]=useState(false);
-  const[camOn,setCamOn]=useState(false);
-  const[micOn,setMicOn]=useState(true);
-  const[vc,setVc]=useState(0);
-  const[chat,setChat]=useState<M[]>([]);
-  const[chatMsg,setChatMsg]=useState("");
-  const mainVid=useRef<HTMLVideoElement>(null);
-  const pipVid=useRef<HTMLVideoElement>(null);
-  const scrRef=useRef<MediaStream|null>(null);
-  const camRef=useRef<MediaStream|null>(null);
-  const liveRef=useRef(false);
-  const pcs=useRef<Record<string,RTCPeerConnection>>({});
-  const answered=useRef<Set<string>>(new Set());
-  const seen=useRef<Set<string>>(new Set());
-  const chatTail=useRef<HTMLDivElement>(null);
-  useEffect(()=>{chatTail.current?.scrollIntoView({behavior:"smooth"});},[chat]);
-  // On auth: wipe stale Firebase state so viewers dont see phantom "live"
-  useEffect(()=>{
-    if(!authed)return;
-    put("livestatus",{live:false,ts:Date.now()});
-    del("live");
-  },[authed]);
-  // Heartbeat every 10s while live — viewer checks freshness
-  useEffect(()=>{
-    if(!live)return;
-    const hb=setInterval(()=>put("livestatus",{live:true,ts:Date.now()}),10000);
-    return()=>clearInterval(hb);
-  },[live]);
-  async function login(){if(await sha(pw)===HASH)setAuthed(true);}
-  async function startScreen(){
-    try{
-      const s=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true});
-      scrRef.current=s;
-      if(mainVid.current){mainVid.current.srcObject=s;mainVid.current.play();}
-      setSharing(true);
-      s.getVideoTracks()[0].onended=()=>{if(!liveRef.current){setSharing(false);scrRef.current=null;}};
-    }catch(e){alert("Screen share failed: "+(e as Error).message);}
-  }
-  async function toggleCam(){
-    if(camOn){camRef.current?.getTracks().forEach(t=>t.stop());camRef.current=null;if(pipVid.current)pipVid.current.srcObject=null;setCamOn(false);}
-    else{try{const c=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240},audio:false});camRef.current=c;if(pipVid.current){pipVid.current.srcObject=c;pipVid.current.play();}setCamOn(true);}catch(e){alert("Camera: "+(e as Error).message);}}
-  }
-  function toggleMic(){scrRef.current?.getAudioTracks().forEach(t=>{t.enabled=!micOn;});setMicOn(p=>!p);}
-  async function goLive(){
-    if(!scrRef.current)return alert("Share your screen first");
-    liveRef.current=true;setLive(true);
-    await del("live");
-    await put("livestatus",{live:true,ts:Date.now()});
-    // Chat via SSE
-    const cEs=new EventSource(`${FB}/live/chat.json`);
-    cEs.addEventListener("put",(e:MessageEvent)=>{const d=JSON.parse(e.data);if(!d.data){setChat([]);return;}setChat(Object.entries(d.data).map(([id,v])=>({id,...v as any})).sort((a:any,b:any)=>a.ts-b.ts));});
-    cEs.addEventListener("patch",(e:MessageEvent)=>{const d=JSON.parse(e.data);if(!d.data)return;const inc=Object.entries(d.data).map(([id,v])=>({id,...v as any}));setChat(p=>{const m=new Map(p.map((x:any)=>[x.id,x]));(inc as any[]).forEach(x=>x.id&&m.set(x.id,x));return[...m.values()].sort((a:any,b:any)=>a.ts-b.ts);});});
-    // Poll viewers every 2s
-    const vP=setInterval(async()=>{
-      if(!liveRef.current){clearInterval(vP);return;}
-      const v=await get("live/viewers");
-      if(v&&typeof v==="object"){const ids=Object.keys(v);setVc(ids.length);ids.forEach(id=>{if(!seen.current.has(id)){seen.current.add(id);dial(id);}});}
-      else setVc(0);
-    },2000);
-  }
-  async function dial(id:string){
-    if(!scrRef.current||!liveRef.current)return;
-    const pc=new RTCPeerConnection(PC);
-    pcs.current[id]=pc;
-    scrRef.current.getTracks().forEach(t=>pc.addTrack(t,scrRef.current!));
-    pc.onicecandidate=e=>{if(e.candidate)push("live/ice_b/"+id,e.candidate.toJSON());};
-    const offer=await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await put("live/offers/"+id,{type:offer.type,sdp:offer.sdp});
-    // Poll for answer
-    const aP=setInterval(async()=>{
-      if(answered.current.has(id)||!liveRef.current){clearInterval(aP);return;}
-      const ans=await get("live/answers/"+id);
-      if(ans?.sdp){answered.current.add(id);clearInterval(aP);pc.setRemoteDescription(new RTCSessionDescription(ans)).catch(()=>{});}
-    },500);
-    // Poll viewer ICE candidates every 1s
-    const knownV=new Set<string>();
-    const vIce=setInterval(async()=>{
-      if(!liveRef.current){clearInterval(vIce);return;}
-      const ice=await get("live/ice_v/"+id);
-      if(ice&&typeof ice==="object")Object.entries(ice).forEach(([k,c])=>{if(!knownV.has(k)){knownV.add(k);pc.addIceCandidate(new RTCIceCandidate(c as RTCIceCandidateInit)).catch(()=>{});}});
-    },1000);
-    pc.onconnectionstatechange=()=>{
-      if((pc.connectionState==="failed"||pc.connectionState==="closed")&&liveRef.current){
-        clearInterval(aP);clearInterval(vIce);delete pcs.current[id];answered.current.delete(id);
-        setTimeout(()=>{if(liveRef.current)dial(id);},3000);
-      }
-    };
-  }
-  async function sendChat(){if(!chatMsg.trim())return;await push("live/chat",{name:"Streamer",text:chatMsg.trim(),ts:Date.now()});setChatMsg("");}
-  async function endLive(){
-    liveRef.current=false;setLive(false);setSharing(false);setCamOn(false);setVc(0);setChat([]);
-    seen.current.clear();answered.current.clear();
-    Object.values(pcs.current).forEach(p=>p.close());pcs.current={};
-    scrRef.current?.getTracks().forEach(t=>t.stop());scrRef.current=null;
-    camRef.current?.getTracks().forEach(t=>t.stop());camRef.current=null;
-    if(mainVid.current)mainVid.current.srcObject=null;
-    if(pipVid.current)pipVid.current.srcObject=null;
-    await put("livestatus",{live:false,ts:Date.now()});
-    await del("live");
-  }
-  if(!authed)return(
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="bg-zinc-900 p-8 rounded-2xl w-full max-w-sm space-y-4">
-        <h1 className="text-white text-2xl font-bold text-center">Streamer Login</h1>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} className="w-full bg-zinc-800 text-white rounded-xl px-4 py-3 outline-none" placeholder="Password"/>
-        <button onClick={login} className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-3 rounded-xl">Enter</button>
+import { useState, useEffect, useRef } from "react";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  createLocalScreenTracks,
+  createLocalVideoTrack,
+} from "livekit-client";
+
+const HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
+const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+
+async function sha256(msg: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+const put = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d), keepalive: true }); } catch {} };
+const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); } catch {} };
+const del = async (p: string) => { try { await fetch(`${FB}/${p}.json`, { method: "DELETE" }); } catch {} };
+
+export default function GoLive() {
+  const [pw, setPw] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [live, setLive] = useState(false);
+  const [status, setStatus] = useState("");
+  const [viewerCount, setViewerCount] = useState(0);
+  const [camOn, setCamOn] = useState(false);
+  const [micOn, setMicOn] = useState(true);
+  const [chat, setChat] = useState<{ name: string; msg: string; ts: number }[]>([]);
+  const [chatMsg, setChatMsg] = useState("");
+
+  const screenRef = useRef<HTMLVideoElement>(null);
+  const camRef = useRef<HTMLVideoElement>(null);
+  const roomRef = useRef<Room | null>(null);
+  const hbRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const camTrackRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!authed) return;
+    const es = new EventSource(`${FB}/live/chat.json`);
+    es.addEventListener("put", (e: MessageEvent) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d?.data && typeof d.data === "object") {
+          const msgs = Object.values(d.data) as { name: string; msg: string; ts: number }[];
+          setChat(msgs.sort((a, b) => a.ts - b.ts).slice(-50));
+        }
+      } catch {}
+    });
+    es.addEventListener("patch", (e: MessageEvent) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d?.data) {
+          const newMsg = Object.values(d.data)[0] as { name: string; msg: string; ts: number };
+          if (newMsg) setChat(prev => [...prev, newMsg].slice(-50));
+        }
+      } catch {}
+    });
+    return () => es.close();
+  }, [authed]);
+
+  const startStream = async () => {
+    try {
+      setStatus("Getting screen share...");
+      const screenTracks = await createLocalScreenTracks({ audio: true });
+      const videoTrack = screenTracks.find(t => t.kind === Track.Kind.Video);
+      const audioTrack = screenTracks.find(t => t.kind === Track.Kind.Audio);
+      if (!videoTrack) throw new Error("No video track");
+      videoTrack.attach(screenRef.current!);
+      setStatus("Connecting...");
+      const res = await fetch("/api/lk-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHost: true }),
+      });
+      const { token, url } = await res.json();
+      if (!url) { setStatus("Missing NEXT_PUBLIC_LIVEKIT_URL env var."); return; }
+      const room = new Room({ adaptiveStream: true, dynacast: true });
+      roomRef.current = room;
+      room.on(RoomEvent.ParticipantConnected, () => setViewerCount(room.remoteParticipants.size));
+      room.on(RoomEvent.ParticipantDisconnected, () => setViewerCount(room.remoteParticipants.size));
+      await room.connect(url, token);
+      await room.localParticipant.publishTrack(videoTrack, { name: "screen", source: Track.Source.ScreenShare, simulcast: false });
+      if (audioTrack) await room.localParticipant.publishTrack(audioTrack, { name: "screen-audio", source: Track.Source.ScreenShareAudio });
+      setLive(true);
+      setStatus("Live");
+      setViewerCount(room.remoteParticipants.size);
+      await put("livestatus", { live: true, ts: Date.now() });
+      hbRef.current = setInterval(() => put("livestatus", { live: true, ts: Date.now() }), 10000);
+      videoTrack.mediaStreamTrack.addEventListener("ended", () => stopStream());
+    } catch (err: any) {
+      setStatus("Error: " + (err.message || String(err)));
+    }
+  };
+
+  const stopStream = async () => {
+    if (hbRef.current) clearInterval(hbRef.current);
+    if (roomRef.current) { await roomRef.current.disconnect(); roomRef.current = null; }
+    await put("livestatus", { live: false, ts: Date.now() });
+    setLive(false); setStatus(""); setViewerCount(0); setCamOn(false); camTrackRef.current = null;
+  };
+
+  const toggleCam = async () => {
+    if (!roomRef.current) return;
+    if (camOn) {
+      if (camTrackRef.current) { await roomRef.current.localParticipant.unpublishTrack(camTrackRef.current); camTrackRef.current.stop(); camTrackRef.current = null; }
+      setCamOn(false);
+    } else {
+      const track = await createLocalVideoTrack({ facingMode: "user" });
+      camTrackRef.current = track;
+      track.attach(camRef.current!);
+      await roomRef.current.localParticipant.publishTrack(track, { name: "camera", source: Track.Source.Camera, simulcast: true });
+      setCamOn(true);
+    }
+  };
+
+  const toggleMic = async () => {
+    if (!roomRef.current) return;
+    await roomRef.current.localParticipant.setMicrophoneEnabled(!micOn);
+    setMicOn(m => !m);
+  };
+
+  const sendChat = async () => {
+    if (!chatMsg.trim()) return;
+    await push("live/chat", { name: "Host", msg: chatMsg.trim(), ts: Date.now() });
+    setChatMsg("");
+  };
+
+  const auth = async () => {
+    const hash = await sha256(pw);
+    if (hash === HASH) {
+      setAuthed(true);
+      await put("livestatus", { live: false, ts: Date.now() });
+      await del("live");
+    } else { alert("Wrong password"); }
+  };
+
+  if (!authed) return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#111", border: "1px solid #222", borderRadius: 16, padding: 40, width: 320 }}>
+        <h2 style={{ color: "#fff", marginBottom: 8, textAlign: "center" }}>Studio</h2>
+        <p style={{ color: "#555", textAlign: "center", marginBottom: 24, fontSize: 13 }}>The Greenprint</p>
+        <input type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && auth()} style={{ width: "100%", padding: "10px 14px", background: "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: "#fff", marginBottom: 12, boxSizing: "border-box" }} />
+        <button onClick={auth} style={{ width: "100%", padding: "10px 0", background: "#00ff87", border: "none", borderRadius: 8, color: "#000", fontWeight: 700, cursor: "pointer" }}>Enter</button>
       </div>
     </div>
   );
-  return(
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-        <div className="flex items-center gap-3">
-          {live&&<span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse inline-block"/>}
-          <span className="font-bold text-lg">{live?"LIVE":"Stream Panel"}</span>
-          {live&&<span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-full">{vc} {vc===1?"viewer":"viewers"}</span>}
-        </div>
-        {live&&<button onClick={endLive} className="bg-zinc-800 hover:bg-red-900 text-red-400 font-bold px-4 py-2 rounded-xl text-sm">End Stream</button>}
-      </div>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col flex-1 p-4 gap-3">
-          <div className="relative bg-zinc-950 rounded-2xl overflow-hidden" style={{height:"55vh"}}>
-            <video ref={mainVid} className="w-full h-full object-contain" autoPlay muted playsInline/>
-            {!sharing&&<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-600"><span className="text-5xl">🖥</span><p>Share your screen to start</p></div>}
-            {camOn&&<div className="absolute bottom-3 right-3 w-36 h-28 rounded-xl overflow-hidden border-2 border-zinc-600 bg-zinc-900"><video ref={pipVid} className="w-full h-full object-cover" autoPlay muted playsInline/></div>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {!sharing?(<button onClick={startScreen} className="col-span-2 bg-zinc-700 hover:bg-zinc-600 font-bold py-3 rounded-xl">🖥 Share Screen</button>)
-            :!live?(<><button onClick={goLive} className="col-span-2 bg-red-600 hover:bg-red-500 font-bold py-3 rounded-xl text-lg">● Go Live</button>
-              <button onClick={toggleCam} className={`font-bold py-3 rounded-xl text-sm ${camOn?"bg-green-600":"bg-zinc-700"}`}>{camOn?"📷 Cam ON":"📷 Cam OFF"}</button>
-              <button onClick={toggleMic} className={`font-bold py-3 rounded-xl text-sm ${micOn?"bg-green-600":"bg-zinc-700"}`}>{micOn?"🎤 Mic ON":"🎤 Mic OFF"}</button></>)
-            :(<><button onClick={toggleCam} className={`font-bold py-3 rounded-xl text-sm ${camOn?"bg-green-600":"bg-zinc-700"}`}>{camOn?"📷 Cam ON":"📷 Cam OFF"}</button>
-              <button onClick={toggleMic} className={`font-bold py-3 rounded-xl text-sm ${micOn?"bg-green-600":"bg-zinc-700"}`}>{micOn?"🎤 Mic ON":"🎤 Mic OFF"}</button></>)}
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: 24 }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: "#00ff87", fontWeight: 800 }}>The Greenprint — Studio</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ background: "#1a1a1a", borderRadius: 20, padding: "6px 16px", fontSize: 13 }}>👁 {viewerCount} watching</span>
+            {live && <span style={{ background: "#ff0033", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 700 }}>● LIVE</span>}
           </div>
         </div>
-        <div className="w-72 border-l border-zinc-800 flex flex-col">
-          <div className="px-4 py-3 border-b border-zinc-800 font-semibold text-zinc-400 text-sm">Live Chat</div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 text-sm">
-            {chat.length===0&&<p className="text-zinc-600 text-center pt-8">No messages yet</p>}
-            {chat.map((m,i)=>(<div key={m.id||i} className="leading-tight"><span className={`font-bold ${m.name==="Streamer"?"text-green-400":"text-blue-400"}`}>{m.name}</span><span className="text-zinc-400">: </span><span>{m.text}</span></div>))}
-            <div ref={chatTail}/>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
+          <div>
+            <div style={{ position: "relative", background: "#111", borderRadius: 12, overflow: "hidden", aspectRatio: "16/9" }}>
+              <video ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }} />
+              {camOn && (
+                <div style={{ position: "absolute", bottom: 16, right: 16, width: 180, height: 101, borderRadius: 8, overflow: "hidden", border: "2px solid #00ff87" }}>
+                  <video ref={camRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+                </div>
+              )}
+              {!live && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, background: "#000" }}>
+                  <span style={{ fontSize: 48 }}>🎬</span>
+                  <span style={{ color: "#555", fontSize: 16 }}>Click Go Live to start</span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
+              {!live ? (
+                <button onClick={startStream} style={{ background: "#00ff87", border: "none", borderRadius: 8, color: "#000", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>🔴 Go Live</button>
+              ) : (
+                <button onClick={stopStream} style={{ background: "#ff0033", border: "none", borderRadius: 8, color: "#fff", fontWeight: 700, padding: "12px 28px", fontSize: 15, cursor: "pointer" }}>⏹ End Stream</button>
+              )}
+              <button onClick={toggleCam} disabled={!live} style={{ background: camOn ? "#00ff87" : "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: camOn ? "#000" : "#fff", padding: "10px 20px", cursor: live ? "pointer" : "not-allowed", opacity: live ? 1 : 0.4, fontWeight: 600 }}>{camOn ? "📸 Cam ON" : "📷 Cam OFF"}</button>
+              <button onClick={toggleMic} disabled={!live} style={{ background: micOn ? "#00ff87" : "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: micOn ? "#000" : "#fff", padding: "10px 20px", cursor: live ? "pointer" : "not-allowed", opacity: live ? 1 : 0.4, fontWeight: 600 }}>{micOn ? "🎤 Mic ON" : "🔇 Mic OFF"}</button>
+              {status && <span style={{ color: status.startsWith("Error") ? "#ff4444" : "#00ff87", fontSize: 13 }}>{status}</span>}
+            </div>
           </div>
-          <div className="p-3 border-t border-zinc-800 flex gap-2">
-            <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} className="flex-1 bg-zinc-800 text-white rounded-xl px-3 py-2 text-sm outline-none" placeholder="Chat as Streamer..."/>
-            <button onClick={sendChat} className="bg-green-500 hover:bg-green-400 text-black font-bold px-3 rounded-xl text-sm">→</button>
+          <div style={{ background: "#111", borderRadius: 12, border: "1px solid #222", display: "flex", flexDirection: "column", maxHeight: 540 }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid #222", fontWeight: 600, fontSize: 14 }}>💬 Live Chat</div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+              {chat.length === 0 && <p style={{ color: "#444", fontSize: 13, textAlign: "center", marginTop: 20 }}>No messages yet</p>}
+              {chat.map((m, i) => (
+                <div key={i} style={{ marginBottom: 10 }}>
+                  <span style={{ color: "#00ff87", fontWeight: 700, fontSize: 13 }}>{m.name}: </span>
+                  <span style={{ color: "#ddd", fontSize: 13 }}>{m.msg}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: 12, borderTop: "1px solid #222", display: "flex", gap: 8 }}>
+              <input value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} placeholder="Say something..." style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", borderRadius: 6, color: "#fff", padding: "8px 10px", fontSize: 13 }} />
+              <button onClick={sendChat} style={{ background: "#00ff87", border: "none", borderRadius: 6, color: "#000", fontWeight: 700, padding: "8px 14px", cursor: "pointer" }}>→</button>
+            </div>
           </div>
         </div>
       </div>
