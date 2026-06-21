@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const HASH = "f7bbb300691e55f6eaad18327a456a30ff3bf38a4a36a24e9458fdfc508d4ab1";
+const HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
 const ICE = [
   {urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"},
   {urls:"turn:global.relay.metered.ca:80",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
