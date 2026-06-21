@@ -31,9 +31,7 @@ export default function StreamPage() {
   const [dur, setDur] = useState(0);
 
   const screenRef = useRef<HTMLVideoElement>(null);
-  // camRef = hidden video, always in DOM so ref is set before join
   const camRef = useRef<HTMLVideoElement>(null);
-  // pipRef = visible PiP inside the video container (only when joined)
   const pipRef = useRef<HTMLVideoElement>(null);
   const pendingCamTrack = useRef<RemoteTrack|null>(null);
   const camTrackRef = useRef<RemoteTrack|null>(null);
@@ -63,7 +61,6 @@ export default function StreamPage() {
     return () => { es.close(); clearInterval(poll); };
   }, []);
 
-  // After join renders, attach any pending tracks
   useEffect(() => {
     if (!joined) return;
     if (screenRef.current && pendingScreenRef.current) {
@@ -72,7 +69,6 @@ export default function StreamPage() {
       setHasVideo(true);
       pendingScreenRef.current = null;
     }
-    // Attach cam to the visible PiP element inside video container
     if (pipRef.current && (pendingCamTrack.current || camTrackRef.current)) {
       const track = pendingCamTrack.current || camTrackRef.current!;
       track.attach(pipRef.current);
@@ -118,11 +114,7 @@ export default function StreamPage() {
 
   const attachCam = (track: RemoteTrack) => {
     camTrackRef.current = track;
-    // Always attach to hidden camRef (always in DOM)
-    if (camRef.current) {
-      track.attach(camRef.current);
-    }
-    // Also attach to visible PiP if it's already rendered (joined=true)
+    if (camRef.current) track.attach(camRef.current);
     if (pipRef.current) {
       track.attach(pipRef.current);
       pipRef.current.play().catch(() => {});
@@ -196,11 +188,11 @@ export default function StreamPage() {
           .mg{flex-direction:column!important}
           .cp{width:100%!important;height:auto!important;max-height:260px!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}
           .rbar{padding:6px 12px 8px!important}
-          .pip-wrap{width:110px!important;height:62px!important;bottom:10px!important;right:10px!important}
+          .pip-wrap{width:100px!important;height:56px!important;bottom:46px!important;right:8px!important}
         }
       `}</style>
 
-      {/* Hidden cam video — always in DOM so ref is set when TrackSubscribed fires before join */}
+      {/* Hidden cam ref — always in DOM so ref.current is set when TrackSubscribed fires */}
       <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
 
       {!joined ? (
@@ -237,7 +229,6 @@ export default function StreamPage() {
         </div>
       ) : (
         <div style={{height:"100dvh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          {/* Header */}
           <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -258,21 +249,19 @@ export default function StreamPage() {
             </div>
           </div>
 
-          {/* Body */}
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-            {/* Video area — PiP lives INSIDE here, can never overlap chat */}
+            {/* Video area — PiP is absolutely positioned inside here, never touches chat */}
             <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();setNeedsClick(false);}:undefined}>
               <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
 
-              {/* Camera PiP — absolutely positioned inside video area, bottom-right */}
+              {/* Camera PiP — inside video container, bottom-right corner */}
               {hasCam && (
-                <div className="pip-wrap" style={{position:"absolute",bottom:58,right:12,width:160,height:90,borderRadius:10,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 20px rgba(0,255,135,.45)",zIndex:20}}>
+                <div className="pip-wrap" style={{position:"absolute",bottom:52,right:12,width:160,height:90,borderRadius:10,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 20px rgba(0,255,135,.45)",zIndex:20}}>
                   <video ref={pipRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                  <div style={{position:"absolute",top:0,left:0,background:"rgba(0,255,135,.85)",color:"#000",fontSize:8,fontWeight:900,letterSpacing:"1.5px",padding:"2px 6px",borderRadius:"0 0 6px 0"}}>CAM</div>
+                  <div style={{position:"absolute",top:0,left:0,background:"rgba(0,255,135,.9)",color:"#000",fontSize:8,fontWeight:900,letterSpacing:"1.5px",padding:"2px 6px",borderRadius:"0 0 6px 0"}}>CAM</div>
                 </div>
               )}
 
-              {/* Floating reactions */}
               <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
                 {floats.map(r=>(
                   <div key={r.id} style={{position:"absolute",bottom:60,left:`${8+r.x*78}%`,fontSize:36,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 10px rgba(0,0,0,.7))"}}>{r.emoji}</div>
@@ -291,7 +280,6 @@ export default function StreamPage() {
                 </div>
               )}
 
-              {/* Reaction bar */}
               <div className="rbar" style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,.75))",padding:"28px 12px 10px",display:"flex",gap:6,alignItems:"center"}}>
                 {EMOJIS.map(e=>(
                   <button key={e} className="eb" onClick={()=>sendReaction(e)}>{e}</button>
@@ -299,7 +287,7 @@ export default function StreamPage() {
               </div>
             </div>
 
-            {/* Chat panel */}
+            {/* Chat */}
             {chatOpen&&(
               <div className="cp" style={{width:300,borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(5,5,5,.9)",backdropFilter:"blur(20px)",flexShrink:0}}>
                 <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
@@ -315,14 +303,12 @@ export default function StreamPage() {
                   ))}
                   <div ref={chatEndRef}/>
                 </div>
-                {/* Join CTA */}
                 <a href={JOIN_URL} target="_blank" rel="noopener noreferrer"
                   style={{display:"block",textDecoration:"none",margin:"6px 10px",background:"linear-gradient(135deg,rgba(0,255,135,.12),rgba(0,200,100,.08))",border:"1px solid rgba(0,255,135,.28)",borderRadius:10,padding:"10px 12px",textAlign:"center",animation:"joinPulse 3s infinite",flexShrink:0}}>
                   <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginBottom:2}}>Ready to level up?</div>
                   <div style={{fontSize:13,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
                 </a>
-                {/* Chat input */}
-                <div style={{padding:"6px 12px",paddingBottom:"max(8px,env(safe-area-inset-bottom))",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+                <div style={{padding:"6px 12px",paddingBottom:"max(8px,env(safe-area-inset-bottom,0px))",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
                   <div style={{display:"flex",gap:7}}>
                     <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Chat as ${name}...`} className="ci" />
                     <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"9px 12px",cursor:"pointer",flexShrink:0,fontSize:14}}>→</button>
