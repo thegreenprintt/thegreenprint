@@ -2,12 +2,16 @@
 import{useState,useEffect,useRef}from"react";
 const FB="https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const ICE=[
-  {urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"},
-  {urls:"turn:global.relay.metered.ca:80",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turn:global.relay.metered.ca:80?transport=tcp",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turn:global.relay.metered.ca:443",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
-  {urls:"turns:global.relay.metered.ca:443?transport=tcp",username:"93c505beb914bb4b2330bc55",credential:"nMvZib7+ScgCeG8t"},
+  {urls:"stun:stun.l.google.com:19302"},
+  {urls:"stun:stun1.l.google.com:19302"},
+  {urls:"stun:stun2.l.google.com:19302"},
+  {urls:"stun:stun3.l.google.com:19302"},
+  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:80?transport=tcp",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turns:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
 ];
+const PC={iceServers:ICE,iceCandidatePoolSize:10,bundlePolicy:"max-bundle" as RTCBundlePolicy};
 const put=async(p:string,d:any)=>{try{await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true});}catch{}};
 const get=async(p:string)=>{try{return await(await fetch(`${FB}/${p}.json`,{cache:"no-store"})).json();}catch{return null;}};
 const del=async(p:string)=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE",keepalive:true});}catch{}};
@@ -67,7 +71,7 @@ export default function StreamPage(){
     setStep("Waiting for broadcaster...");
     // Keep registration fresh
     keepRef.current=setInterval(()=>{if(isLiveRef.current)put("live/viewers/"+id,{name:nameRef.current,ts:Date.now()});},8000);
-    const pc=new RTCPeerConnection({iceServers:ICE});
+    const pc=new RTCPeerConnection(PC);
     pcRef.current=pc;
     const pending:RTCIceCandidateInit[]=[];
     let remoteSet=false;
