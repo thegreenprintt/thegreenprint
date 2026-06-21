@@ -82,7 +82,7 @@ export default function GoLive() {
   const startStream = async () => {
     try {
       setStatus("Requesting screen...");
-      const tracks = await createLocalScreenTracks({audio:true});
+      const tracks = await createLocalScreenTracks({audio:true,video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:60}}});
       const vt = tracks.find(t=>t.kind===Track.Kind.Video);
       const at = tracks.find(t=>t.kind===Track.Kind.Audio);
       if (!vt) throw new Error("No video track");
@@ -121,7 +121,7 @@ export default function GoLive() {
         if (camRef.current) camRef.current.srcObject=null;
         setCamOn(false);
       } else {
-        const track = await createLocalVideoTrack({facingMode:"user"});
+        const track = await createLocalVideoTrack({facingMode:"user",width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}});
         camTrackRef.current = track;
         if (camRef.current) track.attach(camRef.current);
         await roomRef.current.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
