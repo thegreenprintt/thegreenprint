@@ -31,8 +31,12 @@ export default function StreamPage() {
   const [dur, setDur] = useState(0);
 
   const screenRef = useRef<HTMLVideoElement>(null);
+  // camRef = hidden video, always in DOM so ref is set before join
   const camRef = useRef<HTMLVideoElement>(null);
+  // pipRef = visible PiP inside the video container (only when joined)
+  const pipRef = useRef<HTMLVideoElement>(null);
   const pendingCamTrack = useRef<RemoteTrack|null>(null);
+  const camTrackRef = useRef<RemoteTrack|null>(null);
   const roomRef = useRef<Room|null>(null);
   const pendingScreenRef = useRef<RemoteTrack|null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -41,6 +45,7 @@ export default function StreamPage() {
   const startRef = useRef(0);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
+
   useEffect(() => {
     if (!joined) return;
     startRef.current = Date.now();
@@ -58,6 +63,7 @@ export default function StreamPage() {
     return () => { es.close(); clearInterval(poll); };
   }, []);
 
+  // After join renders, attach any pending tracks
   useEffect(() => {
     if (!joined) return;
     if (screenRef.current && pendingScreenRef.current) {
@@ -66,10 +72,11 @@ export default function StreamPage() {
       setHasVideo(true);
       pendingScreenRef.current = null;
     }
-    if (camRef.current && pendingCamTrack.current) {
-      pendingCamTrack.current.attach(camRef.current);
-      camRef.current.play().catch(() => {});
-      setHasCam(true);
+    // Attach cam to the visible PiP element inside video container
+    if (pipRef.current && (pendingCamTrack.current || camTrackRef.current)) {
+      const track = pendingCamTrack.current || camTrackRef.current!;
+      track.attach(pipRef.current);
+      pipRef.current.play().catch(() => {});
       pendingCamTrack.current = null;
     }
   }, [joined]);
@@ -110,14 +117,19 @@ export default function StreamPage() {
   };
 
   const attachCam = (track: RemoteTrack) => {
+    camTrackRef.current = track;
+    // Always attach to hidden camRef (always in DOM)
     if (camRef.current) {
       track.attach(camRef.current);
-      camRef.current.play().catch(() => {});
-      setHasCam(true);
+    }
+    // Also attach to visible PiP if it's already rendered (joined=true)
+    if (pipRef.current) {
+      track.attach(pipRef.current);
+      pipRef.current.play().catch(() => {});
     } else {
       pendingCamTrack.current = track;
-      setHasCam(true);
     }
+    setHasCam(true);
   };
 
   const joinStream = async () => {
@@ -134,7 +146,7 @@ export default function StreamPage() {
       });
       room.on(RoomEvent.TrackUnsubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
         track.detach();
-        if (track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? setHasCam(false) : setHasVideo(false);
+        if (track.kind===Track.Kind.Video) { if (pub.source===Track.Source.Camera) { setHasCam(false); camTrackRef.current=null; } else setHasVideo(false); }
       });
       room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
       room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
@@ -166,11 +178,8 @@ export default function StreamPage() {
     await push("live/chat",{name:name||"Viewer",msg:text,ts:now});
   };
 
-  const showPip = joined && hasCam;
-
   return (
     <>
-      {/* Global styles including PiP responsive positioning */}
       <style>{`
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.95)}}
         @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,135,.3)}50%{box-shadow:0 0 40px rgba(0,255,135,.6)}}
@@ -183,44 +192,19 @@ export default function StreamPage() {
         .eb:active{transform:scale(.9)}
         .ci{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;padding:9px 13px;font-size:14px;outline:none;width:100%;box-sizing:border-box}
         .ci:focus{border-color:rgba(0,255,135,.5)}
-        /* PiP video — desktop: bottom-right of video area (offset by 300px chat + 16px margin) */
-        .pip-video {
-          position: fixed;
-          border-radius: 10px;
-          object-fit: cover;
-          z-index: 999;
-          pointer-events: none;
-          transition: opacity .3s ease, bottom .3s ease;
+        @media(max-width:768px){
+          .mg{flex-direction:column!important}
+          .cp{width:100%!important;height:auto!important;max-height:260px!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}
+          .rbar{padding:6px 12px 8px!important}
+          .pip-wrap{width:110px!important;height:62px!important;bottom:10px!important;right:10px!important}
         }
-        /* Desktop: PiP sits in video area, right side, above reaction bar */
-        @media (min-width: 769px) {
-          .pip-video { width: 176px; height: 99px; right: 316px; bottom: 72px; }
-          .pip-video.pip-on { opacity:1; border: 2px solid #00ff87; box-shadow: 0 4px 24px rgba(0,255,135,.45); }
-          .pip-video.pip-off { opacity:0; border: none; bottom: -120px; }
-          .pip-label { position:fixed; right:318px; bottom:171px; z-index:1000; background:rgba(0,255,135,.9); color:#000; font-size:9px; font-weight:900; letter-spacing:1.5px; border-radius:4px 4px 0 0; padding:2px 7px; pointer-events:none; }
-        }
-        /* Mobile: PiP sits in the top-right of the video portion */
-        @media (max-width: 768px) {
-          .pip-video { width: 120px; height: 68px; right: 12px; top: calc(env(safe-area-inset-top) + 60px); }
-          .pip-video.pip-on { opacity:1; border: 2px solid #00ff87; box-shadow: 0 4px 16px rgba(0,255,135,.4); }
-          .pip-video.pip-off { opacity:0; border: none; }
-          .pip-label { display: none; }
-          .mg { flex-direction: column !important; }
-          .cp { width: 100% !important; height: auto !important; max-height: 280px !important; border-left: none !important; border-top: 1px solid rgba(255,255,255,.08) !important; }
-          .rbar { padding: 6px 12px 8px !important; }
-        }
-        /* Safe-area aware layout */
-        .safe-top { padding-top: env(safe-area-inset-top); }
-        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
 
-      {/* Camera PiP — ALWAYS rendered so ref is set before join */}
-      <video ref={camRef} autoPlay playsInline muted className={`pip-video ${showPip ? "pip-on" : "pip-off"}`} />
-      {showPip && <div className="pip-label">CAM</div>}
+      {/* Hidden cam video — always in DOM so ref is set when TrackSubscribed fires before join */}
+      <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
 
       {!joined ? (
-        /* ── JOIN SCREEN ── */
-        <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"env(safe-area-inset-top) 24px env(safe-area-inset-bottom)",fontFamily:"system-ui,-apple-system,sans-serif"}}>
+        <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px)",fontFamily:"system-ui,-apple-system,sans-serif"}}>
           <div style={{marginBottom:40,textAlign:"center"}}>
             <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:36}}>🌿</div>
             <h1 style={{fontSize:34,fontWeight:900,letterSpacing:"-1px",margin:"0 0 8px"}}>The Greenprint</h1>
@@ -252,10 +236,9 @@ export default function StreamPage() {
           )}
         </div>
       ) : (
-        /* ── STREAM SCREEN ── */
         <div style={{height:"100dvh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          {/* Header — safe area top */}
-          <div className="safe-top" style={{background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+          {/* Header */}
+          <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>🌿</div>
@@ -264,7 +247,7 @@ export default function StreamPage() {
                   <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Live Trading Session</div>
                 </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                 <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"3px 10px",fontSize:11}}>👁 {viewers+1}</span>
                 <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:4}}>
                   <span style={{width:6,height:6,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
@@ -277,9 +260,17 @@ export default function StreamPage() {
 
           {/* Body */}
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-            {/* Video area */}
+            {/* Video area — PiP lives INSIDE here, can never overlap chat */}
             <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();setNeedsClick(false);}:undefined}>
               <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
+
+              {/* Camera PiP — absolutely positioned inside video area, bottom-right */}
+              {hasCam && (
+                <div className="pip-wrap" style={{position:"absolute",bottom:58,right:12,width:160,height:90,borderRadius:10,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 20px rgba(0,255,135,.45)",zIndex:20}}>
+                  <video ref={pipRef} autoPlay playsInline muted style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                  <div style={{position:"absolute",top:0,left:0,background:"rgba(0,255,135,.85)",color:"#000",fontSize:8,fontWeight:900,letterSpacing:"1.5px",padding:"2px 6px",borderRadius:"0 0 6px 0"}}>CAM</div>
+                </div>
+              )}
 
               {/* Floating reactions */}
               <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
@@ -331,7 +322,7 @@ export default function StreamPage() {
                   <div style={{fontSize:13,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
                 </a>
                 {/* Chat input */}
-                <div className="safe-bottom" style={{padding:"6px 12px 8px",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+                <div style={{padding:"6px 12px",paddingBottom:"max(8px,env(safe-area-inset-bottom))",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
                   <div style={{display:"flex",gap:7}}>
                     <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Chat as ${name}...`} className="ci" />
                     <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"9px 12px",cursor:"pointer",flexShrink:0,fontSize:14}}>→</button>
