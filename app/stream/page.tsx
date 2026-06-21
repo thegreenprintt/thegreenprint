@@ -1,254 +1,221 @@
 "use client";
-import{useState,useEffect,useRef}from"react";
-const FB="https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const ICE_SERVERS:RTCIceServer[]=[
-  {urls:"stun:stun.l.google.com:19302"},
-  {urls:"stun:stun1.l.google.com:19302"},
-  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turn:openrelay.metered.ca:80?transport=tcp",username:"openrelayproject",credential:"openrelayproject"},
-  {urls:"turns:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
-];
-const get=async(p:string)=>{
-  try{const r=await fetch(`${FB}/${p}.json`,{cache:"no-store"});return await r.json();}
-  catch{return null;}
-};
-const put=async(p:string,d:unknown)=>{
-  try{await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true});}
-  catch{}
-};
-const del=async(p:string)=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE",keepalive:true});}catch{}};
-const push=async(p:string,d:unknown)=>{try{await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});}catch{}};
-const uid=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
-interface Msg{id?:string;name:string;text:string;ts:number}
-export default function StreamPage(){
-  const[name,setName]=useState("");
-  const[joined,setJoined]=useState(false);
-  const[isLive,setIsLive]=useState(false);
-  const[playing,setPlaying]=useState(false);
-  const[step,setStep]=useState("Connecting...");
-  const[chat,setChat]=useState<Msg[]>([]);
-  const[chatMsg,setChatMsg]=useState("");
-  const vidRef=useRef<HTMLVideoElement>(null);
-  const pcRef=useRef<RTCPeerConnection|null>(null);
-  const myId=useRef(uid());
-  const nameRef=useRef("");
-  const isLiveRef=useRef(false);
-  const keepRef=useRef<ReturnType<typeof setInterval>|null>(null);
-  const offerRef=useRef<ReturnType<typeof setInterval>|null>(null);
-  const chatTail=useRef<HTMLDivElement>(null);
+import { useState, useEffect, useRef } from "react";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
+} from "livekit-client";
 
-  // Live status — SSE + REST poll, runs once forever
-  useEffect(()=>{
-    const applyLive=(live:boolean)=>{
-      setIsLive(live);
-      isLiveRef.current=live;
-    };
-    // Immediate REST check
-    get("livestatus").then(d=>applyLive(!!d?.live));
-    // SSE for instant push updates
-    const es=new EventSource(`${FB}/livestatus.json`);
-    es.addEventListener("put",(e:MessageEvent)=>{
-      try{const d=JSON.parse(e.data);applyLive(!!d?.data?.live);}catch{}
+const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`, { cache: "no-store" }); return await r.json(); } catch { return null; } };
+const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); } catch {} };
+
+export default function StreamPage() {
+  const [isLive, setIsLive] = useState(false);
+  const [name, setName] = useState("");
+  const [joined, setJoined] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [statusText, setStatusText] = useState("Checking stream...");
+  const [chat, setChat] = useState<{ name: string; msg: string; ts: number }[]>([]);
+  const [chatMsg, setChatMsg] = useState("");
+  const [viewerCount, setViewerCount] = useState(0);
+  const [hasVideo, setHasVideo] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const roomRef = useRef<Room | null>(null);
+
+  // Triple-redundant live status detection
+  useEffect(() => {
+    const apply = (live: boolean) => setIsLive(live);
+    get("livestatus").then(d => apply(!!d?.live));
+    const es = new EventSource(`${FB}/livestatus.json`);
+    es.addEventListener("put", (e: MessageEvent) => {
+      try { const d = JSON.parse(e.data); apply(!!d?.data?.live); } catch {}
     });
-    // REST poll every 3s as fallback
-    const poll=setInterval(()=>get("livestatus").then(d=>applyLive(!!d?.live)),3000);
-    return()=>{es.close();clearInterval(poll);};
-  },[]);
+    const poll = setInterval(() => get("livestatus").then(d => apply(!!d?.live)), 3000);
+    return () => { es.close(); clearInterval(poll); };
+  }, []);
 
   // Chat SSE
-  useEffect(()=>{
-    const es=new EventSource(`${FB}/live/chat.json`);
-    es.addEventListener("put",(e:MessageEvent)=>{
-      try{
-        const d=JSON.parse(e.data);
-        if(!d.data){setChat([]);return;}
-        const msgs:Msg[]=Object.entries(d.data).map(([id,v])=>({id,...(v as Msg)}));
-        setChat(msgs.sort((a,b)=>a.ts-b.ts));
-      }catch{}
+  useEffect(() => {
+    if (!joined) return;
+    const es = new EventSource(`${FB}/live/chat.json`);
+    es.addEventListener("put", (e: MessageEvent) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d?.data && typeof d.data === "object") {
+          const msgs = Object.values(d.data) as { name: string; msg: string; ts: number }[];
+          setChat(msgs.sort((a, b) => a.ts - b.ts).slice(-50));
+        }
+      } catch {}
     });
-    es.addEventListener("patch",(e:MessageEvent)=>{
-      try{
-        const d=JSON.parse(e.data);
-        if(!d.data)return;
-        const inc:Msg[]=Object.entries(d.data).map(([id,v])=>({id,...(v as Msg)}));
-        setChat(p=>{const m=new Map(p.map(x=>[x.id,x]));inc.forEach(x=>x.id&&m.set(x.id,x));return[...m.values()].sort((a,b)=>a.ts-b.ts);});
-      }catch{}
+    es.addEventListener("patch", (e: MessageEvent) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d?.data) {
+          const newMsg = Object.values(d.data)[0] as { name: string; msg: string; ts: number };
+          if (newMsg) setChat(prev => [...prev, newMsg].slice(-50));
+        }
+      } catch {}
     });
-    return()=>es.close();
-  },[]);
+    return () => es.close();
+  }, [joined]);
 
-  useEffect(()=>{chatTail.current?.scrollIntoView({behavior:"smooth"});},[chat]);
+  const joinStream = async () => {
+    if (!name.trim()) { alert("Enter your name"); return; }
+    setConnecting(true);
+    setStatusText("Connecting...");
 
-  // Join when both joined and live
-  useEffect(()=>{
-    if(joined&&isLive)joinStream();
-  },[joined,isLive]);
+    try {
+      const res = await fetch("/api/lk-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), isHost: false }),
+      });
+      const { token, url } = await res.json();
 
-  function cleanup(){
-    if(keepRef.current){clearInterval(keepRef.current);keepRef.current=null;}
-    if(offerRef.current){clearInterval(offerRef.current);offerRef.current=null;}
-    if(pcRef.current){pcRef.current.close();pcRef.current=null;}
-    del("live/viewers/"+myId.current);
-  }
+      if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
 
-  async function joinStream(){
-    cleanup();
-    setPlaying(false);
-    const id=myId.current;
-    setStep("Registering...");
-    await put("live/viewers/"+id,{name:nameRef.current,ts:Date.now()});
-    setStep("Waiting for offer...");
-    keepRef.current=setInterval(()=>{
-      if(isLiveRef.current)put("live/viewers/"+id,{name:nameRef.current,ts:Date.now()});
-    },8000);
-    const pc=new RTCPeerConnection({iceServers:ICE_SERVERS,iceCandidatePoolSize:10});
-    pcRef.current=pc;
-    const pending:RTCIceCandidateInit[]=[];
-    let remoteSet=false;
-    let offerDone=false;
-    pc.ontrack=(e)=>{
-      setStep("Stream received!");
-      const s=e.streams[0]??new MediaStream([e.track]);
-      if(vidRef.current){
-        vidRef.current.srcObject=s;
-        vidRef.current.muted=true;
-        vidRef.current.play()
-          .then(()=>{if(vidRef.current)vidRef.current.muted=false;setPlaying(true);})
-          .catch(()=>setPlaying(true));
-      }
-    };
-    pc.onicecandidate=(e)=>{if(e.candidate)push("live/ice_v/"+id,e.candidate.toJSON());};
-    pc.onconnectionstatechange=()=>{
-      const s=pc.connectionState;
-      if(s==="connected"){setStep("Connected!");setPlaying(true);}
-      else if(s==="connecting")setStep("ICE connecting...");
-      else if((s==="failed"||s==="disconnected")&&isLiveRef.current){
-        setStep("Reconnecting...");setPlaying(false);
-        setTimeout(()=>{if(isLiveRef.current)joinStream();},3000);
-      }
-    };
-    // Broadcaster ICE poll
-    const knownIce=new Set<string>();
-    const iceP=setInterval(async()=>{
-      if(!isLiveRef.current){clearInterval(iceP);return;}
-      const ice=await get("live/ice_b/"+id);
-      if(ice&&typeof ice==="object"){
-        Object.entries(ice).forEach(([k,c])=>{
-          if(!knownIce.has(k)){
-            knownIce.add(k);
-            const cand=new RTCIceCandidate(c as RTCIceCandidateInit);
-            if(remoteSet)pc.addIceCandidate(cand).catch(()=>{});
-            else pending.push(c as RTCIceCandidateInit);
+      const room = new Room({ adaptiveStream: true });
+      roomRef.current = room;
+
+      room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+        if (track.kind === Track.Kind.Video) {
+          track.attach(videoRef.current!);
+          setHasVideo(true);
+          setStatusText("Live");
+        }
+        if (track.kind === Track.Kind.Audio) {
+          const el = track.attach();
+          document.body.appendChild(el);
+        }
+      });
+
+      room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+        track.detach();
+        if (track.kind === Track.Kind.Video) setHasVideo(false);
+      });
+
+      room.on(RoomEvent.ParticipantConnected, () => setViewerCount(room.remoteParticipants.size));
+      room.on(RoomEvent.ParticipantDisconnected, () => setViewerCount(room.remoteParticipants.size));
+
+      room.on(RoomEvent.Disconnected, () => {
+        setStatusText("Disconnected.");
+        setJoined(false);
+        setConnecting(false);
+        setHasVideo(false);
+      });
+
+      await room.connect(url, token);
+      setJoined(true);
+      setConnecting(false);
+      setViewerCount(room.remoteParticipants.size);
+
+      // Attach any already-published tracks
+      room.remoteParticipants.forEach(participant => {
+        participant.trackPublications.forEach(pub => {
+          if (pub.isSubscribed && pub.track) {
+            const t = pub.track;
+            if (t.kind === Track.Kind.Video) {
+              t.attach(videoRef.current!);
+              setHasVideo(true);
+              setStatusText("Live");
+            }
           }
         });
-      }
-    },500);
-    // Offer poll — every 500ms until offer received
-    offerRef.current=setInterval(async()=>{
-      if(offerDone||!isLiveRef.current){clearInterval(offerRef.current!);offerRef.current=null;return;}
-      const d=await get("live/offers/"+id);
-      if(!d?.sdp)return;
-      offerDone=true;
-      clearInterval(offerRef.current!);offerRef.current=null;
-      setStep("Got offer, creating answer...");
-      try{
-        await pc.setRemoteDescription(new RTCSessionDescription(d as RTCSessionDescriptionInit));
-        remoteSet=true;
-        for(const c of pending)pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
-        pending.length=0;
-        const ans=await pc.createAnswer();
-        await pc.setLocalDescription(ans);
-        await put("live/answers/"+id,{type:ans.type,sdp:ans.sdp});
-        setStep("Answer sent...");
-      }catch(err){
-        offerDone=false;
-        setStep("Retrying...");
-      }
-    },500);
-    // Auto re-register if no offer in 15s
-    const retry=setTimeout(()=>{
-      if(!offerDone&&isLiveRef.current){setStep("Re-registering...");joinStream();}
-    },15000);
-    // Store iceP/retry cleanup
-    const prevCleanup=cleanup;
-    (cleanup as unknown as {_ext?:()=>void})._ext=()=>{clearInterval(iceP);clearTimeout(retry);};
-  }
+      });
 
-  function enterName(){
-    const n=name.trim();
-    if(!n||!isLive)return;
-    nameRef.current=n;
-    setJoined(true);
-  }
+    } catch (err: any) {
+      setStatusText("Error: " + (err.message || String(err)));
+      setConnecting(false);
+    }
+  };
 
-  async function sendMsg(){
-    if(!chatMsg.trim())return;
-    await push("live/chat",{name:nameRef.current,text:chatMsg.trim(),ts:Date.now()});
+  const sendChat = async () => {
+    if (!chatMsg.trim()) return;
+    await push("live/chat", { name: name || "Viewer", msg: chatMsg.trim(), ts: Date.now() });
     setChatMsg("");
+  };
+
+  if (!joined) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+        <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 4 }}>The Greenprint</h1>
+        <p style={{ color: "#555", marginBottom: 40, fontSize: 14 }}>Live Stream</p>
+
+        {isLive ? (
+          <div style={{ background: "#111", borderRadius: 16, padding: 40, width: "100%", maxWidth: 380, border: "1px solid #222" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+              <span style={{ width: 10, height: 10, background: "#ff0033", borderRadius: "50%", display: "inline-block", animation: "pulse 1.2s infinite" }} />
+              <span style={{ fontWeight: 700, color: "#ff0033", fontSize: 14 }}>LIVE NOW</span>
+            </div>
+            <input
+              value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && joinStream()}
+              placeholder="Your name"
+              style={{ width: "100%", padding: "12px 14px", background: "#1a1a1a", border: "1px solid #333", borderRadius: 8, color: "#fff", marginBottom: 12, boxSizing: "border-box", fontSize: 15 }}
+            />
+            <button onClick={joinStream} disabled={connecting} style={{ width: "100%", padding: "13px 0", background: connecting ? "#333" : "#00ff87", border: "none", borderRadius: 8, color: connecting ? "#888" : "#000", fontWeight: 700, cursor: connecting ? "wait" : "pointer", fontSize: 15 }}>
+              {connecting ? "Connecting..." : "▶ Watch Live"}
+            </button>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>📡</div>
+            <h2 style={{ color: "#444", fontWeight: 500, fontSize: 20 }}>Stream Offline</h2>
+            <p style={{ color: "#333", fontSize: 14 }}>Check back when the stream starts</p>
+          </div>
+        )}
+      </div>
+    );
   }
 
-  if(!joined)return(
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6 px-6">
-      <div className="text-center">
-        {isLive?(
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse inline-block"/>
-            <span className="text-white text-3xl font-bold">LIVE</span>
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: 24 }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ margin: 0, fontSize: 22, color: "#00ff87", fontWeight: 800 }}>The Greenprint</h1>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ background: "#1a1a1a", borderRadius: 20, padding: "6px 16px", fontSize: 13 }}>👁 {viewerCount + 1} watching</span>
+            <span style={{ background: "#ff0033", borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, background: "#fff", borderRadius: "50%", animation: "pulse 1.2s infinite" }} />
+              LIVE
+            </span>
           </div>
-        ):<p className="text-zinc-500 text-xl mb-1">Stream Offline</p>}
-        <p className="text-zinc-600 text-sm">{isLive?"Enter your name to watch":"Check back when the stream starts"}</p>
-      </div>
-      <div className="w-full max-w-sm space-y-3">
-        <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&enterName()}
-          className="w-full bg-zinc-900 text-white border border-zinc-700 rounded-xl px-4 py-3 outline-none"
-          placeholder="Your name"/>
-        <button onClick={enterName} disabled={!isLive||!name.trim()}
-          className={`w-full font-bold py-3 rounded-xl ${isLive&&name.trim()?"bg-green-500 hover:bg-green-400 text-black":"bg-zinc-800 text-zinc-600 cursor-not-allowed"}`}>
-          {isLive?"Watch Live →":"Stream Offline"}
-        </button>
-      </div>
-    </div>
-  );
+        </div>
 
-  return(
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse inline-block"/>
-          <span className="font-bold">LIVE</span>
-        </div>
-        <span className="text-zinc-400 text-sm">{nameRef.current}</span>
-      </div>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col flex-1">
-          <div className="relative bg-black flex-1" style={{minHeight:"60vh"}}>
-            <video ref={vidRef} className="w-full h-full object-contain" autoPlay playsInline/>
-            {!playing&&(
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                <div className="w-12 h-12 border-4 border-zinc-700 border-t-green-500 rounded-full animate-spin"/>
-                <span className="text-zinc-400 text-sm">{step}</span>
-              </div>
-            )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
+          <div>
+            <div style={{ background: "#111", borderRadius: 12, overflow: "hidden", aspectRatio: "16/9", position: "relative" }}>
+              <video ref={videoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }} />
+              {!hasVideo && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14 }}>
+                  <div style={{ width: 40, height: 40, border: "3px solid #00ff87", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
+                  <span style={{ color: "#666", fontSize: 14 }}>{statusText}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="w-72 border-l border-zinc-800 flex flex-col">
-          <div className="px-4 py-3 border-b border-zinc-800 font-semibold text-zinc-400 text-sm">Live Chat</div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 text-sm">
-            {chat.length===0&&<p className="text-zinc-600 text-center pt-8">No messages yet</p>}
-            {chat.map((m,i)=>(
-              <div key={m.id??i} className="leading-tight">
-                <span className={`font-bold ${m.name==="Streamer"?"text-green-400":"text-blue-400"}`}>{m.name}</span>
-                <span className="text-zinc-400">: </span>
-                <span className="text-white">{m.text}</span>
-              </div>
-            ))}
-            <div ref={chatTail}/>
-          </div>
-          <div className="p-3 border-t border-zinc-800 flex gap-2">
-            <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()}
-              className="flex-1 bg-zinc-800 text-white rounded-xl px-3 py-2 text-sm outline-none" placeholder="Send a message..."/>
-            <button onClick={sendMsg} className="bg-green-500 hover:bg-green-400 text-black font-bold px-3 rounded-xl text-sm">→</button>
+
+          <div style={{ background: "#111", borderRadius: 12, border: "1px solid #222", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid #222", fontWeight: 600, fontSize: 14 }}>💬 Live Chat</div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 12, height: 400 }}>
+              {chat.length === 0 && <p style={{ color: "#444", fontSize: 13, textAlign: "center", marginTop: 20 }}>No messages yet</p>}
+              {chat.map((m, i) => (
+                <div key={i} style={{ marginBottom: 10 }}>
+                  <span style={{ color: "#00ff87", fontWeight: 700, fontSize: 13 }}>{m.name}: </span>
+                  <span style={{ color: "#ddd", fontSize: 13 }}>{m.msg}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: 12, borderTop: "1px solid #222", display: "flex", gap: 8 }}>
+              <input value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()} placeholder="Say something..." style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", borderRadius: 6, color: "#fff", padding: "8px 10px", fontSize: 13 }} />
+              <button onClick={sendChat} style={{ background: "#00ff87", border: "none", borderRadius: 6, color: "#000", fontWeight: 700, padding: "8px 14px", cursor: "pointer" }}>→</button>
+            </div>
           </div>
         </div>
       </div>
