@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Room, RoomEvent, Track, RemoteTrack, RemoteTrackPublication } from "livekit-client";
 
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const JOIN_URL = "https://whop.com/the-greenprint/";
+const JOIN_URL = "https://subscribe.1houseglobal.com/jay";
 const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`,{cache:"no-store"}); return await r.json(); } catch { return null; } };
 const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); } catch {} };
 
@@ -273,7 +273,7 @@ export default function StreamPage() {
               pointerEvents:"none",
             }}
           />
-          {hasCam && <div style={{position:"absolute",bottom:16,right:16,zIndex:21,background:"rgba(0,255,135,.85)",color:"#000",fontSize:9,fontWeight:900,letterSpacing:"1.5px",borderRadius:"4px 4px 0 0",padding:"2px 7px",bottom:112,right:16}}>CAM</div>}
+          {hasCam && <div style={{position:"absolute",bottom:116,right:18,zIndex:21,background:"rgba(0,255,135,.85)",color:"#000",fontSize:9,fontWeight:900,letterSpacing:"1.5px",borderRadius:"4px 4px 0 0",padding:"2px 7px"}}>CAM</div>}
 
           {/* Floating reactions */}
           <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
@@ -338,7 +338,7 @@ export default function StreamPage() {
             {/* Join CTA */}
             <a href={JOIN_URL} target="_blank" rel="noopener noreferrer" style={{display:"block",textDecoration:"none",margin:"0 12px 12px",background:"linear-gradient(135deg,rgba(0,255,135,.15),rgba(0,200,100,.1))",border:"1px solid rgba(0,255,135,.3)",borderRadius:12,padding:"12px 14px",textAlign:"center",animation:"joinPulse 3s infinite",cursor:"pointer"}}>
               <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:3,letterSpacing:"0.5px"}}>Ready to level up?</div>
-              <div style={{fontSize:14,fontWeight:800,color:"#00ff87"}}>Join The Greenprint →</div>
+              <div style={{fontSize:14,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
               <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:2}}>Get full access today</div>
             </a>
           </div>
