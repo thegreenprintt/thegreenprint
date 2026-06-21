@@ -18,8 +18,7 @@ const del=async(p:string)=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE",k
 const push=async(p:string,d:any)=>{try{await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});}catch{}};
 const uid=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
 interface M{id?:string;name:string;text:string;ts:number}
-// Stream is "live" only if heartbeat is fresh (within 25s)
-const isActuallyLive=(d:any)=>!!d?.live&&(Date.now()-(d?.ts||0)<25000);
+
 export default function StreamPage(){
   const[name,setName]=useState("");
   const[joined,setJoined]=useState(false);
@@ -41,7 +40,7 @@ export default function StreamPage(){
   useEffect(()=>{
     const check=async()=>{
       const d=await get("livestatus");
-      const live=isActuallyLive(d);
+      const live=!!d?.live;
       setIsLive(live);isLiveRef.current=live;
       if(!live&&joined)setStep("Stream ended");
     };
