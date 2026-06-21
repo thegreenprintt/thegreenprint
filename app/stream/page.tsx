@@ -31,7 +31,6 @@ export default function StreamPage() {
   const [dur, setDur] = useState(0);
 
   const screenRef = useRef<HTMLVideoElement>(null);
-  // camRef is rendered OUTSIDE the joined gate so it's always in the DOM
   const camRef = useRef<HTMLVideoElement>(null);
   const pendingCamTrack = useRef<RemoteTrack|null>(null);
   const roomRef = useRef<Room|null>(null);
@@ -42,7 +41,6 @@ export default function StreamPage() {
   const startRef = useRef(0);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
-
   useEffect(() => {
     if (!joined) return;
     startRef.current = Date.now();
@@ -50,7 +48,6 @@ export default function StreamPage() {
     return () => clearInterval(id);
   }, [joined]);
 
-  // Live status
   useEffect(() => {
     get("livestatus").then(d => setIsLive(!!d?.live));
     const es = new EventSource(`${FB}/livestatus.json`);
@@ -61,7 +58,6 @@ export default function StreamPage() {
     return () => { es.close(); clearInterval(poll); };
   }, []);
 
-  // After joined, attach any pending screen/cam tracks
   useEffect(() => {
     if (!joined) return;
     if (screenRef.current && pendingScreenRef.current) {
@@ -78,7 +74,6 @@ export default function StreamPage() {
     }
   }, [joined]);
 
-  // Chat polling
   useEffect(() => {
     if (!joined) return;
     const poll = async () => {
@@ -89,7 +84,6 @@ export default function StreamPage() {
     poll(); const id = setInterval(poll,2000); return () => clearInterval(id);
   }, [joined]);
 
-  // Reactions polling
   useEffect(() => {
     if (!joined) return;
     const poll = async () => {
@@ -112,12 +106,9 @@ export default function StreamPage() {
       track.attach(screenRef.current);
       screenRef.current.play().catch(() => setNeedsClick(true));
       setHasVideo(true);
-    } else {
-      pendingScreenRef.current = track;
-    }
+    } else { pendingScreenRef.current = track; }
   };
 
-  // camRef is always mounted — attach immediately or queue if somehow not ready
   const attachCam = (track: RemoteTrack) => {
     if (camRef.current) {
       track.attach(camRef.current);
@@ -175,39 +166,61 @@ export default function StreamPage() {
     await push("live/chat",{name:name||"Viewer",msg:text,ts:now});
   };
 
+  const showPip = joined && hasCam;
+
   return (
     <>
-      {/* Camera PiP video — ALWAYS in DOM regardless of joined state */}
-      {/* This guarantees camRef.current is set when TrackSubscribed fires */}
-      <video
-        ref={camRef}
-        autoPlay playsInline muted
-        style={{
-          position:"fixed",
-          right:joined&&hasCam?16:-999,
-          bottom:joined&&hasCam?72:0,
-          width:joined&&hasCam?170:0,
-          height:joined&&hasCam?96:0,
-          opacity:joined&&hasCam?1:0,
-          borderRadius:10,
-          objectFit:"cover",
-          border:joined&&hasCam?"2px solid #00ff87":"none",
-          boxShadow:joined&&hasCam?"0 4px 20px rgba(0,255,135,.45)":"none",
-          zIndex:999,
-          transition:"opacity .3s",
-          pointerEvents:"none",
-        }}
-      />
-      {joined&&hasCam&&<div style={{position:"fixed",right:18,bottom:168,zIndex:1000,background:"rgba(0,255,135,.9)",color:"#000",fontSize:9,fontWeight:900,letterSpacing:"1.5px",borderRadius:"4px 4px 0 0",padding:"2px 7px",pointerEvents:"none"}}>CAM</div>}
+      {/* Global styles including PiP responsive positioning */}
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.95)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,135,.3)}50%{box-shadow:0 0 40px rgba(0,255,135,.6)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-200px) scale(2)}}
+        @keyframes joinPulse{0%,100%{opacity:1}50%{opacity:.85}}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+        .eb{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:50px;padding:6px 11px;cursor:pointer;font-size:18px;transition:all .15s;color:white;line-height:1}
+        .eb:hover{background:rgba(255,255,255,.15);transform:scale(1.2)}
+        .eb:active{transform:scale(.9)}
+        .ci{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;padding:9px 13px;font-size:14px;outline:none;width:100%;box-sizing:border-box}
+        .ci:focus{border-color:rgba(0,255,135,.5)}
+        /* PiP video — desktop: bottom-right of video area (offset by 300px chat + 16px margin) */
+        .pip-video {
+          position: fixed;
+          border-radius: 10px;
+          object-fit: cover;
+          z-index: 999;
+          pointer-events: none;
+          transition: opacity .3s ease, bottom .3s ease;
+        }
+        /* Desktop: PiP sits in video area, right side, above reaction bar */
+        @media (min-width: 769px) {
+          .pip-video { width: 176px; height: 99px; right: 316px; bottom: 72px; }
+          .pip-video.pip-on { opacity:1; border: 2px solid #00ff87; box-shadow: 0 4px 24px rgba(0,255,135,.45); }
+          .pip-video.pip-off { opacity:0; border: none; bottom: -120px; }
+          .pip-label { position:fixed; right:318px; bottom:171px; z-index:1000; background:rgba(0,255,135,.9); color:#000; font-size:9px; font-weight:900; letter-spacing:1.5px; border-radius:4px 4px 0 0; padding:2px 7px; pointer-events:none; }
+        }
+        /* Mobile: PiP sits in the top-right of the video portion */
+        @media (max-width: 768px) {
+          .pip-video { width: 120px; height: 68px; right: 12px; top: calc(env(safe-area-inset-top) + 60px); }
+          .pip-video.pip-on { opacity:1; border: 2px solid #00ff87; box-shadow: 0 4px 16px rgba(0,255,135,.4); }
+          .pip-video.pip-off { opacity:0; border: none; }
+          .pip-label { display: none; }
+          .mg { flex-direction: column !important; }
+          .cp { width: 100% !important; height: auto !important; max-height: 280px !important; border-left: none !important; border-top: 1px solid rgba(255,255,255,.08) !important; }
+          .rbar { padding: 6px 12px 8px !important; }
+        }
+        /* Safe-area aware layout */
+        .safe-top { padding-top: env(safe-area-inset-top); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+      `}</style>
+
+      {/* Camera PiP — ALWAYS rendered so ref is set before join */}
+      <video ref={camRef} autoPlay playsInline muted className={`pip-video ${showPip ? "pip-on" : "pip-off"}`} />
+      {showPip && <div className="pip-label">CAM</div>}
 
       {!joined ? (
         /* ── JOIN SCREEN ── */
-        <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          <style>{`
-            @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.95)}}
-            @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,135,.3)}50%{box-shadow:0 0 40px rgba(0,255,135,.6)}}
-            @keyframes spin{to{transform:rotate(360deg)}}
-          `}</style>
+        <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"env(safe-area-inset-top) 24px env(safe-area-inset-bottom)",fontFamily:"system-ui,-apple-system,sans-serif"}}>
           <div style={{marginBottom:40,textAlign:"center"}}>
             <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:36}}>🌿</div>
             <h1 style={{fontSize:34,fontWeight:900,letterSpacing:"-1px",margin:"0 0 8px"}}>The Greenprint</h1>
@@ -241,49 +254,37 @@ export default function StreamPage() {
       ) : (
         /* ── STREAM SCREEN ── */
         <div style={{height:"100dvh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          <style>{`
-            @keyframes spin{to{transform:rotate(360deg)}}
-            @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-            @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-200px) scale(2)}}
-            @keyframes joinPulse{0%,100%{opacity:1}50%{opacity:.85}}
-            ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
-            .eb{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:50px;padding:6px 11px;cursor:pointer;font-size:18px;transition:all .15s;color:white;line-height:1}
-            .eb:hover{background:rgba(255,255,255,.15);transform:scale(1.2)}
-            .eb:active{transform:scale(.9)}
-            .ci{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;padding:9px 13px;font-size:14px;outline:none;width:100%;box-sizing:border-box}
-            .ci:focus{border-color:rgba(0,255,135,.5)}
-            @media(max-width:768px){.mg{flex-direction:column!important}.cp{width:100%!important;height:260px!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}.rbar{padding:6px 12px 8px!important}}
-          `}</style>
-
-          {/* Header */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🌿</div>
-              <div>
-                <div style={{fontWeight:900,fontSize:13}}>The Greenprint</div>
-                <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Live Trading Session</div>
+          {/* Header — safe area top */}
+          <div className="safe-top" style={{background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>🌿</div>
+                <div>
+                  <div style={{fontWeight:900,fontSize:13}}>The Greenprint</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Live Trading Session</div>
+                </div>
               </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:7}}>
-              <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"3px 10px",fontSize:11}}>👁 {viewers+1}</span>
-              <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:4}}>
-                <span style={{width:6,height:6,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
-              </span>
-              <span style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",borderRadius:20,padding:"3px 10px",fontSize:10,color:"rgba(255,255,255,.4)"}}>{fmt(dur)}</span>
-              <button onClick={()=>setChatOpen(o=>!o)} style={{background:chatOpen?"rgba(0,255,135,.12)":"rgba(255,255,255,.05)",border:chatOpen?"1px solid rgba(0,255,135,.3)":"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:chatOpen?"#00ff87":"rgba(255,255,255,.5)",fontSize:12,fontWeight:700}}>💬</button>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"3px 10px",fontSize:11}}>👁 {viewers+1}</span>
+                <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{width:6,height:6,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
+                </span>
+                <span style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",borderRadius:20,padding:"3px 10px",fontSize:10,color:"rgba(255,255,255,.4)"}}>{fmt(dur)}</span>
+                <button onClick={()=>setChatOpen(o=>!o)} style={{background:chatOpen?"rgba(0,255,135,.12)":"rgba(255,255,255,.05)",border:chatOpen?"1px solid rgba(0,255,135,.3)":"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:chatOpen?"#00ff87":"rgba(255,255,255,.5)",fontSize:12,fontWeight:700}}>💬</button>
+              </div>
             </div>
           </div>
 
           {/* Body */}
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-            {/* Video */}
+            {/* Video area */}
             <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();setNeedsClick(false);}:undefined}>
               <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
 
               {/* Floating reactions */}
               <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
                 {floats.map(r=>(
-                  <div key={r.id} style={{position:"absolute",bottom:50,left:`${8+r.x*78}%`,fontSize:36,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 10px rgba(0,0,0,.7))"}}>{r.emoji}</div>
+                  <div key={r.id} style={{position:"absolute",bottom:60,left:`${8+r.x*78}%`,fontSize:36,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 10px rgba(0,0,0,.7))"}}>{r.emoji}</div>
                 ))}
               </div>
 
@@ -299,7 +300,7 @@ export default function StreamPage() {
                 </div>
               )}
 
-              {/* Reaction bar — compact, no overlap */}
+              {/* Reaction bar */}
               <div className="rbar" style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,.75))",padding:"28px 12px 10px",display:"flex",gap:6,alignItems:"center"}}>
                 {EMOJIS.map(e=>(
                   <button key={e} className="eb" onClick={()=>sendReaction(e)}>{e}</button>
@@ -309,8 +310,8 @@ export default function StreamPage() {
 
             {/* Chat panel */}
             {chatOpen&&(
-              <div className="cp" style={{width:300,borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(5,5,5,.85)",backdropFilter:"blur(20px)",flexShrink:0}}>
-                <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7}}>
+              <div className="cp" style={{width:300,borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(5,5,5,.9)",backdropFilter:"blur(20px)",flexShrink:0}}>
+                <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <span>💬</span> Live Chat
                 </div>
                 <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
@@ -323,18 +324,19 @@ export default function StreamPage() {
                   ))}
                   <div ref={chatEndRef}/>
                 </div>
-                <div style={{padding:"8px 12px",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+                {/* Join CTA */}
+                <a href={JOIN_URL} target="_blank" rel="noopener noreferrer"
+                  style={{display:"block",textDecoration:"none",margin:"6px 10px",background:"linear-gradient(135deg,rgba(0,255,135,.12),rgba(0,200,100,.08))",border:"1px solid rgba(0,255,135,.28)",borderRadius:10,padding:"10px 12px",textAlign:"center",animation:"joinPulse 3s infinite",flexShrink:0}}>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginBottom:2}}>Ready to level up?</div>
+                  <div style={{fontSize:13,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
+                </a>
+                {/* Chat input */}
+                <div className="safe-bottom" style={{padding:"6px 12px 8px",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
                   <div style={{display:"flex",gap:7}}>
                     <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Chat as ${name}...`} className="ci" />
                     <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"9px 12px",cursor:"pointer",flexShrink:0,fontSize:14}}>→</button>
                   </div>
                 </div>
-                {/* Join CTA */}
-                <a href={JOIN_URL} target="_blank" rel="noopener noreferrer"
-                  style={{display:"block",textDecoration:"none",margin:"0 10px 10px",background:"linear-gradient(135deg,rgba(0,255,135,.12),rgba(0,200,100,.08))",border:"1px solid rgba(0,255,135,.28)",borderRadius:10,padding:"10px 12px",textAlign:"center",animation:"joinPulse 3s infinite"}}>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginBottom:2}}>Ready to level up?</div>
-                  <div style={{fontSize:13,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
-                </a>
               </div>
             )}
           </div>
