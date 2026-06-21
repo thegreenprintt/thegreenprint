@@ -80,7 +80,7 @@ export default function StreamPage(){
     pc.onconnectionstatechange=()=>{
       const st=pc.connectionState;
       if(st==="connected"){setStep("Connected!");setPlaying(true);}
-      if(st==="checking")setStep("ICE connecting...");
+      if(st==="connecting")setStep("ICE connecting...");
       if((st==="failed"||st==="disconnected")&&isLiveRef.current){setStep("Lost connection, reconnecting...");setPlaying(false);setTimeout(()=>{if(isLiveRef.current)joinStream();},3000);}
     };
     const handleOffer=async(offer:any)=>{
