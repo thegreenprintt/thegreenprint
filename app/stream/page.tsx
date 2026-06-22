@@ -94,11 +94,7 @@ function Avatar({ name, isHost=false }: { name:string; isHost?:boolean }) {
 export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [isHost, setIsHost] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat"|"leads">("chat");
-  const [leads, setLeads] = useState<{name:string,email:string,firstSeen:string,lastSeen:string,joinCount:number}[]>([]);
-  const [joined, setJoined] = useState(false);
+  const [email, setEmail] = useState("");  const [joined, setJoined] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [statusText, setStatusText] = useState("Checking stream...");
   const [chat, setChat] = useState<CM[]>([]);
@@ -135,24 +131,6 @@ export default function StreamPage() {
       setIsHost(true);
     }
   }, []);
-
-  // Fetch leads when host tab is active
-  useEffect(() => {
-    if (!isHost || activeTab !== "leads") return;
-    const load = async () => {
-      try {
-        const r = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads.json');
-        const data = await r.json();
-        if (!data) { setLeads([]); return; }
-        const list = Object.values(data) as typeof leads;
-        list.sort((a:any,b:any) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
-        setLeads(list);
-      } catch {}
-    };
-    load();
-    const t = setInterval(load, 10000);
-    return () => clearInterval(t);
-  }, [isHost, activeTab]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
   useEffect(() => {
@@ -301,6 +279,17 @@ export default function StreamPage() {
           .pip-wrap{width:100px!important;height:56px!important;bottom:50px!important;right:8px!important}
         }
       `}</style>
+      {/* ── HOST-ONLY LEADS BUTTON ── */}
+      {isHost && (
+        <a href="/leads" target="_blank" style={{
+          position:"fixed", bottom:80, right:12, zIndex:9999,
+          padding:"7px 14px", borderRadius:8, fontSize:11, fontWeight:800,
+          background:"rgba(0,0,0,0.7)", border:"1px solid rgba(34,197,94,0.6)",
+          color:"#22c55e", textDecoration:"none", letterSpacing:"0.08em",
+          backdropFilter:"blur(8px)", boxShadow:"0 0 12px rgba(34,197,94,0.2)",
+          whiteSpace:"nowrap",
+        }}>LEADS ↗</a>
+      )}
       
 
       <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
@@ -410,22 +399,7 @@ export default function StreamPage() {
                 <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <span>💬</span> Live Chat
                 </div>
-{/* ── HOST: Chat / Leads tab switcher ── */}
-                {isHost && (
-                  <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(255,255,255,0.08)",marginBottom:4}}>
-                    {(["chat","leads"] as const).map(tab => (
-                      <button key={tab} onClick={()=>setActiveTab(tab)} style={{
-                        flex:1, padding:"8px 0", fontSize:12, fontWeight:700, letterSpacing:"0.06em",
-                        textTransform:"uppercase", border:"none", cursor:"pointer",
-                        background: activeTab===tab ? "rgba(34,197,94,0.15)" : "transparent",
-                        color: activeTab===tab ? "#22c55e" : "rgba(255,255,255,0.35)",
-                        borderBottom: activeTab===tab ? "2px solid #22c55e" : "2px solid transparent",
-                        transition:"all 0.2s",
-                      }}>{tab === "chat" ? "💬 Chat" : "📋 Leads"}</button>
-                    ))}
-                  </div>
-                )}
-                                                                <div style={{flex:1,overflowY:"auto",padding:"8px 12px",display:(isHost&&activeTab==="leads")?"none":"flex",flexDirection:"column"}}>
+                                                                <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
                   {chat.length===0&&<div style={{textAlign:"center",padding:"36px 0"}}><div style={{fontSize:28,marginBottom:8}}>💬</div><p style={{color:"rgba(255,255,255,.2)",fontSize:12,margin:0}}>Be the first to chat!</p></div>}
                   {chat.map((m,i)=>(
                     <div key={i} style={{marginBottom:10,display:"flex",alignItems:"flex-start",gap:7}}>
@@ -434,21 +408,6 @@ export default function StreamPage() {
                         <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:11}}>{m.name}</span>
                         <span style={{color:"rgba(255,255,255,.8)",fontSize:12,display:"block",wordBreak:"break-word"}}>{m.msg}</span>
                       </div>
-                      {isHost && activeTab === "leads" && (
-                        <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
-                          {leads.length === 0 ? (
-                            <p style={{color:"rgba(255,255,255,0.3)",fontSize:12,textAlign:"center",marginTop:24}}>No leads yet</p>
-                          ) : leads.map((l,i) => (
-                            <div key={i} style={{padding:"8px 10px",marginBottom:6,background:"rgba(255,255,255,0.04)",borderRadius:8,borderLeft:"2px solid #22c55e"}}>
-                              <div style={{fontWeight:700,fontSize:13,color:"#fff"}}>{l.name}</div>
-                              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>{l.email || "no email"}</div>
-                              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:2}}>
-                                Joined {l.joinCount}x · Last: {l.lastSeen ? new Date(l.lastSeen).toLocaleString() : "—"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
                   <div ref={chatEndRef}/>
