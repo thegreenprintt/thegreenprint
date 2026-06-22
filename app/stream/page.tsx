@@ -128,7 +128,7 @@ export default function StreamPage() {
       if (saved?.email) setEmail(saved.email);
     } catch {}
     // Check host status
-    if (typeof window !== 'undefined' && localStorage.getItem('gp_host') === 'true') {
+    if (typeof window !== 'undefined' && (localStorage.getItem('gp_host') === 'true' || window.location.hash === '#host')) {
       setIsHost(true);
     }
   }, []);
