@@ -90,24 +90,41 @@ export default function LeadsPage() {
 
   if (!authed) {
     return (
-      <div style={s.page}>
-        <div style={{ ...s.card, maxWidth: 400, marginTop: "15vh" }}>
-          <h1 style={s.h1}>Leads Dashboard</h1>
-          <p style={s.sub}>Host access only</p>
-          <input
-            type="password"
-            value={pw}
-            onChange={e => setPw(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && checkPassword()}
-            placeholder="Password"
-            style={s.input}
-          />
-          {pwError && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8 }}>{pwError}</p>}
-          <button onClick={checkPassword} style={s.btn}>Enter</button>
+      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 30% 60%,#071a10 0%,#020807 55%)",color:"#fff",fontFamily:"system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
+        <style>{`
+          @keyframes orbPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.65;transform:scale(1.08)}}
+          @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+          #leads-submit:hover{transform:translateY(-1px) scale(1.02)!important;box-shadow:0 8px 36px rgba(34,197,94,.6)!important}
+        `}</style>
+        <div style={{position:"absolute",top:"10%",right:"10%",width:380,height:380,background:"radial-gradient(circle,rgba(34,197,94,.09) 0%,transparent 65%)",animation:"orbPulse 4s ease-in-out infinite",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"5%",left:"5%",width:300,height:300,background:"radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%)",animation:"orbPulse 5s ease-in-out infinite 1.5s",pointerEvents:"none"}}/>
+
+        <div style={{width:"100%",maxWidth:400,position:"relative",zIndex:1,animation:"fadeUp .5s ease"}}>
+          <div style={{textAlign:"center",marginBottom:40}}>
+            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:66,height:66,borderRadius:18,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:18,boxShadow:"0 0 36px rgba(34,197,94,.12)"}}>
+              <span style={{fontSize:30}}>📋</span>
+            </div>
+            <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.55)",textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Host Only</div>
+            <div style={{fontSize:28,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e,#4ade80,#bbf7d0)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Leads Dashboard</div>
+          </div>
+
+          <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:22,padding:"32px 28px",backdropFilter:"blur(28px)",boxShadow:"0 0 60px rgba(34,197,94,.05)"}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
+            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&auth()}
+              placeholder="Enter password"
+              style={{width:"100%",padding:"15px 18px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,marginBottom:16,transition:"border-color .2s"}}
+              onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
+              onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
+            />
+            <button id="leads-submit" onClick={auth}
+              style={{width:"100%",padding:"15px 0",background:"linear-gradient(135deg,#15803d,#22c55e,#4ade80)",border:"none",borderRadius:12,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 24px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
+              VIEW LEADS
+            </button>
+          </div>
         </div>
       </div>
     );
-  }
+  }}
 
   return (
     <div style={s.page}>
