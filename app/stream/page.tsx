@@ -122,14 +122,25 @@ export default function StreamPage() {
 
   // ─── RETURNING VIEWER (localStorage) ───────────────────────
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
-      if (saved?.name) setName(saved.name);
-      if (saved?.email) setEmail(saved.email);
-    } catch {}
-    // Check host status
-    if (typeof window !== 'undefined' && localStorage.getItem('gp_host') === 'true') {
-      setIsHost(true);
+    const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
+    if (saved?.name && saved?.email) {
+      // Returning visitor — auto-join without showing form
+      const n = saved.name; const e = saved.email;
+      setName(n); setEmail(e);
+      (async () => {
+        try {
+          const k = e.toLowerCase().replace(/[^a-z0-9]/g,'_') || 'no_email';
+          const ref = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + k + '.json';
+          const ex = await fetch(ref).then(r=>r.json()).catch(()=>null);
+          await fetch(ref, { method:'PUT', body: JSON.stringify({
+            name:n, email:e,
+            firstSeen: ex?.firstSeen || new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            joinCount: (ex?.joinCount||0)+1,
+          })});
+        } catch {}
+        setJoined(true);
+      })();
     }
   }, []);
 
@@ -198,6 +209,7 @@ export default function StreamPage() {
   };
   const joinStream = async () => {
     if (!name.trim()) { alert("Enter your name"); return; }
+    if (!email.trim()) { alert("Email is required to join"); return; }
     setConnecting(true); setStatusText("Connecting...");
     try {
       const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim(),isHost:false})}).then(r=>r.json());
@@ -311,7 +323,7 @@ export default function StreamPage() {
               <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&joinStream()} placeholder="Enter your name to join..."
                 style={{width:"100%",padding:"14px 16px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#fff",marginBottom:14,boxSizing:"border-box",fontSize:15,outline:"none"}} />
               <input
-                type="email"
+                type="email" required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="Email (optional)"
