@@ -425,8 +425,7 @@ export default function StreamPage() {
                     ))}
                   </div>
                 )}
-                                {(activeTab === "chat" || !isHost) && (
-                                <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
+                                                                <div style={{flex:1,overflowY:"auto",padding:"8px 12px",display:(isHost&&activeTab==="leads")?"none":"flex",flexDirection:"column"}}>
                   {chat.length===0&&<div style={{textAlign:"center",padding:"36px 0"}}><div style={{fontSize:28,marginBottom:8}}>💬</div><p style={{color:"rgba(255,255,255,.2)",fontSize:12,margin:0}}>Be the first to chat!</p></div>}
                   {chat.map((m,i)=>(
                     <div key={i} style={{marginBottom:10,display:"flex",alignItems:"flex-start",gap:7}}>
@@ -435,7 +434,6 @@ export default function StreamPage() {
                         <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:11}}>{m.name}</span>
                         <span style={{color:"rgba(255,255,255,.8)",fontSize:12,display:"block",wordBreak:"break-word"}}>{m.msg}</span>
                       </div>
-                      )}
                       {isHost && activeTab === "leads" && (
                         <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
                           {leads.length === 0 ? (
