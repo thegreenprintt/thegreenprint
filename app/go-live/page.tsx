@@ -157,24 +157,48 @@ export default function GoLive() {
   };
 
   if (!authed) return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#050505,#0a0f0a)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <style>{`@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,135,.3)}50%{box-shadow:0 0 40px rgba(0,255,135,.6)}}`}</style>
-      {/* ── LEADS LINK (host only) ── */}
-      <a href="/leads" target="_blank" style={{
-        position:"fixed", top:16, right:16, zIndex:9999,
-        padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:700,
-        background:"rgba(34,197,94,0.15)", border:"1px solid #22c55e",
-        color:"#22c55e", textDecoration:"none", letterSpacing:"0.05em",
-      }}>LEADS ↗</a>
-      <div style={{background:"rgba(255,255,255,.04)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.1)",borderRadius:24,padding:"48px 40px",width:340}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:60,height:60,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28}}>🌿</div>
-          <h2 style={{color:"#fff",margin:"0 0 4px",fontSize:22,fontWeight:900}}>Studio</h2>
-          <p style={{color:"rgba(255,255,255,.4)",margin:0,fontSize:13}}>The Greenprint</p>
+    <div style={{minHeight:"100dvh",background:"radial-gradient(ellipse at 25% 60%,#071a10 0%,#020807 55%,#020807 100%)",color:"#fff",fontFamily:"system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
+      <style>{`
+        @keyframes orbPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.08)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+        #studio-submit:hover{transform:translateY(-1px) scale(1.02)!important;box-shadow:0 8px 40px rgba(34,197,94,.6)!important}
+        #studio-submit:active{transform:scale(.98)!important}
+      `}</style>
+      <div style={{position:"absolute",top:"5%",left:"5%",width:500,height:500,background:"radial-gradient(circle,rgba(34,197,94,.1) 0%,transparent 65%)",animation:"orbPulse 4s ease-in-out infinite",pointerEvents:"none",zIndex:0}}/>
+      <div style={{position:"absolute",bottom:"0%",right:"0%",width:400,height:400,background:"radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%)",animation:"orbPulse 5s ease-in-out infinite 1s",pointerEvents:"none",zIndex:0}}/>
+      <div style={{position:"absolute",top:"50%",left:"50%",width:800,height:2,background:"linear-gradient(90deg,transparent,rgba(34,197,94,.08),transparent)",transform:"translate(-50%,-50%)",pointerEvents:"none",zIndex:0}}/>
+
+      <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1,animation:"fadeUp .6s ease"}}>
+
+        {/* Logo / Branding */}
+        <div style={{textAlign:"center",marginBottom:44}}>
+          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:72,height:72,borderRadius:20,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:20,boxShadow:"0 0 40px rgba(34,197,94,.15)"}}>
+            <span style={{fontSize:34}}>🎙️</span>
+          </div>
+          <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.6)",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Welcome back</div>
+          <div style={{fontSize:32,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e 0%,#4ade80 45%,#bbf7d0 100%)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"shimmer 4s linear infinite"}}>Greenprint Studio</div>
         </div>
-        <input type="password" placeholder="Password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&auth()}
-          style={{width:"100%",padding:"13px 16px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#fff",marginBottom:14,boxSizing:"border-box",fontSize:15,outline:"none"}} />
-        <button onClick={auth} style={{width:"100%",padding:"13px 0",background:"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:12,color:"#000",fontWeight:800,cursor:"pointer",fontSize:15,animation:"glow 2s infinite"}}>Enter Studio</button>
+
+        {/* Card */}
+        <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:24,padding:"36px 32px",backdropFilter:"blur(32px)",boxShadow:"0 0 80px rgba(34,197,94,.05),inset 0 1px 0 rgba(255,255,255,.05)"}}>
+          <div style={{marginBottom:10}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.35)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
+            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&auth()}
+              placeholder="Enter your studio password"
+              style={{width:"100%",padding:"16px 20px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,letterSpacing:".5px",transition:"border-color .2s ease"}}
+              onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
+              onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
+            />
+          </div>
+          <div style={{marginTop:20}}>
+            <button id="studio-submit" onClick={auth}
+              style={{width:"100%",padding:"16px 0",background:"linear-gradient(135deg,#15803d 0%,#22c55e 50%,#4ade80 100%)",border:"none",borderRadius:14,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 28px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
+              ENTER STUDIO
+            </button>
+          </div>
+          <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"rgba(255,255,255,.15)",letterSpacing:"1px"}}>Host access only · thegreenprint.trade</div>
+        </div>
       </div>
     </div>
   );
