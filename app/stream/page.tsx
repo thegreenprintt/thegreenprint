@@ -276,6 +276,13 @@ export default function StreamPage() {
           .pip-wrap{width:100px!important;height:56px!important;bottom:50px!important;right:8px!important}
         }
       `}</style>
+      {/* ── LEADS LINK ── */}
+      <a href="/leads" target="_blank" style={{
+        position:"fixed", top:14, right:16, zIndex:9999,
+        padding:"5px 12px", borderRadius:6, fontSize:11, fontWeight:700,
+        background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.5)",
+        color:"#22c55e", textDecoration:"none", letterSpacing:"0.08em",
+      }}>LEADS ↗</a>
 
       <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
 
