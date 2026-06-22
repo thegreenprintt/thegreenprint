@@ -213,6 +213,8 @@ export default function GoLive() {
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
         @media(max-width:900px){.sg{grid-template-columns:1fr!important}.cc{max-height:260px!important}}
       `}</style>
+      {/* LEADS button - host only (this page is password protected) */}
+      <a href="/leads" target="_blank" style={{position:"fixed",top:16,right:16,zIndex:9999,padding:"8px 16px",borderRadius:8,fontSize:12,fontWeight:800,background:"rgba(0,0,0,.7)",border:"1px solid rgba(34,197,94,.5)",color:"#22c55e",textDecoration:"none",letterSpacing:"0.08em",backdropFilter:"blur(8px)",boxShadow:"0 0 14px rgba(34,197,94,.2)"}}>LEADS ↗</a>
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
