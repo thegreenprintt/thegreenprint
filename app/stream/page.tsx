@@ -95,6 +95,7 @@ export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");  const [joined, setJoined] = useState(false);
+  const [isHost, setIsHost] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [statusText, setStatusText] = useState("Checking stream...");
   const [chat, setChat] = useState<CM[]>([]);
