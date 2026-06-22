@@ -152,7 +152,7 @@ export default function GoLive() {
   };
 
   const auth = async () => {
-    if (await sha256(pw)===HASH) { setAuthed(true); await put("livestatus",{live:false,ts:Date.now()}); await del("live"); }
+    if (await sha256(pw)===HASH) { setAuthed(true); localStorage.setItem('gp_host','true'); await put("livestatus",{live:false,ts:Date.now()}); await del("live"); }
     else alert("Wrong password");
   };
 
