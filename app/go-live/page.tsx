@@ -159,6 +159,13 @@ export default function GoLive() {
   if (!authed) return (
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#050505,#0a0f0a)",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <style>{`@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,255,135,.3)}50%{box-shadow:0 0 40px rgba(0,255,135,.6)}}`}</style>
+      {/* ── LEADS LINK (host only) ── */}
+      <a href="/leads" target="_blank" style={{
+        position:"fixed", top:16, right:16, zIndex:9999,
+        padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:700,
+        background:"rgba(34,197,94,0.15)", border:"1px solid #22c55e",
+        color:"#22c55e", textDecoration:"none", letterSpacing:"0.05em",
+      }}>LEADS ↗</a>
       <div style={{background:"rgba(255,255,255,.04)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,.1)",borderRadius:24,padding:"48px 40px",width:340}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{width:60,height:60,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28}}>🌿</div>
