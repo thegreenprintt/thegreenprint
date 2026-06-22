@@ -82,7 +82,7 @@ export default function GoLive() {
   const startStream = async () => {
     try {
       setStatus("Requesting screen...");
-      const tracks = await createLocalScreenTracks({audio:true,video:{width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:60}}});
+      const tracks = await createLocalScreenTracks({audio:true});
       const vt = tracks.find(t=>t.kind===Track.Kind.Video);
       const at = tracks.find(t=>t.kind===Track.Kind.Audio);
       if (!vt) throw new Error("No video track");
