@@ -94,6 +94,7 @@ function Avatar({ name, isHost=false }: { name:string; isHost?:boolean }) {
 export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [joined, setJoined] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [statusText, setStatusText] = useState("Checking stream...");
@@ -118,6 +119,15 @@ export default function StreamPage() {
   const lastSendRef = useRef(0);
   const seenR = useRef(new Set<string>());
   const startRef = useRef(0);
+
+  // ─── RETURNING VIEWER (localStorage) ───────────────────────
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
+      if (saved?.name) setName(saved.name);
+      if (saved?.email) setEmail(saved.email);
+    } catch {}
+  }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
   useEffect(() => {
@@ -201,6 +211,23 @@ export default function StreamPage() {
       room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
       room.on(RoomEvent.Disconnected,()=>{setStatusText("Disconnected.");setJoined(false);setConnecting(false);setHasVideo(false);setHasCam(false);});
       await room.connect(url,token);
+      // ─── LEAD CAPTURE ─────────────────────────────────────────
+      try {
+        const cleanEmail = (email || '').toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
+        const leadRef = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + cleanEmail + '.json';
+        const existing = await fetch(leadRef).then(r=>r.json()).catch(()=>null);
+        await fetch(leadRef, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            firstSeen: existing?.firstSeen || new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            joinCount: (existing?.joinCount || 0) + 1,
+          }),
+        });
+        localStorage.setItem('gp_viewer', JSON.stringify({ name: name.trim(), email: email.trim() }));
+      } catch {}
       setJoined(true); setConnecting(false); setViewers(room.remoteParticipants.size);
       room.remoteParticipants.forEach(p=>{
         p.trackPublications.forEach(pub=>{
@@ -267,6 +294,18 @@ export default function StreamPage() {
               </div>
               <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&joinStream()} placeholder="Enter your name to join..."
                 style={{width:"100%",padding:"14px 16px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,color:"#fff",marginBottom:14,boxSizing:"border-box",fontSize:15,outline:"none"}} />
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email (optional)"
+                style={{
+                  width: "100%", padding: "14px 18px", marginTop: 10,
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 12, color: "#fff", fontSize: 16, outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
               <button onClick={joinStream} disabled={connecting}
                 style={{width:"100%",padding:"15px 0",background:connecting?"rgba(255,255,255,.1)":"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:12,color:connecting?"rgba(255,255,255,.4)":"#000",fontWeight:800,cursor:connecting?"wait":"pointer",fontSize:16,animation:connecting?"none":"glow 2s infinite"}}>
                 {connecting?"Connecting...":"▶  Join Stream"}
