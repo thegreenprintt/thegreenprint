@@ -124,7 +124,7 @@ export default function LeadsPage() {
         </div>
       </div>
     );
-  }}
+  }
 
   return (
     <div style={s.page}>
