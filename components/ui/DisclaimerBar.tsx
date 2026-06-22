@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function DisclaimerBar() {
+  const pathname = usePathname();
+  if (pathname === "/stream" || pathname === "/go-live") return null;
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border px-4 py-2 text-center">
       <p className="text-[10px] text-muted font-mono leading-relaxed">
