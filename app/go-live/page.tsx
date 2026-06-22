@@ -121,7 +121,7 @@ export default function GoLive() {
         if (camRef.current) camRef.current.srcObject=null;
         setCamOn(false);
       } else {
-        const track = await createLocalVideoTrack({facingMode:"user",width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}});
+        const track = await createLocalVideoTrack({facingMode:"user"});
         camTrackRef.current = track;
         if (camRef.current) track.attach(camRef.current);
         await roomRef.current.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
