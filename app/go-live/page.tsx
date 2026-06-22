@@ -176,7 +176,6 @@ export default function GoLive() {
           <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:72,height:72,borderRadius:20,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:20,boxShadow:"0 0 40px rgba(34,197,94,.15)"}}>
             <span style={{fontSize:34}}>🎙️</span>
           </div>
-              <a href="/leads" target="_blank" style={{padding:"5px 14px",borderRadius:8,fontSize:11,fontWeight:800,background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.4)",color:"#22c55e",textDecoration:"none",letterSpacing:".08em"}}>LEADS ↗</a>
           <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.6)",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Welcome back</div>
           <div style={{fontSize:32,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e 0%,#4ade80 45%,#bbf7d0 100%)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"shimmer 4s linear infinite"}}>Greenprint Studio</div>
         </div>
@@ -197,6 +196,7 @@ export default function GoLive() {
               style={{width:"100%",padding:"16px 0",background:"linear-gradient(135deg,#15803d 0%,#22c55e 50%,#4ade80 100%)",border:"none",borderRadius:14,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 28px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
               ENTER STUDIO
             </button>
+            <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:12,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
           </div>
           <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"rgba(255,255,255,.15)",letterSpacing:"1px"}}>Host access only · thegreenprint.trade</div>
         </div>
