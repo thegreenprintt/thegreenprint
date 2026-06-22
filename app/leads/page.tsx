@@ -110,13 +110,13 @@ export default function LeadsPage() {
 
           <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:22,padding:"32px 28px",backdropFilter:"blur(28px)",boxShadow:"0 0 60px rgba(34,197,94,.05)"}}>
             <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
-            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError(true);setPw('');}})()}
+            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError("Incorrect password");setPw('');}})()}
               placeholder="Enter password"
               style={{width:"100%",padding:"15px 18px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,marginBottom:16,transition:"border-color .2s"}}
               onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
               onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
             />
-            <button id="leads-submit" onClick={async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError(true);setPw('');}}}
+            <button id="leads-submit" onClick={async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError("Incorrect password");setPw('');}}}
               style={{width:"100%",padding:"15px 0",background:"linear-gradient(135deg,#15803d,#22c55e,#4ade80)",border:"none",borderRadius:12,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 24px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
               VIEW LEADS
             </button>
