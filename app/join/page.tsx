@@ -9,18 +9,33 @@ const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
 const ONEHOUSE_STARTUP = "https://subscribe.1houseglobal.com/jay";
 
 const TIERS = [
- {
+  {
+    name: "???",
+    price: "???", cents: "", period: "/month",
+    tagline: "???",
+    desc: "???",
+    highlight: false,
+    badge: "Coming Soon",
+    badgeColor: "rgba(255,255,255,0.12)",
+    cta: "Coming Soon",
+    ctaStyle: "outline",
+    url: null,
+    comingSoon: true,
+    included: ["???","???","???","???","???"],
+    locked: [],
+  },
+  {
     name: "1House Global Stream",
-    price: "$99", cents: "", period: "/month",
+    price: "\$99", cents: "", period: "/month",
     tagline: "Via our affiliate partner.",
     desc: "Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more.",
     highlight: false,
     badge: "Affiliate Partner",
     badgeColor: "rgba(255,255,255,0.2)",
-    cta: "Subscribe via 1House $99/mo",
+    cta: "Subscribe via 1House \$99/mo",
     ctaStyle: "outline",
     url: ONEHOUSE_STREAM,
-    affiliate: true,
+    comingSoon: false,
     included: [
       "Unlimited live stream access",
       "100+ expert creators",
@@ -32,20 +47,20 @@ const TIERS = [
       "Live stream alerts & notifications",
       "3-day money-back guarantee",
     ],
+    locked: [],
   },
   {
     name: "1House Global Startup",
-    price: "$165", cents: "", period: "/month",
-    priceSub: "+ $200 one-time setup",
-    tagline: "Build your own brand.",
+    price: "\$165", cents: "", period: "/month",
+    tagline: "Via our affiliate partner.",
     desc: "Everything in Stream, plus tools to launch and grow your own creator business on the 1House platform.",
     highlight: false,
     badge: "Affiliate Partner",
-    badgeColor: "rgba(201,168,76,0.3)",
+    badgeColor: "rgba(255,255,255,0.2)",
     cta: "Apply for Startup",
     ctaStyle: "gold",
     url: ONEHOUSE_STARTUP,
-    affiliate: true,
+    comingSoon: false,
     included: [
       "Everything in 1House Stream",
       "Launch your own creator platform",
@@ -56,29 +71,8 @@ const TIERS = [
       "Done-for-you setup support",
       "Access to founder community",
     ],
-  },
-,
-  {
-    name: "The Greenprint Inner Circle",
-    price: "???", cents: "", period: "/month",
-    tagline: "Coming soon.",
-    desc: "Direct access, live coaching, and the full Greenprint system. Opening soon.",
-    highlight: false,
-    badge: "Coming Soon",
-    badgeColor: "rgba(255,255,255,0.12)",
-    cta: "Notify Me",
-    ctaStyle: "outline",
-    url: null,
-    comingSoon: true,
-    included: [
-      "Everything in both 1House tiers",
-      "Live sessions with Jay",
-      "The Greenprint scanner",
-      "Exclusive private community",
-      "Early access to all launches",
-    ],
     locked: [],
-  }
+  },
 ];
 
 function Check({ gold }: { gold?: boolean }) {
@@ -196,4 +190,10 @@ export default function JoinPage() {
       </div>
     </div>
   );
-}
+}{tier.comingSoon && (
+                <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(10,10,10,0.6)",zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,borderRadius:"inherit"}}>
+                  <span style={{fontSize:32}}>🔒</span>
+                  <span style={{color:"rgba(255,255,255,0.5)",fontSize:13,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Coming Soon</span>
+                </div>
+              )}
+              
