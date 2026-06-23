@@ -6,7 +6,7 @@ import { ComplianceCheckbox } from "@/components/ui/ComplianceCheckbox";
 
 const WHOP_CHECKOUT = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 const ONEHOUSE_STREAM  = "https://subscribe.1houseglobal.com/jay";
-const ONEHOUSE_STARTUP = "https://1houseglobal.com/startup";
+const ONEHOUSE_STARTUP = "https://subscribe.1houseglobal.com/jay";
 
 const TIERS = [
  {
@@ -57,6 +57,28 @@ const TIERS = [
       "Access to founder community",
     ],
   },
+,
+  {
+    name: "The Greenprint Inner Circle",
+    price: "???", cents: "", period: "/month",
+    tagline: "Coming soon.",
+    desc: "Direct access, live coaching, and the full Greenprint system. Opening soon.",
+    highlight: false,
+    badge: "Coming Soon",
+    badgeColor: "rgba(255,255,255,0.12)",
+    cta: "Notify Me",
+    ctaStyle: "outline",
+    url: null,
+    comingSoon: true,
+    included: [
+      "Everything in both 1House tiers",
+      "Live sessions with Jay",
+      "The Greenprint scanner",
+      "Exclusive private community",
+      "Early access to all launches",
+    ],
+    locked: [],
+  }
 ];
 
 function Check({ gold }: { gold?: boolean }) {
