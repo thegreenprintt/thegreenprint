@@ -22,6 +22,7 @@ const TIERS = [
     url: null,
     comingSoon: true,
     affiliate: false,
+    priceSub: "",
     included: ["???","???","???","???","???"],
     locked: [],
   },
@@ -38,6 +39,7 @@ const TIERS = [
     url: ONEHOUSE_STREAM,
     comingSoon: false,
     affiliate: true,
+    priceSub: "",
     included: [
       "Unlimited live stream access",
       "100+ expert creators",
@@ -64,6 +66,7 @@ const TIERS = [
     url: ONEHOUSE_STARTUP,
     comingSoon: false,
     affiliate: true,
+    priceSub: "+ $200 one-time setup",
     included: [
       "Everything in 1House Stream",
       "Launch your own creator platform",
