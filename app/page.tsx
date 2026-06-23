@@ -497,7 +497,45 @@ function Pricing() {
 
         <div className="grid md:grid-cols-3 gap-5 items-start">
 
-          <FadeIn delay={0.12}>
+                    <FadeIn delay={0.08}>
+            <div className="relative flex flex-col rounded-2xl p-7 border transition-all"
+              style={{
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.02)",
+                filter: "blur(6px)",
+                pointerEvents: "none",
+                userSelect: "none",
+              }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10" style={{filter:"none"}}>
+                <span className="text-[10px] font-black px-3 py-1 rounded font-mono tracking-widest uppercase"
+                  style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",border:"1px solid rgba(255,255,255,0.15)"}}>
+                  Coming Soon
+                </span>
+              </div>
+              <div className="mb-5">
+                <p className="font-mono text-[10px] tracking-widest uppercase mb-1" style={{color:"rgba(255,255,255,0.3)"}}>???</p>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-white/30 text-xl">$</span>
+                  <span className="text-6xl font-black text-white">???</span>
+                  <span className="text-white/30 text-sm">/month</span>
+                </div>
+                <p className="text-sm mb-6" style={{color:"rgba(255,255,255,0.3)"}}>??? ??? ??? ??? ???</p>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {["???","???","???","???","???"].map((item, j) => (
+                  <li key={j} className="flex items-start gap-2.5">
+                    <span className="text-white/20 text-xs mt-1">—</span>
+                    <span className="text-xs" style={{color:"rgba(255,255,255,0.2)"}}>???</span>
+                  </li>
+                ))}
+              </ul>
+              <button disabled className="w-full py-3.5 rounded-xl font-bold text-sm tracking-wide"
+                style={{background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.08)",cursor:"not-allowed"}}>
+                🔒 Coming Soon
+              </button>
+            </div>
+          </FadeIn>
+<FadeIn delay={0.12}>
             <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
