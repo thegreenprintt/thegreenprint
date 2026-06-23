@@ -60,17 +60,23 @@ export default function OnboardingPage() {
   const [experience, setExperience] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.user_metadata?.full_name) setName(data.user.user_metadata.full_name.split(" ")[0]);
-    });
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data?.user?.user_metadata?.full_name) setName(data.user.user_metadata.full_name.split(" ")[0]);
+      } catch (_) {}
+    })();
   }, []);
 
   const handleFinish = async () => {
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return;
-    await supabase.from("profiles").upsert({ id: data.user.id, experience: experience, focus: focus, onboarded: true });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (!error && data.user) {
+        await supabase.from("profiles").upsert({ id: data.user.id, experience: experience, focus: focus, onboarded: true });
+      }
+    } catch (_) {}
     router.push("/dashboard");
   };
 
