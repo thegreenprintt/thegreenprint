@@ -34,6 +34,7 @@ export default function GoLive() {
   const [dur, setDur] = useState(0);
   const [notifying, setNotifying] = useState(false);
   const [notifyStatus, setNotifyStatus] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
   const screenRef = useRef<HTMLVideoElement>(null);
   const camRef = useRef<HTMLVideoElement>(null);
@@ -283,6 +284,41 @@ export default function GoLive() {
               <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:8,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
               <button onClick={notifySubscribers} disabled={notifying} style={{background:"rgba(251,191,36,.1)",border:"1px solid rgba(251,191,36,.4)",borderRadius:8,color:"#fbbf24",fontWeight:800,padding:"10px 18px",fontSize:13,cursor:notifying?"not-allowed":"pointer",opacity:notifying?0.6:1,letterSpacing:".05em"}}>🔔 {notifying?"SENDING...":"NOTIFY SUBSCRIBERS"}</button>
               {notifyStatus && <span style={{color:notifyStatus.startsWith("✅")?"#22c55e":"#ff4444",fontSize:13,fontWeight:600}}>{notifyStatus}</span>}
+              <button onClick={()=>setShowPreview(p=>!p)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"rgba(255,255,255,.6)",fontWeight:600,padding:"10px 14px",fontSize:12,cursor:"pointer",letterSpacing:".05em"}}>{showPreview?"🙈 Hide Preview":"👁 Preview Email"}</button>
+              {showPreview && (
+                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPreview(false)}>
+                  <div style={{background:"#0a0a0a",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:0,maxWidth:580,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+                    <div style={{padding:"16px 24px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{color:"#fff",fontWeight:700,fontSize:14}}>📧 Email Preview</span>
+                      <button onClick={()=>setShowPreview(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,.4)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+                    </div>
+                    <div style={{padding:"8px 24px 12px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>From: <span style={{color:"rgba(255,255,255,.6)"}}>The Greenprint &lt;noreply@thegreenprint.trade&gt;</span></p>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>Subject: <span style={{color:"rgba(255,255,255,.6)"}}>🟢 The Greenprint is LIVE — Free Day Trading Class</span></p>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>To: <span style={{color:"rgba(255,255,255,.6)"}}>All subscribers (~890 people)</span></p>
+                    </div>
+                    <div style={{padding:24}}>
+                      <div style={{background:"#111",borderRadius:12,padding:"28px 24px",fontFamily:"-apple-system,sans-serif"}}>
+                        <div style={{textAlign:"center",marginBottom:24}}>
+                          <div style={{display:"inline-block",padding:"6px 16px",background:"rgba(34,197,94,.15)",border:"1px solid rgba(34,197,94,.4)",borderRadius:20,marginBottom:16}}>
+                            <span style={{color:"#22c55e",fontSize:12,fontWeight:700,letterSpacing:2}}>🟢 LIVE NOW</span>
+                          </div>
+                          <h2 style={{color:"#fff",margin:"0 0 6px",fontSize:22,fontWeight:900}}>The Greenprint is Live</h2>
+                          <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>Free Day Trading Class — happening right now</p>
+                        </div>
+                        <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:20,marginBottom:20}}>
+                          <p style={{margin:"0 0 10px",fontSize:13,lineHeight:1.6,color:"rgba(255,255,255,.8)"}}>Your free day trading class is live right now. Come watch live trades, scanner alerts, and real-time market analysis with The Greenprint.</p>
+                          <p style={{margin:0,fontSize:12,color:"rgba(255,255,255,.35)"}}>No cost. No catch. Just value.</p>
+                        </div>
+                        <div style={{textAlign:"center",marginBottom:20}}>
+                          <span style={{display:"inline-block",padding:"14px 36px",background:"linear-gradient(135deg,#15803d,#22c55e)",borderRadius:10,color:"#000",fontWeight:900,fontSize:14,letterSpacing:.5}}>JOIN THE CLASS →</span>
+                        </div>
+                        <p style={{textAlign:"center",fontSize:10,color:"rgba(255,255,255,.2)",margin:0}}>The Greenprint · thegreenprint.trade</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             <div style={{display:"flex",gap:6,marginLeft:"auto"}}>
               {EMOJIS.map(e=>(
                 <button key={e} onClick={()=>sendReaction(e)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"7px 10px",cursor:"pointer",fontSize:18}}>{e}</button>
