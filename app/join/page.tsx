@@ -119,7 +119,6 @@ export default function JoinPage() {
             style={{
               border: tier.highlight ? "2px solid #00FF85" : tier.ctaStyle === "gold" ? "1px solid rgba(201,168,76,0.25)" : "1px solid rgba(255,255,255,0.1)",
               background: tier.highlight ? "rgba(0,255,133,0.05)" : tier.ctaStyle === "gold" ? "rgba(201,168,76,0.03)" : "rgba(255,255,255,0.03)",
-          ,
               filter: tier.comingSoon ? "blur(8px)" : "none",
               pointerEvents: tier.comingSoon ? "none" : "auto"  }}>
             {/* Badge */}
