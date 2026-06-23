@@ -195,7 +195,7 @@ export default function OnboardingPage() {
                   <div className="bg-surface border border-border rounded-card p-5 mb-6">
                     <p className="text-xs text-muted uppercase tracking-widest font-mono mb-1">Telegram</p>
                     <p className="font-semibold text-text mb-3">The Greenprint Community</p>
-                    <a href="https://t.me/+MHG-ZYkM4yw0ZTUx" target="_blank" rel="noopener noreferrer">
+                    <a href="https://t.me/+DePriulD4GFlOTNh" target="_blank" rel="noopener noreferrer">
                       <Button fullWidth>Join Telegram →</Button>
                     </a>
                   </div>
