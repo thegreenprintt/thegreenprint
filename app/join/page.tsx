@@ -196,10 +196,4 @@ export default function JoinPage() {
       </div>
     </div>
   );
-}{tier.comingSoon && (
-                <div style={{position:"absolute",inset:0,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",background:"rgba(10,10,10,0.6)",zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,borderRadius:"inherit"}}>
-                  <span style={{fontSize:32}}>🔒</span>
-                  <span style={{color:"rgba(255,255,255,0.5)",fontSize:13,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase"}}>Coming Soon</span>
-                </div>
-              )}
-              
+}
