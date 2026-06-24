@@ -178,7 +178,7 @@ export default function OnboardingPage() {
               {stepLabel(5)}
               {heading("Join the community.", "847 members. Daily alerts. Live discussion.")}
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
-                <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", textDecoration: "none" }}>
+                <a href="https://t.me/thegreenprinttt" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", textDecoration: "none" }}>
                   <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(38,165,222,0.12)", border: "1px solid rgba(38,165,222,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>💬</div>
                   <div style={{ flex: 1 }}><div style={{ color: "white", fontWeight: 700, fontSize: 14 }}>Greenprint Chat</div><div style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>Telegram — daily calls & alerts</div></div>
                   <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 16 }}>→</span>
