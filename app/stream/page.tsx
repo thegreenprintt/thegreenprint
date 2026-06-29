@@ -342,7 +342,7 @@ export default function StreamPage() {
                   fontFamily: "inherit",
                 }}
               />
-              <button onClick={joinStream} disabled={connecting}
+              <button onClick={()=>joinStream()} disabled={connecting}
                 style={{width:"100%",padding:"15px 0",background:connecting?"rgba(255,255,255,.1)":"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:12,color:connecting?"rgba(255,255,255,.4)":"#000",fontWeight:800,cursor:connecting?"wait":"pointer",fontSize:16,animation:connecting?"none":"glow 2s infinite"}}>
                 {connecting?"Connecting...":"▶  Join Stream"}
               </button>
