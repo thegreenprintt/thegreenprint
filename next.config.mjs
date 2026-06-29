@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['livekit-server-sdk'],
   // Hide tech stack from headers
   poweredByHeader: false,
 
