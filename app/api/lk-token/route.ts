@@ -1,6 +1,7 @@
 import { AccessToken } from 'livekit-server-sdk';
 import { NextRequest } from 'next/server';
 
+// lk token v3
 const ROOM = 'greenprint-live';
 
 export async function POST(req: NextRequest) {
