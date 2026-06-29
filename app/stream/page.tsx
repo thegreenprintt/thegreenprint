@@ -215,12 +215,12 @@ export default function StreamPage() {
     else { pendingCamTrack.current = track; }
     setHasCam(true);
   };
-  const joinStream = async () => {
-    if (!name.trim()) { alert("Enter your name"); return; }
-    if (!email.trim()) { alert("Email is required to join"); return; }
+  const joinStream = async (autoName = '', autoEmail = '') => {
+    if (!(autoName||name).trim()) { alert("Enter your name"); return; }
+    if (!(autoEmail||email).trim()) { alert("Email is required to join"); return; }
     setConnecting(true); setStatusText("Connecting...");
     try {
-      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim(),isHost:false})}).then(r=>r.json());
+      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:(autoName||name).trim(),isHost:false})}).then(r=>r.json());
       if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
       const room = new Room({adaptiveStream:false}); roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
