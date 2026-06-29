@@ -143,6 +143,14 @@ export default function StreamPage() {
       })();
     }
   }, []);
+  useEffect(() => {
+    if (!isLive || joined || connecting) return;
+    const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
+    const n = saved?.name || ('Viewer' + Math.random().toString(36).slice(2,6).toUpperCase());
+    const e = saved?.email || (n.toLowerCase() + '@viewer.gp');
+    setConnecting(true);
+    (async () => { await joinStream(n, e); })();
+  }, [isLive]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
   useEffect(() => {
