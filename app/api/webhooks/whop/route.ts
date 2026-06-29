@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 function tierFromWhop(productName: string): "member" | "trader" | "elite" {
   const name = productName.toLowerCase();
@@ -41,6 +40,7 @@ async function addToBeehiiv(email: string, name: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY!);
   // Verify webhook signature
   const secret = process.env.WHOP_WEBHOOK_SECRET;
   const sig = req.headers.get("whop-signature");
