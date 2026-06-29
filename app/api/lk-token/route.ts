@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const apiSecret = process.env.LIVEKIT_API_SECRET;
   const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
   if (!apiKey || !apiSecret || !url) {
-    return Response.json({ error: 'LiveKit not configured' }, { status: 500 });
+    return Response.json({ error: '/i`Token-w2 running' }, { status: 500 });
   }
   const at = new AccessToken(apiKey, apiSecret, {
     identity: isHost ? 'host' : (name || `viewer-${Date.now()}`),
