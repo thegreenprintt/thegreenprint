@@ -214,7 +214,7 @@ export default function StreamPage() {
     try {
       const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim(),isHost:false})}).then(r=>r.json());
       if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
-      const room = new Room({adaptiveStream:true}); roomRef.current = room;
+      const room = new Room({adaptiveStream:false}); roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
         if (track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? attachCam(track) : (attachScreen(track),setStatusText("Live"));
         if (track.kind===Track.Kind.Audio) { const el=track.attach(); el.autoplay=true; document.body.appendChild(el); }
