@@ -93,7 +93,7 @@ export default function GoLive() {
       if (!vt) throw new Error("No video track");
       if (screenRef.current) vt.attach(screenRef.current);
       setStatus("Connecting...");
-      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({isHost:true})}).then(r=>r.json());
+      const {token,url} = await fetch("/api/lktoken",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({isHost:true})}).then(r=>r.json());
       if (!url) { setStatus("Missing LIVEKIT env vars."); return; }
       const room = new Room({adaptiveStream:true,dynacast:true});
       roomRef.current = room;
