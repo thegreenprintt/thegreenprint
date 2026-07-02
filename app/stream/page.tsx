@@ -160,7 +160,7 @@ export default function StreamPage() {
       const track = pendingCamTrack.current || camTrackRef.current!;
       track.attach(pipRef.current); pipRef.current.play().catch(()=>{}); pendingCamTrack.current = null;
     }
-  }, [joined]);
+  }, [joined, hasCam]);
   useEffect(() => {
     if (!joined) return;
     const poll = async () => {
@@ -211,10 +211,12 @@ export default function StreamPage() {
       const room = new Room({adaptiveStream:false}); roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
         if (track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? attachCam(track) : (attachScreen(track),setStatusText("Live"));
-        if (track.kind===Track.Kind.Audio) { const el=track.attach(); el.autoplay=true; document.body.appendChild(el); }
+        if (track.kind===Track.Kind.Audio) { const el=track.attach() as HTMLMediaElement; el.autoplay=true; el.setAttribute("playsinline","true"); document.body.appendChild(el); el.play().catch(()=>setNeedsClick(true)); }
       });
+      // If the browser blocks audio playback (autoplay policy), show Tap to Play so one tap restores sound
+      room.on(RoomEvent.AudioPlaybackStatusChanged,()=>{ if (!room.canPlaybackAudio) setNeedsClick(true); });
       room.on(RoomEvent.TrackUnsubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
-        track.detach();
+        track.detach().forEach(el=>el.remove());
         if (track.kind===Track.Kind.Video) { if(pub.source===Track.Source.Camera){setHasCam(false);camTrackRef.current=null;}else setHasVideo(false); }
       });
       room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
@@ -243,7 +245,7 @@ export default function StreamPage() {
         p.trackPublications.forEach(pub=>{
           if (!pub.track) return;
           if (pub.track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? attachCam(pub.track) : (attachScreen(pub.track),setStatusText("Live"));
-          if (pub.track.kind===Track.Kind.Audio) { const el=pub.track.attach(); el.autoplay=true; document.body.appendChild(el); }
+          if (pub.track.kind===Track.Kind.Audio) { const el=pub.track.attach() as HTMLMediaElement; el.autoplay=true; el.setAttribute("playsinline","true"); document.body.appendChild(el); el.play().catch(()=>setNeedsClick(true)); }
         });
       });
     } catch(err:any) { setStatusText("Error: "+(err.message||String(err))); setConnecting(false); }
@@ -362,7 +364,7 @@ export default function StreamPage() {
           </div>
 
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-            <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();setNeedsClick(false);}:undefined}>
+            <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();roomRef.current?.startAudio().catch(()=>{});setNeedsClick(false);}:undefined}>
               <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
 
               {hasCam && (
