@@ -11,7 +11,7 @@ const APPS = [
 ];
 
 const BROKER_STEPS = [
-  { n: 1, title: "Create Your GenesisFX Account", desc: "Sign up at GenesisFX using the link below.", href: "https://client.genesisfx.io/register", linkLabel: "Open GenesisFX" },
+  { n: 1, title: "Create Your GenesisFX Account", desc: "Sign up at GenesisFX using the link below.", href: "https://dashboard.genesisfxmarkets.com/auth/register?ref=JACWAL843", linkLabel: "Open GenesisFX" },
   { n: 2, title: "Verify Your Identity", desc: "Complete KYC verification — takes about 5 minutes. Have your ID ready." },
   { n: 3, title: "Download TradeLocker", desc: "Install TradeLocker from the App Store or Google Play, then open the app." },
 ];
@@ -101,7 +101,7 @@ export default function OnboardPage() {
               Get plugged in. This is where signals, updates, and live session alerts happen.
             </p>
             <div className="flex flex-col gap-3">
-              <a href="https://t.me/+thegreenprint" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
+              <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
@@ -211,7 +211,7 @@ export default function OnboardPage() {
             <p className="text-white/50 text-base leading-relaxed mb-10">
               You have got the apps, the broker, the community access, and the foundation. Welcome to The Greenprint — we will see you inside.
             </p>
-            <a href="https://t.me/+thegreenprint" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
+            <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
               Join the Telegram →
             </a>
             <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
