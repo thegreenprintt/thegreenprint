@@ -108,17 +108,20 @@ export default function GreenprintApp() {
   useEffect(() => {
     if (tab !== "picks" || !liveProps.length || !STATS_LEAGUES.includes(league)) return;
     let dead = false;
+    const targets = liveProps.slice(0, 24).filter(p => ratesRef.current[rateKey(p)] === undefined);
+    if (!targets.length) return;
     (async () => {
-      for (const p of liveProps.slice(0, 20)) {
+      const CHUNK = 6; // parallel lookups — much faster
+      for (let i = 0; i < targets.length; i += CHUNK) {
         if (dead) return;
-        const key = rateKey(p);
-        if (ratesRef.current[key] !== undefined) continue;
-        try {
-          const r = await fetch(`/api/hitrate?league=${league}&player=${encodeURIComponent(p.player)}&prop=${encodeURIComponent(p.prop)}&line=${p.line}`).then(x => x.json());
-          if (dead) return;
-          ratesRef.current[key] = r && !r.error && r.l20 ? (r as HitRate) : null;
-        } catch { ratesRef.current[key] = null; }
-        setRates({ ...ratesRef.current });
+        await Promise.all(targets.slice(i, i + CHUNK).map(async p => {
+          const key = rateKey(p);
+          try {
+            const r = await fetch(`/api/hitrate?league=${league}&player=${encodeURIComponent(p.player)}&prop=${encodeURIComponent(p.prop)}&line=${p.line}`).then(x => x.json());
+            ratesRef.current[key] = r && !r.error && r.l20 ? (r as HitRate) : null;
+          } catch { ratesRef.current[key] = null; }
+        }));
+        if (!dead) setRates({ ...ratesRef.current });
       }
     })();
     return () => { dead = true; };
@@ -366,7 +369,7 @@ export default function GreenprintApp() {
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", fontWeight: 800, letterSpacing: "1px", marginTop: 4 }}>HIT RATE</div>
                       </>
                     ) : (
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)", fontWeight: 700, maxWidth: 70, textAlign: "right" }}>{STATS_LEAGUES.includes(league) && i < 20 ? "stats loading…" : ""}</div>
+                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)", fontWeight: 700, maxWidth: 70, textAlign: "right" }}>{STATS_LEAGUES.includes(league) && i < 24 && !(rateKey(p) in rates) ? "⏳" : "—"}</div>
                     )}
                   </div>
                 </div>
@@ -386,7 +389,7 @@ export default function GreenprintApp() {
                               <span>{label}</span><span style={{ color: col }}>{w.h}/{w.of} · {pct}%</span>
                             </div>
                             <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" }}>
-                              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: col }} />
+                              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: col, transition: "width .5s ease" }} />
                             </div>
                           </div>
                         );
