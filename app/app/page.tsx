@@ -33,7 +33,6 @@ const fmtMoney = (n: number) => (n < 0 ? "-$" : "+$") + Math.abs(n).toLocaleStri
 export default function GreenprintApp() {
   const [tab, setTab] = useState<"live" | "picks" | "chat" | "journal">("live");
   const [isLive, setIsLive] = useState(false);
-  const [watching, setWatching] = useState(false);
   const [league, setLeague] = useState<League>("NBA");
   const [liveProps, setLiveProps] = useState<LiveProp[]>([]);
   const [propsLoading, setPropsLoading] = useState(false);
@@ -164,7 +163,7 @@ export default function GreenprintApp() {
           </div>
         </div>
         {isLive ? (
-          <button onClick={() => { setTab("live"); setWatching(true); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,45,85,.14)", border: "1px solid rgba(255,45,85,.45)", borderRadius: 20, padding: "6px 13px", cursor: "pointer" }}>
+          <button onClick={() => setTab("live")} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,45,85,.14)", border: "1px solid rgba(255,45,85,.45)", borderRadius: 20, padding: "6px 13px", cursor: "pointer" }}>
             <span style={{ width: 7, height: 7, background: "#ff2d55", borderRadius: "50%", animation: "pulse 1.1s infinite", display: "inline-block" }} />
             <span style={{ color: "#ff2d55", fontWeight: 900, fontSize: 11, letterSpacing: "1.5px" }}>LIVE</span>
           </button>
@@ -180,21 +179,15 @@ export default function GreenprintApp() {
         {tab === "live" && (
           <div className="tabIn">
             {isLive ? (
-              watching ? (
-                <div style={{ ...card, overflow: "hidden", height: "calc(100dvh - 220px)", minHeight: 380, border: "1px solid rgba(0,255,135,.3)" }}>
-                  <iframe src="/stream" allow="autoplay; fullscreen; picture-in-picture" style={{ width: "100%", height: "100%", border: "none", display: "block", background: "#000" }} title="Greenprint Live" />
+              <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                  <span style={{ width: 10, height: 10, background: "#ff2d55", borderRadius: "50%", animation: "pulse 1.1s infinite", display: "inline-block" }} />
+                  <span style={{ color: "#ff2d55", fontWeight: 900, fontSize: 13, letterSpacing: "3px" }}>LIVE NOW</span>
                 </div>
-              ) : (
-                <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                    <span style={{ width: 10, height: 10, background: "#ff2d55", borderRadius: "50%", animation: "pulse 1.1s infinite", display: "inline-block" }} />
-                    <span style={{ color: "#ff2d55", fontWeight: 900, fontSize: 13, letterSpacing: "3px" }}>LIVE NOW</span>
-                  </div>
-                  <h2 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 900, letterSpacing: "-.5px" }}>Live Trading Session</h2>
-                  <p style={{ color: "rgba(255,255,255,.45)", fontSize: 14, margin: "0 0 26px" }}>The stream is on right now. Tap in.</p>
-                  <button className="gpBtn" onClick={() => setWatching(true)} style={{ padding: "16px 44px", animation: "glowPulse 2s infinite" }}>▶ Watch Stream</button>
-                </div>
-              )
+                <h2 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 900, letterSpacing: "-.5px" }}>Live Trading Session</h2>
+                <p style={{ color: "rgba(255,255,255,.45)", fontSize: 14, margin: "0 0 26px" }}>The stream is on right now. Tap in.</p>
+                <button className="gpBtn" onClick={() => { window.location.href = "/stream"; }} style={{ padding: "16px 44px", animation: "glowPulse 2s infinite" }}>▶ Watch Stream</button>
+              </div>
             ) : (
               <div style={{ ...card, padding: 40, textAlign: "center" }}>
                 <div style={{ fontSize: 54, marginBottom: 16 }}>📡</div>
