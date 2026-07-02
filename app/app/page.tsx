@@ -11,35 +11,22 @@ const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.js
 
 type Msg = { name: string; msg: string; ts: number };
 type Trade = { id: string; sym: string; side: "LONG" | "SHORT"; entry: number; exit: number; qty: number; notes: string; ts: number };
-type PropPick = { player: string; team: string; opp: string; prop: string; line: number; pick: "OVER" | "UNDER"; l5: number; l10: number; l20: number; board: string };
+type LiveProp = { player: string; team: string; prop: string; line: number; opp: string; start: string; league: string; board: string };
 
 const CHAT_COLORS = ["#00ff87", "#ff6b6b", "#ffd93d", "#6bcbff", "#c77dff", "#ff9f43", "#48dbfb", "#ff6b9d"];
 const nc = (n: string) => CHAT_COLORS[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length];
 
-// ─── SAMPLE PICKS BOARD (live Underdog/PrizePicks feed hooks up next) ────────
-const PICKS: Record<string, PropPick[]> = {
-  NBA: [
-    { player: "Luka Doncic", team: "LAL", opp: "vs PHX", prop: "Points", line: 28.5, pick: "OVER", l5: 100, l10: 80, l20: 75, board: "Underdog" },
-    { player: "Shai Gilgeous-Alexander", team: "OKC", opp: "vs DEN", prop: "Points", line: 31.5, pick: "OVER", l5: 80, l10: 80, l20: 70, board: "PrizePicks" },
-    { player: "Nikola Jokic", team: "DEN", opp: "@ OKC", prop: "Rebounds", line: 11.5, pick: "OVER", l5: 80, l10: 70, l20: 75, board: "Underdog" },
-    { player: "Jayson Tatum", team: "BOS", opp: "vs MIA", prop: "3-PT Made", line: 3.5, pick: "UNDER", l5: 80, l10: 70, l20: 65, board: "PrizePicks" },
-    { player: "Anthony Edwards", team: "MIN", opp: "@ GSW", prop: "Points", line: 26.5, pick: "OVER", l5: 60, l10: 70, l20: 65, board: "Underdog" },
-    { player: "Tyrese Haliburton", team: "IND", opp: "vs NYK", prop: "Assists", line: 9.5, pick: "OVER", l5: 80, l10: 60, l20: 60, board: "PrizePicks" },
-  ],
-  NFL: [
-    { player: "Josh Allen", team: "BUF", opp: "vs MIA", prop: "Pass Yards", line: 249.5, pick: "OVER", l5: 80, l10: 70, l20: 70, board: "Underdog" },
-    { player: "CeeDee Lamb", team: "DAL", opp: "@ PHI", prop: "Receptions", line: 7.5, pick: "UNDER", l5: 80, l10: 70, l20: 65, board: "PrizePicks" },
-    { player: "Christian McCaffrey", team: "SF", opp: "vs SEA", prop: "Rush Yards", line: 89.5, pick: "OVER", l5: 60, l10: 70, l20: 70, board: "Underdog" },
-    { player: "Tyreek Hill", team: "MIA", opp: "@ BUF", prop: "Rec Yards", line: 79.5, pick: "OVER", l5: 60, l10: 60, l20: 65, board: "PrizePicks" },
-  ],
-  MLB: [
-    { player: "Aaron Judge", team: "NYY", opp: "vs BOS", prop: "Total Bases", line: 1.5, pick: "OVER", l5: 80, l10: 70, l20: 70, board: "Underdog" },
-    { player: "Shohei Ohtani", team: "LAD", opp: "@ SD", prop: "Hits+Runs+RBI", line: 2.5, pick: "OVER", l5: 80, l10: 80, l20: 65, board: "PrizePicks" },
-    { player: "Corbin Burnes", team: "ARI", opp: "vs COL", prop: "Strikeouts", line: 6.5, pick: "UNDER", l5: 60, l10: 60, l20: 60, board: "Underdog" },
-  ],
+const LEAGUES = ["NBA", "NFL", "MLB", "NHL", "SOCCER", "WNBA", "MMA", "TENNIS"] as const;
+type League = (typeof LEAGUES)[number];
+const fmtStart = (iso: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return sameDay ? `Today ${time}` : d.toLocaleDateString([], { weekday: "short" }) + " " + time;
 };
-const grade = (p: PropPick) => (p.l20 >= 70 && p.l5 >= 80 ? "SMASH" : p.l20 >= 62 ? "LEAN" : "PASS");
-const gradeColor = (g: string) => (g === "SMASH" ? "#00ff87" : g === "LEAN" ? "#ffd93d" : "rgba(255,255,255,.35)");
 
 const fmtMoney = (n: number) => (n < 0 ? "-$" : "+$") + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -47,8 +34,11 @@ export default function GreenprintApp() {
   const [tab, setTab] = useState<"live" | "picks" | "chat" | "journal">("live");
   const [isLive, setIsLive] = useState(false);
   const [watching, setWatching] = useState(false);
-  const [league, setLeague] = useState<"NBA" | "NFL" | "MLB">("NBA");
-  const [boardFilter, setBoardFilter] = useState<"All" | "Underdog" | "PrizePicks">("All");
+  const [league, setLeague] = useState<League>("NBA");
+  const [liveProps, setLiveProps] = useState<LiveProp[]>([]);
+  const [propsLoading, setPropsLoading] = useState(false);
+  const [propsErr, setPropsErr] = useState(false);
+  const [propsUpdated, setPropsUpdated] = useState("");
 
   // Community chat
   const [chatName, setChatName] = useState("");
@@ -82,6 +72,26 @@ export default function GreenprintApp() {
     } catch {}
     try { const t = JSON.parse(localStorage.getItem("gp_journal") || "[]"); if (Array.isArray(t)) setTrades(t); } catch {}
   }, []);
+
+  // ── live props board — fetches itself, refreshes every 10 min ──
+  useEffect(() => {
+    if (tab !== "picks") return;
+    let dead = false;
+    const load = async () => {
+      setPropsLoading(true); setPropsErr(false);
+      try {
+        const r = await fetch(`/api/props?league=${league}`).then(x => x.json());
+        if (dead) return;
+        setLiveProps(Array.isArray(r?.props) ? r.props : []);
+        setPropsUpdated(r?.updated || "");
+        if (r?.error) setPropsErr(true);
+      } catch { if (!dead) { setPropsErr(true); setLiveProps([]); } }
+      if (!dead) setPropsLoading(false);
+    };
+    load();
+    const id = setInterval(load, 600000);
+    return () => { dead = true; clearInterval(id); };
+  }, [tab, league]);
 
   // ── community chat polling ──
   useEffect(() => {
@@ -117,8 +127,6 @@ export default function GreenprintApp() {
   const totalPnl = trades.reduce((a, t) => a + pnl(t), 0);
   const wins = trades.filter(t => pnl(t) > 0).length;
   const winRate = trades.length ? Math.round((wins / trades.length) * 100) : 0;
-
-  const picks = PICKS[league].filter(p => boardFilter === "All" || p.board === boardFilter).sort((a, b) => b.l20 - a.l20);
 
   const card: React.CSSProperties = { background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, backdropFilter: "blur(20px)" };
 
@@ -211,55 +219,71 @@ export default function GreenprintApp() {
           </div>
         )}
 
-        {/* ══ PICKS ══ */}
+        {/* ══ PICKS — live board, auto-updating ══ */}
         {tab === "picks" && (
           <div className="tabIn">
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {(["NBA", "NFL", "MLB"] as const).map(l => (
-                <button key={l} className={`chip${league === l ? " on" : ""}`} onClick={() => setLeague(l)}>{l}</button>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+              {LEAGUES.map(l => (
+                <button key={l} className={`chip${league === l ? " on" : ""}`} style={{ flexShrink: 0 }} onClick={() => setLeague(l)}>{l === "SOCCER" ? "⚽ SOCCER" : l}</button>
               ))}
-              <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                {(["All", "Underdog", "PrizePicks"] as const).map(b => (
-                  <button key={b} className={`chip${boardFilter === b ? " on" : ""}`} style={{ padding: "7px 11px", fontSize: 11 }} onClick={() => setBoardFilter(b)}>{b === "PrizePicks" ? "PP" : b === "Underdog" ? "UD" : "All"}</button>
-                ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,255,135,.06)", border: "1px solid rgba(0,255,135,.2)", borderRadius: 14, padding: "10px 14px", marginBottom: 14 }}>
+              <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700 }}>🟢 LIVE BOARD · updates itself all day</span>
+              {propsUpdated && <span style={{ fontSize: 10, color: "rgba(255,255,255,.3)", fontWeight: 600 }}>as of {fmtStart(propsUpdated) || "now"}</span>}
+            </div>
+
+            {propsLoading && (
+              <div style={{ ...card, padding: 40, textAlign: "center" }}>
+                <div style={{ width: 34, height: 34, border: "3px solid rgba(0,255,135,.2)", borderTopColor: "#00ff87", borderRadius: "50%", margin: "0 auto 14px", animation: "spin_ .8s linear infinite" }} />
+                <style>{`@keyframes spin_{to{transform:rotate(360deg)}}`}</style>
+                <p style={{ color: "rgba(255,255,255,.35)", fontSize: 13, margin: 0 }}>Pulling the live {league} board...</p>
               </div>
-            </div>
+            )}
 
-            <div style={{ background: "rgba(0,255,135,.06)", border: "1px solid rgba(0,255,135,.2)", borderRadius: 14, padding: "10px 14px", marginBottom: 14, fontSize: 11.5, color: "rgba(0,255,135,.8)", fontWeight: 600 }}>
-              ⚡ Sample board — live Underdog / PrizePicks feed with real L20 stats is being wired up next.
-            </div>
+            {!propsLoading && propsErr && (
+              <div style={{ ...card, padding: 34, textAlign: "center" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📡</div>
+                <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, margin: 0 }}>Feed hiccup — it retries automatically. Check back in a minute.</p>
+              </div>
+            )}
 
-            {picks.map((p, i) => {
-              const g = grade(p);
-              return (
-                <div key={i} style={{ ...card, padding: 16, marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontWeight: 900, fontSize: 16 }}>{p.player}</div>
-                      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{p.team} {p.opp} · <span style={{ color: "rgba(255,255,255,.55)" }}>{p.board}</span></div>
+            {!propsLoading && !propsErr && liveProps.length === 0 && (
+              <div style={{ ...card, padding: 34, textAlign: "center" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🌙</div>
+                <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, margin: 0 }}>No {league} props on the board right now — try another sport.</p>
+              </div>
+            )}
+
+            {!propsLoading && liveProps.map((p, i) => (
+              <div key={i} style={{ ...card, padding: 16, marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0 }}>
+                    {p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 900, fontSize: 15.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.player}</div>
+                    <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {p.team}{p.opp ? ` · ${p.opp}` : ""}{p.league ? ` · ${p.league}` : ""}
                     </div>
-                    <span style={{ background: g === "SMASH" ? "rgba(0,255,135,.14)" : g === "LEAN" ? "rgba(255,217,61,.12)" : "rgba(255,255,255,.05)", border: `1px solid ${gradeColor(g)}44`, color: gradeColor(g), borderRadius: 10, padding: "5px 12px", fontSize: 11, fontWeight: 900, letterSpacing: "1.5px" }}>{g}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
-                    <span style={{ background: p.pick === "OVER" ? "rgba(0,255,135,.12)" : "rgba(255,107,107,.12)", color: p.pick === "OVER" ? "#00ff87" : "#ff6b6b", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 900 }}>{p.pick === "OVER" ? "▲ OVER" : "▼ UNDER"}</span>
-                    <span style={{ fontWeight: 900, fontSize: 15 }}>{p.line}</span>
-                    <span style={{ fontSize: 12.5, color: "rgba(255,255,255,.5)" }}>{p.prop}</span>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                    {([["L5", p.l5], ["L10", p.l10], ["L20", p.l20]] as [string, number][]).map(([label, v]) => (
-                      <div key={label} style={{ background: "rgba(255,255,255,.03)", borderRadius: 10, padding: "8px 10px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, marginBottom: 5 }}>
-                          <span>{label}</span><span style={{ color: v >= 70 ? "#00ff87" : v >= 60 ? "#ffd93d" : "rgba(255,255,255,.6)" }}>{v}%</span>
-                        </div>
-                        <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${v}%`, height: "100%", borderRadius: 3, background: v >= 70 ? "linear-gradient(90deg,#00c864,#00ff87)" : v >= 60 ? "#ffd93d" : "rgba(255,255,255,.3)" }} />
-                        </div>
-                      </div>
-                    ))}
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontWeight: 900, fontSize: 19, color: "#00ff87" }}>{p.line}</div>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)", fontWeight: 700, maxWidth: 110, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.prop}</div>
                   </div>
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 11, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>{fmtStart(p.start)}</span>
+                  <span style={{ fontSize: 10, color: "rgba(0,255,135,.6)", fontWeight: 800, letterSpacing: "1px" }}>{p.board.toUpperCase()}</span>
+                </div>
+              </div>
+            ))}
+
+            {!propsLoading && liveProps.length > 0 && (
+              <p style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)", textAlign: "center", margin: "16px 0 4px", lineHeight: 1.5 }}>
+                Live lines · refreshes automatically every day, all day.<br />L5/L10/L20 hit-rate grades coming with the stats engine.
+              </p>
+            )}
           </div>
         )}
 
