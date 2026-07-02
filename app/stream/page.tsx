@@ -121,33 +121,16 @@ export default function StreamPage() {
   const startRef = useRef(0);
 
   // ─── RETURNING VIEWER (localStorage) ───────────────────────
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
-    if (saved?.name && saved?.email) {
-      // Returning visitor — auto-join without showing form
-      const n = saved.name; const e = saved.email;
-      setName(n); setEmail(e);
-      (async () => {
-        try {
-          const k = e.toLowerCase().replace(/[^a-z0-9]/g,'_') || 'no_email';
-          const ref = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + k + '.json';
-          const ex = await fetch(ref).then(r=>r.json()).catch(()=>null);
-          await fetch(ref, { method:'PUT', body: JSON.stringify({
-            name:n, email:e,
-            firstSeen: ex?.firstSeen || new Date().toISOString(),
-            lastSeen: new Date().toISOString(),
-            joinCount: (ex?.joinCount||0)+1,
-          })});
-        } catch {}
-        setJoined(true);
-      })();
-    }
-  }, []);
+  // Returning visitors auto-join with their saved real name.
+  // First-time visitors see the join form and enter their name — that name
+  // is what shows in chat and on the stream.
   useEffect(() => {
     if (!isLive || joined || connecting) return;
     const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
-    const n = saved?.name || ('Viewer' + Math.random().toString(36).slice(2,6).toUpperCase());
-    const e = saved?.email || (n.toLowerCase() + '@viewer.gp');
+    if (!saved?.name) return; // no saved name → show the join form
+    const n = saved.name;
+    const e = saved.email || '';
+    setName(n); setEmail(e);
     setConnecting(true);
     (async () => { await joinStream(n, e); })();
   }, [isLive]);
@@ -216,11 +199,14 @@ export default function StreamPage() {
     setHasCam(true);
   };
   const joinStream = async (autoName = '', autoEmail = '') => {
-    if (!(autoName||name).trim()) { alert("Enter your name"); return; }
-    if (!(autoEmail||email).trim()) { alert("Email is required to join"); return; }
+    const joinName = (autoName || name).trim();
+    const joinEmail = (autoEmail || email).trim();
+    if (!joinName) { alert("Enter your name"); return; }
+    if (!joinEmail) { alert("Email is required to join"); return; }
+    setName(joinName);
     setConnecting(true); setStatusText("Connecting...");
     try {
-      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:(autoName||name).trim(),isHost:false})}).then(r=>r.json());
+      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:joinName,isHost:false})}).then(r=>r.json());
       if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
       const room = new Room({adaptiveStream:false}); roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
@@ -237,20 +223,20 @@ export default function StreamPage() {
       await room.connect(url,token);
       // ─── LEAD CAPTURE ─────────────────────────────────────────
       try {
-        const cleanEmail = (email || '').toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
+        const cleanEmail = joinEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
         const leadRef = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + cleanEmail + '.json';
         const existing = await fetch(leadRef).then(r=>r.json()).catch(()=>null);
         await fetch(leadRef, {
           method: 'PUT',
           body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim(),
+            name: joinName,
+            email: joinEmail,
             firstSeen: existing?.firstSeen || new Date().toISOString(),
             lastSeen: new Date().toISOString(),
             joinCount: (existing?.joinCount || 0) + 1,
           }),
         });
-        localStorage.setItem('gp_viewer', JSON.stringify({ name: name.trim(), email: email.trim() }));
+        localStorage.setItem('gp_viewer', JSON.stringify({ name: joinName, email: joinEmail }));
       } catch {}
       setJoined(true); setConnecting(false); setViewers(room.remoteParticipants.size);
       room.remoteParticipants.forEach(p=>{
