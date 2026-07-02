@@ -207,7 +207,8 @@ export default function StreamPage() {
     setName(joinName);
     setConnecting(true); setStatusText("Connecting...");
     try {
-      const {token,url} = await fetch("/api/lk-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:joinName,isHost:false})}).then(r=>r.json());
+      const tokenRes = await fetch(`/api/token?isHost=0&name=${encodeURIComponent(joinName)}`, { cache: "no-store" });
+      const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
       if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
       const room = new Room({adaptiveStream:false}); roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
