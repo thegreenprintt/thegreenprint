@@ -47,6 +47,35 @@ export default function GoLive() {
   const sendingRef = useRef(false);
   const seenR = useRef(new Set<string>());
   const startRef = useRef(0);
+  const micOnRef = useRef(true);
+  const camOnRef = useRef(false);
+  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
+  useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+
+  // KEEPALIVE — if the browser silently kills the mic or camera track
+  // (commonly right after the camera is toggled), bring it back automatically.
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(async () => {
+      const room = roomRef.current; if (!room) return;
+      try {
+        if (micOnRef.current) {
+          const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+          const t = pub?.track?.mediaStreamTrack;
+          if (!pub?.track || t?.readyState === "ended") await room.localParticipant.setMicrophoneEnabled(true);
+        }
+        if (camOnRef.current && camTrackRef.current?.mediaStreamTrack?.readyState === "ended") {
+          const old = room.localParticipant.getTrackPublication(Track.Source.Camera);
+          if (old?.track) await room.localParticipant.unpublishTrack(old.track);
+          const track = await createLocalVideoTrack({facingMode:"user"});
+          camTrackRef.current = track;
+          if (camRef.current) track.attach(camRef.current);
+          await room.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(id);
+  }, [live]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
 
@@ -102,6 +131,8 @@ export default function GoLive() {
       await room.connect(url,token);
       await room.localParticipant.publishTrack(vt,{name:"screen",source:Track.Source.ScreenShare,simulcast:false});
       if (at) await room.localParticipant.publishTrack(at,{name:"screen-audio",source:Track.Source.ScreenShareAudio});
+      // Publish the mic so "Mic ON" is real from the moment the stream starts
+      try { await room.localParticipant.setMicrophoneEnabled(true); setMicOn(true); } catch {}
       setLive(true); setStatus(""); setViewers(room.remoteParticipants.size);
       await put("livestatus",{live:true,ts:Date.now()});
       hbRef.current = setInterval(()=>put("livestatus",{live:true,ts:Date.now()}),10000);
@@ -130,6 +161,8 @@ export default function GoLive() {
         camTrackRef.current = track;
         if (camRef.current) track.attach(camRef.current);
         await roomRef.current.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
+        // Some browsers restart the audio device when the camera starts — re-assert the mic so audio never drops
+        if (micOn) { try { await roomRef.current.localParticipant.setMicrophoneEnabled(true); } catch {} }
         setCamOn(true);
       }
     } catch(err:any) { setStatus("Cam: "+(err.message||String(err))); }
