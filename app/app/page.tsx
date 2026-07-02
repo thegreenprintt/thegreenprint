@@ -12,6 +12,9 @@ const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.js
 type Msg = { name: string; msg: string; ts: number };
 type Trade = { id: string; sym: string; side: "LONG" | "SHORT"; entry: number; exit: number; qty: number; notes: string; ts: number };
 type LiveProp = { player: string; team: string; prop: string; line: number; opp: string; start: string; league: string; board: string };
+type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number };
+const STATS_LEAGUES = ["NBA", "WNBA", "MLB"];
+const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
 
 const CHAT_COLORS = ["#00ff87", "#ff6b6b", "#ffd93d", "#6bcbff", "#c77dff", "#ff9f43", "#48dbfb", "#ff6b9d"];
 const nc = (n: string) => CHAT_COLORS[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length];
@@ -33,11 +36,14 @@ const fmtMoney = (n: number) => (n < 0 ? "-$" : "+$") + Math.abs(n).toLocaleStri
 export default function GreenprintApp() {
   const [tab, setTab] = useState<"live" | "picks" | "chat" | "journal">("live");
   const [isLive, setIsLive] = useState(false);
+  const [watching, setWatching] = useState(false);
   const [league, setLeague] = useState<League>("NBA");
   const [liveProps, setLiveProps] = useState<LiveProp[]>([]);
   const [propsLoading, setPropsLoading] = useState(false);
   const [propsErr, setPropsErr] = useState(false);
   const [propsUpdated, setPropsUpdated] = useState("");
+  const [rates, setRates] = useState<Record<string, HitRate | null>>({});
+  const ratesRef = useRef<Record<string, HitRate | null>>({});
 
   // Community chat
   const [chatName, setChatName] = useState("");
@@ -91,6 +97,26 @@ export default function GreenprintApp() {
     const id = setInterval(load, 600000);
     return () => { dead = true; clearInterval(id); };
   }, [tab, league]);
+
+  // ── hit rates — pulled per pick from real game logs, cached server-side ──
+  useEffect(() => {
+    if (tab !== "picks" || !liveProps.length || !STATS_LEAGUES.includes(league)) return;
+    let dead = false;
+    (async () => {
+      for (const p of liveProps.slice(0, 20)) {
+        if (dead) return;
+        const key = rateKey(p);
+        if (ratesRef.current[key] !== undefined) continue;
+        try {
+          const r = await fetch(`/api/hitrate?league=${league}&player=${encodeURIComponent(p.player)}&prop=${encodeURIComponent(p.prop)}&line=${p.line}`).then(x => x.json());
+          if (dead) return;
+          ratesRef.current[key] = r && !r.error && r.l20 ? (r as HitRate) : null;
+        } catch { ratesRef.current[key] = null; }
+        setRates({ ...ratesRef.current });
+      }
+    })();
+    return () => { dead = true; };
+  }, [tab, league, liveProps]);
 
   // ── community chat polling ──
   useEffect(() => {
@@ -179,15 +205,24 @@ export default function GreenprintApp() {
         {tab === "live" && (
           <div className="tabIn">
             {isLive ? (
-              <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                  <span style={{ width: 10, height: 10, background: "#ff2d55", borderRadius: "50%", animation: "pulse 1.1s infinite", display: "inline-block" }} />
-                  <span style={{ color: "#ff2d55", fontWeight: 900, fontSize: 13, letterSpacing: "3px" }}>LIVE NOW</span>
+              watching ? (
+                <>
+                  <div style={{ ...card, overflow: "hidden", height: "calc(100dvh - 240px)", minHeight: 380, border: "1px solid rgba(0,255,135,.3)" }}>
+                    <iframe src="/stream" allow="autoplay; fullscreen; picture-in-picture" style={{ width: "100%", height: "100%", border: "none", display: "block", background: "#000" }} title="Greenprint Live" />
+                  </div>
+                  <a href="/stream" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "rgba(0,255,135,.7)", fontWeight: 700, textDecoration: "none" }}>Open full screen ↗</a>
+                </>
+              ) : (
+                <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                    <span style={{ width: 10, height: 10, background: "#ff2d55", borderRadius: "50%", animation: "pulse 1.1s infinite", display: "inline-block" }} />
+                    <span style={{ color: "#ff2d55", fontWeight: 900, fontSize: 13, letterSpacing: "3px" }}>LIVE NOW</span>
+                  </div>
+                  <h2 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 900, letterSpacing: "-.5px" }}>Live Trading Session</h2>
+                  <p style={{ color: "rgba(255,255,255,.45)", fontSize: 14, margin: "0 0 26px" }}>The stream is on right now. Tap in.</p>
+                  <button className="gpBtn" onClick={() => setWatching(true)} style={{ padding: "16px 44px", animation: "glowPulse 2s infinite" }}>▶ Watch Stream</button>
                 </div>
-                <h2 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 900, letterSpacing: "-.5px" }}>Live Trading Session</h2>
-                <p style={{ color: "rgba(255,255,255,.45)", fontSize: 14, margin: "0 0 26px" }}>The stream is on right now. Tap in.</p>
-                <button className="gpBtn" onClick={() => { window.location.href = "/stream"; }} style={{ padding: "16px 44px", animation: "glowPulse 2s infinite" }}>▶ Watch Stream</button>
-              </div>
+              )
             ) : (
               <div style={{ ...card, padding: 40, textAlign: "center" }}>
                 <div style={{ fontSize: 54, marginBottom: 16 }}>📡</div>
@@ -265,6 +300,30 @@ export default function GreenprintApp() {
                     <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)", fontWeight: 700, maxWidth: 110, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.prop}</div>
                   </div>
                 </div>
+                {(() => {
+                  const r = rates[rateKey(p)];
+                  if (!r) return null;
+                  const wins: [string, { h: number; of: number }][] = [["L5", r.l5], ["L10", r.l10], ["L20", r.l20]];
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
+                      {wins.map(([label, w]) => {
+                        if (!w || !w.of) return <div key={label} />;
+                        const pct = Math.round((w.h / w.of) * 100);
+                        const col = pct >= 70 ? "#00ff87" : pct >= 50 ? "#ffd93d" : "#ff6b6b";
+                        return (
+                          <div key={label} style={{ background: "rgba(255,255,255,.03)", borderRadius: 10, padding: "8px 10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, marginBottom: 5 }}>
+                              <span>{label}</span><span style={{ color: col }}>{w.h}/{w.of}</span>
+                            </div>
+                            <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" }}>
+                              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: col }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 11, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
                   <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>{fmtStart(p.start)}</span>
                   <span style={{ fontSize: 10, color: "rgba(0,255,135,.6)", fontWeight: 800, letterSpacing: "1px" }}>{p.board.toUpperCase()}</span>
@@ -274,7 +333,7 @@ export default function GreenprintApp() {
 
             {!propsLoading && liveProps.length > 0 && (
               <p style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)", textAlign: "center", margin: "16px 0 4px", lineHeight: 1.5 }}>
-                Live lines · refreshes automatically every day, all day.<br />L5/L10/L20 hit-rate grades coming with the stats engine.
+                Live lines · refreshes automatically every day, all day.<br />L5/L10/L20 = times the player beat this line in their last 5/10/20 games (real game logs).
               </p>
             )}
           </div>
