@@ -23,8 +23,8 @@ const nextConfig = {
       {
         source: "/(.*)",
         headers: [
-          // Block clickjacking
-          { key: "X-Frame-Options", value: "DENY" },
+          // Block clickjacking (SAMEORIGIN so our own app can embed the stream)
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
           // Prevent MIME sniffing
           { key: "X-Content-Type-Options", value: "nosniff" },
           // Safe referrer
@@ -48,7 +48,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss: https://api.stripe.com https:",
               "frame-src https://js.stripe.com https://checkout.stripe.com",
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self' https://checkout.stripe.com",
               "media-src 'self' blob: https:",
