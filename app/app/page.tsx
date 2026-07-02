@@ -13,7 +13,7 @@ type Msg = { name: string; msg: string; ts: number };
 type Trade = { id: string; sym: string; side: "LONG" | "SHORT"; entry: number; exit: number; qty: number; notes: string; ts: number };
 type LiveProp = { player: string; team: string; prop: string; line: number; opp: string; start: string; league: string; board: string };
 type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number };
-const STATS_LEAGUES = ["NBA", "WNBA", "MLB"];
+const STATS_LEAGUES = ["NBA", "WNBA", "MLB", "NFL", "NHL", "SOCCER"];
 const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
 const pctOf = (r: HitRate | null | undefined): number | null => {
   if (!r) return null;
