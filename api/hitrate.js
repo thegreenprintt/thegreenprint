@@ -12,6 +12,9 @@ const LEAGUE_CFG = {
   NBA: { slug: 'nba', path: 'basketball/nba' },
   WNBA: { slug: 'wnba', path: 'basketball/wnba' },
   MLB: { slug: 'mlb', path: 'baseball/mlb' },
+  NFL: { slug: 'nfl', path: 'football/nfl' },
+  NHL: { slug: 'nhl', path: 'hockey/nhl' },
+  SOCCER: { dynamic: true },
 };
 
 function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
@@ -59,20 +62,51 @@ function statPicker(prop, labels) {
     if ((p === 'earnedrunsallowed') && has('ER')) return r => val(r, 'ER');
     if (p === 'pitchingouts') return r => { const ip = String(r[idx['IP']] || '0').split('.'); return parseInt(ip[0] || '0', 10) * 3 + parseInt(ip[1] || '0', 10); };
   }
+  // NFL (labels depend on position: QB has CMP, RB has CAR, WR/TE has REC)
+  if ((p === 'passyards' || p === 'passingyards') && has('CMP') && has('YDS')) return r => val(r, 'YDS');
+  if ((p === 'rushyards' || p === 'rushingyards') && has('CAR') && has('YDS')) return r => val(r, 'YDS');
+  if ((p === 'recyards' || p === 'receivingyards' || p === 'receptionyards') && has('REC') && has('YDS')) return r => val(r, 'YDS');
+  if (p === 'receptions' && has('REC')) return r => val(r, 'REC');
+  if ((p === 'passtds' || p === 'passingtds' || p === 'passingtouchdowns') && has('CMP') && has('TD')) return r => val(r, 'TD');
+  if ((p === 'rushattempts' || p === 'rushingattempts' || p === 'carries') && has('CAR')) return r => val(r, 'CAR');
+  if (p === 'completions' && has('CMP')) return r => val(r, 'CMP');
+  if (p === 'interceptions' && has('CMP') && has('INT')) return r => val(r, 'INT');
+
+  // NHL
+  if (has('SOG')) {
+    if (p === 'goals') return r => val(r, 'G');
+    if (p === 'assists' && has('A')) return r => val(r, 'A');
+    if (p === 'shots' || p === 'shotsongoal') return r => val(r, 'SOG');
+    if ((p === 'blockedshots' || p === 'blocks') && has('BS')) return r => val(r, 'BS');
+  }
+
+  // Soccer (sparse gamelog data — works when ESPN tracks the player)
+  if (has('G') && has('A') && !has('AB') && !has('PTS') && !has('SOG')) {
+    if (p === 'goals') return r => val(r, 'G');
+    if (p === 'assists') return r => val(r, 'A');
+    if (p === 'shots' && has('SH')) return r => val(r, 'SH');
+    if ((p === 'shotsontarget' || p === 'shotsongoal') && has('ST')) return r => val(r, 'ST');
+  }
   return null;
 }
 
-async function findAthlete(name, slug) {
+async function findAthlete(name, league) {
+  const cfg = LEAGUE_CFG[league];
   const s = await fetch('https://site.web.api.espn.com/apis/search/v2?query=' + encodeURIComponent(name) + '&limit=10', { headers: HDRS }).then(r => r.json());
-  let id = null;
+  let out = null;
   (s && s.results ? s.results : []).forEach(g => {
     if (g.type !== 'player') return;
     (g.contents || []).forEach(c => {
-      if (id) return;
-      if (String(c.defaultLeagueSlug || '') === slug && c.uid && c.uid.indexOf('~a:') !== -1) id = c.uid.split('~a:')[1];
+      if (out || !c.uid || c.uid.indexOf('~a:') === -1) return;
+      const id = c.uid.split('~a:')[1];
+      if (league === 'SOCCER') {
+        if (c.sport === 'soccer' && c.defaultLeagueSlug) out = { id: id, path: 'soccer/' + c.defaultLeagueSlug };
+      } else if (cfg && String(c.defaultLeagueSlug || '') === cfg.slug) {
+        out = { id: id, path: cfg.path };
+      }
     });
   });
-  return id;
+  return out;
 }
 
 module.exports = async function handler(req, res) {
@@ -92,10 +126,10 @@ module.exports = async function handler(req, res) {
   if (!cfg || !player || !prop || isNaN(line)) return res.status(200).json({ error: 'unsupported' });
 
   try {
-    const aid = await findAthlete(player, cfg.slug);
-    if (!aid) return res.status(200).json({ error: 'no_player' });
+    const ath = await findAthlete(player, league);
+    if (!ath) return res.status(200).json({ error: 'no_player' });
 
-    const g = await fetch('https://site.web.api.espn.com/apis/common/v3/sports/' + cfg.path + '/athletes/' + aid + '/gamelog', { headers: HDRS }).then(r => r.json());
+    const g = await fetch('https://site.web.api.espn.com/apis/common/v3/sports/' + ath.path + '/athletes/' + ath.id + '/gamelog', { headers: HDRS }).then(r => r.json());
     const labels = g && g.labels ? g.labels : [];
     const pick = statPicker(prop, labels);
     if (!pick) return res.status(200).json({ error: 'no_stat' });
