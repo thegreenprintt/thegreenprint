@@ -15,6 +15,12 @@ type LiveProp = { player: string; team: string; prop: string; line: number; opp:
 type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number };
 const STATS_LEAGUES = ["NBA", "WNBA", "MLB"];
 const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
+const pctOf = (r: HitRate | null | undefined): number | null => {
+  if (!r) return null;
+  const w = r.l10 && r.l10.of ? r.l10 : r.l5 && r.l5.of ? r.l5 : r.l20 && r.l20.of ? r.l20 : null;
+  return w ? Math.round((w.h / w.of) * 100) : null;
+};
+const pctColor = (pct: number) => (pct >= 70 ? "#00ff87" : pct >= 50 ? "#ffd93d" : "#ff6b6b");
 
 const CHAT_COLORS = ["#00ff87", "#ff6b6b", "#ffd93d", "#6bcbff", "#c77dff", "#ff9f43", "#48dbfb", "#ff6b9d"];
 const nc = (n: string) => CHAT_COLORS[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length];
@@ -153,6 +159,23 @@ export default function GreenprintApp() {
   const wins = trades.filter(t => pnl(t) > 0).length;
   const winRate = trades.length ? Math.round((wins / trades.length) * 100) : 0;
 
+  // ── ranked board + suggested slips (Linemate-style) ──
+  const ranked = liveProps
+    .map(p => ({ p, pct: pctOf(rates[rateKey(p)]) }))
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || String(a.p.start).localeCompare(String(b.p.start)));
+  const slipLegs: { p: LiveProp; pct: number | null }[] = [];
+  {
+    const seenPl = new Set<string>();
+    for (const e of ranked) {
+      if ((e.pct ?? 0) < 65 || seenPl.has(e.p.player)) continue;
+      seenPl.add(e.p.player); slipLegs.push(e);
+      if (slipLegs.length >= 3) break;
+    }
+  }
+  const slips: { p: LiveProp; pct: number | null }[][] = [];
+  if (slipLegs.length >= 2) slips.push(slipLegs.slice(0, 2));
+  if (slipLegs.length >= 3) slips.push(slipLegs.slice(0, 3));
+
   const card: React.CSSProperties = { background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, backdropFilter: "blur(20px)" };
 
   return (
@@ -257,7 +280,7 @@ export default function GreenprintApp() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,255,135,.06)", border: "1px solid rgba(0,255,135,.2)", borderRadius: 14, padding: "10px 14px", marginBottom: 14 }}>
-              <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700 }}>🟢 LIVE BOARD · updates itself all day</span>
+              <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700 }}>🟢 LIVE BOARD · highest hit % first</span>
               {propsUpdated && <span style={{ fontSize: 10, color: "rgba(255,255,255,.3)", fontWeight: 600 }}>as of {fmtStart(propsUpdated) || "now"}</span>}
             </div>
 
@@ -283,21 +306,68 @@ export default function GreenprintApp() {
               </div>
             )}
 
-            {!propsLoading && liveProps.map((p, i) => (
-              <div key={i} style={{ ...card, padding: 16, marginBottom: 10 }}>
+            {!propsLoading && slips.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "2px 2px 10px" }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#ffd700" }}>⚡ GP SLIPS</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>built from today&apos;s highest hit rates</span>
+                </div>
+                {slips.map((legs, si) => {
+                  const combo = Math.round(legs.reduce((a, e) => a * ((e.pct ?? 0) / 100), 1) * 100);
+                  return (
+                    <div key={si} style={{ borderRadius: 20, padding: 1.5, background: "linear-gradient(135deg,rgba(0,255,135,.65),rgba(255,215,0,.4),rgba(0,255,135,.12))", marginBottom: 12 }}>
+                      <div style={{ background: "#060f09", borderRadius: 19, padding: "14px 16px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                          <span style={{ fontWeight: 900, fontSize: 13, letterSpacing: "1.5px" }}>{legs.length}-MAN SLIP</span>
+                          <span style={{ fontWeight: 900, fontSize: 16, color: "#ffd700" }}>{combo}% <span style={{ fontSize: 9, color: "rgba(255,255,255,.4)", letterSpacing: "1px" }}>EST. HIT</span></span>
+                        </div>
+                        {legs.map((e, li) => (
+                          <div key={li} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: li ? "1px solid rgba(255,255,255,.06)" : "none" }}>
+                            <div style={{ width: 30, height: 30, borderRadius: 10, background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 11, color: "#00ff87", flexShrink: 0 }}>{e.p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.p.player}</div>
+                              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)" }}>Over {e.p.line} {e.p.prop}</div>
+                            </div>
+                            <span style={{ fontWeight: 900, fontSize: 13.5, color: "#00ff87" }}>{e.pct}%</span>
+                          </div>
+                        ))}
+                        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.3)", marginTop: 8 }}>Based on last-10-game hit rates · live lines</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!propsLoading && ranked.map(({ p, pct }, i) => (
+              <div key={i} style={{ ...card, padding: 16, marginBottom: 10, border: pct != null && pct >= 80 ? "1px solid rgba(255,215,0,.35)" : undefined }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0 }}>
                     {p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: 15.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.player}</div>
+                    <div style={{ fontWeight: 900, fontSize: 15.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {p.player}
+                      {pct != null && pct >= 80 && <span style={{ marginLeft: 7, fontSize: 9, fontWeight: 900, letterSpacing: "1px", color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.35)", borderRadius: 6, padding: "2px 6px", verticalAlign: "middle" }}>🔥 ELITE</span>}
+                      {pct != null && pct >= 70 && pct < 80 && <span style={{ marginLeft: 7, fontSize: 9, fontWeight: 900, letterSpacing: "1px", color: "#00ff87", background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.35)", borderRadius: 6, padding: "2px 6px", verticalAlign: "middle" }}>SMASH</span>}
+                    </div>
                     <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {p.team}{p.opp ? ` · ${p.opp}` : ""}{p.league ? ` · ${p.league}` : ""}
                     </div>
+                    <div style={{ marginTop: 6 }}>
+                      <span style={{ background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.2)", color: "#00ff87", borderRadius: 8, padding: "3px 9px", fontSize: 12, fontWeight: 900 }}>{p.line}</span>
+                      <span style={{ marginLeft: 8, fontSize: 11.5, color: "rgba(255,255,255,.55)", fontWeight: 700 }}>{p.prop}</span>
+                    </div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: 19, color: "#00ff87" }}>{p.line}</div>
-                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)", fontWeight: 700, maxWidth: 110, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.prop}</div>
+                    {pct != null ? (
+                      <>
+                        <div style={{ fontWeight: 900, fontSize: 24, color: pctColor(pct), lineHeight: 1 }}>{pct}%</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", fontWeight: 800, letterSpacing: "1px", marginTop: 4 }}>HIT RATE</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)", fontWeight: 700, maxWidth: 70, textAlign: "right" }}>{STATS_LEAGUES.includes(league) && i < 20 ? "stats loading…" : ""}</div>
+                    )}
                   </div>
                 </div>
                 {(() => {
@@ -313,7 +383,7 @@ export default function GreenprintApp() {
                         return (
                           <div key={label} style={{ background: "rgba(255,255,255,.03)", borderRadius: 10, padding: "8px 10px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, marginBottom: 5 }}>
-                              <span>{label}</span><span style={{ color: col }}>{w.h}/{w.of}</span>
+                              <span>{label}</span><span style={{ color: col }}>{w.h}/{w.of} · {pct}%</span>
                             </div>
                             <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" }}>
                               <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: col }} />
