@@ -127,9 +127,9 @@ export default function StreamPage() {
   useEffect(() => {
     if (!isLive || joined || connecting) return;
     const saved = JSON.parse(localStorage.getItem('gp_viewer') || 'null');
-    if (!saved?.name) return; // no saved name → show the join form
+    if (!saved?.name || !/^\S+@\S+\.\S+$/.test(saved?.email || '')) return; // no saved name/valid email → show the join form
     const n = saved.name;
-    const e = saved.email || '';
+    const e = saved.email;
     setName(n); setEmail(e);
     setConnecting(true);
     (async () => { await joinStream(n, e); })();
@@ -203,6 +203,7 @@ export default function StreamPage() {
     const joinEmail = (autoEmail || email).trim();
     if (!joinName) { alert("Enter your name"); return; }
     if (!joinEmail) { alert("Email is required to join"); return; }
+    if (!/^\S+@\S+\.\S+$/.test(joinEmail)) { alert("Please enter a valid email address"); return; }
     setName(joinName);
     setConnecting(true); setStatusText("Connecting...");
     try {
@@ -322,7 +323,7 @@ export default function StreamPage() {
                 type="email" required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="Email (optional)"
+                placeholder="Enter your email (required)"
                 style={{
                   width: "100%", padding: "14px 18px", marginTop: 10,
                   background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
