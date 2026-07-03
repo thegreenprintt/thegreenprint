@@ -51,6 +51,13 @@ export default function GreenprintApp() {
   const [rates, setRates] = useState<Record<string, HitRate | null>>({});
   const ratesRef = useRef<Record<string, HitRate | null>>({});
 
+  // First-open setup (Linemate-style onboarding)
+  const [setupDone, setSetupDone] = useState(true);
+  const [setupStep, setSetupStep] = useState(0);
+  const [selLeagues, setSelLeagues] = useState<string[]>([]);
+  const [selOps, setSelOps] = useState<string[]>([]);
+  const [leagueOrder, setLeagueOrder] = useState<League[]>([...LEAGUES]);
+
   // Community chat
   const [chatName, setChatName] = useState("");
   const [nameDraft, setNameDraft] = useState("");
@@ -82,7 +89,33 @@ export default function GreenprintApp() {
       else { const n = localStorage.getItem("gp_chat_name"); if (n) setChatName(n); }
     } catch {}
     try { const t = JSON.parse(localStorage.getItem("gp_journal") || "[]"); if (Array.isArray(t)) setTrades(t); } catch {}
+    try {
+      setSetupDone(localStorage.getItem("gp_app_setup") === "1");
+      const fav = JSON.parse(localStorage.getItem("gp_leagues") || "[]");
+      if (Array.isArray(fav) && fav.length) {
+        const good = fav.filter((l: string) => (LEAGUES as readonly string[]).includes(l)) as League[];
+        if (good.length) {
+          setLeagueOrder([...good, ...LEAGUES.filter(l => !good.includes(l))]);
+          setLeague(good[0]);
+        }
+      }
+    } catch {}
   }, []);
+
+  const finishSetup = () => {
+    try {
+      localStorage.setItem("gp_app_setup", "1");
+      localStorage.setItem("gp_leagues", JSON.stringify(selLeagues));
+      localStorage.setItem("gp_operators", JSON.stringify(selOps));
+    } catch {}
+    const good = selLeagues.filter(l => (LEAGUES as readonly string[]).includes(l)) as League[];
+    if (good.length) {
+      setLeagueOrder([...good, ...LEAGUES.filter(l => !good.includes(l))]);
+      setLeague(good[0]);
+    }
+    setSetupDone(true);
+    setTab("picks");
+  };
 
   // ── live props board — fetches itself, refreshes every 10 min ──
   useEffect(() => {
@@ -181,6 +214,96 @@ export default function GreenprintApp() {
 
   const card: React.CSSProperties = { background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, backdropFilter: "blur(20px)" };
 
+  // ── FIRST-OPEN SETUP (shown once, then remembered) ──
+  if (!setupDone) {
+    const LG_META: { id: League; ico: string; name: string }[] = [
+      { id: "NBA", ico: "🏀", name: "NBA" },
+      { id: "NFL", ico: "🏈", name: "NFL" },
+      { id: "MLB", ico: "⚾", name: "MLB" },
+      { id: "NHL", ico: "🏒", name: "NHL" },
+      { id: "SOCCER", ico: "⚽", name: "Soccer · World Cup" },
+      { id: "WNBA", ico: "🏀", name: "WNBA" },
+      { id: "MMA", ico: "🥊", name: "MMA / UFC" },
+      { id: "TENNIS", ico: "🎾", name: "Tennis" },
+    ];
+    const OPS = ["Underdog", "PrizePicks", "FanDuel", "DraftKings", "Sleeper", "Fliff"];
+    const tile = (on: boolean): React.CSSProperties => ({ background: on ? "rgba(0,255,135,.12)" : "rgba(255,255,255,.04)", border: on ? "1px solid rgba(0,255,135,.6)" : "1px solid rgba(255,255,255,.09)", borderRadius: 16, padding: "18px 12px", textAlign: "center", cursor: "pointer", color: on ? "#00ff87" : "#fff", fontWeight: 800, fontSize: 13.5, transition: "all .15s" });
+    const bigBtn = (on: boolean): React.CSSProperties => ({ marginTop: 20, padding: "16px 0", width: "100%", background: on ? "linear-gradient(135deg,#00ff87,#00c864)" : "rgba(255,255,255,.08)", border: "none", borderRadius: 14, color: on ? "#000" : "rgba(255,255,255,.35)", fontWeight: 900, fontSize: 16, cursor: on ? "pointer" : "default" });
+    return (
+      <div style={{ minHeight: "100dvh", background: "#030503", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", padding: "calc(env(safe-area-inset-top,0px) + 20px) 22px calc(env(safe-area-inset-bottom,0px) + 24px)", position: "relative", overflow: "hidden", boxSizing: "border-box" }}>
+        <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}@keyframes glowPulse{0%,100%{box-shadow:0 0 24px rgba(0,255,135,.25)}50%{box-shadow:0 0 48px rgba(0,255,135,.55)}}`}</style>
+        <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 480, height: 320, background: "radial-gradient(ellipse,rgba(0,255,135,.14) 0%,transparent 65%)", pointerEvents: "none" }} />
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 24, position: "relative" }}>
+          {[0, 1, 2].map(s => <span key={s} style={{ width: 34, height: 4, borderRadius: 3, background: s <= setupStep ? "#00ff87" : "rgba(255,255,255,.12)", transition: "background .3s" }} />)}
+        </div>
+
+        {setupStep === 0 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <div style={{ background: "rgba(255,255,255,.05)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: 18, marginBottom: 38, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 16 }}>A. Reese <span style={{ color: "rgba(255,255,255,.4)", fontWeight: 600 }}>@ WAS</span></div>
+                  <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.7)" }}>Over 14.5 Points</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 900, color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.4)", borderRadius: 8, padding: "4px 8px" }}>🔥 ELITE</span>
+              </div>
+              {([["⚡", "Hit in 8 of last 10 games", "80%"], ["📊", "Hit in 4 of last 5 games", "80%"], ["📈", "Hit in 11 of last 19 games", "58%"]] as [string, string, string][]).map(([i2, t, pc], ri) => (
+                <div key={ri} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                  <span style={{ width: 18, textAlign: "center", fontSize: 12 }}>{i2}</span>
+                  <span style={{ flex: 1, fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>{t}</span>
+                  <span style={{ fontWeight: 900, fontSize: 13, color: "#00ff87" }}>{pc}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <div style={{ display: "inline-flex", width: 54, height: 54, borderRadius: 16, background: "linear-gradient(135deg,#00ff87,#00c864)", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 14, boxShadow: "0 6px 30px rgba(0,255,135,.4)" }}>🌿</div>
+              <h1 style={{ margin: "0 0 6px", fontSize: 30, fontWeight: 900, letterSpacing: "-1px" }}>The Greenprint</h1>
+              <p style={{ margin: 0, color: "rgba(255,255,255,.45)", fontSize: 15 }}>Find your next play.</p>
+            </div>
+            <button onClick={() => setSetupStep(1)} style={{ ...bigBtn(true), animation: "glowPulse 2.2s infinite" }}>Get Started</button>
+          </div>
+        )}
+
+        {setupStep === 1 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <h1 style={{ margin: "6px 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>Choose your favorite leagues</h1>
+            <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>See the leagues you care about first, every time you open the app.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, overflowY: "auto" }}>
+              {LG_META.map(m => {
+                const on = selLeagues.includes(m.id);
+                return (
+                  <div key={m.id} style={tile(on)} onClick={() => setSelLeagues(on ? selLeagues.filter(x => x !== m.id) : [...selLeagues, m.id])}>
+                    <div style={{ fontSize: 26, marginBottom: 8 }}>{m.ico}</div>{m.name}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={() => selLeagues.length && setSetupStep(2)} style={bigBtn(selLeagues.length > 0)}>Continue</button>
+          </div>
+        )}
+
+        {setupStep === 2 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <h1 style={{ margin: "6px 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>Pick your boards</h1>
+            <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>Where do you play? We&apos;ll tune your picks and slips to match.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {OPS.map(o => {
+                const on = selOps.includes(o);
+                return (
+                  <div key={o} style={tile(on)} onClick={() => setSelOps(on ? selOps.filter(x => x !== o) : [...selOps, o])}>
+                    <div style={{ fontSize: 22, marginBottom: 8, fontWeight: 900, color: on ? "#00ff87" : "rgba(255,255,255,.6)" }}>{o.charAt(0)}</div>{o}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={finishSetup} style={bigBtn(true)}>Continue</button>
+            <button onClick={finishSetup} style={{ background: "none", border: "none", color: "rgba(255,255,255,.45)", fontSize: 14, fontWeight: 700, marginTop: 14, cursor: "pointer" }}>I don&apos;t have one yet</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100dvh", background: "#030503", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
       <style>{`
@@ -277,7 +400,7 @@ export default function GreenprintApp() {
         {tab === "picks" && (
           <div className="tabIn">
             <div style={{ display: "flex", gap: 8, marginBottom: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
-              {LEAGUES.map(l => (
+              {leagueOrder.map(l => (
                 <button key={l} className={`chip${league === l ? " on" : ""}`} style={{ flexShrink: 0 }} onClick={() => setLeague(l)}>{l === "SOCCER" ? "⚽ SOCCER" : l}</button>
               ))}
             </div>
@@ -376,21 +499,20 @@ export default function GreenprintApp() {
                 {(() => {
                   const r = rates[rateKey(p)];
                   if (!r) return null;
-                  const wins: [string, { h: number; of: number }][] = [["L5", r.l5], ["L10", r.l10], ["L20", r.l20]];
+                  const rows: [string, { h: number; of: number }][] = [["⚡", r.l5], ["📊", r.l10], ["📈", r.l20]];
                   return (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
-                      {wins.map(([label, w]) => {
-                        if (!w || !w.of) return <div key={label} />;
-                        const pct = Math.round((w.h / w.of) * 100);
-                        const col = pct >= 70 ? "#00ff87" : pct >= 50 ? "#ffd93d" : "#ff6b6b";
+                    <div style={{ marginTop: 11 }}>
+                      {rows.map(([ico, w], ri) => {
+                        if (!w || !w.of) return null;
+                        const pc = Math.round((w.h / w.of) * 100);
                         return (
-                          <div key={label} style={{ background: "rgba(255,255,255,.03)", borderRadius: 10, padding: "8px 10px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, marginBottom: 5 }}>
-                              <span>{label}</span><span style={{ color: col }}>{w.h}/{w.of} · {pct}%</span>
+                          <div key={ri} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,.05)" }}>
+                            <span style={{ width: 18, textAlign: "center", fontSize: 12 }}>{ico}</span>
+                            <span style={{ flex: 1, fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>Hit in {w.h} of last {w.of} games</span>
+                            <div style={{ width: 52, height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden", flexShrink: 0 }}>
+                              <div style={{ width: `${pc}%`, height: "100%", borderRadius: 3, background: pctColor(pc), transition: "width .5s ease" }} />
                             </div>
-                            <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" }}>
-                              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: col, transition: "width .5s ease" }} />
-                            </div>
+                            <span style={{ fontWeight: 900, fontSize: 13, color: pctColor(pc), width: 42, textAlign: "right", flexShrink: 0 }}>{pc}%</span>
                           </div>
                         );
                       })}
