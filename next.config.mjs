@@ -47,7 +47,7 @@ const nextConfig = {
               "font-src 'self' data:",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss: https://api.stripe.com https:",
-              "frame-src https://js.stripe.com https://checkout.stripe.com",
+              "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self' https://checkout.stripe.com",
