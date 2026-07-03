@@ -379,7 +379,7 @@ export default function GreenprintApp() {
   }
 
   return (
-    <div style={{ minHeight: "100dvh", background: "#030503", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", background: "#030503", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.92)}}
         @keyframes glowPulse{0%,100%{box-shadow:0 0 24px rgba(0,255,135,.25)}50%{box-shadow:0 0 48px rgba(0,255,135,.55)}}
@@ -483,6 +483,12 @@ export default function GreenprintApp() {
               <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700 }}>🟢 LIVE BOARD · highest hit % first</span>
               {propsUpdated && <span style={{ fontSize: 10, color: "rgba(255,255,255,.3)", fontWeight: 600 }}>as of {fmtStart(propsUpdated) || "now"}</span>}
             </div>
+
+            {["SOCCER", "TENNIS", "MMA"].includes(league) && (
+              <div style={{ background: "rgba(255,217,61,.05)", border: "1px solid rgba(255,217,61,.18)", borderRadius: 12, padding: "8px 13px", marginBottom: 12, fontSize: 10.5, color: "rgba(255,217,61,.75)", fontWeight: 600 }}>
+                Lines below are live · per-game stat logs aren&apos;t published for this league yet, so hit-rate bars are limited here.
+              </div>
+            )}
 
             {propsLoading && (
               <div style={{ ...card, padding: 40, textAlign: "center" }}>
