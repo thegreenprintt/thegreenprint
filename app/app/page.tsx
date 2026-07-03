@@ -160,10 +160,10 @@ export default function GreenprintApp() {
   useEffect(() => {
     if (tab !== "picks" || !liveProps.length || !STATS_LEAGUES.includes(league)) return;
     let dead = false;
-    const targets = liveProps.slice(0, 24).filter(p => ratesRef.current[rateKey(p)] === undefined);
+    const targets = liveProps.filter(p => ratesRef.current[rateKey(p)] === undefined); // EVERY pick gets stats
     if (!targets.length) return;
     (async () => {
-      const CHUNK = 6; // parallel lookups — much faster
+      const CHUNK = 8; // parallel lookups — much faster
       for (let i = 0; i < targets.length; i += CHUNK) {
         if (dead) return;
         await Promise.all(targets.slice(i, i + CHUNK).map(async p => {
@@ -568,7 +568,7 @@ export default function GreenprintApp() {
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", fontWeight: 800, letterSpacing: "1px", marginTop: 4 }}>HIT RATE</div>
                       </>
                     ) : (
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)", fontWeight: 700, maxWidth: 70, textAlign: "right" }}>{STATS_LEAGUES.includes(league) && i < 24 && !(rateKey(p) in rates) ? "⏳" : "—"}</div>
+                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)", fontWeight: 700, maxWidth: 70, textAlign: "right" }}>{STATS_LEAGUES.includes(league) && !(rateKey(p) in rates) ? "⏳" : "—"}</div>
                     )}
                   </div>
                 </div>
