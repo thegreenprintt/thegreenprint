@@ -12,8 +12,8 @@ const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.js
 type Msg = { name: string; msg: string; ts: number };
 type Trade = { id: string; sym: string; side: "LONG" | "SHORT"; entry: number; exit: number; qty: number; notes: string; ts: number };
 type LiveProp = { player: string; team: string; prop: string; line: number; opp: string; start: string; league: string; board: string };
-type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number };
-const STATS_LEAGUES = ["NBA", "WNBA", "MLB", "NFL", "NHL", "SOCCER"];
+type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number; recent?: number[]; avg?: number | null };
+const STATS_LEAGUES = ["NBA", "WNBA", "MLB", "NFL", "NHL", "SOCCER", "NCAAF", "NCAAB"];
 const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
 const pctOf = (r: HitRate | null | undefined): number | null => {
   if (!r) return null;
@@ -25,7 +25,7 @@ const pctColor = (pct: number) => (pct >= 70 ? "#00ff87" : pct >= 50 ? "#ffd93d"
 const CHAT_COLORS = ["#00ff87", "#ff6b6b", "#ffd93d", "#6bcbff", "#c77dff", "#ff9f43", "#48dbfb", "#ff6b9d"];
 const nc = (n: string) => CHAT_COLORS[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % CHAT_COLORS.length];
 
-const LEAGUES = ["NBA", "NFL", "MLB", "NHL", "SOCCER", "WNBA", "MMA", "TENNIS"] as const;
+const LEAGUES = ["NBA", "NFL", "MLB", "NHL", "SOCCER", "WNBA", "NCAAF", "NCAAB", "MMA", "TENNIS"] as const;
 type League = (typeof LEAGUES)[number];
 const fmtStart = (iso: string) => {
   if (!iso) return "";
@@ -56,6 +56,9 @@ export default function GreenprintApp() {
   const [setupStep, setSetupStep] = useState(0);
   const [selLeagues, setSelLeagues] = useState<string[]>([]);
   const [selOps, setSelOps] = useState<string[]>([]);
+  const [purpose, setPurpose] = useState("");
+  const [suName, setSuName] = useState("");
+  const [suEmail, setSuEmail] = useState("");
   const [leagueOrder, setLeagueOrder] = useState<League[]>([...LEAGUES]);
 
   // Community chat
@@ -102,11 +105,27 @@ export default function GreenprintApp() {
     } catch {}
   }, []);
 
+  const doSignIn = async () => {
+    const n = suName.trim(); const e = suEmail.trim();
+    if (!n) { alert("Enter your name"); return; }
+    if (!/^\S+@\S+\.\S+$/.test(e)) { alert("Enter a valid email address"); return; }
+    try { localStorage.setItem("gp_viewer", JSON.stringify({ name: n, email: e })); localStorage.setItem("gp_chat_name", n); } catch {}
+    setChatName(n);
+    try {
+      const k = e.toLowerCase().replace(/[^a-z0-9]/g, "_") || "no_email";
+      const ref = FB + "/live/leads/" + k + ".json";
+      const ex = await fetch(ref).then(r => r.json()).catch(() => null);
+      await fetch(ref, { method: "PUT", body: JSON.stringify({ name: n, email: e, firstSeen: ex?.firstSeen || new Date().toISOString(), lastSeen: new Date().toISOString(), joinCount: ex?.joinCount || 0 }) });
+    } catch {}
+    setSetupStep(4);
+  };
+
   const finishSetup = () => {
     try {
       localStorage.setItem("gp_app_setup", "1");
       localStorage.setItem("gp_leagues", JSON.stringify(selLeagues));
       localStorage.setItem("gp_operators", JSON.stringify(selOps));
+      localStorage.setItem("gp_purpose", purpose);
     } catch {}
     const good = selLeagues.filter(l => (LEAGUES as readonly string[]).includes(l)) as League[];
     if (good.length) {
@@ -223,6 +242,8 @@ export default function GreenprintApp() {
       { id: "NHL", ico: "🏒", name: "NHL" },
       { id: "SOCCER", ico: "⚽", name: "Soccer · World Cup" },
       { id: "WNBA", ico: "🏀", name: "WNBA" },
+      { id: "NCAAF", ico: "🏈", name: "NCAA Football" },
+      { id: "NCAAB", ico: "🏀", name: "NCAA Basketball" },
       { id: "MMA", ico: "🥊", name: "MMA / UFC" },
       { id: "TENNIS", ico: "🎾", name: "Tennis" },
     ];
@@ -234,7 +255,7 @@ export default function GreenprintApp() {
         <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}@keyframes glowPulse{0%,100%{box-shadow:0 0 24px rgba(0,255,135,.25)}50%{box-shadow:0 0 48px rgba(0,255,135,.55)}}`}</style>
         <div style={{ position: "absolute", top: -140, left: "50%", transform: "translateX(-50%)", width: 480, height: 320, background: "radial-gradient(ellipse,rgba(0,255,135,.14) 0%,transparent 65%)", pointerEvents: "none" }} />
         <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 24, position: "relative" }}>
-          {[0, 1, 2].map(s => <span key={s} style={{ width: 34, height: 4, borderRadius: 3, background: s <= setupStep ? "#00ff87" : "rgba(255,255,255,.12)", transition: "background .3s" }} />)}
+          {[0, 1, 2, 3, 4, 5].map(s => <span key={s} style={{ width: 22, height: 4, borderRadius: 3, background: s <= setupStep ? "#00ff87" : "rgba(255,255,255,.12)", transition: "background .3s" }} />)}
         </div>
 
         {setupStep === 0 && (
@@ -265,6 +286,59 @@ export default function GreenprintApp() {
         )}
 
         {setupStep === 1 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <h1 style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px", textAlign: "center" }}>Everything in one app</h1>
+            <p style={{ margin: "0 0 26px", color: "rgba(255,255,255,.45)", fontSize: 14, textAlign: "center" }}>Built to make you sharper every single day.</p>
+            {([
+              ["🎯", "Daily Picks", "Live props across every major sport, ranked by real hit rates — updates itself all day."],
+              ["📺", "Live Trading", "Watch live trading sessions the second they start — the app lights up automatically."],
+              ["💬", "Community", "Chat with the whole Greenprint fam in real time."],
+              ["📓", "Trade Journal", "Log trades, track P&L and win rate like a pro."],
+            ] as [string, string, string][]).map(([ico, t, d], fi) => (
+              <div key={fi} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, padding: "15px 16px", marginBottom: 10, animation: `fadeUp .4s ease ${0.08 * fi}s both` }}>
+                <span style={{ fontSize: 24, width: 34, textAlign: "center" }}>{ico}</span>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 15 }}>{t}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.45)", marginTop: 3, lineHeight: 1.45 }}>{d}</div>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setSetupStep(2)} style={bigBtn(true)}>Continue</button>
+          </div>
+        )}
+
+        {setupStep === 2 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <h1 style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>What are you here for?</h1>
+            <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>We&apos;ll shape the app around it.</p>
+            {([["📈", "Trading", "Live sessions, education & journal"], ["🎯", "Picks", "High-probability props & slips"], ["💰", "Both", "The full Greenprint experience"]] as [string, string, string][]).map(([ico, t, d]) => {
+              const on = purpose === t;
+              return (
+                <div key={t} onClick={() => setPurpose(t)} style={{ ...tile(on), textAlign: "left", display: "flex", gap: 14, alignItems: "center", padding: "17px 16px", marginBottom: 10 }}>
+                  <span style={{ fontSize: 24 }}>{ico}</span>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 15 }}>{t}</div>
+                    <div style={{ fontSize: 12, color: on ? "rgba(0,255,135,.7)" : "rgba(255,255,255,.4)", marginTop: 2 }}>{d}</div>
+                  </div>
+                </div>
+              );
+            })}
+            <button onClick={() => purpose && setSetupStep(3)} style={bigBtn(!!purpose)}>Continue</button>
+          </div>
+        )}
+
+        {setupStep === 3 && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
+            <h1 style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>Create your profile</h1>
+            <p style={{ margin: "0 0 22px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>Your name shows in the community and on stream chat.</p>
+            <input value={suName} onChange={e => setSuName(e.target.value)} placeholder="Your name" style={{ width: "100%", padding: "15px 17px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
+            <input value={suEmail} onChange={e => setSuEmail(e.target.value)} type="email" placeholder="Email address" style={{ width: "100%", padding: "15px 17px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box" }} />
+            <button onClick={doSignIn} style={bigBtn(true)}>Sign In →</button>
+            <p style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)", textAlign: "center", marginTop: 14 }}>One account for picks, chat and live streams.</p>
+          </div>
+        )}
+
+        {setupStep === 4 && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
             <h1 style={{ margin: "6px 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>Choose your favorite leagues</h1>
             <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>See the leagues you care about first, every time you open the app.</p>
@@ -278,11 +352,11 @@ export default function GreenprintApp() {
                 );
               })}
             </div>
-            <button onClick={() => selLeagues.length && setSetupStep(2)} style={bigBtn(selLeagues.length > 0)}>Continue</button>
+            <button onClick={() => selLeagues.length && setSetupStep(5)} style={bigBtn(selLeagues.length > 0)}>Continue</button>
           </div>
         )}
 
-        {setupStep === 2 && (
+        {setupStep === 5 && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
             <h1 style={{ margin: "6px 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>Pick your boards</h1>
             <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>Where do you play? We&apos;ll tune your picks and slips to match.</p>
@@ -480,10 +554,12 @@ export default function GreenprintApp() {
                     <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {p.team}{p.opp ? ` · ${p.opp}` : ""}{p.league ? ` · ${p.league}` : ""}
                     </div>
-                    <div style={{ marginTop: 6 }}>
-                      <span style={{ background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.2)", color: "#00ff87", borderRadius: 8, padding: "3px 9px", fontSize: 12, fontWeight: 900 }}>{p.line}</span>
-                      <span style={{ marginLeft: 8, fontSize: 11.5, color: "rgba(255,255,255,.55)", fontWeight: 700 }}>{p.prop}</span>
-                    </div>
+                    {!rates[rateKey(p)] && (
+                      <div style={{ marginTop: 6 }}>
+                        <span style={{ background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.2)", color: "#00ff87", borderRadius: 8, padding: "3px 9px", fontSize: 12, fontWeight: 900 }}>{p.line}</span>
+                        <span style={{ marginLeft: 8, fontSize: 11.5, color: "rgba(255,255,255,.55)", fontWeight: 700 }}>{p.prop}</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     {pct != null ? (
@@ -499,23 +575,31 @@ export default function GreenprintApp() {
                 {(() => {
                   const r = rates[rateKey(p)];
                   if (!r) return null;
-                  const rows: [string, { h: number; of: number }][] = [["⚡", r.l5], ["📊", r.l10], ["📈", r.l20]];
+                  const w = r.l10 && r.l10.of ? r.l10 : r.l5 && r.l5.of ? r.l5 : r.l20;
+                  if (!w || !w.of) return null;
+                  const overPct = Math.round((w.h / w.of) * 100);
+                  const over = overPct >= 50;
+                  const shown = over ? overPct : 100 - overPct;
+                  const propLc = p.prop.toLowerCase();
+                  const segs = r.recent && r.recent.length ? r.recent : null;
                   return (
-                    <div style={{ marginTop: 11 }}>
-                      {rows.map(([ico, w], ri) => {
-                        if (!w || !w.of) return null;
-                        const pc = Math.round((w.h / w.of) * 100);
-                        return (
-                          <div key={ri} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,.05)" }}>
-                            <span style={{ width: 18, textAlign: "center", fontSize: 12 }}>{ico}</span>
-                            <span style={{ flex: 1, fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>Hit in {w.h} of last {w.of} games</span>
-                            <div style={{ width: 52, height: 4, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden", flexShrink: 0 }}>
-                              <div style={{ width: `${pc}%`, height: "100%", borderRadius: 3, background: pctColor(pc), transition: "width .5s ease" }} />
-                            </div>
-                            <span style={{ fontWeight: 900, fontSize: 13, color: pctColor(pc), width: 42, textAlign: "right", flexShrink: 0 }}>{pc}%</span>
-                          </div>
-                        );
-                      })}
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ margin: "0 0 12px", fontSize: 14.5, fontWeight: 700, lineHeight: 1.5, color: "rgba(255,255,255,.92)" }}>
+                        {p.player} has {over ? "exceeded" : "failed to exceed"} {p.line} {propLc} in {over ? w.h : w.of - w.h} of the last {w.of} games{r.avg != null ? ` (${r.avg} ${propLc}/game average)` : ""}.
+                      </p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "9px 12px", marginBottom: 10 }}>
+                        <span style={{ fontWeight: 900, fontSize: 13.5 }}>📊 {over ? "Over" : "Under"} {p.line} {p.prop}</span>
+                        <span style={{ fontSize: 10, color: "rgba(0,255,135,.7)", fontWeight: 900, letterSpacing: "1px" }}>{p.board.toUpperCase()}</span>
+                      </div>
+                      {segs && (
+                        <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                          {segs.map((s, si) => {
+                            const hit = over ? s === 1 : s === 0;
+                            return <div key={si} style={{ flex: 1, height: 6, borderRadius: 4, background: hit ? "#00ff87" : "#ff5f7a", boxShadow: hit ? "0 0 8px rgba(0,255,135,.35)" : "none" }} />;
+                          })}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 13, fontWeight: 900, color: pctColor(shown) }}>{shown}% <span style={{ color: "rgba(255,255,255,.45)", fontWeight: 600 }}>in the last {segs ? segs.length : w.of} games</span></div>
                     </div>
                   );
                 })()}
