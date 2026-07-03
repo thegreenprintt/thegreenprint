@@ -51,6 +51,8 @@ export default function GreenprintApp() {
   const [rates, setRates] = useState<Record<string, HitRate | null>>({});
   const ratesRef = useRef<Record<string, HitRate | null>>({});
 
+  const [isHostUser, setIsHostUser] = useState(false);
+
   // First-open setup (Linemate-style onboarding)
   const [setupDone, setSetupDone] = useState(true);
   const [setupStep, setSetupStep] = useState(0);
@@ -92,6 +94,7 @@ export default function GreenprintApp() {
       else { const n = localStorage.getItem("gp_chat_name"); if (n) setChatName(n); }
     } catch {}
     try { const t = JSON.parse(localStorage.getItem("gp_journal") || "[]"); if (Array.isArray(t)) setTrades(t); } catch {}
+    try { setIsHostUser(localStorage.getItem("gp_host") === "true"); } catch {}
     try {
       setSetupDone(localStorage.getItem("gp_app_setup") === "1");
       const fav = JSON.parse(localStorage.getItem("gp_leagues") || "[]");
@@ -277,7 +280,7 @@ export default function GreenprintApp() {
               ))}
             </div>
             <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <div style={{ display: "inline-flex", width: 54, height: 54, borderRadius: 16, background: "linear-gradient(135deg,#00ff87,#00c864)", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 14, boxShadow: "0 6px 30px rgba(0,255,135,.4)" }}>🌿</div>
+              <div style={{ display: "inline-flex", width: 54, height: 54, borderRadius: 16, background: "linear-gradient(135deg,#00ff87,#00c864)", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 6px 30px rgba(0,255,135,.4)" }}><span style={{ fontWeight: 900, fontSize: 21, color: "#000", letterSpacing: "-1px" }}>GP</span></div>
               <h1 style={{ margin: "0 0 6px", fontSize: 30, fontWeight: 900, letterSpacing: "-1px" }}>The Greenprint</h1>
               <p style={{ margin: 0, color: "rgba(255,255,255,.45)", fontSize: 15 }}>Find your next play.</p>
             </div>
@@ -405,7 +408,7 @@ export default function GreenprintApp() {
       {/* ── header ── */}
       <div style={{ padding: "calc(env(safe-area-inset-top,0px) + 14px) 18px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 2, maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 14, background: "linear-gradient(135deg,#00ff87,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 4px 20px rgba(0,255,135,.35)" }}>🌿</div>
+          <div style={{ width: 40, height: 40, borderRadius: 14, background: "linear-gradient(135deg,#00ff87,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,255,135,.35)" }}><span style={{ fontWeight: 900, fontSize: 15, color: "#000", letterSpacing: "-0.5px" }}>GP</span></div>
           <div>
             <div style={{ fontWeight: 900, fontSize: 17, letterSpacing: "-.5px", background: "linear-gradient(90deg,#fff,#00ff87,#fff)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "shimmer 5s linear infinite" }}>The Greenprint</div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,.35)", letterSpacing: "2.5px", textTransform: "uppercase", fontWeight: 700 }}>Trade · Bet · Win</div>
@@ -546,7 +549,7 @@ export default function GreenprintApp() {
             )}
 
             {!propsLoading && ranked.map(({ p, pct }, i) => (
-              <div key={i} style={{ ...card, padding: 16, marginBottom: 10, border: pct != null && pct >= 80 ? "1px solid rgba(255,215,0,.35)" : undefined }}>
+              <div key={rateKey(p)} style={{ ...card, padding: 16, marginBottom: 10, border: pct != null && pct >= 80 ? "1px solid rgba(255,215,0,.35)" : undefined, animation: "fadeUp .45s ease both", animationDelay: `${Math.min(i, 12) * 40}ms`, transition: "border .3s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0 }}>
                     {p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}
@@ -640,7 +643,7 @@ export default function GreenprintApp() {
                 <div style={{ ...card, flex: 1, overflowY: "auto", padding: "14px 14px 6px", marginBottom: 10 }}>
                   {msgs.length === 0 && (
                     <div style={{ textAlign: "center", padding: "60px 0" }}>
-                      <div style={{ fontSize: 34, marginBottom: 10 }}>🌿</div>
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#00ff87,#00c864)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><span style={{ fontWeight: 900, fontSize: 17, color: "#000" }}>GP</span></div>
                       <p style={{ color: "rgba(255,255,255,.25)", fontSize: 13, margin: 0 }}>Be the first to say something.</p>
                     </div>
                   )}
@@ -657,6 +660,14 @@ export default function GreenprintApp() {
                   ))}
                   <div ref={chatEnd} />
                 </div>
+                {isHostUser && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <button onClick={() => { const n = chatName === "Host" ? (JSON.parse(localStorage.getItem("gp_viewer") || "{}")?.name || "Host") : "Host"; setChatName(n); }} style={{ flex: 1, background: chatName === "Host" ? "rgba(255,153,0,.15)" : "rgba(255,255,255,.05)", border: chatName === "Host" ? "1px solid rgba(255,153,0,.5)" : "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: chatName === "Host" ? "#ff9900" : "rgba(255,255,255,.55)", fontWeight: 800, fontSize: 11.5, padding: "8px 0", cursor: "pointer" }}>
+                      {chatName === "Host" ? "👑 Chatting as Host" : "Chat as Host"}
+                    </button>
+                    <button onClick={async () => { if (!confirm("Clear the entire community chat?")) return; try { await fetch(`${FB}/community/chat.json`, { method: "DELETE" }); } catch {} setMsgs([]); }} style={{ flex: 1, background: "rgba(255,45,85,.08)", border: "1px solid rgba(255,45,85,.35)", borderRadius: 10, color: "#ff2d55", fontWeight: 800, fontSize: 11.5, padding: "8px 0", cursor: "pointer" }}>🧹 Clear chat</button>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8 }}>
                   <input className="gpInput" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} placeholder={`Chat as ${chatName}...`} style={{ flex: 1 }} />
                   <button className="gpBtn" onClick={sendMsg} style={{ padding: "0 20px", fontSize: 17 }}>→</button>
