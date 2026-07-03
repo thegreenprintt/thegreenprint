@@ -14,6 +14,8 @@ const LEAGUE_CFG = {
   MLB: { slug: 'mlb', path: 'baseball/mlb' },
   NFL: { slug: 'nfl', path: 'football/nfl' },
   NHL: { slug: 'nhl', path: 'hockey/nhl' },
+  NCAAF: { slug: 'college-football', path: 'football/college-football' },
+  NCAAB: { slug: 'mens-college-basketball', path: 'basketball/mens-college-basketball' },
   SOCCER: { dynamic: true },
 };
 
@@ -157,7 +159,14 @@ module.exports = async function handler(req, res) {
       return { h: h, of: g2.length };
     };
 
-    return res.status(200).json({ player: player, league: league, prop: prop, line: line, n: games.length, l5: win(5), l10: win(10), l20: win(20) });
+    // per-game over/under results, oldest → newest (for streak bars), plus avg
+    const last10 = games.slice(0, 10);
+    const recent = last10.map(r => { const v = pick(r.stats); return !isNaN(v) && v > line ? 1 : 0; }).reverse();
+    let sum = 0, cnt = 0;
+    last10.forEach(r => { const v = pick(r.stats); if (!isNaN(v)) { sum += v; cnt++; } });
+    const avg = cnt ? Math.round((sum / cnt) * 10) / 10 : null;
+
+    return res.status(200).json({ player: player, league: league, prop: prop, line: line, n: games.length, l5: win(5), l10: win(10), l20: win(20), recent: recent, avg: avg });
   } catch (e) {
     return res.status(200).json({ error: 'feed_unavailable' });
   }

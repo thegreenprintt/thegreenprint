@@ -18,6 +18,8 @@ function matchesLeague(tab, sport) {
     case 'WNBA': return n === 'WNBA';
     case 'MMA': return n === 'MMA' || n === 'UFC';
     case 'TENNIS': return n.indexOf('TENNIS') !== -1;
+    case 'NCAAF': return n === 'CFB' || n === 'NCAAF' || n === 'NCAAFB' || n === 'COLLEGE FOOTBALL';
+    case 'NCAAB': return n === 'CBB' || n === 'NCAAB' || n === 'NCAAM' || n === 'COLLEGE BASKETBALL';
     case 'SOCCER': return ['SOCCER', 'EPL', 'UCL', 'MLS', 'UEFA', 'WC', 'FIFA', 'LALIGA', 'SERIEA', 'BUNDES'].some(k => n.indexOf(k) !== -1);
     default: return n === tab;
   }
