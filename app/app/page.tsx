@@ -53,6 +53,14 @@ export default function GreenprintApp() {
 
   const [isHostUser, setIsHostUser] = useState(false);
 
+  // In-app stream player (connects directly — no iframe)
+  const appRoomRef = useRef<any>(null);
+  const appVideoRef = useRef<HTMLVideoElement>(null);
+  const pendingAppTrack = useRef<any>(null);
+  const [appHasVideo, setAppHasVideo] = useState(false);
+  const [appNeedTap, setAppNeedTap] = useState(false);
+  const [appConnecting, setAppConnecting] = useState(false);
+
   // First-open setup (Linemate-style onboarding)
   const [setupDone, setSetupDone] = useState(true);
   const [setupStep, setSetupStep] = useState(0);
@@ -122,6 +130,46 @@ export default function GreenprintApp() {
     } catch {}
     setSetupStep(4);
   };
+
+  const startWatch = async () => {
+    if (watching || appConnecting) return;
+    setAppConnecting(true);
+    try {
+      const nm = chatName || "App Viewer";
+      const tokenRes = await fetch(`/api/token?isHost=0&name=${encodeURIComponent(nm)}`, { cache: "no-store" });
+      const { token, url } = tokenRes.ok ? await tokenRes.json().catch(() => ({} as any)) : ({} as any);
+      if (!token || !url) { setAppConnecting(false); alert("Stream unavailable — try again in a second."); return; }
+      const lk = await import("livekit-client");
+      const room = new lk.Room({ adaptiveStream: false });
+      appRoomRef.current = room;
+      const attach = (track: any, pub: any) => {
+        if (track.kind === lk.Track.Kind.Video && pub.source !== lk.Track.Source.Camera) {
+          if (appVideoRef.current) { track.attach(appVideoRef.current); appVideoRef.current.play().catch(() => setAppNeedTap(true)); setAppHasVideo(true); }
+          else { pendingAppTrack.current = track; }
+        }
+        if (track.kind === lk.Track.Kind.Audio) { const el = track.attach() as HTMLMediaElement; el.autoplay = true; el.setAttribute("playsinline", "true"); document.body.appendChild(el); el.play().catch(() => setAppNeedTap(true)); }
+      };
+      room.on(lk.RoomEvent.TrackSubscribed, (t: any, pub: any) => attach(t, pub));
+      room.on(lk.RoomEvent.AudioPlaybackStatusChanged, () => { if (!room.canPlaybackAudio) setAppNeedTap(true); });
+      room.on(lk.RoomEvent.Disconnected, () => { setWatching(false); setAppHasVideo(false); });
+      await room.connect(url, token);
+      room.remoteParticipants.forEach((pt: any) => { pt.trackPublications.forEach((pub: any) => { if (pub.track) attach(pub.track, pub); }); });
+      setWatching(true);
+    } catch { alert("Couldn't connect — try again."); }
+    setAppConnecting(false);
+  };
+  useEffect(() => {
+    if (!watching) return;
+    if (appVideoRef.current && pendingAppTrack.current) {
+      pendingAppTrack.current.attach(appVideoRef.current);
+      appVideoRef.current.play().catch(() => setAppNeedTap(true));
+      setAppHasVideo(true); pendingAppTrack.current = null;
+    }
+  }, [watching]);
+  useEffect(() => {
+    if (tab === "live") return;
+    if (appRoomRef.current) { try { appRoomRef.current.disconnect(); } catch {} appRoomRef.current = null; setWatching(false); setAppHasVideo(false); setAppNeedTap(false); }
+  }, [tab]);
 
   const finishSetup = () => {
     try {
@@ -433,10 +481,22 @@ export default function GreenprintApp() {
             {isLive ? (
               watching ? (
                 <>
-                  <div style={{ ...card, overflow: "hidden", height: "calc(100dvh - 240px)", minHeight: 380, border: "1px solid rgba(0,255,135,.3)" }}>
-                    <iframe src="/stream" allow="autoplay; fullscreen; picture-in-picture" style={{ width: "100%", height: "100%", border: "none", display: "block", background: "#000" }} title="Greenprint Live" />
+                  <div style={{ ...card, overflow: "hidden", position: "relative", background: "#000", height: "calc(100dvh - 260px)", minHeight: 360, border: "1px solid rgba(0,255,135,.3)" }}>
+                    <video ref={appVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                    {!appHasVideo && (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+                        <div style={{ width: 38, height: 38, border: "3px solid rgba(0,255,135,.25)", borderTopColor: "#00ff87", borderRadius: "50%", animation: "spin_a .9s linear infinite" }} />
+                        <style>{`@keyframes spin_a{to{transform:rotate(360deg)}}`}</style>
+                        <span style={{ color: "rgba(255,255,255,.4)", fontSize: 12.5 }}>Connecting to the stream...</span>
+                      </div>
+                    )}
+                    {appNeedTap && (
+                      <div onClick={() => { appVideoRef.current?.play().catch(() => {}); try { appRoomRef.current?.startAudio?.(); } catch {} setAppNeedTap(false); }} style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", cursor: "pointer" }}>
+                        <div style={{ background: "#00ff87", color: "#000", fontWeight: 900, borderRadius: 14, padding: "16px 32px", fontSize: 16 }}>▶ Tap to Play</div>
+                      </div>
+                    )}
                   </div>
-                  <a href="/stream" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "rgba(0,255,135,.7)", fontWeight: 700, textDecoration: "none" }}>Open full screen ↗</a>
+                  <a href="/stream" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "rgba(0,255,135,.7)", fontWeight: 700, textDecoration: "none" }}>Open full experience — chat &amp; reactions ↗</a>
                 </>
               ) : (
                 <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
@@ -446,7 +506,7 @@ export default function GreenprintApp() {
                   </div>
                   <h2 style={{ margin: "0 0 8px", fontSize: 26, fontWeight: 900, letterSpacing: "-.5px" }}>Live Trading Session</h2>
                   <p style={{ color: "rgba(255,255,255,.45)", fontSize: 14, margin: "0 0 26px" }}>The stream is on right now. Tap in.</p>
-                  <button className="gpBtn" onClick={() => setWatching(true)} style={{ padding: "16px 44px", animation: "glowPulse 2s infinite" }}>▶ Watch Stream</button>
+                  <button className="gpBtn" onClick={startWatch} disabled={appConnecting} style={{ padding: "16px 44px", animation: appConnecting ? "none" : "glowPulse 2s infinite", opacity: appConnecting ? 0.7 : 1 }}>{appConnecting ? "Connecting..." : "▶ Watch Stream"}</button>
                 </div>
               )
             ) : (
