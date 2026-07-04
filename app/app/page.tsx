@@ -12,7 +12,20 @@ const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.js
 type Msg = { name: string; msg: string; ts: number };
 type Trade = { id: string; sym: string; side: "LONG" | "SHORT"; entry: number; exit: number; qty: number; notes: string; ts: number };
 type LiveProp = { player: string; team: string; prop: string; line: number; opp: string; start: string; league: string; board: string };
-type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number; recent?: number[]; avg?: number | null };
+type HitRate = { l5: { h: number; of: number }; l10: { h: number; of: number }; l20: { h: number; of: number }; n: number; recent?: number[]; avg?: number | null; headshot?: string };
+
+// ─── CUSTOM ICON SET (vector, no emojis) ─────────────────────────────────────
+const icp = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const IcoLive = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" /><path d="M8.6 8.6a4.8 4.8 0 0 0 0 6.8M15.4 8.6a4.8 4.8 0 0 1 0 6.8M5.8 5.8a8.8 8.8 0 0 0 0 12.4M18.2 5.8a8.8 8.8 0 0 1 0 12.4" /></svg>);
+const IcoTarget = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" /></svg>);
+const IcoChat = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20.5l1.7-4.6A8.5 8.5 0 1 1 21 11.5z" /></svg>);
+const IcoJournal = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V3z" /><path d="M9 7h6M9 11h6M9 15h4" /></svg>);
+const IcoBolt = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 4.5 13.5H10L9 22l8.5-11.5H12L13 2z" /></svg>);
+const IcoBars = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="4" y="13" width="4" height="8" rx="1" /><rect x="10" y="8" width="4" height="13" rx="1" /><rect x="16" y="3" width="4" height="18" rx="1" /></svg>);
+const IcoTrend = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></svg>);
+const IcoFlame = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2s5.5 5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2 .8-3.8 1.8-5.3 0 0 .7 2.2 2.2 3.3C10.5 8 11 5 12 2z" /></svg>);
+const IcoArrowUp = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M7 17L17 7M9 7h8v8" /></svg>);
+const RowIco = ({ k }: { k: string }) => (k === "l5" ? <IcoBolt /> : k === "l10" ? <IcoBars /> : <IcoTrend />);
 const STATS_LEAGUES = ["NBA", "WNBA", "MLB", "NFL", "NHL", "SOCCER", "NCAAF", "NCAAB"];
 const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
 const pctOf = (r: HitRate | null | undefined): number | null => {
@@ -484,11 +497,11 @@ export default function GreenprintApp() {
                   <div style={{ fontWeight: 900, fontSize: 16 }}>A. Reese <span style={{ color: "rgba(255,255,255,.4)", fontWeight: 600 }}>@ WAS</span></div>
                   <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.7)" }}>Over 14.5 Points</div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 900, color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.4)", borderRadius: 8, padding: "4px 8px" }}>🔥 ELITE</span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.4)", borderRadius: 8, padding: "4px 8px" }}>ELITE</span>
               </div>
-              {([["⚡", "Hit in 8 of last 10 games", "80%"], ["📊", "Hit in 4 of last 5 games", "80%"], ["📈", "Hit in 11 of last 19 games", "58%"]] as [string, string, string][]).map(([i2, t, pc], ri) => (
+              {([["l5", "Hit in 8 of last 10 games", "80%"], ["l10", "Hit in 4 of last 5 games", "80%"], ["l20", "Hit in 11 of last 19 games", "58%"]] as [string, string, string][]).map(([i2, t, pc], ri) => (
                 <div key={ri} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
-                  <span style={{ width: 18, textAlign: "center", fontSize: 12 }}>{i2}</span>
+                  <span style={{ width: 18, textAlign: "center", color: "rgba(0,255,135,.75)", display: "inline-flex", justifyContent: "center" }}><RowIco k={i2} /></span>
                   <span style={{ flex: 1, fontSize: 12.5, color: "rgba(255,255,255,.75)" }}>{t}</span>
                   <span style={{ fontWeight: 900, fontSize: 13, color: "#00ff87" }}>{pc}</span>
                 </div>
@@ -508,13 +521,13 @@ export default function GreenprintApp() {
             <h1 style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px", textAlign: "center" }}>Everything in one app</h1>
             <p style={{ margin: "0 0 26px", color: "rgba(255,255,255,.45)", fontSize: 14, textAlign: "center" }}>Built to make you sharper every single day.</p>
             {([
-              ["🎯", "Daily Picks", "Live props across every major sport, ranked by real hit rates — updates itself all day."],
-              ["📺", "Live Trading", "Watch live trading sessions the second they start — the app lights up automatically."],
-              ["💬", "Community", "Chat with the whole Greenprint fam in real time."],
-              ["📓", "Trade Journal", "Log trades, track P&L and win rate like a pro."],
+              ["target", "Daily Picks", "Live props across every major sport, ranked by real hit rates — updates itself all day."],
+              ["live", "Live Trading", "Watch live trading sessions the second they start — the app lights up automatically."],
+              ["chat", "Community", "Chat with the whole Greenprint fam in real time."],
+              ["journal", "Trade Journal", "Log trades, track P&L and win rate like a pro."],
             ] as [string, string, string][]).map(([ico, t, d], fi) => (
               <div key={fi} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, padding: "15px 16px", marginBottom: 10, animation: `fadeUp .4s ease ${0.08 * fi}s both` }}>
-                <span style={{ fontSize: 24, width: 34, textAlign: "center" }}>{ico}</span>
+                <span style={{ width: 34, textAlign: "center", color: "#00ff87", display: "inline-flex", justifyContent: "center", paddingTop: 2 }}>{ico === "target" ? <IcoTarget s={24} /> : ico === "live" ? <IcoLive s={24} /> : ico === "chat" ? <IcoChat s={24} /> : <IcoJournal s={24} />}</span>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: 15 }}>{t}</div>
                   <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.45)", marginTop: 3, lineHeight: 1.45 }}>{d}</div>
@@ -529,11 +542,11 @@ export default function GreenprintApp() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 430, width: "100%", margin: "0 auto", animation: "fadeUp .4s ease", position: "relative" }}>
             <h1 style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 900, letterSpacing: "-.5px" }}>What are you here for?</h1>
             <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,.45)", fontSize: 14 }}>We&apos;ll shape the app around it.</p>
-            {([["📈", "Trading", "Live sessions, education & journal"], ["🎯", "Picks", "High-probability props & slips"], ["💰", "Both", "The full Greenprint experience"]] as [string, string, string][]).map(([ico, t, d]) => {
+            {([["trend", "Trading", "Live sessions, education & journal"], ["target", "Picks", "High-probability props & slips"], ["bolt", "Both", "The full Greenprint experience"]] as [string, string, string][]).map(([ico, t, d]) => {
               const on = purpose === t;
               return (
                 <div key={t} onClick={() => setPurpose(t)} style={{ ...tile(on), textAlign: "left", display: "flex", gap: 14, alignItems: "center", padding: "17px 16px", marginBottom: 10 }}>
-                  <span style={{ fontSize: 24 }}>{ico}</span>
+                  <span style={{ color: on ? "#00ff87" : "rgba(255,255,255,.7)", display: "inline-flex" }}>{ico === "trend" ? <IcoTrend s={24} /> : ico === "target" ? <IcoTarget s={24} /> : <IcoBolt s={24} />}</span>
                   <div>
                     <div style={{ fontWeight: 900, fontSize: 15 }}>{t}</div>
                     <div style={{ fontSize: 12, color: on ? "rgba(0,255,135,.7)" : "rgba(255,255,255,.4)", marginTop: 2 }}>{d}</div>
@@ -658,7 +671,7 @@ export default function GreenprintApp() {
             </div>
             {record && (
               <div style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", marginBottom: 14, border: "1px solid rgba(0,255,135,.25)" }}>
-                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "1.5px", color: "rgba(255,255,255,.55)" }}>📊 GP RECORD · YESTERDAY</span>
+                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "1.5px", color: "rgba(255,255,255,.55)", display: "inline-flex", alignItems: "center", gap: 7 }}><span style={{ color: "#00ff87", display: "inline-flex" }}><IcoBars s={12} /></span>GP RECORD · YESTERDAY</span>
                 <span style={{ fontWeight: 900, fontSize: 16, color: record.w >= record.l ? "#00ff87" : "#ff6b6b" }}>
                   {record.w}-{record.l} <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>({Math.round((record.w / (record.w + record.l)) * 100)}%)</span>
                 </span>
@@ -683,7 +696,7 @@ export default function GreenprintApp() {
                     )}
                   </div>
                   <div style={{ ...card, marginTop: 10, display: "flex", flexDirection: "column", height: 250 }}>
-                    <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,.06)", fontWeight: 800, fontSize: 11.5, letterSpacing: "1px", color: "rgba(255,255,255,.55)", flexShrink: 0 }}>💬 STREAM CHAT</div>
+                    <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,.06)", fontWeight: 800, fontSize: 11.5, letterSpacing: "1px", color: "rgba(255,255,255,.55)", flexShrink: 0, display: "flex", alignItems: "center", gap: 7 }}><span style={{ color: "#00ff87", display: "inline-flex" }}><IcoChat s={12} /></span>STREAM CHAT</div>
                     <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
                       {liveChat.map((m, i) => (
                         <div key={i} style={{ marginBottom: 7, fontSize: 12.5, lineHeight: 1.4 }}>
@@ -713,7 +726,7 @@ export default function GreenprintApp() {
               )
             ) : (
               <div style={{ ...card, padding: 40, textAlign: "center" }}>
-                <div style={{ fontSize: 54, marginBottom: 16 }}>📡</div>
+                <div style={{ marginBottom: 16, color: "rgba(0,255,135,.45)", display: "flex", justifyContent: "center" }}><IcoLive s={48} /></div>
                 <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: "rgba(255,255,255,.75)" }}>Stream Offline</h2>
                 <p style={{ color: "rgba(255,255,255,.35)", fontSize: 13.5, margin: "0 0 6px" }}>The moment we go live, this page lights up automatically.</p>
                 <p style={{ color: "rgba(0,255,135,.6)", fontSize: 12.5, margin: 0, fontWeight: 700 }}>Keep the app open — no refresh needed.</p>
@@ -722,12 +735,12 @@ export default function GreenprintApp() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
               <button onClick={() => setTab("picks")} style={{ ...card, padding: "20px 16px", textAlign: "left", cursor: "pointer", color: "#fff" }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>🎯</div>
+                <div style={{ marginBottom: 8, color: "#00ff87" }}><IcoTarget s={24} /></div>
                 <div style={{ fontWeight: 900, fontSize: 15 }}>Today&apos;s Picks</div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 3 }}>Highest probability props</div>
               </button>
               <a href="/onboard" style={{ ...card, padding: "20px 16px", textAlign: "left", textDecoration: "none", color: "#fff", display: "block" }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>🚀</div>
+                <div style={{ marginBottom: 8, color: "#00ff87" }}><IcoArrowUp s={24} /></div>
                 <div style={{ fontWeight: 900, fontSize: 15 }}>Get Onboarded</div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 3 }}>Broker, chats &amp; setup</div>
               </a>
@@ -736,9 +749,12 @@ export default function GreenprintApp() {
             {pod && (
               <div style={{ borderRadius: 20, padding: 1.5, background: "linear-gradient(135deg,rgba(255,215,0,.55),rgba(0,255,135,.45),rgba(0,255,135,.1))", marginTop: 14 }}>
                 <div style={{ background: "#060f09", borderRadius: 19, padding: "15px 16px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "2px", color: "#ffd700", marginBottom: 10 }}>🔥 PICK OF THE DAY</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "2px", color: "#ffd700", marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}><IcoFlame s={12} />PICK OF THE DAY</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#00ff87", flexShrink: 0 }}>{pod.p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}</div>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#00ff87", flexShrink: 0, position: "relative", overflow: "hidden" }}>
+                      {pod.p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}
+                      {pod.r?.headshot && <img src={pod.r.headshot} alt="" onError={e => { e.currentTarget.style.display = "none"; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#0c130e" }} />}
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 900, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.p.player}</div>
                       <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginTop: 2 }}>
@@ -753,13 +769,13 @@ export default function GreenprintApp() {
             )}
 
             <div style={{ margin: "20px 2px 10px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#00ff87" }}>🎓 TRADING ACADEMY</span>
+              <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#00ff87", display: "inline-flex", alignItems: "center", gap: 7 }}><IcoJournal s={14} />TRADING ACADEMY</span>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>the fundamentals, free</span>
             </div>
             {LESSONS.map((l, li) => (
               <div key={li} style={{ ...card, marginBottom: 8, overflow: "hidden" }}>
                 <div onClick={() => setOpenLesson(openLesson === li ? null : li)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}>
-                  <span style={{ fontSize: 19 }}>{l.ico}</span>
+                  <span style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#00ff87", flexShrink: 0 }}>{String(li + 1).padStart(2, "0")}</span>
                   <span style={{ flex: 1, fontWeight: 800, fontSize: 14 }}>{l.title}</span>
                   <span style={{ color: "rgba(0,255,135,.6)", fontSize: 13, fontWeight: 900, transform: openLesson === li ? "rotate(90deg)" : "none", transition: "transform .2s" }}>›</span>
                 </div>
@@ -782,7 +798,7 @@ export default function GreenprintApp() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,255,135,.06)", border: "1px solid rgba(0,255,135,.2)", borderRadius: 14, padding: "10px 14px", marginBottom: 14 }}>
-              <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700 }}>🟢 LIVE BOARD · highest hit % first</span>
+              <span style={{ fontSize: 11.5, color: "rgba(0,255,135,.85)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 7 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00ff87", display: "inline-block", boxShadow: "0 0 8px rgba(0,255,135,.8)" }} />LIVE BOARD · highest hit % first</span>
               {propsUpdated && <span style={{ fontSize: 10, color: "rgba(255,255,255,.3)", fontWeight: 600 }}>as of {fmtStart(propsUpdated) || "now"}</span>}
             </div>
 
@@ -802,7 +818,7 @@ export default function GreenprintApp() {
 
             {!propsLoading && propsErr && (
               <div style={{ ...card, padding: 34, textAlign: "center" }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📡</div>
+                <div style={{ marginBottom: 10, color: "rgba(0,255,135,.4)", display: "flex", justifyContent: "center" }}><IcoLive s={36} /></div>
                 <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, margin: 0 }}>Feed hiccup — it retries automatically. Check back in a minute.</p>
               </div>
             )}
@@ -817,7 +833,7 @@ export default function GreenprintApp() {
             {!propsLoading && slips.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "2px 2px 10px" }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#ffd700" }}>⚡ GP SLIPS</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#ffd700", display: "inline-flex", alignItems: "center", gap: 6 }}><IcoBolt s={13} />GP SLIPS</span>
                   <span style={{ fontSize: 10, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>built from today&apos;s highest hit rates</span>
                 </div>
                 {slips.map((legs, si) => {
@@ -850,13 +866,16 @@ export default function GreenprintApp() {
             {!propsLoading && ranked.slice(0, visibleCount).map(({ p, pct }, i) => (
               <div key={rateKey(p)} style={{ ...card, padding: 16, marginBottom: 10, border: pct != null && pct >= 80 ? "1px solid rgba(255,215,0,.35)" : undefined, animation: "fadeUp .45s ease both", animationDelay: `${Math.min(i, 12) * 40}ms`, transition: "border .3s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 14, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0, position: "relative", overflow: "hidden" }}>
                     {p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}
+                    {rates[rateKey(p)]?.headshot && (
+                      <img src={rates[rateKey(p)]!.headshot} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#0c130e" }} />
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 900, fontSize: 15.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {p.player}
-                      {pct != null && pct >= 80 && <span style={{ marginLeft: 7, fontSize: 9, fontWeight: 900, letterSpacing: "1px", color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.35)", borderRadius: 6, padding: "2px 6px", verticalAlign: "middle" }}>🔥 ELITE</span>}
+                      {pct != null && pct >= 80 && <span style={{ marginLeft: 7, fontSize: 9, fontWeight: 900, letterSpacing: "1px", color: "#ffd700", background: "rgba(255,215,0,.1)", border: "1px solid rgba(255,215,0,.35)", borderRadius: 6, padding: "2px 6px", verticalAlign: "middle" }}>ELITE</span>}
                       {pct != null && pct >= 70 && pct < 80 && <span style={{ marginLeft: 7, fontSize: 9, fontWeight: 900, letterSpacing: "1px", color: "#00ff87", background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.35)", borderRadius: 6, padding: "2px 6px", verticalAlign: "middle" }}>SMASH</span>}
                     </div>
                     <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -896,7 +915,7 @@ export default function GreenprintApp() {
                         {p.player} has {over ? "exceeded" : "failed to exceed"} {p.line} {propLc} in {over ? w.h : w.of - w.h} of the last {w.of} games{r.avg != null ? ` (${r.avg} ${propLc}/game average)` : ""}.
                       </p>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "9px 12px", marginBottom: 10 }}>
-                        <span style={{ fontWeight: 900, fontSize: 13.5 }}>📊 {over ? "Over" : "Under"} {p.line} {p.prop}</span>
+                        <span style={{ fontWeight: 900, fontSize: 13.5, display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ color: "#00ff87", display: "inline-flex" }}><IcoBars s={13} /></span>{over ? "Over" : "Under"} {p.line} {p.prop}</span>
                         <span style={{ fontSize: 10, color: "rgba(0,255,135,.7)", fontWeight: 900, letterSpacing: "1px" }}>{p.board.toUpperCase()}</span>
                       </div>
                       {segs && (
@@ -935,7 +954,7 @@ export default function GreenprintApp() {
           <div className="tabIn" style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 190px)", minHeight: 360 }}>
             {!chatName ? (
               <div style={{ ...card, padding: 30, textAlign: "center", margin: "auto 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
+                <div style={{ marginBottom: 12, color: "rgba(0,255,135,.5)", display: "flex", justifyContent: "center" }}><IcoChat s={38} /></div>
                 <h3 style={{ margin: "0 0 6px", fontWeight: 900, fontSize: 19 }}>Join the Community</h3>
                 <p style={{ color: "rgba(255,255,255,.4)", fontSize: 13, margin: "0 0 20px" }}>Pick a name — it shows next to your messages.</p>
                 <input className="gpInput" value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && nameDraft.trim()) { setChatName(nameDraft.trim()); try { localStorage.setItem("gp_chat_name", nameDraft.trim()); } catch {} } }} placeholder="Your name" style={{ marginBottom: 12 }} />
@@ -966,7 +985,7 @@ export default function GreenprintApp() {
                 {isHostUser && (
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                     <button onClick={() => { const n = chatName === "Host" ? (JSON.parse(localStorage.getItem("gp_viewer") || "{}")?.name || "Host") : "Host"; setChatName(n); }} style={{ flex: 1, background: chatName === "Host" ? "rgba(255,153,0,.15)" : "rgba(255,255,255,.05)", border: chatName === "Host" ? "1px solid rgba(255,153,0,.5)" : "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: chatName === "Host" ? "#ff9900" : "rgba(255,255,255,.55)", fontWeight: 800, fontSize: 11.5, padding: "8px 0", cursor: "pointer" }}>
-                      {chatName === "Host" ? "👑 Chatting as Host" : "Chat as Host"}
+                      {chatName === "Host" ? "Chatting as Host ✓" : "Chat as Host"}
                     </button>
                     <button onClick={async () => { if (!confirm("Clear the entire community chat?")) return; try { await fetch(`${FB}/community/chat.json`, { method: "DELETE" }); } catch {} setMsgs([]); }} style={{ flex: 1, background: "rgba(255,45,85,.08)", border: "1px solid rgba(255,45,85,.35)", borderRadius: 10, color: "#ff2d55", fontWeight: 800, fontSize: 11.5, padding: "8px 0", cursor: "pointer" }}>🧹 Clear chat</button>
                   </div>
@@ -985,7 +1004,7 @@ export default function GreenprintApp() {
           <div className="tabIn">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
               <div style={{ ...card, padding: "16px 14px", textAlign: "center", border: streak >= 3 ? "1px solid rgba(255,215,0,.35)" : undefined }}>
-                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, letterSpacing: "1px", marginBottom: 6 }}>🔥 STREAK</div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, letterSpacing: "1px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><span style={{ color: streak > 0 ? "#ffd700" : "rgba(255,255,255,.3)", display: "inline-flex" }}><IcoFlame s={11} /></span>STREAK</div>
                 <div style={{ fontWeight: 900, fontSize: 17, color: streak >= 3 ? "#ffd700" : streak > 0 ? "#00ff87" : "rgba(255,255,255,.6)" }}>{trades.length ? `${streak} W` : "—"}</div>
               </div>
               <div style={{ ...card, padding: "16px 14px", textAlign: "center" }}>
@@ -1029,7 +1048,7 @@ export default function GreenprintApp() {
 
             {trades.length === 0 && !showForm && (
               <div style={{ ...card, padding: 36, textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📓</div>
+                <div style={{ marginBottom: 12, color: "rgba(0,255,135,.5)", display: "flex", justifyContent: "center" }}><IcoJournal s={38} /></div>
                 <p style={{ color: "rgba(255,255,255,.35)", fontSize: 13.5, margin: 0 }}>Your journal is empty. Every pro tracks their trades — start with your last one.</p>
               </div>
             )}
@@ -1078,13 +1097,13 @@ export default function GreenprintApp() {
                   </div>
                 ))}
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button onClick={shareSlip} className="gpBtn" style={{ flex: 1, padding: "11px 0", fontSize: 13 }}>📤 Share Slip</button>
+                  <button onClick={shareSlip} className="gpBtn" style={{ flex: 1, padding: "11px 0", fontSize: 13 }}>Share Slip →</button>
                   <button onClick={() => { setSlip([]); setSlipOpen(false); }} style={{ padding: "0 16px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "rgba(255,255,255,.55)", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Clear</button>
                 </div>
               </div>
             )}
             <button onClick={() => setSlipOpen(o => !o)} style={{ width: "100%", padding: "13px 16px", background: "linear-gradient(135deg,#00ff87,#00c864)", border: "none", borderRadius: 14, fontWeight: 900, color: "#000", fontSize: 13.5, cursor: "pointer", display: "flex", justifyContent: "space-between", boxShadow: "0 8px 30px rgba(0,255,135,.35)" }}>
-              <span>🧾 Slip · {slip.length} leg{slip.length > 1 ? "s" : ""}</span>
+              <span>Slip · {slip.length} leg{slip.length > 1 ? "s" : ""}</span>
               <span>{Math.round(slip.reduce((a, s) => a * s.eff / 100, 1) * 100)}% est · {slipOpen ? "close ▾" : "view ▴"}</span>
             </button>
           </div>
@@ -1094,10 +1113,10 @@ export default function GreenprintApp() {
       {/* ── bottom nav ── */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,.07)", background: "rgba(3,5,3,.9)", backdropFilter: "blur(24px)", paddingBottom: "env(safe-area-inset-bottom,0px)", position: "relative", zIndex: 3 }}>
         <div style={{ display: "flex", maxWidth: 560, margin: "0 auto" }}>
-          <button className={`navBtn${tab === "live" ? " on" : ""}`} onClick={() => setTab("live")}><span className="navIco">📺</span>LIVE</button>
-          <button className={`navBtn${tab === "picks" ? " on" : ""}`} onClick={() => setTab("picks")}><span className="navIco">🎯</span>PICKS</button>
-          <button className={`navBtn${tab === "chat" ? " on" : ""}`} onClick={() => setTab("chat")}><span className="navIco">💬</span>COMMUNITY</button>
-          <button className={`navBtn${tab === "journal" ? " on" : ""}`} onClick={() => setTab("journal")}><span className="navIco">📓</span>JOURNAL</button>
+          <button className={`navBtn${tab === "live" ? " on" : ""}`} onClick={() => setTab("live")}><span className="navIco"><IcoLive /></span>LIVE</button>
+          <button className={`navBtn${tab === "picks" ? " on" : ""}`} onClick={() => setTab("picks")}><span className="navIco"><IcoTarget /></span>PICKS</button>
+          <button className={`navBtn${tab === "chat" ? " on" : ""}`} onClick={() => setTab("chat")}><span className="navIco"><IcoChat /></span>COMMUNITY</button>
+          <button className={`navBtn${tab === "journal" ? " on" : ""}`} onClick={() => setTab("journal")}><span className="navIco"><IcoJournal /></span>JOURNAL</button>
         </div>
       </div>
     </div>
