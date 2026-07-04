@@ -166,7 +166,9 @@ module.exports = async function handler(req, res) {
     last10.forEach(r => { const v = pick(r.stats); if (!isNaN(v)) { sum += v; cnt++; } });
     const avg = cnt ? Math.round((sum / cnt) * 10) / 10 : null;
 
-    return res.status(200).json({ player: player, league: league, prop: prop, line: line, n: games.length, l5: win(5), l10: win(10), l20: win(20), recent: recent, avg: avg });
+    const seg = ath.path.indexOf('soccer/') === 0 ? 'soccer' : ath.path.split('/')[1];
+    const headshot = 'https://a.espncdn.com/i/headshots/' + seg + '/players/full/' + ath.id + '.png';
+    return res.status(200).json({ player: player, league: league, prop: prop, line: line, n: games.length, l5: win(5), l10: win(10), l20: win(20), recent: recent, avg: avg, headshot: headshot });
   } catch (e) {
     return res.status(200).json({ error: 'feed_unavailable' });
   }
