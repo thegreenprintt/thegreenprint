@@ -94,6 +94,8 @@ export default function GreenprintApp() {
   const [liveDraft, setLiveDraft] = useState("");
   const [record, setRecord] = useState<{ w: number; l: number } | null>(null);
   const liveChatEnd = useRef<HTMLDivElement>(null);
+  const liveChatBox = useRef<HTMLDivElement>(null);
+  const chatBox = useRef<HTMLDivElement>(null);
   const lastLiveSend = useRef(0);
   const snapshotDone = useRef<Record<string, boolean>>({});
   const recordTried = useRef(false);
@@ -337,7 +339,7 @@ export default function GreenprintApp() {
     const id = setInterval(poll, 2500);
     return () => clearInterval(id);
   }, [tab, watching]);
-  useEffect(() => { liveChatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [liveChat]);
+  useEffect(() => { if (liveChatBox.current) liveChatBox.current.scrollTop = liveChatBox.current.scrollHeight; }, [liveChat]);
 
   // ── lazy board rendering ──
   useEffect(() => { setVisibleCount(40); }, [league, tab]);
@@ -421,7 +423,7 @@ export default function GreenprintApp() {
     const id = setInterval(poll, 2500);
     return () => clearInterval(id);
   }, [tab]);
-  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+  useEffect(() => { if (chatBox.current) chatBox.current.scrollTop = chatBox.current.scrollHeight; }, [msgs]);
 
   const sendMsg = async () => {
     const text = draft.trim(); if (!text || !chatName) return;
@@ -697,7 +699,7 @@ export default function GreenprintApp() {
                   </div>
                   <div style={{ ...card, marginTop: 10, display: "flex", flexDirection: "column", height: 250 }}>
                     <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,.06)", fontWeight: 800, fontSize: 11.5, letterSpacing: "1px", color: "rgba(255,255,255,.55)", flexShrink: 0, display: "flex", alignItems: "center", gap: 7 }}><span style={{ color: "#00ff87", display: "inline-flex" }}><IcoChat s={12} /></span>STREAM CHAT</div>
-                    <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+                    <div ref={liveChatBox} style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
                       {liveChat.map((m, i) => (
                         <div key={i} style={{ marginBottom: 7, fontSize: 12.5, lineHeight: 1.4 }}>
                           <span style={{ color: m.name === "Host" ? "#ff9900" : nc(m.name), fontWeight: 800 }}>{m.name}</span>{" "}
@@ -962,7 +964,7 @@ export default function GreenprintApp() {
               </div>
             ) : (
               <>
-                <div style={{ ...card, flex: 1, overflowY: "auto", padding: "14px 14px 6px", marginBottom: 10 }}>
+                <div ref={chatBox} style={{ ...card, flex: 1, overflowY: "auto", padding: "14px 14px 6px", marginBottom: 10 }}>
                   {msgs.length === 0 && (
                     <div style={{ textAlign: "center", padding: "60px 0" }}>
                       <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#00ff87,#00c864)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><span style={{ fontWeight: 900, fontSize: 17, color: "#000" }}>GP</span></div>
