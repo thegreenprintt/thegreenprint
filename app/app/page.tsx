@@ -39,6 +39,16 @@ const fmtStart = (iso: string) => {
 
 const fmtMoney = (n: number) => (n < 0 ? "-$" : "+$") + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
+// ─── TRADING ACADEMY ─────────────────────────────────────────────────────────
+const LESSONS: { ico: string; title: string; body: string }[] = [
+  { ico: "🛡️", title: "Risk Management First", body: "Rule one: survive. Never risk more than 1–2% of your account on a single trade. A 10-trade losing streak at 1% risk costs you ~10% — painful but recoverable. The same streak at 10% risk ends your account. Position size is decided BEFORE the trade, from your stop distance — never from how confident you feel." },
+  { ico: "🧠", title: "Trade the Plan, Not the Feeling", body: "Write your entry, stop, and target before you click. If the setup isn't on your plan, it isn't a trade — it's a gamble. The market pays disciplined traders and taxes emotional ones. Log every trade in your Journal tab: the note you write after a loss is worth more than the win." },
+  { ico: "📊", title: "How to Read Player Props", body: "A prop is a line — the book's guess at a player's stat. Our board shows the real hit rate: how often the player actually beat that exact line in their last 5/10/20 games. High hit rate + big sample beats gut feeling. One hot game means nothing; 8 of the last 10 means something." },
+  { ico: "💵", title: "Bankroll for Picks", body: "Treat picks like trading: units, not vibes. One unit = 1–3% of your bankroll, every play the same size. Avoid stacking correlated legs in one slip (two players from the same blowout game can die together). The goal is staying in the game long enough for your edge to show up." },
+  { ico: "📈", title: "Prep Like a Pro", body: "Before every session: mark your levels, build a watchlist of 3–5 names max, and pick ONE setup you're hunting. When the bell rings you're executing a checklist, not searching for action. Catch the live sessions — watching decisions in real time is the fastest way to learn." },
+  { ico: "⏱️", title: "When NOT to Trade", body: "No setup? No trade. Choppy market? No trade. Just took two losses and feel the revenge coming? Walk away — that's the most profitable decision of your day. The market opens again tomorrow. Flat is a position, and often the best one." },
+];
+
 export default function GreenprintApp() {
   const [tab, setTab] = useState<"live" | "picks" | "chat" | "journal">("live");
   const [isLive, setIsLive] = useState(false);
@@ -60,6 +70,8 @@ export default function GreenprintApp() {
   const [appHasVideo, setAppHasVideo] = useState(false);
   const [appNeedTap, setAppNeedTap] = useState(false);
   const [appConnecting, setAppConnecting] = useState(false);
+  const [pod, setPod] = useState<{ p: LiveProp; r: HitRate | null } | null>(null);
+  const [openLesson, setOpenLesson] = useState<number | null>(null);
 
   // First-open setup (Linemate-style onboarding)
   const [setupDone, setSetupDone] = useState(true);
@@ -187,6 +199,36 @@ export default function GreenprintApp() {
     setTab("picks");
   };
 
+  // ── pick of the day (home hub) ──
+  useEffect(() => {
+    if (tab !== "live" || pod) return;
+    let dead = false;
+    (async () => {
+      try {
+        const fav = leagueOrder[0];
+        const j = await fetch(`/api/props?league=${fav}`).then(x => x.json());
+        const props: LiveProp[] = Array.isArray(j?.props) ? j.props : [];
+        if (dead || !props.length) return;
+        let best: { p: LiveProp; r: HitRate; pct: number } | null = null;
+        if (STATS_LEAGUES.includes(fav)) {
+          for (const p of props.slice(0, 6)) {
+            try {
+              const r = await fetch(`/api/hitrate?league=${fav}&player=${encodeURIComponent(p.player)}&prop=${encodeURIComponent(p.prop)}&line=${p.line}`).then(x => x.json());
+              if (dead) return;
+              if (r && !r.error && r.l10 && r.l10.of) {
+                const pc = Math.round((r.l10.h / r.l10.of) * 100);
+                const eff = pc >= 50 ? pc : 100 - pc;
+                if (!best || eff > best.pct) best = { p, r, pct: eff };
+              }
+            } catch {}
+          }
+        }
+        if (!dead) setPod(best ? { p: best.p, r: best.r } : { p: props[0], r: null });
+      } catch {}
+    })();
+    return () => { dead = true; };
+  }, [tab, leagueOrder]);
+
   // ── live props board — fetches itself, refreshes every 10 min ──
   useEffect(() => {
     if (tab !== "picks") return;
@@ -264,6 +306,7 @@ export default function GreenprintApp() {
   const totalPnl = trades.reduce((a, t) => a + pnl(t), 0);
   const wins = trades.filter(t => pnl(t) > 0).length;
   const winRate = trades.length ? Math.round((wins / trades.length) * 100) : 0;
+  const streak = (() => { let s = 0; for (const t of trades) { if (pnl(t) > 0) s++; else break; } return s; })();
 
   // ── ranked board + suggested slips (Linemate-style) ──
   const ranked = liveProps
@@ -441,7 +484,10 @@ export default function GreenprintApp() {
         .tabIn{animation:fadeUp .35s ease}
         .gpInput{width:100%;padding:13px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;color:#fff;font-size:15px;outline:none;box-sizing:border-box}
         .gpInput:focus{border-color:rgba(0,255,135,.5)}
-        .gpBtn{background:linear-gradient(135deg,#00ff87,#00c864);border:none;border-radius:14px;color:#000;font-weight:900;cursor:pointer;font-size:15px}
+        .gpBtn{background:linear-gradient(135deg,#00ff87,#00c864);border:none;border-radius:14px;color:#000;font-weight:900;cursor:pointer;font-size:15px;transition:transform .12s ease}
+        .gpBtn:active{transform:scale(.96)}
+        .chip{transition:all .15s ease}
+        .chip:active{transform:scale(.93)}
         .chip{border-radius:20px;padding:7px 16px;font-size:13px;font-weight:800;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);transition:all .15s}
         .chip.on{background:rgba(0,255,135,.14);border-color:rgba(0,255,135,.5);color:#00ff87}
         .navBtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 5px;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.35);font-size:10px;font-weight:800;letter-spacing:.5px}
@@ -478,6 +524,14 @@ export default function GreenprintApp() {
         {/* ══ LIVE ══ */}
         {tab === "live" && (
           <div className="tabIn">
+            <div style={{ margin: "4px 2px 14px" }}>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-.5px" }}>
+                {chatName ? <>Welcome back, <span style={{ color: "#00ff87" }}>{chatName.split(" ")[0]}</span> 👋</> : <>Welcome to the Greenprint 👋</>}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginTop: 3, fontWeight: 600 }}>
+                {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · let&apos;s get it
+              </div>
+            </div>
             {isLive ? (
               watching ? (
                 <>
@@ -530,6 +584,43 @@ export default function GreenprintApp() {
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginTop: 3 }}>Broker, chats &amp; setup</div>
               </a>
             </div>
+
+            {pod && (
+              <div style={{ borderRadius: 20, padding: 1.5, background: "linear-gradient(135deg,rgba(255,215,0,.55),rgba(0,255,135,.45),rgba(0,255,135,.1))", marginTop: 14 }}>
+                <div style={{ background: "#060f09", borderRadius: 19, padding: "15px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "2px", color: "#ffd700", marginBottom: 10 }}>🔥 PICK OF THE DAY</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#00ff87", flexShrink: 0 }}>{pod.p.player.split(" ").map(w => w.charAt(0)).slice(0, 2).join("").toUpperCase()}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 900, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.p.player}</div>
+                      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginTop: 2 }}>
+                        {(() => { if (!pod.r || !pod.r.l10 || !pod.r.l10.of) return `${pod.p.line} ${pod.p.prop} · ${fmtStart(pod.p.start)}`; const pc = Math.round((pod.r.l10.h / pod.r.l10.of) * 100); const over = pc >= 50; return `${over ? "Over" : "Under"} ${pod.p.line} ${pod.p.prop} · hit ${over ? pod.r.l10.h : pod.r.l10.of - pod.r.l10.h} of last ${pod.r.l10.of}`; })()}
+                      </div>
+                    </div>
+                    {pod.r && pod.r.l10 && pod.r.l10.of ? (() => { const pc = Math.round((pod.r!.l10.h / pod.r!.l10.of) * 100); const shown = pc >= 50 ? pc : 100 - pc; return <div style={{ fontWeight: 900, fontSize: 21, color: pctColor(shown), flexShrink: 0 }}>{shown}%</div>; })() : null}
+                  </div>
+                  <button onClick={() => setTab("picks")} style={{ width: "100%", marginTop: 12, padding: "11px 0", background: "rgba(0,255,135,.1)", border: "1px solid rgba(0,255,135,.35)", borderRadius: 12, color: "#00ff87", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>See the full board →</button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ margin: "20px 2px 10px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "2px", color: "#00ff87" }}>🎓 TRADING ACADEMY</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>the fundamentals, free</span>
+            </div>
+            {LESSONS.map((l, li) => (
+              <div key={li} style={{ ...card, marginBottom: 8, overflow: "hidden" }}>
+                <div onClick={() => setOpenLesson(openLesson === li ? null : li)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}>
+                  <span style={{ fontSize: 19 }}>{l.ico}</span>
+                  <span style={{ flex: 1, fontWeight: 800, fontSize: 14 }}>{l.title}</span>
+                  <span style={{ color: "rgba(0,255,135,.6)", fontSize: 13, fontWeight: 900, transform: openLesson === li ? "rotate(90deg)" : "none", transition: "transform .2s" }}>›</span>
+                </div>
+                {openLesson === li && (
+                  <div style={{ padding: "0 16px 15px 47px", fontSize: 13, lineHeight: 1.65, color: "rgba(255,255,255,.65)", animation: "fadeUp .25s ease" }}>{l.body}</div>
+                )}
+              </div>
+            ))}
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,.25)", textAlign: "center", margin: "14px 0 4px", lineHeight: 1.5 }}>Educational purposes only · not financial advice · trading involves risk of loss.</p>
           </div>
         )}
 
@@ -740,7 +831,11 @@ export default function GreenprintApp() {
         {/* ══ JOURNAL ══ */}
         {tab === "journal" && (
           <div className="tabIn">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div style={{ ...card, padding: "16px 14px", textAlign: "center", border: streak >= 3 ? "1px solid rgba(255,215,0,.35)" : undefined }}>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, letterSpacing: "1px", marginBottom: 6 }}>🔥 STREAK</div>
+                <div style={{ fontWeight: 900, fontSize: 17, color: streak >= 3 ? "#ffd700" : streak > 0 ? "#00ff87" : "rgba(255,255,255,.6)" }}>{trades.length ? `${streak} W` : "—"}</div>
+              </div>
               <div style={{ ...card, padding: "16px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.4)", fontWeight: 800, letterSpacing: "1px", marginBottom: 6 }}>NET P&amp;L</div>
                 <div style={{ fontWeight: 900, fontSize: 17, color: totalPnl >= 0 ? "#00ff87" : "#ff6b6b" }}>{trades.length ? fmtMoney(totalPnl) : "—"}</div>
