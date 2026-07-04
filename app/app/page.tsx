@@ -25,6 +25,8 @@ const IcoBars = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewB
 const IcoTrend = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></svg>);
 const IcoFlame = ({ s = 13 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2s5.5 5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2 .8-3.8 1.8-5.3 0 0 .7 2.2 2.2 3.3C10.5 8 11 5 12 2z" /></svg>);
 const IcoArrowUp = ({ s = 19 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M7 17L17 7M9 7h8v8" /></svg>);
+const IcoExpand = ({ s = 16 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>);
+const IcoPip = ({ s = 16 }: { s?: number }) => (<svg width={s} height={s} viewBox="0 0 24 24" {...icp}><rect x="2" y="4" width="20" height="16" rx="2.5" /><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none" /></svg>);
 const RowIco = ({ k }: { k: string }) => (k === "l5" ? <IcoBolt /> : k === "l10" ? <IcoBars /> : <IcoTrend />);
 const STATS_LEAGUES = ["NBA", "WNBA", "MLB", "NFL", "NHL", "SOCCER", "NCAAF", "NCAAB"];
 const rateKey = (p: LiveProp) => p.player + "|" + p.prop + "|" + p.line;
@@ -79,6 +81,7 @@ export default function GreenprintApp() {
   // In-app stream player (connects directly — no iframe)
   const appRoomRef = useRef<any>(null);
   const appVideoRef = useRef<HTMLVideoElement>(null);
+  const playerBoxRef = useRef<HTMLDivElement>(null);
   const pendingAppTrack = useRef<any>(null);
   const [appHasVideo, setAppHasVideo] = useState(false);
   const [appNeedTap, setAppNeedTap] = useState(false);
@@ -209,6 +212,27 @@ export default function GreenprintApp() {
     if (tab === "live") return;
     if (appRoomRef.current) { try { appRoomRef.current.disconnect(); } catch {} appRoomRef.current = null; setWatching(false); setAppHasVideo(false); setAppNeedTap(false); }
   }, [tab]);
+
+  const goFullscreen = () => {
+    const v: any = appVideoRef.current;
+    const c: any = playerBoxRef.current;
+    try {
+      if (v && typeof v.webkitEnterFullscreen === "function" && /iPhone|iPod/.test(navigator.userAgent)) { v.webkitEnterFullscreen(); return; }
+      const el = c || v;
+      if (el && el.requestFullscreen) el.requestFullscreen().catch(() => { if (v?.webkitEnterFullscreen) v.webkitEnterFullscreen(); });
+      else if (v && v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+    } catch {}
+  };
+
+  const goPiP = async () => {
+    const v: any = appVideoRef.current;
+    if (!v) return;
+    try {
+      if ((document as any).pictureInPictureElement) { await (document as any).exitPictureInPicture(); return; }
+      if (v.requestPictureInPicture) await v.requestPictureInPicture();
+      else if (typeof v.webkitSetPresentationMode === "function") v.webkitSetPresentationMode(v.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture");
+    } catch {}
+  };
 
   const sendLiveMsg = async () => {
     const t = liveDraft.trim();
@@ -682,8 +706,12 @@ export default function GreenprintApp() {
             {isLive ? (
               watching ? (
                 <>
-                  <div style={{ ...card, overflow: "hidden", position: "relative", background: "#000", height: "40dvh", minHeight: 260, border: "1px solid rgba(0,255,135,.3)" }}>
+                  <div ref={playerBoxRef} style={{ ...card, overflow: "hidden", position: "relative", background: "#000", height: "40dvh", minHeight: 260, border: "1px solid rgba(0,255,135,.3)" }}>
                     <video ref={appVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                    <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 8, zIndex: 5 }}>
+                      <button onClick={goPiP} title="Picture in Picture" style={{ width: 36, height: 32, background: "rgba(0,0,0,.55)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><IcoPip /></button>
+                      <button onClick={goFullscreen} title="Fullscreen" style={{ width: 36, height: 32, background: "rgba(0,0,0,.55)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><IcoExpand /></button>
+                    </div>
                     {!appHasVideo && (
                       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
                         <div style={{ width: 38, height: 38, border: "3px solid rgba(0,255,135,.25)", borderTopColor: "#00ff87", borderRadius: "50%", animation: "spin_a .9s linear infinite" }} />
