@@ -73,6 +73,18 @@ export default function GreenprintApp() {
   const [pod, setPod] = useState<{ p: LiveProp; r: HitRate | null } | null>(null);
   const [openLesson, setOpenLesson] = useState<number | null>(null);
 
+  // Slip builder · lazy board · in-stream chat · GP record
+  const [slip, setSlip] = useState<{ p: LiveProp; eff: number; side: string }[]>([]);
+  const [slipOpen, setSlipOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(40);
+  const [liveChat, setLiveChat] = useState<Msg[]>([]);
+  const [liveDraft, setLiveDraft] = useState("");
+  const [record, setRecord] = useState<{ w: number; l: number } | null>(null);
+  const liveChatEnd = useRef<HTMLDivElement>(null);
+  const lastLiveSend = useRef(0);
+  const snapshotDone = useRef<Record<string, boolean>>({});
+  const recordTried = useRef(false);
+
   // First-open setup (Linemate-style onboarding)
   const [setupDone, setSetupDone] = useState(true);
   const [setupStep, setSetupStep] = useState(0);
@@ -183,6 +195,65 @@ export default function GreenprintApp() {
     if (appRoomRef.current) { try { appRoomRef.current.disconnect(); } catch {} appRoomRef.current = null; setWatching(false); setAppHasVideo(false); setAppNeedTap(false); }
   }, [tab]);
 
+  const sendLiveMsg = async () => {
+    const t = liveDraft.trim();
+    if (!t || !chatName) return;
+    const now = Date.now();
+    if (now - lastLiveSend.current < 1500) return;
+    lastLiveSend.current = now; setLiveDraft("");
+    setLiveChat(m => [...m, { name: chatName, msg: t, ts: now }]);
+    await push("live/chat", { name: chatName, msg: t, ts: now });
+  };
+
+  const inSlip = (p: LiveProp) => slip.some(s => rateKey(s.p) === rateKey(p));
+  const toggleSlip = (p: LiveProp, pct: number | null) => {
+    if (pct == null) return;
+    const over = pct >= 50;
+    const eff = over ? pct : 100 - pct;
+    setSlip(s => {
+      if (s.some(x => rateKey(x.p) === rateKey(p))) return s.filter(x => rateKey(x.p) !== rateKey(p));
+      if (s.length >= 6 || s.some(x => x.p.player === p.player)) return s;
+      return [...s, { p, eff, side: over ? "Over" : "Under" }];
+    });
+  };
+
+  const shareSlip = async () => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = 1080; c.height = 1350;
+      const x = c.getContext("2d")!;
+      x.fillStyle = "#050705"; x.fillRect(0, 0, 1080, 1350);
+      const grd = x.createRadialGradient(540, 500, 100, 540, 500, 900);
+      grd.addColorStop(0, "rgba(0,255,135,0.08)"); grd.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = grd; x.fillRect(0, 0, 1080, 1350);
+      x.fillStyle = "#00ff87"; x.font = "900 84px -apple-system, system-ui, sans-serif"; x.fillText("GP", 64, 140);
+      x.fillStyle = "#ffffff"; x.font = "800 40px -apple-system, system-ui, sans-serif"; x.fillText("THE GREENPRINT SLIP", 210, 126);
+      x.strokeStyle = "rgba(0,255,135,0.25)"; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(64, 180); x.lineTo(1016, 180); x.stroke();
+      let y = 280;
+      for (const s of slip) {
+        x.fillStyle = "#ffffff"; x.font = "800 46px -apple-system, system-ui, sans-serif"; x.fillText(s.p.player, 64, y);
+        x.fillStyle = "rgba(255,255,255,0.55)"; x.font = "600 34px -apple-system, system-ui, sans-serif";
+        x.fillText(`${s.side} ${s.p.line} ${s.p.prop}`, 64, y + 48);
+        x.fillStyle = "#00ff87"; x.font = "900 52px -apple-system, system-ui, sans-serif";
+        const t = `${s.eff}%`; x.fillText(t, 1016 - x.measureText(t).width, y + 20);
+        y += 140;
+      }
+      const combo = Math.round(slip.reduce((a, s) => a * s.eff / 100, 1) * 100);
+      x.fillStyle = "rgba(0,255,135,0.08)"; x.fillRect(64, 1090, 952, 130);
+      x.strokeStyle = "rgba(0,255,135,0.4)"; x.strokeRect(64, 1090, 952, 130);
+      x.fillStyle = "rgba(255,255,255,0.6)"; x.font = "700 34px -apple-system, system-ui, sans-serif"; x.fillText("ESTIMATED HIT RATE", 96, 1145);
+      x.fillStyle = "#00ff87"; x.font = "900 72px -apple-system, system-ui, sans-serif";
+      const ct = `${combo}%`; x.fillText(ct, 984 - x.measureText(ct).width, 1178);
+      x.fillStyle = "rgba(255,255,255,0.35)"; x.font = "600 30px -apple-system, system-ui, sans-serif"; x.fillText("thegreenprint.trade/app", 64, 1300);
+      const blob: Blob = await new Promise(r => c.toBlob(b => r(b as Blob), "image/png"));
+      const file = new File([blob], "gp-slip.png", { type: "image/png" });
+      const nav: any = navigator;
+      if (nav.canShare && nav.canShare({ files: [file] })) await nav.share({ files: [file], title: "GP Slip" }).catch(() => {});
+      else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "gp-slip.png"; a.click(); }
+    } catch {}
+  };
+
   const finishSetup = () => {
     try {
       localStorage.setItem("gp_app_setup", "1");
@@ -229,6 +300,35 @@ export default function GreenprintApp() {
     return () => { dead = true; };
   }, [tab, leagueOrder]);
 
+  // ── GP record (yesterday's graded picks) ──
+  useEffect(() => {
+    if (tab !== "live" || recordTried.current) return;
+    recordTried.current = true;
+    (async () => {
+      try {
+        const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const r = await fetch(`/api/grade?date=${y}`).then(x => x.json());
+        if (r && typeof r.w === "number" && r.w + r.l > 0) setRecord({ w: r.w, l: r.l });
+      } catch {}
+    })();
+  }, [tab]);
+
+  // ── in-stream chat while watching ──
+  useEffect(() => {
+    if (tab !== "live" || !watching) return;
+    const poll = async () => {
+      const d = await get("live/chat");
+      if (d && typeof d === "object") setLiveChat((Object.values(d) as Msg[]).filter(m => m?.msg && m?.name).sort((a, b) => a.ts - b.ts).slice(-30));
+    };
+    poll();
+    const id = setInterval(poll, 2500);
+    return () => clearInterval(id);
+  }, [tab, watching]);
+  useEffect(() => { liveChatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [liveChat]);
+
+  // ── lazy board rendering ──
+  useEffect(() => { setVisibleCount(40); }, [league, tab]);
+
   // ── live props board — fetches itself, refreshes every 10 min ──
   useEffect(() => {
     if (tab !== "picks") return;
@@ -271,6 +371,30 @@ export default function GreenprintApp() {
     })();
     return () => { dead = true; };
   }, [tab, league, liveProps]);
+
+  // ── snapshot top picks daily so /api/grade can build the public record ──
+  useEffect(() => {
+    if (tab !== "picks" || !STATS_LEAGUES.includes(league)) return;
+    const good = liveProps
+      .map(p => ({ p, pct: pctOf(rates[rateKey(p)]) }))
+      .filter(e => e.pct != null)
+      .map(e => ({ ...e, eff: (e.pct as number) >= 50 ? (e.pct as number) : 100 - (e.pct as number), side: (e.pct as number) >= 50 ? "over" : "under" }))
+      .filter(e => e.eff >= 62)
+      .sort((a, b) => b.eff - a.eff)
+      .slice(0, 10);
+    if (good.length < 3) return;
+    const skey = league + "|" + new Date().toISOString().slice(0, 10);
+    if (snapshotDone.current[skey]) return;
+    snapshotDone.current[skey] = true;
+    good.forEach(async e => {
+      const d = (e.p.start || "").slice(0, 10);
+      if (!d) return;
+      const id = rateKey(e.p).replace(/[^a-zA-Z0-9]/g, "_").slice(0, 90);
+      try {
+        await fetch(`${FB}/gp_record/${d}/${id}.json`, { method: "PUT", body: JSON.stringify({ player: e.p.player, prop: e.p.prop, line: e.p.line, side: e.side, league, pct: e.eff, graded: null }) });
+      } catch {}
+    });
+  }, [rates, tab, league, liveProps]);
 
   // ── community chat polling ──
   useEffect(() => {
@@ -519,7 +643,7 @@ export default function GreenprintApp() {
       </div>
 
       {/* ── body ── */}
-      <div style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1, maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box", padding: "6px 16px 18px" }}>
+      <div onScroll={e => { const el = e.currentTarget; if (tab === "picks" && el.scrollTop + el.clientHeight > el.scrollHeight - 700) setVisibleCount(c => c + 40); }} style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1, maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box", padding: "6px 16px 18px" }}>
 
         {/* ══ LIVE ══ */}
         {tab === "live" && (
@@ -532,10 +656,18 @@ export default function GreenprintApp() {
                 {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · let&apos;s get it
               </div>
             </div>
+            {record && (
+              <div style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", marginBottom: 14, border: "1px solid rgba(0,255,135,.25)" }}>
+                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "1.5px", color: "rgba(255,255,255,.55)" }}>📊 GP RECORD · YESTERDAY</span>
+                <span style={{ fontWeight: 900, fontSize: 16, color: record.w >= record.l ? "#00ff87" : "#ff6b6b" }}>
+                  {record.w}-{record.l} <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>({Math.round((record.w / (record.w + record.l)) * 100)}%)</span>
+                </span>
+              </div>
+            )}
             {isLive ? (
               watching ? (
                 <>
-                  <div style={{ ...card, overflow: "hidden", position: "relative", background: "#000", height: "calc(100dvh - 260px)", minHeight: 360, border: "1px solid rgba(0,255,135,.3)" }}>
+                  <div style={{ ...card, overflow: "hidden", position: "relative", background: "#000", height: "40dvh", minHeight: 260, border: "1px solid rgba(0,255,135,.3)" }}>
                     <video ref={appVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
                     {!appHasVideo && (
                       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
@@ -550,7 +682,23 @@ export default function GreenprintApp() {
                       </div>
                     )}
                   </div>
-                  <a href="/stream" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "rgba(0,255,135,.7)", fontWeight: 700, textDecoration: "none" }}>Open full experience — chat &amp; reactions ↗</a>
+                  <div style={{ ...card, marginTop: 10, display: "flex", flexDirection: "column", height: 250 }}>
+                    <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,255,255,.06)", fontWeight: 800, fontSize: 11.5, letterSpacing: "1px", color: "rgba(255,255,255,.55)", flexShrink: 0 }}>💬 STREAM CHAT</div>
+                    <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+                      {liveChat.map((m, i) => (
+                        <div key={i} style={{ marginBottom: 7, fontSize: 12.5, lineHeight: 1.4 }}>
+                          <span style={{ color: m.name === "Host" ? "#ff9900" : nc(m.name), fontWeight: 800 }}>{m.name}</span>{" "}
+                          <span style={{ color: "rgba(255,255,255,.8)" }}>{m.msg}</span>
+                        </div>
+                      ))}
+                      <div ref={liveChatEnd} />
+                    </div>
+                    <div style={{ display: "flex", gap: 7, padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,.06)", flexShrink: 0 }}>
+                      <input className="gpInput" value={liveDraft} onChange={e => setLiveDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendLiveMsg()} placeholder={chatName ? `Chat as ${chatName}...` : "Set up your profile to chat"} style={{ flex: 1, padding: "9px 13px", fontSize: 13 }} />
+                      <button className="gpBtn" onClick={sendLiveMsg} style={{ padding: "0 16px", fontSize: 15 }}>→</button>
+                    </div>
+                  </div>
+                  <a href="/stream" style={{ display: "block", textAlign: "center", marginTop: 10, fontSize: 12, color: "rgba(0,255,135,.7)", fontWeight: 700, textDecoration: "none" }}>Open full experience ↗</a>
                 </>
               ) : (
                 <div style={{ ...card, padding: 34, textAlign: "center", border: "1px solid rgba(0,255,135,.35)", animation: "glowPulse 2.2s infinite" }}>
@@ -699,7 +847,7 @@ export default function GreenprintApp() {
               </div>
             )}
 
-            {!propsLoading && ranked.map(({ p, pct }, i) => (
+            {!propsLoading && ranked.slice(0, visibleCount).map(({ p, pct }, i) => (
               <div key={rateKey(p)} style={{ ...card, padding: 16, marginBottom: 10, border: pct != null && pct >= 80 ? "1px solid rgba(255,215,0,.35)" : undefined, animation: "fadeUp .45s ease both", animationDelay: `${Math.min(i, 12) * 40}ms`, transition: "border .3s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(0,255,135,.08)", border: "1px solid rgba(0,255,135,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: "#00ff87", flexShrink: 0 }}>
@@ -764,8 +912,12 @@ export default function GreenprintApp() {
                   );
                 })()}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 11, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.05)" }}>
-                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>{fmtStart(p.start)}</span>
-                  <span style={{ fontSize: 10, color: "rgba(0,255,135,.6)", fontWeight: 800, letterSpacing: "1px" }}>{p.board.toUpperCase()}</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.35)", fontWeight: 700 }}>{fmtStart(p.start)} · <span style={{ color: "rgba(0,255,135,.55)", letterSpacing: "1px" }}>{p.board.toUpperCase()}</span></span>
+                  {pct != null && (
+                    <button onClick={() => toggleSlip(p, pct)} style={{ background: inSlip(p) ? "rgba(0,255,135,.18)" : "rgba(255,255,255,.06)", border: inSlip(p) ? "1px solid rgba(0,255,135,.6)" : "1px solid rgba(255,255,255,.14)", borderRadius: 9, color: inSlip(p) ? "#00ff87" : "rgba(255,255,255,.65)", fontWeight: 900, fontSize: 11, padding: "5px 12px", cursor: "pointer" }}>
+                      {inSlip(p) ? "✓ In slip" : "+ Slip"}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -904,6 +1056,40 @@ export default function GreenprintApp() {
           </div>
         )}
       </div>
+
+      {/* ── slip bar ── */}
+      {slip.length > 0 && tab === "picks" && (
+        <div style={{ position: "absolute", bottom: 84, left: 0, right: 0, zIndex: 6, display: "flex", justifyContent: "center", padding: "0 16px" }}>
+          <div style={{ width: "100%", maxWidth: 528 }}>
+            {slipOpen && (
+              <div style={{ background: "#07130b", border: "1px solid rgba(0,255,135,.35)", borderRadius: 18, padding: "14px 16px", marginBottom: 10, boxShadow: "0 18px 50px rgba(0,0,0,.7)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontWeight: 900, fontSize: 13, letterSpacing: "1.5px" }}>{slip.length}-MAN SLIP</span>
+                  <span style={{ fontWeight: 900, fontSize: 14, color: "#ffd700" }}>{Math.round(slip.reduce((a, s) => a * s.eff / 100, 1) * 100)}% <span style={{ fontSize: 9, color: "rgba(255,255,255,.4)" }}>EST. HIT</span></span>
+                </div>
+                {slip.map((s, si) => (
+                  <div key={si} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.p.player}</div>
+                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)" }}>{s.side} {s.p.line} {s.p.prop}</div>
+                    </div>
+                    <span style={{ fontWeight: 900, fontSize: 12.5, color: "#00ff87" }}>{s.eff}%</span>
+                    <button onClick={() => setSlip(x => x.filter(v => rateKey(v.p) !== rateKey(s.p)))} style={{ background: "none", border: "none", color: "rgba(255,255,255,.35)", fontSize: 15, cursor: "pointer", padding: "0 2px" }}>✕</button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button onClick={shareSlip} className="gpBtn" style={{ flex: 1, padding: "11px 0", fontSize: 13 }}>📤 Share Slip</button>
+                  <button onClick={() => { setSlip([]); setSlipOpen(false); }} style={{ padding: "0 16px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "rgba(255,255,255,.55)", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Clear</button>
+                </div>
+              </div>
+            )}
+            <button onClick={() => setSlipOpen(o => !o)} style={{ width: "100%", padding: "13px 16px", background: "linear-gradient(135deg,#00ff87,#00c864)", border: "none", borderRadius: 14, fontWeight: 900, color: "#000", fontSize: 13.5, cursor: "pointer", display: "flex", justifyContent: "space-between", boxShadow: "0 8px 30px rgba(0,255,135,.35)" }}>
+              <span>🧾 Slip · {slip.length} leg{slip.length > 1 ? "s" : ""}</span>
+              <span>{Math.round(slip.reduce((a, s) => a * s.eff / 100, 1) * 100)}% est · {slipOpen ? "close ▾" : "view ▴"}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── bottom nav ── */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,.07)", background: "rgba(3,5,3,.9)", backdropFilter: "blur(24px)", paddingBottom: "env(safe-area-inset-bottom,0px)", position: "relative", zIndex: 3 }}>
