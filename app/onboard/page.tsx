@@ -70,22 +70,22 @@ export default function OnboardPage() {
   return (
           <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white p-8">
                 <div className="max-w-4xl mx-auto">
-                        <h1 className="text-4xl font-bold mb-2">Welcome to The Greenprint</h1>h1>
-                        <p className="text-gray-400 mb-12">Complete these steps to get started with your trading journey.</p>p>
+                        <h1 className="text-4xl font-bold mb-2">Welcome to The Greenprint</h1>
+                        <p className="text-gray-400 mb-12">Complete these steps to get started with your trading journey.</p>
                 
                         <div className="bg-gray-800 rounded-lg p-8 mb-8">
                                   <div className="flex items-center justify-between mb-6">
                                               <div>
                                                             <h2 className="text-3xl font-bold mb-2">Step {step.n}: {step.title}</h2>h2>
-                                                  {step.subtitle && <p className="text-xl text-gray-300">{step.subtitle}</p>p>}
+                                                  {step.subtitle && <p className="text-xl text-gray-300">{step.subtitle}</p>}
                                               </div>div>
                                               <div className="text-right">
                                                             <div className="text-5xl font-bold text-green-400">{step.n}</div>div>
-                                                            <p className="text-gray-400">of {STEPS.length}</p>p>
+                                                            <p className="text-gray-400">of {STEPS.length}</p>
                                               </div>div>
                                   </div>div>
                         
-                            {step.desc && <p className="text-lg text-gray-300 mb-6">{step.desc}</p>p>}
+                            {step.desc && <p className="text-lg text-gray-300 mb-6">{step.desc}</p>}
                         
                             {step.videoId && (
                           <div className="bg-gray-900 rounded-lg overflow-hidden mb-6">
@@ -107,7 +107,7 @@ export default function OnboardPage() {
                             {!step.videoId && (
                           <div className="bg-gray-700 rounded-lg h-64 flex items-center justify-center mb-6">
                                         <div className="text-center">
-                                                        <p className="text-gray-400 text-lg">Step content</p>p>
+                                                        <p className="text-gray-400 text-lg">Step content</p>
                                         </div>div>
                           </div>div>
                                   )}
