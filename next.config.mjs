@@ -3,7 +3,6 @@ const nextConfig = {
   
   // Hide tech stack from headers
         
-  coweredByHeader: false,
 
   // No source maps in production — keeps your code private
   productionBrowserSourceMaps: false,
