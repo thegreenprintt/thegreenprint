@@ -33,7 +33,19 @@ const ARIN_CLIPS = [
   { n: 3, title: "Market Bully Strategy", desc: "The core strategy used inside The Greenprint." },
 ];
 
-const TOTAL_STEPS = 6;
+const FULL_ONBOARDING_VIDEO = {
+  title: "Full Onboarding",
+  desc: "If you're not getting phone guidance, watch this video. Otherwise, follow the next steps.",
+  url: "https://drive.google.com/file/d/197t2VfgGJEHYr_NFy79ZTOwXEsEE5RQr/preview"
+};
+
+const TRADELOCKER_VIDEO = {
+  title: "TradeLocker Phone Overview",
+  desc: "Master TradeLocker platform setup and trading execution.",
+  url: "https://drive.google.com/file/d/1KoIlb3yrBQ7pvAhqM8_RkEA5KIC07Gu6/preview"
+};
+
+const TOTAL_STEPS = 8;
 
 export default function OnboardPage() {
   const [step, setStep] = useState(1);
@@ -69,6 +81,17 @@ export default function OnboardPage() {
 
         {step === 2 && (
           <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Onboarding</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">{FULL_ONBOARDING_VIDEO.title}</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">{FULL_ONBOARDING_VIDEO.desc}</p>
+            <div className="aspect-video bg-black/50 border border-white/20 rounded-xl mb-6 flex items-center justify-center overflow-hidden">
+              <iframe src={FULL_ONBOARDING_VIDEO.url} className="w-full h-full" allowFullScreen></iframe>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Download Your Apps</h2>
             <p className="text-white/50 text-sm mb-6">These are the tools you will use every day inside The Greenprint.</p>
@@ -84,154 +107,118 @@ export default function OnboardPage() {
                       <a href={app.ios} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] text-xs font-semibold border border-[#00FF85]/30 px-2 py-1 rounded-lg">iOS</a>
                     )}
                     {app.android && (
-                      <a href={app.android} target="_blank" rel="noopener noreferrer" className="text-white/60 text-xs font-semibold border border-white/20 px-2 py-1 rounded-lg">Android</a>
+                      <a href={app.android} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] text-xs font-semibold border border-[#00FF85]/30 px-2 py-1 rounded-lg">Android</a>
                     )}
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div>
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Community</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Join the Chats</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-8">
-              Get plugged in. This is where signals, updates, and live session alerts happen.
-            </p>
-            <div className="flex flex-col gap-3">
-              <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">The Greenprint</p>
-                  <p className="text-white/40 text-xs">Main community chat</p>
-                </div>
-                <span className="ml-auto text-white/30 text-sm">→</span>
-              </a>
-              <a href="https://t.me/+1rvPMKd6MRw3NGUx" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">Market Bully Community</p>
-                  <p className="text-white/40 text-xs">Market Bully chat</p>
-                </div>
-                <span className="ml-auto text-white/30 text-sm">→</span>
-              </a>
             </div>
           </div>
         )}
 
         {step === 4 && (
           <div>
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-3">Set Up Your Broker</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-6">
-              First get your GenesisFX account set up, then create your demo account in TradeLocker. No funding needed yet — this is all about getting your demo running so you can start practicing.
-            </p>
-
-            <p className="text-white/60 text-xs font-semibold tracking-widest uppercase mb-4">GenesisFX Account</p>
-            <div className="flex flex-col gap-4 mb-8">
-              {BROKER_STEPS.map(s => (
-                <div key={s.n} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#00FF85] text-xs font-bold">{s.n}</span>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
-                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
-                    {s.href && (
-                      <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[#00FF85] text-sm font-semibold">{s.linkLabel} →</a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-white/10 pt-6">
-              <p className="text-white/60 text-xs font-semibold tracking-widest uppercase mb-4">Create a Demo Account in TradeLocker</p>
-              <div className="flex flex-col gap-4">
-                {DEMO_STEPS.map(s => (
-                  <div key={s.n} className="flex gap-4">
-                    <div className="w-7 h-7 rounded-full bg-white/5 border border-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-white/50 text-xs font-bold">{s.n}</span>
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm mb-1">{s.title}</p>
-                      <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Community</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Join the Chats</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">Get plugged in. This is where signals, updates, and live session alerts happen.</p>
+            <div className="flex flex-col gap-3">
+              <a href="https://t.me/+Hz_sp0s32jVjNDQx" target="_blank" rel="noopener noreferrer" className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                <p className="text-white font-semibold text-sm">The Greenprint</p>
+                <p className="text-white/40 text-xs">Main community chat</p>
+                <p className="text-[#00FF85] text-xs mt-2">→</p>
+              </a>
             </div>
           </div>
         )}
 
         {step === 5 && (
           <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Set Up Your Broker</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">First get your GenesisFX account set up, then create your demo account in TradeLocker. No funding needed yet — this is all about getting your demo running so you can start practicing.</p>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-white font-semibold text-sm mb-4">GENESISFX ACCOUNT</h3>
+                <div className="space-y-3">
+                  {BROKER_STEPS.map(s => (
+                    <div key={s.n} className="text-sm">
+                      <p className="text-white/40 text-xs font-mono mb-1">{s.n}</p>
+                      <p className="text-white font-semibold">{s.title}</p>
+                      <p className="text-white/50 text-xs mt-1">{s.desc}</p>
+                      {s.href && (
+                        <a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] text-xs font-semibold mt-2 inline-block hover:underline">
+                          {s.linkLabel} →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm mb-4">CREATE A DEMO ACCOUNT IN TRADELOCKER</h3>
+                <div className="space-y-3">
+                  {DEMO_STEPS.map(s => (
+                    <div key={s.n} className="text-sm">
+                      <p className="text-white/40 text-xs font-mono mb-1">{s.n}</p>
+                      <p className="text-white font-semibold">{s.title}</p>
+                      <p className="text-white/50 text-xs mt-1">{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 6 && (
+          <div>
+            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Trading Platform</span>
+            <h2 className="text-2xl font-bold text-white mt-3 mb-4">{TRADELOCKER_VIDEO.title}</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">{TRADELOCKER_VIDEO.desc}</p>
+            <div className="aspect-video bg-black/50 border border-white/20 rounded-xl mb-6 flex items-center justify-center overflow-hidden">
+              <iframe src={TRADELOCKER_VIDEO.url} className="w-full h-full" allowFullScreen></iframe>
+            </div>
+          </div>
+        )}
+
+        {step === 7 && (
+          <div>
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin Long's Clips</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-6">
-              Watch these in order on her 1House channel. This is your foundation before you touch a live chart.
-            </p>
-            <div className="flex flex-col gap-3 mb-8">
-              {ARIN_CLIPS.map(item => (
-                <div key={item.n} className="flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#00FF85] text-xs font-bold">{item.n}</span>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{item.title}</p>
-                    <p className="text-white/40 text-xs mt-0.5">{item.desc}</p>
-                  </div>
+            <p className="text-white/50 text-sm leading-relaxed mb-6">Watch these in order on her 1House channel. This is your foundation before you touch a live chart.</p>
+            <div className="space-y-3 mb-6">
+              {ARIN_CLIPS.map(clip => (
+                <div key={clip.n} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-white/40 text-xs font-mono mb-1">{clip.n}</p>
+                  <p className="text-white font-semibold text-sm">{clip.title}</p>
+                  <p className="text-white/50 text-xs mt-1">{clip.desc}</p>
                 </div>
               ))}
             </div>
-            <a href="https://www.1house.tv/educators/a782da2a-81c6-4c32-9f6a-e36c9c74e218" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
+            <a href="https://www.1house.tv" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
               Open Arin's Channel on 1House →
             </a>
           </div>
         )}
 
-        {step === 6 && (
-          <div className="text-center pt-8">
-            <div className="w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center mx-auto mb-8">
-              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-4">You are All Set.</h2>
-            <p className="text-white/50 text-base leading-relaxed mb-10">
-              You have got the apps, the broker, the community access, and the foundation. Welcome to The Greenprint — we will see you inside.
-            </p>
-            <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
+        {step === 8 && (
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-white mb-6">You are All Set.</h2>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">You have got the apps, the broker, the community access, and the foundation. Welcome to The Greenprint — we will see you inside.</p>
+            <a href="https://t.me/+Hz_sp0s32jVjNDQx" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
               Join the Telegram →
-            </a>
-            <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
-              Back to Home
             </a>
           </div>
         )}
 
-        {step < TOTAL_STEPS && (
-          <div className="flex gap-3 mt-12">
-            {step > 1 && (
-              <button onClick={prev} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">
-                Back
-              </button>
-            )}
-            <button onClick={next} className="flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base">
-              {step === 1 ? "Let's Go" : "Continue"}
-            </button>
-          </div>
-        )}
+        <div className="flex gap-3 mt-12">
+          <button onClick={prev} disabled={step === 1} className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition">
+            ← Back
+          </button>
+          <button onClick={next} disabled={step === TOTAL_STEPS} className="flex-1 py-3 rounded-xl bg-[#00FF85] text-black font-semibold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#00FF85]/80 transition">
+            Continue →
+          </button>
+        </div>
       </div>
     </div>
   );
