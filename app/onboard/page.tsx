@@ -70,7 +70,7 @@ export default function OnboardPage() {
   return (
         <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white p-8">
               <div className="max-w-4xl mx-auto">
-                      <h1 className="text-4xl font-bold mb-2">Welcome to The Greenprint</h1>h1>
+                      <h1 className="text-4xl font-bold mb-2">Welcome to The Greenprint</h1>
                       <p className="text-gray-400 mb-12">
                                 Complete these steps to get started with your trading journey.
                       </p>p>
