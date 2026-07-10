@@ -45,3 +45,10 @@ const DEMO_STEPS = [
 const ARIN_CLIPS = [
   { n: 1, title: "New Trader Start Here", desc: "Begin here — no exceptions." },
   { n: 2, title: "Market Basics", desc: "Foundation for everything we do." },
+
+  ];
+
+
+
+  return <div>Onboarding Page</div>div>;
+}
