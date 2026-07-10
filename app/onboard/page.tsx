@@ -1,18 +1,9 @@
 "use client";
 import { useState } from "react";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Onboarding - The Greenprint",
 
 
-export default OnboardPage;
-};
 
-type PageProps = Record<string, never>;
-
-const OnboardPage: React.FC<PageProps> = () => {
-
+export default function OnboardPage() {
 
 
 
