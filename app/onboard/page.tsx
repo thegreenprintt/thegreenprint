@@ -1,5 +1,19 @@
 "use client";
 import { useState } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Onboarding - The Greenprint",
+
+
+export default OnboardPage;
+};
+
+type PageProps = Record<string, never>;
+
+const OnboardPage: React.FC<PageProps> = () => {
+
+
 
 
 const APPS = [
@@ -12,11 +26,15 @@ const APPS = [
 ];
 
 
+
+
 const BROKER_STEPS = [
   { n: 1, title: "Create Your GenesisFX Account", desc: "Sign up at GenesisFX using the link below.", href: "https://dashboard.genesisfxmarkets.com/auth/register?ref=JACWAL843", linkLabel: "Open GenesisFX" },
   { n: 2, title: "Verify Your Identity", desc: "Complete KYC verification — takes about 5 minutes. Have your ID ready." },
   { n: 3, title: "Download TradeLocker", desc: "Install TradeLocker from the App Store or Google Play, then open the app." },
 ];
+
+
 
 
 const DEMO_STEPS = [
@@ -31,11 +49,8 @@ const DEMO_STEPS = [
 ];
 
 
+
+
 const ARIN_CLIPS = [
   { n: 1, title: "New Trader Start Here", desc: "Begin here — no exceptions." },
   { n: 2, title: "Market Basics", desc: "Foundation for everything we do." },
-  { n: 3, title: "Market Bully Strategy", desc: "The core strategy used inside The Greenprint." },
-];
-
-
-const TOTAL_STEPS = 8;
