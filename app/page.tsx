@@ -2,9 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Space_Grotesk } from "next/font/google";
-
-const grotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 
 /* ─── Custom icon system (brand SVGs, no emojis) ────────────────── */
 function GIcon({ name, size = 22 }: { name: string; size?: number }) {
@@ -1254,7 +1251,7 @@ function WinToasts() {
 /* ─── Root ──────────────────────────────────────────────────────── */
 export default function HomePage() {
   return (
-    <main className={`${grotesk.className} min-h-screen bg-[#080808] text-white relative`}>
+    <main className="min-h-screen bg-[#080808] text-white relative">
       <Cinematic />
       <Nav />
       <Hero />
