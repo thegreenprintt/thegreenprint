@@ -460,18 +460,6 @@ function Nav() {
 function Hero() {
   return (
     <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
-      {/* Cinematic video backdrop (desktop) — hides itself if the file isn't deployed yet */}
-      <div className="absolute inset-0 pointer-events-none hidden sm:block" aria-hidden>
-        <video
-          autoPlay muted loop playsInline preload="metadata"
-          src="/videos/hero-bg.mp4"
-          className="w-full h-full object-cover"
-          style={{ opacity: 0.38 }}
-          onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = "none"; }}
-        />
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 0%, rgba(8,8,8,0.55) 72%, #080808 100%)" }}/>
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(8,8,8,0.5), transparent 30%, transparent 70%, #080808)" }}/>
-      </div>
       {/* Background hidden on mobile for performance */}
       <div className="gp-heroPar absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
