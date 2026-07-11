@@ -1,0 +1,6 @@
+[
+  { "text": "SPY 0DTE call closed", "result": "+2.1R", "when": "this morning" },
+  { "text": "NVDA scalp closed", "result": "+1.8R", "when": "34 min ago" },
+  { "text": "ES long from the open", "result": "+3.2R", "when": "today" },
+  { "text": "Signals record this month", "result": "18W – 2L", "when": "updated daily" }
+]
