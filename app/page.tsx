@@ -7,6 +7,86 @@ import Link from "next/link";
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
 const WHOP_URL = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 
+/* ─── Cinematic Layer (visual only — no functionality) ─────────── */
+function Cinematic() {
+  const glowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = glowRef.current;
+    if (!el || window.matchMedia("(pointer: coarse)").matches) return;
+    let raf = 0;
+    const move = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        el.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
+      });
+    };
+    window.addEventListener("mousemove", move);
+    return () => { window.removeEventListener("mousemove", move); cancelAnimationFrame(raf); };
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @keyframes gp-aurora { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(60px,-40px) scale(1.15)} 66%{transform:translate(-50px,30px) scale(0.92)} 100%{transform:translate(0,0) scale(1)} }
+        @keyframes gp-aurora2 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-70px,50px) scale(1.2)} 100%{transform:translate(0,0) scale(1)} }
+        @keyframes gp-gridpan { from{background-position:0 0} to{background-position:64px 64px} }
+        @keyframes gp-rise { from{opacity:0; transform:translateY(28px); filter:blur(10px)} to{opacity:1; transform:translateY(0); filter:blur(0)} }
+        @keyframes gp-shimmer { from{background-position:200% center} to{background-position:-200% center} }
+        @keyframes gp-breathe { 0%,100%{box-shadow:0 0 28px rgba(0,255,133,0.30)} 50%{box-shadow:0 0 52px rgba(0,255,133,0.60), 0 0 90px rgba(0,255,133,0.18)} }
+        @keyframes gp-floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes gp-scan { from{transform:translateY(-100%)} to{transform:translateY(100vh)} }
+        .gp-card { transition: transform .35s cubic-bezier(.2,.8,.3,1), box-shadow .35s ease, border-color .3s ease !important; will-change: transform; }
+        .gp-card:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 0 32px rgba(0,255,133,.10); }
+        .gp-in { opacity:0; animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards; }
+        .gp-shimmer-text {
+          background: linear-gradient(110deg, #00FF85 35%, #d8ffe9 50%, #00FF85 65%);
+          background-size: 250% auto; -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent; color: transparent;
+          animation: gp-shimmer 4.5s linear infinite;
+        }
+        .gp-breathe { animation: gp-breathe 3.2s ease-in-out infinite; }
+        .gp-floaty { animation: gp-floaty 5s ease-in-out infinite; }
+        .gp-in.gp-floaty { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-floaty 5s ease-in-out 1.1s infinite; }
+        .gp-in.gp-shimmer-text { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-shimmer 4.5s linear 1.1s infinite; }
+        .gp-tickertrack:hover { animation-play-state: paused !important; }
+        .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
+        @media (prefers-reduced-motion: reduce) {
+          .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
+        }
+      `}</style>
+      {/* fixed living background */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden>
+        <div className="hidden sm:block" style={{
+          position: "absolute", top: "-15%", left: "-10%", width: 700, height: 700, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,255,133,0.055) 0%, transparent 65%)",
+          filter: "blur(50px)", animation: "gp-aurora 26s ease-in-out infinite",
+        }}/>
+        <div className="hidden sm:block" style={{
+          position: "absolute", bottom: "-20%", right: "-12%", width: 800, height: 800, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 65%)",
+          filter: "blur(60px)", animation: "gp-aurora2 32s ease-in-out infinite",
+        }}/>
+        <div className="hidden sm:block" style={{
+          position: "absolute", top: "35%", right: "20%", width: 420, height: 420, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,255,133,0.035) 0%, transparent 65%)",
+          filter: "blur(45px)", animation: "gp-aurora 22s ease-in-out infinite reverse",
+        }}/>
+        <div className="hidden md:block" style={{
+          position: "absolute", inset: 0, opacity: 0.02,
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundSize: "64px 64px", animation: "gp-gridpan 6s linear infinite",
+        }}/>
+      </div>
+      {/* mouse spotlight (desktop) */}
+      <div ref={glowRef} className="hidden lg:block fixed pointer-events-none" style={{
+        zIndex: 0, top: 0, left: 0, width: 600, height: 600, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(0,255,133,0.05) 0%, transparent 60%)",
+        transition: "transform 0.18s ease-out",
+      }} aria-hidden/>
+    </>
+  );
+}
+
 /* ─── Helpers ───────────────────────────────────────────────────── */
 function FadeIn({
   children,
@@ -36,8 +116,9 @@ function FadeIn({
       className={className}
       style={{
         opacity: vis ? 1 : 0,
-        transform: vis ? "none" : `translateY(${y}px)`,
-        transition: `opacity 0.55s ease ${delay}s, transform 0.55s ease ${delay}s`,
+        transform: vis ? "none" : `translateY(${y + 10}px) scale(0.985)`,
+        filter: vis ? "blur(0)" : "blur(8px)",
+        transition: `opacity 0.8s cubic-bezier(.16,.8,.3,1) ${delay}s, transform 0.8s cubic-bezier(.16,.8,.3,1) ${delay}s, filter 0.8s ease ${delay}s`,
       }}
     >
       {children}
@@ -92,7 +173,7 @@ function Ticker() {
     <div className="relative overflow-hidden border-y border-white/5 bg-[#0a0a0a] py-3">
       <style>{`@keyframes gp-ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}`}</style>
       <div
-        className="flex gap-12 whitespace-nowrap"
+        className="gp-tickertrack flex gap-12 whitespace-nowrap"
         style={{ animation: "gp-ticker 30s linear infinite", display: "flex" }}
       >
         {items.map((t, i) => (
@@ -213,7 +294,7 @@ function Hero() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
       </div>
 
-      <div className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
+      <div className="gp-in gp-floaty mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2" style={{ animationDelay: "0.1s, 1s" }}>
         <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
         <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community &middot; 2,400+ Members</span>
       </div>
@@ -222,20 +303,20 @@ function Hero() {
         className="text-center font-black leading-[0.88] tracking-tight px-4"
         style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
       >
-        <span className="block text-white">TRADE</span>
-        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 60px rgba(0,255,133,0.45)" }}>
+        <span className="gp-in block text-white" style={{ animationDelay: "0.2s" }}>TRADE</span>
+        <span className="gp-in gp-shimmer-text block" style={{ animationDelay: "0.38s", textShadow: "none", filter: "drop-shadow(0 0 40px rgba(0,255,133,0.45))" }}>
           SMARTER.
         </span>
-        <span className="block text-white">WIN BIGGER.</span>
+        <span className="gp-in block text-white" style={{ animationDelay: "0.56s" }}>WIN BIGGER.</span>
       </h1>
 
-      <p className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
+      <p className="gp-in mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed" style={{ animationDelay: "0.75s" }}>
         Real-time trade alerts, live sessions, and a proven system &ndash; built to help you level up.
       </p>
 
-      <div className="mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
+      <div className="gp-in mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto" style={{ animationDelay: "0.9s" }}>
         <Link href="/join"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
+          className="gp-breathe group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
           style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
           Get Access
           <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
@@ -252,7 +333,7 @@ function Hero() {
         </Link>
       </div>
 
-      <div className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
+      <div className="gp-in mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4" style={{ animationDelay: "1.05s" }}>
         {[
           { label: "Active Members", value: "2,400+", color: "#00FF85" },
           { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
@@ -326,7 +407,7 @@ function HowItWorks() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {steps.map((step, i) => (
             <FadeIn key={step.num} delay={i * 0.1}>
-              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
+              <div className="gp-card group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
                 <div className="text-3xl mb-4">{step.icon}</div>
                 <div className="text-[#00FF85]/40 text-xs font-bold tracking-widest mb-2">{step.num}</div>
                 <h3 className="text-white font-bold text-base mb-2">{step.title}</h3>
@@ -367,7 +448,7 @@ function Features() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => (
             <FadeIn key={f.title} delay={i * 0.08}>
-              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full relative overflow-hidden">
+              <div className="gp-card group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
                 <div className="relative">
                   <div className="flex items-start justify-between mb-4">
@@ -536,7 +617,7 @@ function Pricing() {
             </div>
           </FadeIn>
 <FadeIn delay={0.12}>
-            <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
+            <div className="gp-card relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
                   Affiliate Partner
@@ -586,7 +667,7 @@ function Pricing() {
           </FadeIn>
 
           <FadeIn delay={0.24}>
-            <div className="relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
+            <div className="gp-card relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
                   Affiliate Partner
@@ -691,7 +772,7 @@ function Testimonials() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {testimonials.map((t, i) => (
             <FadeIn key={t.handle} delay={i * 0.07}>
-              <div className="p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full">
+              <div className="gp-card p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="text-white font-bold text-sm">{t.name}</div>
@@ -750,10 +831,10 @@ function MemberAccess() {
             value={pw}
             onChange={e => { setPw(e.target.value); setErr(false); }}
             placeholder="Enter access code"
-            className="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none text-center text-lg tracking-widest"
+            className="gp-input-glow w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none text-center text-lg tracking-widest transition-all duration-300"
           />
           {err && <p className="text-red-400 text-sm mt-1">Incorrect access code.</p>}
-          <button type="submit" className="w-full py-4 rounded-xl bg-[#00FF85] text-black font-bold text-base">
+          <button type="submit" className="gp-breathe w-full py-4 rounded-xl bg-[#00FF85] text-black font-bold text-base hover:bg-[#00e676] transition-colors">
             Get Started →
           </button>
         </form>
@@ -785,7 +866,7 @@ function BookACall() {
                 Book a free 15-minute call with The Greenprint team. No pressure, no pitch &ndash; just an honest conversation about where you are and how we can help.
               </p>
               <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
+                className="gp-breathe inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
                 style={{ boxShadow: "0 0 50px rgba(0,255,133,0.4)" }}>
                 <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
                   <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
@@ -880,10 +961,90 @@ function Footer() {
   );
 }
 
+/* ─── Win Toasts ────────────────────────────────────────────────── */
+type Win = { text: string; result: string; when: string };
+
+function WinToasts() {
+  const [wins, setWins] = useState<Win[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    fetch("/wins.json")
+      .then(r => (r.ok ? r.json() : []))
+      .then((data: Win[]) => { if (Array.isArray(data) && data.length) setWins(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!wins.length || dismissed) return;
+    let showTimer: ReturnType<typeof setTimeout>;
+    let hideTimer: ReturnType<typeof setTimeout>;
+    const cycle = (first: boolean) => {
+      showTimer = setTimeout(() => {
+        setVisible(true);
+        hideTimer = setTimeout(() => {
+          setVisible(false);
+          setIdx(i => (i + 1) % wins.length);
+          cycle(false);
+        }, 6000);
+      }, first ? 3500 : 9000);
+    };
+    cycle(true);
+    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+  }, [wins, dismissed]);
+
+  if (!wins.length || dismissed) return null;
+  const w = wins[idx % wins.length];
+
+  return (
+    <div
+      style={{
+        position: "fixed", left: 16, bottom: 76, zIndex: 60, maxWidth: 320,
+        transform: visible ? "translateX(0)" : "translateX(-120%)",
+        opacity: visible ? 1 : 0,
+        transition: "transform 0.45s cubic-bezier(.2,.9,.3,1.2), opacity 0.4s",
+        pointerEvents: visible ? "auto" : "none",
+      }}
+    >
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+        background: "rgba(10,16,12,0.95)", border: "1px solid rgba(0,255,133,0.35)",
+        borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.55), 0 0 18px rgba(0,255,133,0.12)",
+        backdropFilter: "blur(8px)",
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+          background: "rgba(0,255,133,0.12)", border: "1px solid rgba(0,255,133,0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+        }}>🟢</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, color: "white", fontWeight: 700, fontSize: 13, lineHeight: 1.35 }}>
+            {w.text} <span style={{ color: "#00FF85" }}>{w.result}</span>
+          </p>
+          <p style={{ margin: 0, color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 2 }}>
+            Signal closed · {w.when}
+          </p>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss"
+          style={{
+            background: "transparent", border: "none", color: "rgba(255,255,255,0.35)",
+            cursor: "pointer", fontSize: 14, padding: 4, lineHeight: 1, flexShrink: 0,
+          }}
+        >✕</button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Root ──────────────────────────────────────────────────────── */
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#080808] text-white">
+    <main className="min-h-screen bg-[#080808] text-white relative">
+      <Cinematic />
       <Nav />
       <Hero />
       <Ticker />
@@ -896,6 +1057,7 @@ export default function HomePage() {
       <MemberAccess />
       <BookACall />
       <Footer />
+      <WinToasts />
     </main>
   );
 }
