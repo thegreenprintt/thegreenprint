@@ -160,6 +160,19 @@ function HeroCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
+    // cursor interaction (desktop): particles get pushed away from the mouse
+    const mouse = { x: -9999, y: -9999 };
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    const onMove = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    };
+    const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+    if (!coarse) {
+      window.addEventListener("mousemove", onMove, { passive: true });
+      window.addEventListener("mouseout", onLeave);
+    }
+
     const lite = w < 640;
     const P = Math.max(14, Math.min(lite ? 26 : 70, Math.floor(w / 18)));
     const pts = Array.from({ length: P }, () => ({
@@ -184,9 +197,21 @@ function HeroCanvas() {
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
       for (const p of pts) {
+        // mouse repulsion
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const md = dx * dx + dy * dy;
+        if (md < 14400 && md > 1) {
+          const f = (1 - md / 14400) * 0.6;
+          const dist = Math.sqrt(md);
+          p.vx += (dx / dist) * f; p.vy += (dy / dist) * f;
+        }
+        p.vx *= 0.985; p.vy *= 0.985;
+        const sp = p.vx * p.vx + p.vy * p.vy;
+        if (sp < 0.02) { p.vx += (Math.random() - 0.5) * 0.08; p.vy += (Math.random() - 0.5) * 0.08; }
         p.x += p.vx; p.y += p.vy;
         if (p.x < 0 || p.x > w) p.vx *= -1;
         if (p.y < 0 || p.y > h) p.vy *= -1;
+        p.x = Math.max(0, Math.min(w, p.x)); p.y = Math.max(0, Math.min(h, p.y));
       }
       ctx.lineWidth = 1;
       for (let i = 0; i < pts.length; i++) {
@@ -223,7 +248,12 @@ function HeroCanvas() {
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseout", onLeave);
+    };
   }, []);
   return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.5 }} aria-hidden />;
 }
@@ -622,7 +652,7 @@ function LiveCallout() {
       <div className="absolute inset-0 bg-gradient-to-r from-[#00FF85]/5 via-transparent to-[#C9A84C]/5 pointer-events-none"/>
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn>
-          <div className="rounded-3xl p-10 md:p-16 relative overflow-hidden"
+          <div className="gp-conic rounded-3xl p-10 md:p-16 relative overflow-hidden"
             style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.06) 0%, rgba(0,0,0,0) 60%)", border: "1px solid rgba(0,255,133,0.2)" }}>
             <div className="absolute top-0 right-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[80px] pointer-events-none"/>
             <div className="relative grid md:grid-cols-2 gap-12 items-center">
@@ -990,7 +1020,7 @@ function BookACall() {
     <section className="py-24">
       <div className="max-w-4xl mx-auto px-6">
         <FadeIn>
-          <div className="rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
+          <div className="gp-conic rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
             style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.07) 0%, rgba(201,168,76,0.05) 100%)", border: "1px solid rgba(0,255,133,0.2)" }}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#00FF85]/8 rounded-full blur-[80px] pointer-events-none"/>
             <div className="relative">
