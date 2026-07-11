@@ -91,6 +91,24 @@ function Cinematic() {
         .gp-tickertrack:hover { animation-play-state: paused !important; }
         .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
         @keyframes gp-rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes gp-glitch {
+          0%, 91.5%, 100% { transform: none; text-shadow: none; }
+          92% { transform: translateX(2px) skewX(-2deg); text-shadow: -3px 0 rgba(0,255,133,.8), 3px 0 rgba(255,255,255,.25); }
+          93% { transform: translateX(-2px); text-shadow: 3px 0 rgba(0,255,133,.6); }
+          93.5% { transform: none; text-shadow: none; }
+          95.5% { transform: translateX(1px); text-shadow: -2px 0 rgba(0,255,133,.5); }
+          96% { transform: none; text-shadow: none; }
+        }
+        .gp-glitch { animation: gp-glitch 8s linear infinite; }
+        .gp-card { position: relative; }
+        .gp-card::before, .gp-card::after { content:""; position:absolute; width:16px; height:16px; pointer-events:none; opacity:.35; transition: opacity .3s, width .3s, height .3s; }
+        .gp-card::before { top:7px; left:7px; border-top:2px solid #00FF85; border-left:2px solid #00FF85; }
+        .gp-card::after { bottom:7px; right:7px; border-bottom:2px solid #00FF85; border-right:2px solid #00FF85; }
+        .gp-card:hover::before, .gp-card:hover::after { opacity:.9; width:24px; height:24px; }
+        @keyframes gp-scandrift { from{transform:translateY(0)} to{transform:translateY(60px)} }
+        .gp-scanlines { position:fixed; inset:-60px 0 0 0; z-index:1; pointer-events:none; opacity:.5;
+          background: repeating-linear-gradient(to bottom, rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px, transparent 1px, transparent 4px);
+          animation: gp-scandrift 9s linear infinite; }
         .gp-conic { position: relative; }
         .gp-conic::before { content:""; position:absolute; inset:-60%; z-index:0; pointer-events:none;
           background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(0,255,133,.28) 330deg, transparent 360deg);
@@ -101,6 +119,8 @@ function Cinematic() {
           .gp-in.gp-floaty, .gp-in.gp-shimmer-text { animation-delay: 0s !important; }
           .gp-card:hover { transform: none; box-shadow: none; }
           [data-fadein] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+          .gp-glitch { animation: none; }
+          .gp-card::before, .gp-card::after { display: none; }
         }
         @media (prefers-reduced-motion: reduce) {
           .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
@@ -135,6 +155,8 @@ function Cinematic() {
         background: "radial-gradient(circle, rgba(0,255,133,0.05) 0%, transparent 60%)",
         transition: "transform 0.18s ease-out",
       }} aria-hidden/>
+      {/* scanline sheen (desktop) */}
+      <div className="gp-scanlines hidden md:block" aria-hidden/>
       {/* scroll progress beam */}
       <div className="fixed top-0 left-0 right-0 pointer-events-none" style={{ zIndex: 60, height: 2 }} aria-hidden>
         <div ref={progressRef} style={{ height: "100%", width: "0%", background: "linear-gradient(90deg, #00cc6a, #00FF85)", boxShadow: "0 0 10px rgba(0,255,133,0.8), 0 0 24px rgba(0,255,133,0.35)", transition: "width 0.1s linear" }}/>
@@ -451,6 +473,18 @@ function Nav() {
 function Hero() {
   return (
     <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
+      {/* Cinematic video backdrop (desktop) — hides itself if the file isn't deployed yet */}
+      <div className="absolute inset-0 pointer-events-none hidden sm:block" aria-hidden>
+        <video
+          autoPlay muted loop playsInline preload="metadata"
+          src="/videos/hero-bg.mp4"
+          className="w-full h-full object-cover"
+          style={{ opacity: 0.38 }}
+          onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = "none"; }}
+        />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 0%, rgba(8,8,8,0.55) 72%, #080808 100%)" }}/>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(8,8,8,0.5), transparent 30%, transparent 70%, #080808)" }}/>
+      </div>
       {/* Background hidden on mobile for performance */}
       <div className="absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
@@ -571,7 +605,7 @@ function HowItWorks() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">The Process</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
+          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
             A structured educational system designed to help you develop real trading skills.
           </p>
@@ -616,7 +650,7 @@ function Features() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Everything You Need</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
+          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
         </FadeIn>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => (
@@ -743,7 +777,7 @@ function Pricing() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
+          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
             Start with The Greenprint or level up with our partner platform 1House Global &ndash; everything you need is right here.
           </p>
@@ -938,7 +972,7 @@ function Testimonials() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Member Experiences</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
+          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
           <p className="text-white/40 mt-4">Real feedback from The Greenprint community.</p>
         </FadeIn>
 
