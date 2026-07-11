@@ -29,6 +29,7 @@ function Cinematic() {
     const onScroll = () => {
       cancelAnimationFrame(sraf);
       sraf = requestAnimationFrame(() => {
+        document.documentElement.style.setProperty("--sy", String(window.scrollY));
         if (!bar) return;
         const max = document.documentElement.scrollHeight - window.innerHeight;
         bar.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
@@ -91,24 +92,10 @@ function Cinematic() {
         .gp-tickertrack:hover { animation-play-state: paused !important; }
         .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
         @keyframes gp-rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes gp-glitch {
-          0%, 91.5%, 100% { transform: none; text-shadow: none; }
-          92% { transform: translateX(2px) skewX(-2deg); text-shadow: -3px 0 rgba(0,255,133,.8), 3px 0 rgba(255,255,255,.25); }
-          93% { transform: translateX(-2px); text-shadow: 3px 0 rgba(0,255,133,.6); }
-          93.5% { transform: none; text-shadow: none; }
-          95.5% { transform: translateX(1px); text-shadow: -2px 0 rgba(0,255,133,.5); }
-          96% { transform: none; text-shadow: none; }
+        @media (min-width: 641px) {
+          .gp-heroScroll { transform: translateY(calc(var(--sy, 0) * 0.22px)) scale(calc(1 - var(--sy, 0) * 0.00020)); opacity: calc(1 - var(--sy, 0) * 0.0015); will-change: transform, opacity; }
+          .gp-heroPar { transform: translateY(calc(var(--sy, 0) * 0.35px)); will-change: transform; }
         }
-        .gp-glitch { animation: gp-glitch 8s linear infinite; }
-        .gp-card { position: relative; }
-        .gp-card::before, .gp-card::after { content:""; position:absolute; width:16px; height:16px; pointer-events:none; opacity:.35; transition: opacity .3s, width .3s, height .3s; }
-        .gp-card::before { top:7px; left:7px; border-top:2px solid #00FF85; border-left:2px solid #00FF85; }
-        .gp-card::after { bottom:7px; right:7px; border-bottom:2px solid #00FF85; border-right:2px solid #00FF85; }
-        .gp-card:hover::before, .gp-card:hover::after { opacity:.9; width:24px; height:24px; }
-        @keyframes gp-scandrift { from{transform:translateY(0)} to{transform:translateY(60px)} }
-        .gp-scanlines { position:fixed; inset:-60px 0 0 0; z-index:1; pointer-events:none; opacity:.5;
-          background: repeating-linear-gradient(to bottom, rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px, transparent 1px, transparent 4px);
-          animation: gp-scandrift 9s linear infinite; }
         .gp-conic { position: relative; }
         .gp-conic::before { content:""; position:absolute; inset:-60%; z-index:0; pointer-events:none;
           background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(0,255,133,.28) 330deg, transparent 360deg);
@@ -119,8 +106,6 @@ function Cinematic() {
           .gp-in.gp-floaty, .gp-in.gp-shimmer-text { animation-delay: 0s !important; }
           .gp-card:hover { transform: none; box-shadow: none; }
           [data-fadein] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
-          .gp-glitch { animation: none; }
-          .gp-card::before, .gp-card::after { display: none; }
         }
         @media (prefers-reduced-motion: reduce) {
           .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
@@ -155,8 +140,6 @@ function Cinematic() {
         background: "radial-gradient(circle, rgba(0,255,133,0.05) 0%, transparent 60%)",
         transition: "transform 0.18s ease-out",
       }} aria-hidden/>
-      {/* scanline sheen (desktop) */}
-      <div className="gp-scanlines hidden md:block" aria-hidden/>
       {/* scroll progress beam */}
       <div className="fixed top-0 left-0 right-0 pointer-events-none" style={{ zIndex: 60, height: 2 }} aria-hidden>
         <div ref={progressRef} style={{ height: "100%", width: "0%", background: "linear-gradient(90deg, #00cc6a, #00FF85)", boxShadow: "0 0 10px rgba(0,255,133,0.8), 0 0 24px rgba(0,255,133,0.35)", transition: "width 0.1s linear" }}/>
@@ -293,28 +276,32 @@ function FadeIn({
   y?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [vis, setVis] = useState(false);
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVis(true); obs.disconnect(); } },
-      { rootMargin: "-60px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+    if (window.innerWidth < 641) return; // mobile: instant, no scrub
+    let raf = 0;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      // progress 0→1 as the element travels up through the lower 45% of the viewport (staggered per element)
+      const p = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.45) - delay * 0.9));
+      const e = 1 - Math.pow(1 - p, 2); // ease-out
+      el.style.opacity = String(e);
+      el.style.transform = `translateY(${((1 - e) * (y + 22)).toFixed(1)}px) scale(${(0.97 + 0.03 * e).toFixed(4)})`;
+      el.style.filter = e > 0.98 ? "none" : `blur(${((1 - e) * 7).toFixed(1)}px)`;
+    };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [y, delay]);
   return (
-    <div
-      ref={ref}
-      className={className}
-      data-fadein=""
-      style={{
-        opacity: vis ? 1 : 0,
-        transform: vis ? "none" : `translateY(${y + 10}px) scale(0.985)`,
-        filter: vis ? "blur(0)" : "blur(8px)",
-        transition: `opacity 0.8s cubic-bezier(.16,.8,.3,1) ${delay}s, transform 0.8s cubic-bezier(.16,.8,.3,1) ${delay}s, filter 0.8s ease ${delay}s`,
-      }}
-    >
+    <div ref={ref} className={className} data-fadein="">
       {children}
     </div>
   );
@@ -486,7 +473,7 @@ function Hero() {
         <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(8,8,8,0.5), transparent 30%, transparent 70%, #080808)" }}/>
       </div>
       {/* Background hidden on mobile for performance */}
-      <div className="absolute inset-0 pointer-events-none hidden sm:block">
+      <div className="gp-heroPar absolute inset-0 pointer-events-none hidden sm:block">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
         <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
         <div className="absolute inset-0 opacity-[0.025]"
@@ -507,7 +494,7 @@ function Hero() {
       </div>
 
       <h1
-        className="text-center font-black leading-[0.88] tracking-tight px-4"
+        className="gp-heroScroll text-center font-black leading-[0.88] tracking-tight px-4"
         style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
       >
         <span className="gp-in block text-white" style={{ animationDelay: "0.2s" }}>TRADE</span>
@@ -605,7 +592,7 @@ function HowItWorks() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">The Process</span>
-          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
             A structured educational system designed to help you develop real trading skills.
           </p>
@@ -650,7 +637,7 @@ function Features() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Everything You Need</span>
-          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
         </FadeIn>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => (
@@ -777,7 +764,7 @@ function Pricing() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
-          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
           <p className="text-white/40 mt-4 max-w-lg mx-auto">
             Start with The Greenprint or level up with our partner platform 1House Global &ndash; everything you need is right here.
           </p>
@@ -972,7 +959,7 @@ function Testimonials() {
       <div className="max-w-6xl mx-auto px-6">
         <FadeIn className="text-center mb-16">
           <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Member Experiences</span>
-          <h2 className="gp-glitch text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
           <p className="text-white/40 mt-4">Real feedback from The Greenprint community.</p>
         </FadeIn>
 
@@ -1118,7 +1105,6 @@ function Footer() {
               {[
                 { label: "Watch Live", href: "/stream" },
                 { label: "Dashboard", href: "/dashboard" },
-                { label: "Scanner", href: "/scanner" },
                 { label: "Alerts", href: "/alerts" },
               ].map(l => (
                 <li key={l.label}>
