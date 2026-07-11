@@ -1,5 +1,35 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
+// ── Ambient constellation canvas (visual only) ───────────────────────────────
+function OnboardCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, w = 0, h = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    resize(); window.addEventListener("resize", resize);
+    const P = Math.max(22, Math.min(50, Math.floor(w / 26)));
+    const pts = Array.from({ length: P }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .28, vy: (Math.random() - .5) * .28, r: Math.random() * 1.5 + .5 }));
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1; }
+      ctx.lineWidth = 1;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j]; const d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+        if (d < 14400) { ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 14400) * .08})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      }
+      for (const p of pts) { ctx.fillStyle = "rgba(0,255,133,.28)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .5, zIndex: 0 }} />;
+}
 
 const APPS = [
   { name: "1House", desc: "Community platform", ios: "https://apps.apple.com/us/app/1house/id6754260060", android: "" },
@@ -62,6 +92,7 @@ export default function OnboardPage() {
         .ob-pop { animation: ob-pop .7s cubic-bezier(.3,1.4,.5,1) both; }
         @media (prefers-reduced-motion: reduce) { .ob-step,.ob-pop,.ob-btn::after { animation:none !important } }
       `}</style>
+      <OnboardCanvas />
       <div className="pointer-events-none fixed inset-0" aria-hidden>
         <div style={{ position:"absolute", top:"-12%", left:"-10%", width:480, height:480, borderRadius:"50%",
           background:"radial-gradient(circle, rgba(0,255,133,0.07) 0%, transparent 65%)", filter:"blur(50px)",
