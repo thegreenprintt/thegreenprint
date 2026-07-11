@@ -87,6 +87,90 @@ function Cinematic() {
   );
 }
 
+/* ─── Hero Canvas: live market constellation (visual only) ─────── */
+function HeroCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, w = 0, h = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      w = canvas.clientWidth; h = canvas.clientHeight;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const P = Math.max(30, Math.min(70, Math.floor(w / 18)));
+    const pts = Array.from({ length: P }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
+      r: Math.random() * 1.8 + 0.6,
+    }));
+
+    const CW = 26;
+    const count = Math.ceil(w / CW) + 2;
+    let price = h * 0.62;
+    const newCandle = () => {
+      const o = price;
+      let c = o + (Math.random() - 0.42) * 34;
+      c = Math.max(h * 0.35, Math.min(h * 0.88, c));
+      price = c;
+      return { o, c, hi: Math.max(o, c) + Math.random() * 16, lo: Math.min(o, c) - Math.random() * 16 };
+    };
+    const candles = Array.from({ length: count }, newCandle);
+    let off = 0;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+      }
+      ctx.lineWidth = 1;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const a = pts[i], b = pts[j];
+          const d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+          if (d < 16900) {
+            ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 16900) * 0.10})`;
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          }
+        }
+      }
+      for (const p of pts) {
+        ctx.fillStyle = "rgba(0,255,133,0.35)";
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+      }
+      off -= 0.4;
+      if (off <= -CW) { off += CW; candles.shift(); candles.push(newCandle()); }
+      ctx.save();
+      ctx.shadowBlur = 12;
+      candles.forEach((cd, i) => {
+        const x = i * CW + off;
+        const up = cd.c <= cd.o;
+        const col = up ? "#00FF85" : "#1f6f4a";
+        ctx.shadowColor = col; ctx.strokeStyle = col; ctx.fillStyle = col;
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath(); ctx.moveTo(x + CW / 2, cd.lo); ctx.lineTo(x + CW / 2, cd.hi); ctx.stroke();
+        const top = Math.min(cd.o, cd.c);
+        const hgt = Math.max(3, Math.abs(cd.o - cd.c));
+        ctx.globalAlpha = up ? 0.4 : 0.28;
+        ctx.fillRect(x + 5, top, CW - 10, hgt);
+      });
+      ctx.restore();
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none hidden sm:block" style={{ opacity: 0.5 }} aria-hidden />;
+}
+
 /* ─── Helpers ───────────────────────────────────────────────────── */
 function FadeIn({
   children,
@@ -293,6 +377,7 @@ function Hero() {
       <div className="absolute inset-0 pointer-events-none sm:hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
       </div>
+      <HeroCanvas />
 
       <div className="gp-in gp-floaty mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2" style={{ animationDelay: "0.1s, 1s" }}>
         <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
