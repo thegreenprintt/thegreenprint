@@ -50,6 +50,11 @@ function Cinematic() {
         .gp-in.gp-shimmer-text { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-shimmer 4.5s linear 1.1s infinite; }
         .gp-tickertrack:hover { animation-play-state: paused !important; }
         .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
+        @media (max-width: 640px) {
+          .gp-in { animation-delay: 0s !important; animation-duration: .45s !important; }
+          .gp-in.gp-floaty, .gp-in.gp-shimmer-text { animation-delay: 0s !important; }
+          .gp-card:hover { transform: none; box-shadow: none; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
         }
@@ -104,7 +109,8 @@ function HeroCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
-    const P = Math.max(30, Math.min(70, Math.floor(w / 18)));
+    const lite = w < 640;
+    const P = Math.max(14, Math.min(lite ? 26 : 70, Math.floor(w / 18)));
     const pts = Array.from({ length: P }, () => ({
       x: Math.random() * w, y: Math.random() * h,
       vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
@@ -149,7 +155,7 @@ function HeroCanvas() {
       off -= 0.4;
       if (off <= -CW) { off += CW; candles.shift(); candles.push(newCandle()); }
       ctx.save();
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = lite ? 0 : 12;
       candles.forEach((cd, i) => {
         const x = i * CW + off;
         const up = cd.c <= cd.o;
@@ -168,7 +174,7 @@ function HeroCanvas() {
     raf = requestAnimationFrame(draw);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, []);
-  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none hidden sm:block" style={{ opacity: 0.5 }} aria-hidden />;
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.5 }} aria-hidden />;
 }
 
 /* ─── Helpers ───────────────────────────────────────────────────── */
