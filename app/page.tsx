@@ -2,6 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Space_Grotesk } from "next/font/google";
+
+const grotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
+
+/* ─── Custom icon system (brand SVGs, no emojis) ────────────────── */
+function GIcon({ name, size = 22 }: { name: string; size?: number }) {
+  const paths: Record<string, React.ReactNode> = {
+    users: (<><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.4c2.3.2 4 1.7 4.5 4.1"/></>),
+    chart: (<><path d="M3 20h18"/><path d="M5 16l4-5 3.5 3L19 6"/><path d="M15.5 6H19v3.5"/></>),
+    bolt: (<path d="M13 2L5 13.5h5.5L10 22l8-11.5h-5.5L13 2z"/>),
+    target: (<><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></>),
+    video: (<><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5L21 7.5v9l-5.5-3"/></>),
+    scan: (<><path d="M4 9V5.5A1.5 1.5 0 015.5 4H9M15 4h3.5A1.5 1.5 0 0120 5.5V9M20 15v3.5a1.5 1.5 0 01-1.5 1.5H15M9 20H5.5A1.5 1.5 0 014 18.5V15"/><path d="M7 14l2.5-3 2 1.8L15 9.5"/></>),
+    chat: (<><path d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7a2.5 2.5 0 01-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-7z"/><path d="M8 9h8M8 12h5"/></>),
+    book: (<><path d="M5 4.5A1.5 1.5 0 016.5 3H19v16H6.5A1.5 1.5 0 005 20.5v-16z"/><path d="M5 17.5A1.5 1.5 0 016.5 16H19"/><path d="M9 7.5h6"/></>),
+    shield: (<><path d="M12 3l7.5 2.8v5.4c0 4.7-3.2 8-7.5 9.8-4.3-1.8-7.5-5.1-7.5-9.8V5.8L12 3z"/><path d="M9 11.5l2.2 2.2L15.5 9"/></>),
+  };
+  return (
+    <div style={{
+      width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+      background: "rgba(0,255,133,0.08)", border: "1px solid rgba(0,255,133,0.22)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 0 16px rgba(0,255,133,0.07)",
+    }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#00FF85" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        {paths[name] || paths.chart}
+      </svg>
+    </div>
+  );
+}
 
 /* ─── Constants ─────────────────────────────────────────────────── */
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
@@ -564,13 +594,13 @@ function Stats() {
 /* ─── How It Works ──────────────────────────────────────────────── */
 function HowItWorks() {
   const steps = [
-    { num: "01", title: "Join The Community", icon: "\u{1F4F1}",
+    { num: "01", title: "Join The Community", icon: "users",
       desc: "Get instant access to the private Discord, live sessions, and the full Greenprint educational system." },
-    { num: "02", title: "Learn The System", icon: "\u{1F4C8}",
+    { num: "02", title: "Learn The System", icon: "chart",
       desc: "Study The Greenprint's approach – entry signals, risk management, and setups that have stood the test of time." },
-    { num: "03", title: "Receive Real-Time Alerts", icon: "⚡",
+    { num: "03", title: "Receive Real-Time Alerts", icon: "bolt",
       desc: "Get notified the second a setup is spotted. Follow along with live commentary and rationale for every alert." },
-    { num: "04", title: "Apply What You Learn", icon: "\u{1F4B0}",
+    { num: "04", title: "Apply What You Learn", icon: "target",
       desc: "Take what you've learned and execute with a plan. Track your growth and refine your strategy over time." },
   ];
 
@@ -590,7 +620,7 @@ function HowItWorks() {
           {steps.map((step, i) => (
             <FadeIn key={step.num} delay={i * 0.1}>
               <div className="gp-card group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
-                <div className="text-3xl mb-4">{step.icon}</div>
+                <div className="mb-4"><GIcon name={step.icon}/></div>
                 <div className="text-[#00FF85]/40 text-xs font-bold tracking-widest mb-2">{step.num}</div>
                 <h3 className="text-white font-bold text-base mb-2">{step.title}</h3>
                 <p className="text-white/40 text-sm leading-relaxed">{step.desc}</p>
@@ -606,17 +636,17 @@ function HowItWorks() {
 /* ─── Features ──────────────────────────────────────────────────── */
 function Features() {
   const features = [
-    { icon: "⚡", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
+    { icon: "bolt", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
       desc: "Push alerts the moment a setup is identified, with full context on the reasoning behind it." },
-    { icon: "\u{1F3A5}", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
+    { icon: "video", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
       desc: "Watch The Greenprint trade in real time – entry, thesis, and exit streamed directly to you." },
-    { icon: "\u{1F4CA}", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
+    { icon: "scan", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
       desc: "Scan for unusual options flow and spot potential moves before they develop." },
-    { icon: "\u{1F525}", title: "Private Community", badge: null, badgeColor: "#00FF85",
+    { icon: "chat", title: "Private Community", badge: null, badgeColor: "#00FF85",
       desc: "A members-only Discord focused on education, setups, and accountability – no noise." },
-    { icon: "\u{1F4DA}", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
+    { icon: "book", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
       desc: "The exact frameworks, chart setups, and decision rules used in The Greenprint system." },
-    { icon: "\u{1F6E1}️", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
+    { icon: "shield", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
       desc: "Elite members get direct coaching sessions tailored to their personal trading goals." },
   ];
 
@@ -634,7 +664,7 @@ function Features() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
                 <div className="relative">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="text-3xl">{f.icon}</div>
+                    <GIcon name={f.icon}/>
                     {f.badge && (
                       <span className="text-xs font-bold px-2.5 py-1 rounded-full"
                         style={{ background: `${f.badgeColor}18`, color: f.badgeColor, border: `1px solid ${f.badgeColor}30` }}>
@@ -1224,7 +1254,7 @@ function WinToasts() {
 /* ─── Root ──────────────────────────────────────────────────────── */
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#080808] text-white relative">
+    <main className={`${grotesk.className} min-h-screen bg-[#080808] text-white relative`}>
       <Cinematic />
       <Nav />
       <Hero />
