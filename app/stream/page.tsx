@@ -320,6 +320,16 @@ export default function StreamPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-200px) scale(2.2)}}
         @keyframes joinPulse{0%,100%{opacity:1}50%{opacity:.85}}
+        @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes liveRing{0%,100%{box-shadow:0 0 8px rgba(255,45,85,.5)}50%{box-shadow:0 0 20px rgba(255,45,85,.9)}}
+        @keyframes stageGlow{0%,100%{opacity:.5}50%{opacity:1}}
+        @keyframes shineSweep{from{transform:translateX(-150%) skewX(-20deg)}to{transform:translateX(350%) skewX(-20deg)}}
+        .msg-row{animation:msgIn .35s cubic-bezier(.2,.8,.3,1) both;border-radius:10px;padding:4px 6px;margin:0 -6px 6px;transition:background .2s}
+        .msg-row:hover{background:rgba(255,255,255,.04)}
+        .join-cta{position:relative;overflow:hidden}
+        .join-cta::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:0;background:linear-gradient(105deg,transparent,rgba(0,255,135,.25),transparent);animation:shineSweep 3.5s ease-in-out infinite;pointer-events:none}
+        .send-btn{transition:transform .2s,box-shadow .2s}
+        .send-btn:hover{transform:scale(1.08);box-shadow:0 0 18px rgba(0,255,135,.6)}
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
         .eb{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:50%;padding:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative;}
         .eb:hover{background:rgba(0,255,135,.15);border-color:rgba(0,255,135,.4);transform:scale(1.18);}
@@ -394,15 +404,15 @@ export default function StreamPage() {
         </div>
       ) : (
         <div style={{height:"100dvh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
+          <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(0,255,135,.12)",boxShadow:"0 1px 20px rgba(0,255,135,.06)",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>🌿</div>
+                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,boxShadow:"0 0 14px rgba(0,255,135,.5)"}}>🌿</div>
                 <div><div style={{fontWeight:900,fontSize:13}}>The Greenprint</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Live Trading Session</div></div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                 <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"3px 10px",fontSize:11}}>👁 {viewers+1}</span>
-                <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:4}}>
+                <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:4,animation:"liveRing 2s ease-in-out infinite"}}>
                   <span style={{width:6,height:6,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
                 </span>
                 <span style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",borderRadius:20,padding:"3px 10px",fontSize:10,color:"rgba(255,255,255,.4)"}}>{fmt(dur)}</span>
@@ -413,6 +423,9 @@ export default function StreamPage() {
 
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
             <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();roomRef.current?.startAudio().catch(()=>{});setNeedsClick(false);}:undefined}>
+              {/* stage lighting */}
+              <div aria-hidden style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:"70%",height:240,background:"radial-gradient(ellipse, rgba(0,255,135,.10) 0%, transparent 70%)",filter:"blur(30px)",pointerEvents:"none",animation:"stageGlow 5s ease-in-out infinite",zIndex:1}}/>
+              <div aria-hidden style={{position:"absolute",inset:0,pointerEvents:"none",boxShadow:"inset 0 0 80px rgba(0,255,135,.05), inset 0 0 8px rgba(0,255,135,.06)",zIndex:1}}/>
               <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
 
               {hasCam && (
@@ -459,7 +472,7 @@ export default function StreamPage() {
                                                                 <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
                   {chat.length===0&&<div style={{textAlign:"center",padding:"36px 0"}}><div style={{fontSize:28,marginBottom:8}}>💬</div><p style={{color:"rgba(255,255,255,.2)",fontSize:12,margin:0}}>Be the first to chat!</p></div>}
                   {chat.map((m,i)=>(
-                    <div key={i} style={{marginBottom:10,display:"flex",alignItems:"flex-start",gap:7}}>
+                    <div key={i} className="msg-row" style={{display:"flex",alignItems:"flex-start",gap:7}}>
                       <Avatar name={m.name} isHost={m.name==="Host"} />
                       <div style={{lineHeight:1.4,flex:1,minWidth:0}}>
                         <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:11}}>{m.name}</span>
@@ -469,15 +482,15 @@ export default function StreamPage() {
                   ))}
                   <div ref={chatEndRef}/>
                 </div>
-                <a href={JOIN_URL} target="_blank" rel="noopener noreferrer"
-                  style={{display:"block",textDecoration:"none",margin:"6px 10px",background:"linear-gradient(135deg,rgba(0,255,135,.12),rgba(0,200,100,.08))",border:"1px solid rgba(0,255,135,.28)",borderRadius:10,padding:"10px 12px",textAlign:"center",animation:"joinPulse 3s infinite",flexShrink:0}}>
+                <a href={JOIN_URL} target="_blank" rel="noopener noreferrer" className="join-cta"
+                  style={{display:"block",textDecoration:"none",margin:"6px 10px",background:"linear-gradient(135deg,rgba(0,255,135,.12),rgba(0,200,100,.08))",border:"1px solid rgba(0,255,135,.28)",borderRadius:10,padding:"10px 12px",textAlign:"center",animation:"joinPulse 3s infinite",flexShrink:0,boxShadow:"0 0 16px rgba(0,255,135,.08)"}}>
                   <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginBottom:2}}>Ready to level up?</div>
                   <div style={{fontSize:13,fontWeight:800,color:"#00ff87"}}>Join The Greenprint — $99/mo →</div>
                 </a>
                 <div style={{padding:"6px 12px",paddingBottom:"max(8px,env(safe-area-inset-bottom,0px))",borderTop:"1px solid rgba(255,255,255,.06)",flexShrink:0}}>
                   <div style={{display:"flex",gap:7}}>
                     <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Chat as ${name}...`} className="ci" />
-                    <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"9px 12px",cursor:"pointer",flexShrink:0,fontSize:14}}>→</button>
+                    <button onClick={sendChat} className="send-btn" style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"9px 12px",cursor:"pointer",flexShrink:0,fontSize:14,boxShadow:"0 0 10px rgba(0,255,135,.35)"}}>→</button>
                   </div>
                 </div>
               </div>
