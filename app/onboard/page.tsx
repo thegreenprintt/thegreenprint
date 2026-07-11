@@ -43,22 +43,48 @@ export default function OnboardPage() {
   const pct = Math.round((step / TOTAL_STEPS) * 100);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+      <style>{`
+        @keyframes ob-rise { from{opacity:0; transform:translateY(26px); filter:blur(8px)} to{opacity:1; transform:translateY(0); filter:blur(0)} }
+        @keyframes ob-aurora { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,-30px) scale(1.15)} }
+        @keyframes ob-pop { 0%{transform:scale(0); opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1); opacity:1} }
+        @keyframes ob-confetti { 0%{transform:translate(0,0) rotate(0deg) scale(1); opacity:1} 100%{transform:translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(0.4); opacity:0} }
+        @keyframes ob-shine { from{transform:translateX(-150%) skewX(-20deg)} to{transform:translateX(350%) skewX(-20deg)} }
+        .ob-step { animation: ob-rise .65s cubic-bezier(.16,.8,.3,1) both; }
+        .ob-btn { position:relative; overflow:hidden; transition: transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s ease; }
+        .ob-btn:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 0 34px rgba(0,255,133,.45); }
+        .ob-btn:active { transform: translateY(0) scale(.99); }
+        .ob-btn::after { content:""; position:absolute; top:0; bottom:0; width:40%; left:0;
+          background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
+          animation: ob-shine 3.2s ease-in-out infinite; pointer-events:none; }
+        .ob-card { transition: transform .3s cubic-bezier(.2,.8,.3,1), border-color .3s, box-shadow .3s; }
+        .ob-card:hover { transform: translateY(-3px); border-color: rgba(0,255,133,.35) !important; box-shadow: 0 10px 30px rgba(0,0,0,.4), 0 0 18px rgba(0,255,133,.08); }
+        .ob-pop { animation: ob-pop .7s cubic-bezier(.3,1.4,.5,1) both; }
+        @media (prefers-reduced-motion: reduce) { .ob-step,.ob-pop,.ob-btn::after { animation:none !important } }
+      `}</style>
+      <div className="pointer-events-none fixed inset-0" aria-hidden>
+        <div style={{ position:"absolute", top:"-12%", left:"-10%", width:480, height:480, borderRadius:"50%",
+          background:"radial-gradient(circle, rgba(0,255,133,0.07) 0%, transparent 65%)", filter:"blur(50px)",
+          animation:"ob-aurora 18s ease-in-out infinite" }}/>
+        <div style={{ position:"absolute", bottom:"-15%", right:"-12%", width:560, height:560, borderRadius:"50%",
+          background:"radial-gradient(circle, rgba(0,200,100,0.05) 0%, transparent 65%)", filter:"blur(60px)",
+          animation:"ob-aurora 24s ease-in-out infinite reverse" }}/>
+      </div>
       <div className="fixed top-0 left-0 right-0 h-1 bg-white/10 z-50">
-        <div className="h-full bg-[#00FF85] transition-all duration-500" style={{ width: pct + "%" }} />
+        <div className="h-full bg-[#00FF85] transition-all duration-700" style={{ width: pct + "%", boxShadow: "0 0 12px rgba(0,255,133,0.9), 0 0 30px rgba(0,255,133,0.4)" }} />
       </div>
 
-      <div className="max-w-lg mx-auto px-6 pt-12 pb-24">
+      <div className="max-w-lg mx-auto px-6 pt-12 pb-24 relative">
         <p className="text-white/30 text-xs tracking-widest uppercase mb-10">Step {step} of {TOTAL_STEPS}</p>
 
         {step === 1 && (
-          <div>
+          <div className="ob-step">
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Your Home Base</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Log In to 1House</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-8">
               1House is where everything lives — the community, the content, and your connection to The Greenprint. Log in and take 5 minutes to explore before moving on. Get familiar with how it is laid out.
             </p>
-            <a href="https://www.1house.tv" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-4">
+            <a href="https://www.1house.tv" target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-4">
               Open 1House
             </a>
             <a href="https://apps.apple.com/us/app/1house/id6754260060" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
@@ -68,7 +94,7 @@ export default function OnboardPage() {
         )}
 
         {step === 2 && (
-          <div>
+          <div className="ob-step">
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Download Your Apps</h2>
             <p className="text-white/50 text-sm mb-6">These are the tools you will use every day inside The Greenprint.</p>
@@ -81,7 +107,7 @@ export default function OnboardPage() {
             />
             <div className="flex flex-col gap-3">
               {APPS.map(app => (
-                <div key={app.name} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                <div key={app.name} className="ob-card flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
                   <div>
                     <p className="text-white font-semibold text-sm">{app.name}</p>
                     <p className="text-white/40 text-xs">{app.desc}</p>
@@ -101,14 +127,14 @@ export default function OnboardPage() {
         )}
 
         {step === 3 && (
-          <div>
+          <div className="ob-step">
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Community</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Join the Chats</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-8">
               Get plugged in. This is where signals, updates, and live session alerts happen.
             </p>
             <div className="flex flex-col gap-3">
-              <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
+              <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="ob-card flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
@@ -120,7 +146,7 @@ export default function OnboardPage() {
                 </div>
                 <span className="ml-auto text-white/30 text-sm">→</span>
               </a>
-              <a href="https://t.me/+1rvPMKd6MRw3NGUx" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
+              <a href="https://t.me/+1rvPMKd6MRw3NGUx" target="_blank" rel="noopener noreferrer" className="ob-card flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z"/>
@@ -137,7 +163,7 @@ export default function OnboardPage() {
         )}
 
         {step === 4 && (
-          <div>
+          <div className="ob-step">
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-3">Set Up Your Broker</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-6">
@@ -182,7 +208,7 @@ export default function OnboardPage() {
         )}
 
         {step === 5 && (
-          <div>
+          <div className="ob-step">
             <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education</span>
             <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin Long's Clips</h2>
             <p className="text-white/50 text-sm leading-relaxed mb-6">
@@ -201,18 +227,37 @@ export default function OnboardPage() {
                 </div>
               ))}
             </div>
-            <a href="https://www.1house.tv/educators/a782da2a-81c6-4c32-9f6a-e36c9c74e218" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
+            <a href="https://www.1house.tv/educators/a782da2a-81c6-4c32-9f6a-e36c9c74e218" target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center">
               Open Arin's Channel on 1House →
             </a>
           </div>
         )}
 
         {step === 6 && (
-          <div className="text-center pt-8">
-            <div className="w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center mx-auto mb-8">
-              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+          <div className="ob-step text-center pt-8">
+            <div className="relative w-16 h-16 mx-auto mb-8">
+              <div className="ob-pop w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center"
+                style={{ boxShadow: "0 0 40px rgba(0,255,133,0.6), 0 0 90px rgba(0,255,133,0.25)" }}>
+                <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              {[...Array(14)].map((_, i) => {
+                const ang = (i / 14) * Math.PI * 2;
+                const dist = 70 + (i % 3) * 30;
+                const colors = ["#00FF85", "#C9A84C", "#ffffff", "#00cc6a"];
+                return (
+                  <span key={i} aria-hidden style={{
+                    position: "absolute", top: "50%", left: "50%", width: i % 2 ? 6 : 8, height: i % 2 ? 6 : 8,
+                    borderRadius: i % 3 === 0 ? "50%" : 2, background: colors[i % 4],
+                    ["--cx" as any]: `${Math.cos(ang) * dist}px`,
+                    ["--cy" as any]: `${Math.sin(ang) * dist}px`,
+                    ["--cr" as any]: `${(i % 2 ? 1 : -1) * (180 + i * 20)}deg`,
+                    animation: `ob-confetti ${0.9 + (i % 4) * 0.15}s cubic-bezier(.2,.8,.4,1) ${0.25 + (i % 5) * 0.04}s both`,
+                    pointerEvents: "none",
+                  }}/>
+                );
+              })}
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">You are All Set.</h2>
             <p className="text-white/50 text-base leading-relaxed mb-10">
@@ -226,7 +271,7 @@ export default function OnboardPage() {
               className="w-full rounded-xl border border-white/10 bg-black mb-10"
             />
 
-            <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
+            <a href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3">
               Join the Telegram →
             </a>
             <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center">
@@ -242,7 +287,8 @@ export default function OnboardPage() {
                 Back
               </button>
             )}
-            <button onClick={next} className="flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base">
+            <button onClick={next} className="ob-btn flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base"
+              style={{ boxShadow: "0 0 22px rgba(0,255,133,0.3)" }}>
               {step === 1 ? "Let's Go" : "Continue"}
             </button>
           </div>
