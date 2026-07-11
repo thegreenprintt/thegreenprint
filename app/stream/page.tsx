@@ -91,6 +91,50 @@ function Avatar({ name, isHost=false }: { name:string; isHost?:boolean }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Ambient market canvas (visual only — lobby background) ───────────────────
+function StreamCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, w = 0, h = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    resize(); window.addEventListener("resize", resize);
+    const P = Math.max(26, Math.min(60, Math.floor(w / 22)));
+    const pts = Array.from({ length: P }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, r: Math.random() * 1.6 + .5 }));
+    const CW = 28; const count = Math.ceil(w / CW) + 2;
+    let price = h * .68;
+    const newCandle = () => { const o = price; let c = o + (Math.random() - .42) * 30; c = Math.max(h * .45, Math.min(h * .9, c)); price = c; return { o, c, hi: Math.max(o, c) + Math.random() * 14, lo: Math.min(o, c) - Math.random() * 14 }; };
+    const candles = Array.from({ length: count }, newCandle);
+    let off = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1; }
+      ctx.lineWidth = 1;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j]; const d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+        if (d < 15000) { ctx.strokeStyle = `rgba(0,255,135,${(1 - d / 15000) * .09})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      }
+      for (const p of pts) { ctx.fillStyle = "rgba(0,255,135,.3)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+      off -= .35; if (off <= -CW) { off += CW; candles.shift(); candles.push(newCandle()); }
+      ctx.save(); ctx.shadowBlur = 10;
+      candles.forEach((cd, i) => {
+        const x = i * CW + off; const up = cd.c <= cd.o; const col = up ? "#00ff87" : "#1d5f42";
+        ctx.shadowColor = col; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.globalAlpha = .35;
+        ctx.beginPath(); ctx.moveTo(x + CW / 2, cd.lo); ctx.lineTo(x + CW / 2, cd.hi); ctx.stroke();
+        ctx.globalAlpha = up ? .3 : .2; ctx.fillRect(x + 5, Math.min(cd.o, cd.c), CW - 10, Math.max(3, Math.abs(cd.o - cd.c)));
+      });
+      ctx.restore();
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
+}
+
 export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
   const [name, setName] = useState("");
@@ -304,6 +348,8 @@ export default function StreamPage() {
       
 
       <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
+
+      {!joined && <StreamCanvas />}
 
       {!joined ? (
         <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px)",fontFamily:"system-ui,-apple-system,sans-serif"}}>
