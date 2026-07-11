@@ -10,18 +10,58 @@ const WHOP_URL = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
 /* ─── Cinematic Layer (visual only — no functionality) ─────────── */
 function Cinematic() {
   const glowRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = glowRef.current;
-    if (!el || window.matchMedia("(pointer: coarse)").matches) return;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
     let raf = 0;
     const move = (e: MouseEvent) => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        el.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
+        if (el) el.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
       });
     };
-    window.addEventListener("mousemove", move);
-    return () => { window.removeEventListener("mousemove", move); cancelAnimationFrame(raf); };
+    if (el && !coarse) window.addEventListener("mousemove", move);
+
+    // scroll progress beam
+    const bar = progressRef.current;
+    let sraf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(sraf);
+      sraf = requestAnimationFrame(() => {
+        if (!bar) return;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        bar.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+
+    // 3D tilt on .gp-card (desktop only)
+    let tiltEl: HTMLElement | null = null;
+    const tiltMove = (e: MouseEvent) => {
+      const card = (e.target as HTMLElement)?.closest?.(".gp-card") as HTMLElement | null;
+      if (tiltEl && tiltEl !== card) { tiltEl.style.transform = ""; tiltEl = null; }
+      if (!card) return;
+      tiltEl = card;
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `perspective(900px) rotateX(${(-py * 7).toFixed(2)}deg) rotateY(${(px * 9).toFixed(2)}deg) translateY(-6px) scale(1.02)`;
+    };
+    const tiltLeave = () => { if (tiltEl) { tiltEl.style.transform = ""; tiltEl = null; } };
+    if (!coarse) {
+      document.addEventListener("mousemove", tiltMove, { passive: true });
+      document.addEventListener("mouseleave", tiltLeave);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("mousemove", tiltMove);
+      document.removeEventListener("mouseleave", tiltLeave);
+      cancelAnimationFrame(raf); cancelAnimationFrame(sraf);
+    };
   }, []);
 
   return (
@@ -50,10 +90,17 @@ function Cinematic() {
         .gp-in.gp-shimmer-text { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-shimmer 4.5s linear 1.1s infinite; }
         .gp-tickertrack:hover { animation-play-state: paused !important; }
         .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
+        @keyframes gp-rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .gp-conic { position: relative; }
+        .gp-conic::before { content:""; position:absolute; inset:-60%; z-index:0; pointer-events:none;
+          background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(0,255,133,.28) 330deg, transparent 360deg);
+          animation: gp-rotate 7s linear infinite; }
+        @media (max-width: 640px) { .gp-conic::before { display:none; } }
         @media (max-width: 640px) {
           .gp-in { animation-delay: 0s !important; animation-duration: .45s !important; }
           .gp-in.gp-floaty, .gp-in.gp-shimmer-text { animation-delay: 0s !important; }
           .gp-card:hover { transform: none; box-shadow: none; }
+          [data-fadein] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
@@ -88,6 +135,10 @@ function Cinematic() {
         background: "radial-gradient(circle, rgba(0,255,133,0.05) 0%, transparent 60%)",
         transition: "transform 0.18s ease-out",
       }} aria-hidden/>
+      {/* scroll progress beam */}
+      <div className="fixed top-0 left-0 right-0 pointer-events-none" style={{ zIndex: 60, height: 2 }} aria-hidden>
+        <div ref={progressRef} style={{ height: "100%", width: "0%", background: "linear-gradient(90deg, #00cc6a, #00FF85)", boxShadow: "0 0 10px rgba(0,255,133,0.8), 0 0 24px rgba(0,255,133,0.35)", transition: "width 0.1s linear" }}/>
+      </div>
     </>
   );
 }
@@ -204,6 +255,7 @@ function FadeIn({
     <div
       ref={ref}
       className={className}
+      data-fadein=""
       style={{
         opacity: vis ? 1 : 0,
         transform: vis ? "none" : `translateY(${y + 10}px) scale(0.985)`,
