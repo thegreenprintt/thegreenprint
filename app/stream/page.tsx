@@ -151,6 +151,48 @@ export default function StreamPage() {
   const [floats, setFloats] = useState<FE[]>([]);
   const [chatOpen, setChatOpen] = useState(true);
   const [dur, setDur] = useState(0);
+  // ── Stage (viewer on air) — fully additive; separate publish-only connection ──
+  const [handRaised, setHandRaised] = useState(false);
+  const [onStage, setOnStage] = useState(false);
+  const stageRoomRef = useRef<Room | null>(null);
+  const stageKey = (n: string) => n.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40);
+
+  const raiseHand = async () => {
+    if (!name || handRaised || onStage) return;
+    await push("live/stage/requests", { name, ts: Date.now() });
+    setHandRaised(true);
+  };
+  const leaveStage = async () => {
+    try { await stageRoomRef.current?.disconnect(); } catch {}
+    stageRoomRef.current = null;
+    setOnStage(false); setHandRaised(false);
+    try { await fetch(`${FB}/live/stage/approved/${stageKey(name)}.json`, { method: "DELETE" }); } catch {}
+  };
+  useEffect(() => {
+    if (!joined || !name || (!handRaised && !onStage)) return;
+    const id = setInterval(async () => {
+      const entry = await get(`live/stage/approved/${stageKey(name)}`);
+      const approved = !!(entry && entry.name === name);
+      if (approved && !onStage && !stageRoomRef.current) {
+        try {
+          const r = await fetch(`/api/token?isHost=0&stage=1&name=${encodeURIComponent(name)}`, { cache: "no-store" });
+          const { token, url } = r.ok ? await r.json() : ({} as any);
+          if (!token) return;
+          const sr = new Room();
+          stageRoomRef.current = sr;
+          await sr.connect(url, token, { autoSubscribe: false });
+          await sr.localParticipant.setMicrophoneEnabled(true);
+          setOnStage(true); setHandRaised(false);
+        } catch { try { stageRoomRef.current?.disconnect(); } catch {} stageRoomRef.current = null; }
+      }
+      if (!approved && onStage) {
+        try { await stageRoomRef.current?.disconnect(); } catch {}
+        stageRoomRef.current = null; setOnStage(false); setHandRaised(false);
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [joined, name, handRaised, onStage]);
+  useEffect(() => () => { try { stageRoomRef.current?.disconnect(); } catch {} }, []);
 
   const screenRef = useRef<HTMLVideoElement>(null);
   const camRef = useRef<HTMLVideoElement>(null);
@@ -416,6 +458,19 @@ export default function StreamPage() {
                   <span style={{width:6,height:6,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
                 </span>
                 <span style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",borderRadius:20,padding:"3px 10px",fontSize:10,color:"rgba(255,255,255,.4)"}}>{fmt(dur)}</span>
+                <button
+                  onClick={onStage ? leaveStage : raiseHand}
+                  title={onStage ? "Leave the stage" : handRaised ? "Waiting for the host..." : "Raise your hand to speak on stream"}
+                  style={{
+                    background: onStage ? "rgba(255,45,85,.18)" : handRaised ? "rgba(255,200,50,.15)" : "rgba(255,255,255,.05)",
+                    border: onStage ? "1px solid rgba(255,45,85,.5)" : handRaised ? "1px solid rgba(255,200,50,.4)" : "1px solid rgba(255,255,255,.1)",
+                    borderRadius: 8, padding: "4px 10px", cursor: "pointer",
+                    color: onStage ? "#ff2d55" : handRaised ? "#ffc832" : "rgba(255,255,255,.5)",
+                    fontSize: 12, fontWeight: 700,
+                    animation: onStage ? "pulse 1.4s infinite" : "none",
+                  }}>
+                  {onStage ? "🎙 ON AIR" : handRaised ? "✋ ..." : "🎤"}
+                </button>
                 <button onClick={()=>setChatOpen(o=>!o)} style={{background:chatOpen?"rgba(0,255,135,.12)":"rgba(255,255,255,.05)",border:chatOpen?"1px solid rgba(0,255,135,.3)":"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"4px 10px",cursor:"pointer",color:chatOpen?"#00ff87":"rgba(255,255,255,.5)",fontSize:12,fontWeight:700}}>💬</button>
               </div>
             </div>
