@@ -52,6 +52,63 @@ export default function GoLive() {
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
 
+  // ── STAGE: viewer call-in requests (additive) ─────────────────────────────
+  const [stageReqs, setStageReqs] = useState<{id:string;name:string}[]>([]);
+  const [stageOn, setStageOn] = useState<{key:string;name:string}[]>([]);
+  const stageKey = (n: string) => n.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40);
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(async () => {
+      const [reqs, appr] = await Promise.all([get("live/stage/requests"), get("live/stage/approved")]);
+      const approvedNames = new Set(Object.values(appr || {}).map((a: any) => a?.name));
+      const seen = new Set<string>();
+      const list: {id:string;name:string}[] = [];
+      Object.entries(reqs || {}).forEach(([rid, r]: [string, any]) => {
+        if (r?.name && !approvedNames.has(r.name) && !seen.has(r.name)) { seen.add(r.name); list.push({ id: rid, name: r.name }); }
+      });
+      setStageReqs(list);
+      setStageOn(Object.entries(appr || {}).map(([k, a]: [string, any]) => ({ key: k, name: a?.name || k })));
+    }, 3000);
+    return () => clearInterval(id);
+  }, [live]);
+  const approveGuest = async (r: {id:string;name:string}) => {
+    await put(`live/stage/approved/${stageKey(r.name)}`, { name: r.name, ts: Date.now() });
+    await del(`live/stage/requests/${r.id}`);
+  };
+  const removeGuest = async (g: {key:string;name:string}) => { await del(`live/stage/approved/${g.key}`); };
+
+  // ── GP AI co-host: answers common beginner questions in chat (additive) ──
+  useEffect(() => {
+    if (!live) return;
+    let lastTs = Date.now();
+    const cool: Record<string, number> = {};
+    const faqs = [
+      { id: "0dte", re: /0\s*dte/i, a: "0DTE = zero days to expiration — options that expire today. Fast moves, high risk, small size. 📚" },
+      { id: "rmult", re: /r[- ]multiple|what does \+?\d(\.\d)?r mean|mean by \+?\d(\.\d)?r/i, a: "R = risk unit. +2R means the trade made 2x what was risked. It keeps wins and losses comparable." },
+      { id: "join", re: /how (do i|to|can i) (join|sign ?up)|how much (is|does)|what('| i)?s the price/i, a: "Tap 'Join The Greenprint' below the chat for full access — alerts, signals & the community. 🌿" },
+      { id: "sched", re: /when (are you|is he|do you).{0,15}(live|stream)|stream schedule/i, a: "We go live around market opens — join the free Telegram (link on the homepage) to get notified." },
+      { id: "broker", re: /(what|which) broker/i, a: "The community uses GenesisFX + TradeLocker — full setup steps at thegreenprint.trade/onboard." },
+      { id: "demo", re: /paper trad|demo account|practice account/i, a: "Start on a TradeLocker demo account — onboarding walks you through it. Practice before real money. 💪" },
+      { id: "advice", re: /financial advice/i, a: "Nothing here is financial advice — it's education. Trade your own plan and manage your risk." },
+      { id: "callput", re: /what('| i)?s a (call|put)/i, a: "Calls profit when price rises, puts when it falls. The free Academy on the app page covers the basics." },
+    ];
+    const id = setInterval(async () => {
+      const data = await get("live/chat"); if (!data) return;
+      const msgs = (Object.values(data) as any[]).filter(m => m && m.ts > lastTs && m.name !== "GP AI" && m.name !== "Host");
+      if (msgs.length) lastTs = Math.max(...msgs.map((m: any) => m.ts));
+      for (const m of msgs) {
+        for (const f of faqs) {
+          if (f.re.test(String(m.msg || "")) && (!cool[f.id] || Date.now() - cool[f.id] > 90000)) {
+            cool[f.id] = Date.now();
+            await push("live/chat", { name: "GP AI", msg: "@" + m.name + " " + f.a, ts: Date.now() });
+            return;
+          }
+        }
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [live]);
+
   // KEEPALIVE — if the browser silently kills the mic or camera track
   // (commonly right after the camera is toggled), bring it back automatically.
   useEffect(() => {
@@ -129,6 +186,19 @@ export default function GoLive() {
       roomRef.current = room;
       room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
       room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
+      // Hear stage guests (additive): play audio published by approved call-in viewers
+      room.on(RoomEvent.TrackSubscribed,(track:any,_pub:any,participant:any)=>{
+        try {
+          if (track.kind === Track.Kind.Audio && String(participant?.identity||"").startsWith("guest-")) {
+            const el = track.attach() as HTMLMediaElement;
+            el.autoplay = true; el.setAttribute("playsinline","true");
+            el.setAttribute("data-stage-guest", participant.identity);
+            document.body.appendChild(el);
+            el.play().catch(()=>{});
+          }
+        } catch {}
+      });
+      room.on(RoomEvent.TrackUnsubscribed,(track:any)=>{ try { track.detach().forEach((el:HTMLElement)=>el.remove()); } catch {} });
       await room.connect(url,token);
       await room.localParticipant.publishTrack(vt,{name:"screen",source:Track.Source.ScreenShare,simulcast:false});
       if (at) await room.localParticipant.publishTrack(at,{name:"screen-audio",source:Track.Source.ScreenShareAudio});
@@ -144,6 +214,7 @@ export default function GoLive() {
   const stopStream = async () => {
     if (hbRef.current) clearInterval(hbRef.current);
     if (roomRef.current) { await roomRef.current.disconnect(); roomRef.current=null; }
+    await del("live/stage");
     await put("livestatus",{live:false,ts:Date.now()});
     setLive(false); setStatus(""); setViewers(0); setCamOn(false);
     if (camTrackRef.current) { camTrackRef.current.stop(); camTrackRef.current=null; }
@@ -272,6 +343,25 @@ export default function GoLive() {
         ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
         @media(max-width:900px){.sg{grid-template-columns:1fr!important}.cc{max-height:260px!important}}
       `}</style>
+
+      {/* ── STAGE PANEL (additive): call-in requests + on-air guests ── */}
+      {live && (stageReqs.length > 0 || stageOn.length > 0) && (
+        <div style={{position:"fixed",bottom:16,left:16,zIndex:9998,width:250,background:"rgba(8,12,9,.95)",border:"1px solid rgba(0,255,135,.3)",borderRadius:14,padding:"12px 14px",backdropFilter:"blur(12px)",boxShadow:"0 8px 30px rgba(0,0,0,.6)"}}>
+          <div style={{fontSize:11,fontWeight:900,letterSpacing:"1.5px",color:"#00ff87",marginBottom:8}}>🎙 STAGE</div>
+          {stageOn.map(g=>(
+            <div key={g.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+              <span style={{fontSize:12,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🔴 {g.name}</span>
+              <button onClick={()=>removeGuest(g)} style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:7,color:"#ff2d55",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>REMOVE</button>
+            </div>
+          ))}
+          {stageReqs.map(r=>(
+            <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+              <span style={{fontSize:12,color:"rgba(255,255,255,.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>✋ {r.name}</span>
+              <button onClick={()=>approveGuest(r)} style={{background:"rgba(0,255,135,.15)",border:"1px solid rgba(0,255,135,.4)",borderRadius:7,color:"#00ff87",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>PUT ON AIR</button>
+            </div>
+          ))}
+        </div>
+      )}
       
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
