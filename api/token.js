@@ -9,6 +9,18 @@ module.exports = async function handler(req, res) {
   const q = req.query || {};
   const name = String(q.name || '');
   const isHost = String(q.isHost || '') === '1';
+  const wantsStage = String(q.stage || '') === '1';
+
+  // Stage guests: only get publish rights if the host approved this name in Firebase
+  let isApprovedGuest = false;
+  if (wantsStage && !isHost && name) {
+    try {
+      const key = name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+      const fb = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/stage/approved/' + key + '.json');
+      const entry = await fb.json();
+      isApprovedGuest = !!(entry && entry.name === name);
+    } catch (e) {}
+  }
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -19,10 +31,10 @@ module.exports = async function handler(req, res) {
 
   const { AccessToken } = await import('livekit-server-sdk');
   const at = new AccessToken(apiKey, apiSecret, {
-    identity: isHost ? 'host' : (name || 'viewer-' + Date.now()),
-    ttl: '4h',
+    identity: isHost ? 'host' : (isApprovedGuest ? 'guest-' + name : (name || 'viewer-' + Date.now())),
+    ttl: isApprovedGuest ? '2h' : '4h',
   });
-  at.addGrant({ roomJoin: true, room: 'greenprint-live', canPublish: isHost });
+  at.addGrant({ roomJoin: true, room: 'greenprint-live', canPublish: isHost || isApprovedGuest });
   const token = await at.toJwt();
 
   res.setHeader('Cache-Control', 'no-store');
