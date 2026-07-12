@@ -91,6 +91,13 @@ export default function GoLive() {
       { id: "demo", re: /paper trad|demo account|practice account/i, a: "Start on a TradeLocker demo account — onboarding walks you through it. Practice before real money. 💪" },
       { id: "advice", re: /financial advice/i, a: "Nothing here is financial advice — it's education. Trade your own plan and manage your risk." },
       { id: "callput", re: /what('| i)?s a (call|put)/i, a: "Calls profit when price rises, puts when it falls. The free Academy on the app page covers the basics." },
+      { id: "leverage", re: /leverage/i, a: "Leverage lets you control a bigger position with less capital — 1:500 means $1 controls $500. It amplifies wins AND losses, so risk management is everything." },
+      { id: "margin", re: /margin/i, a: "Margin is the collateral your broker holds to keep leveraged trades open. If losses eat it up, positions get closed — that's a margin call." },
+      { id: "start", re: /how (do i|to|can i) (start|get started|begin)|where (do|should) i start|i('| a)?m new/i, a: "Start at thegreenprint.trade/onboard — it sets up your apps, broker demo, and the foundations. Then watch the live sessions. 🌿" },
+      { id: "pip", re: /what('| i)?s a pip|how much is a pip/i, a: "A pip is the smallest standard price move in forex — it's how gains and losses get measured per position size." },
+      { id: "lot", re: /what('| i)?s a lot\b|lot size/i, a: "A lot is your position size in forex — 1 standard lot = 100k units. Smaller lots (mini/micro) = smaller risk. Size according to your plan." },
+      { id: "stoploss", re: /stop ?loss/i, a: "A stop loss auto-closes your trade at a set price so one bad trade can't wreck the account. Every trade here has one — non-negotiable." },
+      { id: "scalp", re: /what('| i)?s scalping|scalp/i, a: "Scalping = quick in-and-out trades catching small moves, often minutes. It's fast — learn on a demo first." },
     ];
     const id = setInterval(async () => {
       const data = await get("live/chat"); if (!data) return;
