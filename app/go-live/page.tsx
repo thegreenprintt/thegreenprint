@@ -49,6 +49,9 @@ export default function GoLive() {
   const startRef = useRef(0);
   const micOnRef = useRef(true);
   const camOnRef = useRef(false);
+  const camBusyRef = useRef(false);
+  const [connQuality, setConnQuality] = useState("");
+  const [preflight, setPreflight] = useState<Record<string, boolean>>({});
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
 
@@ -128,20 +131,29 @@ export default function GoLive() {
           const t = pub?.track?.mediaStreamTrack;
           if (!pub?.track || t?.readyState === "ended") await room.localParticipant.setMicrophoneEnabled(true);
         }
-        if (camOnRef.current && camTrackRef.current?.mediaStreamTrack?.readyState === "ended") {
+        if (camOnRef.current && !camBusyRef.current && camTrackRef.current?.mediaStreamTrack?.readyState === "ended") {
+          camBusyRef.current = true;
+          try {
           const old = room.localParticipant.getTrackPublication(Track.Source.Camera);
           if (old?.track) await room.localParticipant.unpublishTrack(old.track);
           const track = await createLocalVideoTrack({facingMode:"user"});
           camTrackRef.current = track;
           if (camRef.current) track.attach(camRef.current);
           await room.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
+          } finally { camBusyRef.current = false; }
         }
       } catch {}
     }, 4000);
     return () => clearInterval(id);
   }, [live]);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = chatBoxRef.current;
+    if (!box || box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat]);
 
   useEffect(() => {
     if (!live) return;
@@ -168,13 +180,14 @@ export default function GoLive() {
       const now = Date.now();
       Object.entries(data as Record<string,any>).forEach(([key,val]) => {
         if (now-val.ts>4000||seenR.current.has(key)) return;
+        if (seenR.current.size > 900) seenR.current.clear();
         seenR.current.add(key);
         const id=key;
         setFloats(p=>[...p,{id,emoji:val.emoji,x:val.x??Math.random()}]);
         setTimeout(()=>setFloats(p=>p.filter(r=>r.id!==id)),2500);
       });
     };
-    const id = setInterval(poll,500); return () => clearInterval(id);
+    const id = setInterval(poll,1000); return () => clearInterval(id);
   }, [authed]);
 
   const startStream = async () => {
@@ -186,13 +199,16 @@ export default function GoLive() {
       if (!vt) throw new Error("No video track");
       if (screenRef.current) vt.attach(screenRef.current);
       setStatus("Connecting...");
-      const tokenRes = await fetch("/api/token?isHost=1", { cache: "no-store" });
+      const tokenRes = await fetch(`/api/token?isHost=1&key=${encodeURIComponent(pw)}`, { cache: "no-store" });
       const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
       if (!url) { setStatus("Missing LIVEKIT env vars."); return; }
       const room = new Room({adaptiveStream:true,dynacast:true});
       roomRef.current = room;
       room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
       room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
+      room.on(RoomEvent.ConnectionQualityChanged,(q:any,participant:any)=>{
+        if (participant === room.localParticipant) setConnQuality(String(q));
+      });
       // Hear stage guests (additive): play audio published by approved call-in viewers
       room.on(RoomEvent.TrackSubscribed,(track:any,_pub:any,participant:any)=>{
         try {
@@ -214,7 +230,22 @@ export default function GoLive() {
       setLive(true); setStatus(""); setViewers(room.remoteParticipants.size);
       await put("livestatus",{live:true,ts:Date.now()});
       hbRef.current = setInterval(()=>put("livestatus",{live:true,ts:Date.now()}),10000);
-      vt.mediaStreamTrack.addEventListener("ended",()=>stopStream());
+      vt.mediaStreamTrack.addEventListener("ended", async () => {
+        // Screen share stopped (often an accidental click on the browser's "Stop sharing" bar).
+        // Offer to re-share instead of instantly killing the broadcast for everyone.
+        const reshare = window.confirm("Screen sharing stopped. Click OK to share again and keep the stream alive, or Cancel to end the stream.");
+        if (!reshare) { stopStream(); return; }
+        try {
+          const tracks = await createLocalScreenTracks({ audio: true });
+          const nvt = tracks.find(t => t.kind === Track.Kind.Video);
+          const nat = tracks.find(t => t.kind === Track.Kind.Audio);
+          if (!nvt || !roomRef.current) { stopStream(); return; }
+          if (screenRef.current) nvt.attach(screenRef.current);
+          await roomRef.current.localParticipant.publishTrack(nvt, { name: "screen", source: Track.Source.ScreenShare, simulcast: false });
+          if (nat) await roomRef.current.localParticipant.publishTrack(nat, { name: "screen-audio", source: Track.Source.ScreenShareAudio });
+          nvt.mediaStreamTrack.addEventListener("ended", () => stopStream());
+        } catch { stopStream(); }
+      });
     } catch(err:any) { setStatus("Error: "+(err.message||String(err))); }
   };
 
@@ -229,7 +260,8 @@ export default function GoLive() {
   };
 
   const toggleCam = async () => {
-    if (!roomRef.current) return;
+    if (!roomRef.current || camBusyRef.current) return;
+    camBusyRef.current = true;
     try {
       if (camOn) {
         if (camTrackRef.current) { await roomRef.current.localParticipant.unpublishTrack(camTrackRef.current); camTrackRef.current.stop(); camTrackRef.current=null; }
@@ -245,6 +277,7 @@ export default function GoLive() {
         setCamOn(true);
       }
     } catch(err:any) { setStatus("Cam: "+(err.message||String(err))); }
+    finally { camBusyRef.current = false; }
   };
 
   const toggleMic = async () => {
@@ -288,7 +321,12 @@ export default function GoLive() {
   };
 
   const auth = async () => {
-    if (await sha256(pw)===HASH) { setAuthed(true); localStorage.setItem('gp_host','true'); await put("livestatus",{live:false,ts:Date.now()}); await del("live"); }
+    if (await sha256(pw)===HASH) {
+      setAuthed(true); localStorage.setItem('gp_host','true');
+      await put("livestatus",{live:false,ts:Date.now()});
+      // Clear session data only — NEVER live/leads (the email list lives there)
+      await del("live/chat"); await del("live/reactions"); await del("live/stage");
+    }
     else alert("Wrong password");
   };
 
@@ -382,6 +420,7 @@ export default function GoLive() {
           </span>}
           <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:13}}>👁 {viewers} watching</span>
           {live && <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:12,color:"rgba(255,255,255,.5)"}}>{fmt(dur)}</span>}
+          {live && connQuality && <span title="Your upload connection quality" style={{background:connQuality==="excellent"?"rgba(0,255,135,.12)":connQuality==="good"?"rgba(255,200,50,.12)":"rgba(255,45,85,.15)",border:"1px solid rgba(255,255,255,.12)",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,color:connQuality==="excellent"?"#00ff87":connQuality==="good"?"#ffc832":"#ff2d55"}}>📶 {connQuality}</span>}
         </div>
       </div>
 
@@ -399,8 +438,28 @@ export default function GoLive() {
                 <div key={r.id} style={{position:"absolute",bottom:60,left:`${10+r.x*75}%`,fontSize:40,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 8px rgba(0,0,0,.6))"}}>{r.emoji}</div>
               ))}
             </div>
-            {!live && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"rgba(0,0,0,.9)"}}>
-              <div style={{fontSize:52}}>🎬</div><div style={{color:"rgba(255,255,255,.4)",fontSize:15}}>Click Go Live to start</div>
+            {!live && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"rgba(0,0,0,.9)",overflowY:"auto",padding:16}}>
+              <div style={{fontSize:40}}>🎬</div>
+              <div style={{color:"#fff",fontWeight:900,fontSize:17,letterSpacing:".02em"}}>Pre-Flight Checklist</div>
+              <div style={{color:"rgba(255,255,255,.35)",fontSize:12,marginBottom:6}}>Run it down, then hit Go Live.</div>
+              <div style={{display:"flex",flexDirection:"column",gap:7,width:"100%",maxWidth:380}}>
+                {[
+                  ["tabs","Close private tabs & notifications (everything on screen goes out live)"],
+                  ["mic","Mic connected & tested — say something and watch the meter in your OS"],
+                  ["chart","Charts open and laid out the way you want them"],
+                  ["alert","Alert the community — 📧 email button + drop the Telegram link"],
+                  ["record","Start your recording (Win+Alt+R) so we can clip this later"],
+                ].map(([k,label])=>(
+                  <button key={k} onClick={()=>setPreflight(p=>({...p,[k]:!p[k]}))}
+                    style={{display:"flex",alignItems:"center",gap:10,textAlign:"left",background:preflight[k]?"rgba(0,255,135,.08)":"rgba(255,255,255,.04)",border:preflight[k]?"1px solid rgba(0,255,135,.35)":"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .2s"}}>
+                    <span style={{width:20,height:20,borderRadius:6,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,background:preflight[k]?"#00ff87":"rgba(255,255,255,.08)",color:"#000",fontWeight:900}}>{preflight[k]?"✓":""}</span>
+                    <span style={{fontSize:12,color:preflight[k]?"rgba(255,255,255,.85)":"rgba(255,255,255,.5)",lineHeight:1.4}}>{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div style={{color:Object.values(preflight).filter(Boolean).length>=5?"#00ff87":"rgba(255,255,255,.25)",fontSize:12,fontWeight:700,marginTop:4}}>
+                {Object.values(preflight).filter(Boolean).length>=5 ? "✅ All clear — you're ready. Hit Go Live." : `${Object.values(preflight).filter(Boolean).length}/5 checked`}
+              </div>
             </div>}
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
@@ -465,10 +524,10 @@ export default function GoLive() {
 
         <div className="cc" style={{borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(0,0,0,.4)",backdropFilter:"blur(20px)"}}>
           <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:13}}>💬 Live Chat</div>
-          <div style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
+          <div ref={chatBoxRef} style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
             {chat.length===0&&<div style={{textAlign:"center",padding:"48px 0"}}><div style={{fontSize:36,marginBottom:10}}>💬</div><p style={{color:"rgba(255,255,255,.25)",fontSize:13,margin:0}}>No messages yet</p></div>}
-            {chat.map((m,i)=>(
-              <div key={i} style={{marginBottom:10,lineHeight:1.5}}>
+            {chat.map((m)=>(
+              <div key={m.ts + "|" + m.name} style={{marginBottom:10,lineHeight:1.5}}>
                 <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:13}}>{m.name}</span>
                 <span style={{color:"rgba(255,255,255,.85)",fontSize:13}}> {m.msg}</span>
               </div>
