@@ -8,7 +8,17 @@ module.exports = async function handler(req, res) {
 
   const q = req.query || {};
   const name = String(q.name || '');
-  const isHost = String(q.isHost || '') === '1';
+  // SECURITY: a host token (publish rights over the whole stream) now requires the
+  // broadcast password — previously anyone could mint one with ?isHost=1.
+  const HOST_HASH = 'f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1';
+  let isHost = false;
+  if (String(q.isHost || '') === '1') {
+    try {
+      const crypto = require('crypto');
+      const keyHash = crypto.createHash('sha256').update(String(q.key || '')).digest('hex');
+      isHost = keyHash === HOST_HASH;
+    } catch (e) { isHost = false; }
+  }
   const wantsStage = String(q.stage || '') === '1';
 
   // Stage guests: only get publish rights if the host approved this name in Firebase
