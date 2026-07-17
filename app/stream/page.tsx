@@ -151,6 +151,13 @@ export default function StreamPage() {
   const [floats, setFloats] = useState<FE[]>([]);
   const [chatOpen, setChatOpen] = useState(true);
   const [dur, setDur] = useState(0);
+  // smoothness/reliability helpers
+  const [dropped, setDropped] = useState(false);
+  const audioElsRef = useRef<HTMLMediaElement[]>([]);
+  const isLiveRef = useRef(false);
+  useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
+  useEffect(() => () => { audioElsRef.current.forEach(el => { try { el.remove(); } catch {} }); }, []);
+
   // ── Stage (viewer on air) — fully additive; separate publish-only connection ──
   const [handRaised, setHandRaised] = useState(false);
   const [onStage, setOnStage] = useState(false);
@@ -161,6 +168,8 @@ export default function StreamPage() {
     if (!name || handRaised || onStage) return;
     await push("live/stage/requests", { name, ts: Date.now() });
     setHandRaised(true);
+    // don't leave people hanging forever — auto-clear if not approved in 2 minutes
+    setTimeout(() => setHandRaised(h => (h ? false : h)), 120000);
   };
   const leaveStage = async () => {
     try { await stageRoomRef.current?.disconnect(); } catch {}
@@ -221,7 +230,15 @@ export default function StreamPage() {
     (async () => { await joinStream(n, e); })();
   }, [isLive]);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chat]);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
+  const chatSigRef = useRef("");
+  useEffect(() => {
+    const box = chatBoxRef.current;
+    // only auto-scroll when the reader is already at (or near) the bottom
+    if (!box || box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat]);
   useEffect(() => {
     if (!joined) return;
     startRef.current = Date.now();
@@ -232,7 +249,8 @@ export default function StreamPage() {
     get("livestatus").then(d => setIsLive(!!d?.live));
     const es = new EventSource(`${FB}/livestatus.json`);
     es.addEventListener("put", (e: MessageEvent) => { try { const d=JSON.parse(e.data); setIsLive(!!d?.data?.live); } catch {} });
-    const poll = setInterval(() => get("livestatus").then(d => setIsLive(!!d?.live)), 3000);
+    // EventSource is the realtime channel; this is only a slow safety-net fallback
+    const poll = setInterval(() => get("livestatus").then(d => setIsLive(!!d?.live)), 15000);
     return () => { es.close(); clearInterval(poll); };
   }, []);
   useEffect(() => {
@@ -252,7 +270,9 @@ export default function StreamPage() {
     const poll = async () => {
       const data = await get("live/chat");
       if (!data||typeof data!=="object") return;
-      setChat((Object.values(data) as CM[]).filter(m=>m?.msg&&m?.name).sort((a,b)=>a.ts-b.ts).slice(-50));
+      const next = (Object.values(data) as CM[]).filter(m=>m?.msg&&m?.name).sort((a,b)=>a.ts-b.ts).slice(-50);
+      const sig = next.length + ":" + (next[next.length-1]?.ts || 0);
+      if (sig !== chatSigRef.current) { chatSigRef.current = sig; setChat(next); }
     };
     poll(); const id = setInterval(poll,2000); return () => clearInterval(id);
   }, [joined]);
@@ -264,13 +284,14 @@ export default function StreamPage() {
       const now = Date.now();
       Object.entries(data as Record<string,any>).forEach(([key,val]) => {
         if (now-val.ts>4000||seenR.current.has(key)) return;
+        if (seenR.current.size > 900) seenR.current.clear();
         seenR.current.add(key);
         const id=key;
         setFloats(p=>[...p,{id,emoji:val.emoji,x:val.x??Math.random()}]);
         setTimeout(()=>setFloats(p=>p.filter(r=>r.id!==id)),2500);
       });
     };
-    const id = setInterval(poll,500); return () => clearInterval(id);
+    const id = setInterval(poll,1000); return () => clearInterval(id);
   }, [joined]);
 
   const attachScreen = (track: RemoteTrack) => {
@@ -296,21 +317,41 @@ export default function StreamPage() {
       const tokenRes = await fetch(`/api/token?isHost=0&name=${encodeURIComponent(joinName)}`, { cache: "no-store" });
       const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
       if (!url) { setStatusText("Stream unavailable."); setConnecting(false); return; }
-      const room = new Room({adaptiveStream:false}); roomRef.current = room;
+      const room = new Room({adaptiveStream:true}); roomRef.current = room;
+      const addAudioEl = (track: RemoteTrack) => {
+        const el = track.attach() as HTMLMediaElement;
+        el.autoplay = true; el.setAttribute("playsinline","true");
+        audioElsRef.current.push(el);
+        document.body.appendChild(el);
+        el.play().catch(()=>setNeedsClick(true));
+      };
       room.on(RoomEvent.TrackSubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
         if (track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? attachCam(track) : (attachScreen(track),setStatusText("Live"));
-        if (track.kind===Track.Kind.Audio) { const el=track.attach() as HTMLMediaElement; el.autoplay=true; el.setAttribute("playsinline","true"); document.body.appendChild(el); el.play().catch(()=>setNeedsClick(true)); }
+        if (track.kind===Track.Kind.Audio) addAudioEl(track);
       });
       // If the browser blocks audio playback (autoplay policy), show Tap to Play so one tap restores sound
       room.on(RoomEvent.AudioPlaybackStatusChanged,()=>{ if (!room.canPlaybackAudio) setNeedsClick(true); });
       room.on(RoomEvent.TrackUnsubscribed,(track:RemoteTrack,pub:RemoteTrackPublication)=>{
-        track.detach().forEach(el=>el.remove());
+        track.detach().forEach(el=>{ audioElsRef.current = audioElsRef.current.filter(a=>a!==el); el.remove(); });
         if (track.kind===Track.Kind.Video) { if(pub.source===Track.Source.Camera){setHasCam(false);camTrackRef.current=null;}else setHasVideo(false); }
       });
       room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
       room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
-      room.on(RoomEvent.Disconnected,()=>{setStatusText("Disconnected.");setJoined(false);setConnecting(false);setHasVideo(false);setHasCam(false);});
+      room.on(RoomEvent.Reconnecting,()=>setStatusText("Connection hiccup — reconnecting…"));
+      room.on(RoomEvent.Reconnected,()=>setStatusText("Live"));
+      room.on(RoomEvent.Disconnected,()=>{
+        audioElsRef.current.forEach(el=>{ try { el.remove(); } catch {} }); audioElsRef.current = [];
+        setConnecting(false); setHasVideo(false); setHasCam(false);
+        if (isLiveRef.current) {
+          // stream is still on — this was a network drop, offer reconnect instead of ejecting to the lobby
+          setDropped(true); setStatusText("Connection lost");
+        } else {
+          setJoined(false); setStatusText("Stream ended — thanks for watching!");
+        }
+      });
+      setStatusText("Connecting to the stream…");
       await room.connect(url,token);
+      setStatusText("Connected — waiting for host video…");
       // ─── LEAD CAPTURE ─────────────────────────────────────────
       try {
         const cleanEmail = joinEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
@@ -333,9 +374,10 @@ export default function StreamPage() {
         p.trackPublications.forEach(pub=>{
           if (!pub.track) return;
           if (pub.track.kind===Track.Kind.Video) pub.source===Track.Source.Camera ? attachCam(pub.track) : (attachScreen(pub.track),setStatusText("Live"));
-          if (pub.track.kind===Track.Kind.Audio) { const el=pub.track.attach() as HTMLMediaElement; el.autoplay=true; el.setAttribute("playsinline","true"); document.body.appendChild(el); el.play().catch(()=>setNeedsClick(true)); }
+          if (pub.track.kind===Track.Kind.Audio) { const el=pub.track.attach() as HTMLMediaElement; el.autoplay=true; el.setAttribute("playsinline","true"); audioElsRef.current.push(el); document.body.appendChild(el); el.play().catch(()=>setNeedsClick(true)); }
         });
       });
+      setDropped(false);
     } catch(err:any) { setStatusText("Error: "+(err.message||String(err))); setConnecting(false); }
   };
   const sendReaction = async (emoji: string) => {
@@ -502,6 +544,15 @@ export default function StreamPage() {
                   <span style={{color:"rgba(255,255,255,.35)",fontSize:13}}>{statusText}</span>
                 </div>
               )}
+              {dropped&&(
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,background:"rgba(0,0,0,.85)",backdropFilter:"blur(6px)",zIndex:30}}>
+                  <div style={{fontSize:15,color:"rgba(255,255,255,.7)",fontWeight:700}}>Connection lost — the stream is still live</div>
+                  <button onClick={()=>{ setDropped(false); joinStream(name, email); }}
+                    style={{background:"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:12,color:"#000",fontWeight:900,fontSize:16,padding:"14px 40px",cursor:"pointer",boxShadow:"0 0 24px rgba(0,255,135,.4)"}}>
+                    ⟳ Reconnect
+                  </button>
+                </div>
+              )}
               {needsClick&&hasVideo&&(
                 <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",cursor:"pointer"}}>
                   <div style={{background:"#00ff87",color:"#000",fontWeight:800,borderRadius:14,padding:"18px 36px",fontSize:18}}>▶ Tap to Play</div>
@@ -524,10 +575,10 @@ export default function StreamPage() {
                 <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <span>💬</span> Live Chat
                 </div>
-                                                                <div style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
+                                                                <div ref={chatBoxRef} style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
                   {chat.length===0&&<div style={{textAlign:"center",padding:"36px 0"}}><div style={{fontSize:28,marginBottom:8}}>💬</div><p style={{color:"rgba(255,255,255,.2)",fontSize:12,margin:0}}>Be the first to chat!</p></div>}
-                  {chat.map((m,i)=>(
-                    <div key={i} className="msg-row" style={{display:"flex",alignItems:"flex-start",gap:7}}>
+                  {chat.map((m)=>(
+                    <div key={m.ts + "|" + m.name} className="msg-row" style={{display:"flex",alignItems:"flex-start",gap:7}}>
                       <Avatar name={m.name} isHost={m.name==="Host"} />
                       <div style={{lineHeight:1.4,flex:1,minWidth:0}}>
                         <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:11}}>{m.name}</span>
