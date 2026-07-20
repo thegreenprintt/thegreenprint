@@ -44,13 +44,24 @@ module.exports = async function handler(req, res) {
   // ── MEETING MODE: Zoom-style room, entry gated by the meeting code the host set ──
   if (String(q.mode || '') === 'meeting') {
     if (!name) return res.status(400).json({ error: 'Name required' });
-    let meetingCode = null;
-    try {
-      const fb = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/meeting/code.json');
-      meetingCode = await fb.json();
-    } catch (e) {}
+    const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
+    const fbRead = async (p) => { try { const r = await fetch(FB + p); return await r.json(); } catch (e) { return null; } };
+    const meetingCode = await fbRead('/live/meeting/code.json');
     if (!meetingCode || String(q.code || '') !== String(meetingCode)) {
       return res.status(403).json({ error: 'Wrong meeting code' });
+    }
+    // Waiting room + lock (host-controlled). Admitted names bypass both.
+    const nameKey = name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50);
+    const [settings, admitted] = await Promise.all([
+      fbRead('/live/meeting/settings.json'),
+      fbRead('/live/meeting/admitted/' + nameKey + '.json'),
+    ]);
+    const isAdmitted = !!(admitted && admitted.name === name);
+    if (settings && settings.locked && !isAdmitted) {
+      return res.status(423).json({ locked: true, error: 'Meeting is locked' });
+    }
+    if (settings && settings.waiting && !isAdmitted) {
+      return res.status(428).json({ waiting: true, error: 'Waiting for host approval' });
     }
     const mt = new AccessToken(apiKey, apiSecret, {
       identity: 'meet-' + name.slice(0, 30) + '-' + Math.floor(Math.random() * 10000),
