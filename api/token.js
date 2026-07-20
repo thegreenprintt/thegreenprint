@@ -50,13 +50,23 @@ module.exports = async function handler(req, res) {
     if (!meetingCode || String(q.code || '') !== String(meetingCode)) {
       return res.status(403).json({ error: 'Wrong meeting code' });
     }
-    // Waiting room + lock (host-controlled). Admitted names bypass both.
+    // Meeting HOST: proven by the broadcast password (server-verified) — gets the
+    // 'mhost-' identity prefix that unlocks moderation tools in the room UI.
+    let isMeetingHost = false;
+    if (q.hostkey) {
+      try {
+        const crypto = require('crypto');
+        isMeetingHost = crypto.createHash('sha256').update(String(q.hostkey)).digest('hex')
+          === 'f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1';
+      } catch (e) {}
+    }
+    // Waiting room + lock (host-controlled). Host and admitted names bypass both.
     const nameKey = name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50);
     const [settings, admitted] = await Promise.all([
       fbRead('/live/meeting/settings.json'),
       fbRead('/live/meeting/admitted/' + nameKey + '.json'),
     ]);
-    const isAdmitted = !!(admitted && admitted.name === name);
+    const isAdmitted = isMeetingHost || !!(admitted && admitted.name === name);
     if (settings && settings.locked && !isAdmitted) {
       return res.status(423).json({ locked: true, error: 'Meeting is locked' });
     }
@@ -64,7 +74,7 @@ module.exports = async function handler(req, res) {
       return res.status(428).json({ waiting: true, error: 'Waiting for host approval' });
     }
     const mt = new AccessToken(apiKey, apiSecret, {
-      identity: 'meet-' + name.slice(0, 30) + '-' + Math.floor(Math.random() * 10000),
+      identity: (isMeetingHost ? 'mhost-' : 'meet-') + name.slice(0, 30) + '-' + Math.floor(Math.random() * 10000),
       ttl: '4h',
     });
     mt.addGrant({ roomJoin: true, room: 'greenprint-meeting', canPublish: true, canSubscribe: true });
