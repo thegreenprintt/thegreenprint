@@ -1158,8 +1158,11 @@ function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-white/15 text-xs">&copy; {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
             <div className="flex gap-6">
-              {["Privacy Policy", "Terms of Service"].map(l => (
-                <Link key={l} href="#" className="text-white/15 hover:text-white/30 text-xs transition-colors">{l}</Link>
+              {[
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
+              ].map(l => (
+                <Link key={l.label} href={l.href} className="text-white/15 hover:text-white/30 text-xs transition-colors">{l.label}</Link>
               ))}
             </div>
           </div>
