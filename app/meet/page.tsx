@@ -105,6 +105,12 @@ export default function MeetPage() {
   const [waitingList, setWaitingList] = useState<{ key: string; name: string }[]>([]);
   const [settings, setSettings] = useState<{ waiting?: boolean; locked?: boolean }>({});
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // device selection (mic / camera source)
+  const [devOpen, setDevOpen] = useState(false);
+  const [mics, setMics] = useState<{ id: string; label: string }[]>([]);
+  const [cams, setCams] = useState<{ id: string; label: string }[]>([]);
+  const [micId, setMicId] = useState("");
+  const [camId, setCamId] = useState("");
   const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([]);
   // chat
   const [chatOpen, setChatOpen] = useState(false);
@@ -364,6 +370,23 @@ export default function MeetPage() {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     } catch {}
   };
+  const loadDevices = async () => {
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      setMics(list.filter(d => d.kind === "audioinput").map(d => ({ id: d.deviceId, label: d.label || "Microphone" })));
+      setCams(list.filter(d => d.kind === "videoinput").map(d => ({ id: d.deviceId, label: d.label || "Camera" })));
+    } catch {}
+  };
+  const openDevices = async () => { await loadDevices(); setDevOpen(o => !o); setEmojiOpen(false); };
+  const switchMic = async (id: string) => {
+    setMicId(id);
+    try { await roomRef.current?.switchActiveDevice("audioinput", id); setToast("🎙 Microphone switched"); } catch { setToast("Couldn't switch mic"); }
+  };
+  const switchCam = async (id: string) => {
+    setCamId(id);
+    try { await roomRef.current?.switchActiveDevice("videoinput", id); setVersion(v => v + 1); setToast("🎥 Camera switched"); } catch { setToast("Couldn't switch camera"); }
+  };
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
@@ -579,6 +602,25 @@ export default function MeetPage() {
                   {EMOJIS.map(e => (
                     <button key={e} onClick={() => sendReaction(e)} style={{ background: "transparent", border: "none", fontSize: 22, cursor: "pointer", padding: 2 }}>{e}</button>
                   ))}
+                </div>
+              )}
+            </div>
+            <div style={{ position: "relative" }}>
+              <button className="mbtn" onClick={openDevices} title="Mic & camera settings" style={{ ...ctrl(true), background: devOpen ? "rgba(0,255,135,.18)" : "rgba(255,255,255,.08)" }}>⚙</button>
+              {devOpen && (
+                <div style={{ position: "absolute", bottom: 60, left: "50%", transform: "translateX(-50%)", width: 250, background: "rgba(8,12,9,.97)", border: "1px solid rgba(0,255,135,.3)", borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,.6)", animation: "rise .2s ease both", zIndex: 80 }}>
+                  <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "1.5px", color: "#00ff87", marginBottom: 6 }}>🎙 MICROPHONE</div>
+                  <select value={micId} onChange={e => switchMic(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", background: "#0d120e", border: "1px solid rgba(255,255,255,.15)", borderRadius: 9, color: "#fff", fontSize: 12, outline: "none", marginBottom: 12 }}>
+                    {micId === "" && <option value="">Default</option>}
+                    {mics.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
+                  <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "1.5px", color: "#00ff87", marginBottom: 6 }}>🎥 CAMERA</div>
+                  <select value={camId} onChange={e => switchCam(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", background: "#0d120e", border: "1px solid rgba(255,255,255,.15)", borderRadius: 9, color: "#fff", fontSize: 12, outline: "none" }}>
+                    {camId === "" && <option value="">Default</option>}
+                    {cams.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
                 </div>
               )}
             </div>
