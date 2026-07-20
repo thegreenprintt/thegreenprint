@@ -190,7 +190,22 @@ export default function GoLive() {
     const id = setInterval(poll,1000); return () => clearInterval(id);
   }, [authed]);
 
+  // ── MEETING MODE (additive): set a code, open the Zoom-style room ──
+  const [meetCode, setMeetCode] = useState("");
+  const [meetSaved, setMeetSaved] = useState(false);
+  useEffect(() => {
+    if (!authed) return;
+    get("live/meeting/code").then(c => { if (typeof c === "string" && c) { setMeetCode(c); setMeetSaved(true); } });
+  }, [authed]);
+  const saveMeetCode = async () => {
+    const c = meetCode.trim();
+    if (!c) return;
+    await put("live/meeting/code", c);
+    setMeetSaved(true);
+  };
+
   const startStream = async () => {
+    setStatus("Starting — pick your screen in the popup…");
     try {
       setStatus("Requesting screen...");
       const tracks = await createLocalScreenTracks({audio:true});
@@ -467,6 +482,18 @@ export default function GoLive() {
               ? <button onClick={startStream} style={{background:"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer",animation:"glow 2s infinite"}}>🔴 Go Live</button>
               : <button onClick={stopStream} style={{background:"#ff2d55",border:"none",borderRadius:10,color:"#fff",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer"}}>⏹ End Stream</button>
             }
+            {!live && (
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",padding:"8px 12px",borderRadius:12,background:"rgba(0,255,135,.05)",border:"1px solid rgba(0,255,135,.18)"}}>
+                <span style={{fontSize:11,fontWeight:900,letterSpacing:"1px",color:"#00ff87"}}>👥 MEETING MODE</span>
+                <input value={meetCode} onChange={e=>{setMeetCode(e.target.value);setMeetSaved(false);}} placeholder="meeting code"
+                  style={{width:110,padding:"8px 10px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"#fff",fontSize:12,outline:"none"}}/>
+                <button onClick={saveMeetCode} style={{background:meetSaved?"rgba(0,255,135,.15)":"rgba(255,255,255,.08)",border:"1px solid rgba(0,255,135,.3)",borderRadius:8,color:meetSaved?"#00ff87":"#fff",fontWeight:700,padding:"8px 12px",fontSize:11,cursor:"pointer"}}>{meetSaved?"✓ Saved":"Save code"}</button>
+                <a href={`/meet?code=${encodeURIComponent(meetCode)}`} target="_blank" rel="noopener noreferrer"
+                  style={{background:meetSaved?"linear-gradient(135deg,#00ff87,#00c864)":"rgba(255,255,255,.08)",border:"none",borderRadius:8,color:meetSaved?"#000":"rgba(255,255,255,.4)",fontWeight:800,padding:"9px 14px",fontSize:11,textDecoration:"none",pointerEvents:meetSaved?"auto":"none"}}>
+                  Open Meeting Room →
+                </a>
+              </div>
+            )}
 
             <button onClick={async()=>{setEmailSending(true);try{const r=await fetch('/api/notify-live',{method:'POST'});const d=await r.json();setEmailSent(d.sent??d.total??0);}catch(e){}setEmailSending(false);}} disabled={emailSending} style={{background:emailSent!==null?'rgba(0,255,135,.15)':'rgba(255,255,255,.08)',border:'1px solid rgba(0,255,135,.3)',borderRadius:10,color:emailSent!==null?'#00ff87':'#fff',fontWeight:800,padding:'11px 24px',fontSize:14,cursor:'pointer',width:'100%',marginTop:8}}>{emailSending?'Sending...':emailSent!==null?'\u2705 Sent to '+emailSent+' people':'\uD83D\uDCE7 Notify Email List'}</button>
             <button onClick={toggleCam} disabled={!live} style={{background:camOn?"rgba(0,255,135,.15)":"rgba(255,255,255,.06)",border:camOn?"1px solid rgba(0,255,135,.4)":"1px solid rgba(255,255,255,.1)",borderRadius:10,color:camOn?"#00ff87":"rgba(255,255,255,.7)",padding:"10px 18px",cursor:live?"pointer":"not-allowed",opacity:live?1:.4,fontWeight:700,fontSize:14}}>
