@@ -1,893 +1,573 @@
 "use client";
+import { useState, useEffect, useRef } from "react";
+import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalVideoTrack } from "livekit-client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, useInView, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-
-/* ─── Constants ─────────────────────────────────────────────── */
-const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
-const WHOP_URL = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
-
-/* ─── Helpers ────────────────────────────────────────────────── */
-function FadeIn({
-  children,
-  delay = 0,
-  className = "",
-  y = 30,
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-  y?: number;
-}) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+const HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
+const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+async function sha256(s: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
+const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`,{cache:"no-store"}); return await r.json(); } catch { return null; } };
+const put = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true}); } catch {} };
+const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); } catch {} };
+const del = async (p: string) => { try { await fetch(`${FB}/${p}.json`,{method:"DELETE"}); } catch {} };
 
-function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+type CM = { name: string; msg: string; ts: number };
+type FE = { id: string; emoji: string; x: number };
+const EMOJIS = ["🔥","❤️","😂","👏","💯","🚀"];
+const COLORS = ["#00ff87","#ff6b6b","#ffd93d","#6bcbff","#c77dff","#ff9f43"];
+const nc = (n: string) => COLORS[n.split("").reduce((a,c)=>a+c.charCodeAt(0),0)%COLORS.length];
+const fmt = (s: number) => `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+export default function GoLive() {
+  const [pw, setPw] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [live, setLive] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState<number|null>(null);
+  const [status, setStatus] = useState("");
+  const [viewers, setViewers] = useState(0);
+  const [camOn, setCamOn] = useState(false);
+  const [micOn, setMicOn] = useState(true);
+  const [chat, setChat] = useState<CM[]>([]);
+  const [chatMsg, setChatMsg] = useState("");
+  const [floats, setFloats] = useState<FE[]>([]);
+  const [dur, setDur] = useState(0);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyStatus, setNotifyStatus] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+
+  const screenRef = useRef<HTMLVideoElement>(null);
+  const camRef = useRef<HTMLVideoElement>(null);
+  const roomRef = useRef<Room|null>(null);
+  const hbRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const camTrackRef = useRef<any>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
+  const seenR = useRef(new Set<string>());
+  const startRef = useRef(0);
+  const micOnRef = useRef(true);
+  const camOnRef = useRef(false);
+  const camBusyRef = useRef(false);
+  const [connQuality, setConnQuality] = useState("");
+  const [preflight, setPreflight] = useState<Record<string, boolean>>({});
+  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
+  useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+
+  // ── STAGE: viewer call-in requests (additive) ─────────────────────────────
+  const [stageReqs, setStageReqs] = useState<{id:string;name:string}[]>([]);
+  const [stageOn, setStageOn] = useState<{key:string;name:string}[]>([]);
+  const stageKey = (n: string) => n.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40);
   useEffect(() => {
-    if (!inView) return;
-    let n = 0;
-    const step = target / (1800 / 16);
-    const t = setInterval(() => {
-      n += step;
-      if (n >= target) { setCount(target); clearInterval(t); }
-      else setCount(Math.floor(n));
-    }, 16);
-    return () => clearInterval(t);
-  }, [inView, target]);
-  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
-}
+    if (!live) return;
+    const id = setInterval(async () => {
+      const [reqs, appr] = await Promise.all([get("live/stage/requests"), get("live/stage/approved")]);
+      const approvedNames = new Set(Object.values(appr || {}).map((a: any) => a?.name));
+      const seen = new Set<string>();
+      const list: {id:string;name:string}[] = [];
+      Object.entries(reqs || {}).forEach(([rid, r]: [string, any]) => {
+        if (r?.name && !approvedNames.has(r.name) && !seen.has(r.name)) { seen.add(r.name); list.push({ id: rid, name: r.name }); }
+      });
+      setStageReqs(list);
+      setStageOn(Object.entries(appr || {}).map(([k, a]: [string, any]) => ({ key: k, name: a?.name || k })));
+    }, 3000);
+    return () => clearInterval(id);
+  }, [live]);
+  const approveGuest = async (r: {id:string;name:string}) => {
+    await put(`live/stage/approved/${stageKey(r.name)}`, { name: r.name, ts: Date.now() });
+    await del(`live/stage/requests/${r.id}`);
+  };
+  const removeGuest = async (g: {key:string;name:string}) => { await del(`live/stage/approved/${g.key}`); };
 
-/* ─── Ticker ─────────────────────────────────────────────────── */
-const TICKERS = [
-  { sym: "SPY", price: "542.18", chg: "+1.24%" },
-  { sym: "QQQ", price: "468.92", chg: "+1.87%" },
-  { sym: "AAPL", price: "211.35", chg: "+0.73%" },
-  { sym: "NVDA", price: "128.44", chg: "+3.21%" },
-  { sym: "TSLA", price: "248.67", chg: "+2.15%" },
-  { sym: "META", price: "524.88", chg: "+1.43%" },
-  { sym: "MSFT", price: "438.12", chg: "+0.91%" },
-  { sym: "AMZN", price: "198.45", chg: "+1.56%" },
-  { sym: "GOOGL", price: "178.23", chg: "+1.12%" },
-  { sym: "AMD",  price: "165.77", chg: "+2.89%" },
-];
+  // ── GP AI co-host: answers common beginner questions in chat (additive) ──
+  useEffect(() => {
+    if (!live) return;
+    let lastTs = Date.now();
+    const cool: Record<string, number> = {};
+    const faqs = [
+      { id: "0dte", re: /0\s*dte/i, a: "0DTE = zero days to expiration — options that expire today. Fast moves, high risk, small size. 📚" },
+      { id: "rmult", re: /r[- ]multiple|what does \+?\d(\.\d)?r mean|mean by \+?\d(\.\d)?r/i, a: "R = risk unit. +2R means the trade made 2x what was risked. It keeps wins and losses comparable." },
+      { id: "join", re: /how (do i|to|can i) (join|sign ?up)|how much (is|does)|what('| i)?s the price/i, a: "Tap 'Join The Greenprint' below the chat for full access — alerts, signals & the community. 🌿" },
+      { id: "sched", re: /when (are you|is he|do you).{0,15}(live|stream)|stream schedule/i, a: "We go live around market opens — join the free Telegram (link on the homepage) to get notified." },
+      { id: "broker", re: /(what|which) broker/i, a: "The community uses GenesisFX + TradeLocker — full setup steps at thegreenprint.trade/onboard." },
+      { id: "demo", re: /paper trad|demo account|practice account/i, a: "Start on a TradeLocker demo account — onboarding walks you through it. Practice before real money. 💪" },
+      { id: "advice", re: /financial advice/i, a: "Nothing here is financial advice — it's education. Trade your own plan and manage your risk." },
+      { id: "callput", re: /what('| i)?s a (call|put)/i, a: "Calls profit when price rises, puts when it falls. The free Academy on the app page covers the basics." },
+      { id: "leverage", re: /leverage/i, a: "Leverage lets you control a bigger position with less capital — 1:500 means $1 controls $500. It amplifies wins AND losses, so risk management is everything." },
+      { id: "margin", re: /margin/i, a: "Margin is the collateral your broker holds to keep leveraged trades open. If losses eat it up, positions get closed — that's a margin call." },
+      { id: "start", re: /how (do i|to|can i) (start|get started|begin)|where (do|should) i start|i('| a)?m new/i, a: "Start at thegreenprint.trade/onboard — it sets up your apps, broker demo, and the foundations. Then watch the live sessions. 🌿" },
+      { id: "pip", re: /what('| i)?s a pip|how much is a pip/i, a: "A pip is the smallest standard price move in forex — it's how gains and losses get measured per position size." },
+      { id: "lot", re: /what('| i)?s a lot\b|lot size/i, a: "A lot is your position size in forex — 1 standard lot = 100k units. Smaller lots (mini/micro) = smaller risk. Size according to your plan." },
+      { id: "stoploss", re: /stop ?loss/i, a: "A stop loss auto-closes your trade at a set price so one bad trade can't wreck the account. Every trade here has one — non-negotiable." },
+      { id: "scalp", re: /what('| i)?s scalping|scalp/i, a: "Scalping = quick in-and-out trades catching small moves, often minutes. It's fast — learn on a demo first." },
+    ];
+    const id = setInterval(async () => {
+      const data = await get("live/chat"); if (!data) return;
+      const msgs = (Object.values(data) as any[]).filter(m => m && m.ts > lastTs && m.name !== "GP AI" && m.name !== "Host");
+      if (msgs.length) lastTs = Math.max(...msgs.map((m: any) => m.ts));
+      for (const m of msgs) {
+        for (const f of faqs) {
+          if (f.re.test(String(m.msg || "")) && (!cool[f.id] || Date.now() - cool[f.id] > 90000)) {
+            cool[f.id] = Date.now();
+            await push("live/chat", { name: "GP AI", msg: "@" + m.name + " " + f.a, ts: Date.now() });
+            return;
+          }
+        }
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [live]);
 
-function Ticker() {
-  const items = [...TICKERS, ...TICKERS];
-  return (
-    <div className="relative overflow-hidden border-y border-white/5 bg-[#0a0a0a] py-3">
-      <motion.div
-        className="flex gap-12 whitespace-nowrap"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-      >
-        {items.map((t, i) => (
-          <span key={i} className="inline-flex items-center gap-2 text-sm">
-            <span className="font-bold text-white/70">{t.sym}</span>
-            <span className="text-white/50">{t.price}</span>
-            <span className="text-[#00FF85] font-semibold">{t.chg}</span>
-          </span>
-        ))}
-      </motion.div>
+  // KEEPALIVE — if the browser silently kills the mic or camera track
+  // (commonly right after the camera is toggled), bring it back automatically.
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(async () => {
+      const room = roomRef.current; if (!room) return;
+      try {
+        if (micOnRef.current) {
+          const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+          const t = pub?.track?.mediaStreamTrack;
+          if (!pub?.track || t?.readyState === "ended") await room.localParticipant.setMicrophoneEnabled(true);
+        }
+        if (camOnRef.current && !camBusyRef.current && camTrackRef.current?.mediaStreamTrack?.readyState === "ended") {
+          camBusyRef.current = true;
+          try {
+          const old = room.localParticipant.getTrackPublication(Track.Source.Camera);
+          if (old?.track) await room.localParticipant.unpublishTrack(old.track);
+          const track = await createLocalVideoTrack({facingMode:"user"});
+          camTrackRef.current = track;
+          if (camRef.current) track.attach(camRef.current);
+          await room.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
+          } finally { camBusyRef.current = false; }
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(id);
+  }, [live]);
+
+  const chatBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = chatBoxRef.current;
+    if (!box || box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat]);
+
+  useEffect(() => {
+    if (!live) return;
+    startRef.current = Date.now();
+    const id = setInterval(() => setDur(Math.floor((Date.now()-startRef.current)/1000)), 1000);
+    return () => clearInterval(id);
+  }, [live]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const poll = async () => {
+      const data = await get("live/chat");
+      if (!data||typeof data!=="object") { setChat([]); return; }
+      setChat((Object.values(data) as CM[]).filter(m=>m?.msg&&m?.name).sort((a,b)=>a.ts-b.ts).slice(-50));
+    };
+    poll(); const id = setInterval(poll,2000); return () => clearInterval(id);
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const poll = async () => {
+      const data = await get("live/reactions");
+      if (!data) return;
+      const now = Date.now();
+      Object.entries(data as Record<string,any>).forEach(([key,val]) => {
+        if (now-val.ts>4000||seenR.current.has(key)) return;
+        if (seenR.current.size > 900) seenR.current.clear();
+        seenR.current.add(key);
+        const id=key;
+        setFloats(p=>[...p,{id,emoji:val.emoji,x:val.x??Math.random()}]);
+        setTimeout(()=>setFloats(p=>p.filter(r=>r.id!==id)),2500);
+      });
+    };
+    const id = setInterval(poll,1000); return () => clearInterval(id);
+  }, [authed]);
+
+  // ── MEETING MODE (additive): set a code, open the Zoom-style room ──
+  const [meetCode, setMeetCode] = useState("");
+  const [meetSaved, setMeetSaved] = useState(false);
+  useEffect(() => {
+    if (!authed) return;
+    get("live/meeting/code").then(c => { if (typeof c === "string" && c) { setMeetCode(c); setMeetSaved(true); } });
+  }, [authed]);
+  const saveMeetCode = async () => {
+    const c = meetCode.trim();
+    if (!c) return;
+    await put("live/meeting/code", c);
+    setMeetSaved(true);
+  };
+
+  const startStream = async () => {
+    setStatus("Starting — pick your screen in the popup…");
+    try {
+      setStatus("Requesting screen...");
+      const tracks = await createLocalScreenTracks({audio:true});
+      const vt = tracks.find(t=>t.kind===Track.Kind.Video);
+      const at = tracks.find(t=>t.kind===Track.Kind.Audio);
+      if (!vt) throw new Error("No video track");
+      if (screenRef.current) vt.attach(screenRef.current);
+      setStatus("Connecting...");
+      const tokenRes = await fetch(`/api/token?isHost=1&key=${encodeURIComponent(pw)}`, { cache: "no-store" });
+      const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
+      if (!url) { setStatus("Missing LIVEKIT env vars."); return; }
+      const room = new Room({adaptiveStream:true,dynacast:true});
+      roomRef.current = room;
+      room.on(RoomEvent.ParticipantConnected,()=>setViewers(room.remoteParticipants.size));
+      room.on(RoomEvent.ParticipantDisconnected,()=>setViewers(room.remoteParticipants.size));
+      room.on(RoomEvent.ConnectionQualityChanged,(q:any,participant:any)=>{
+        if (participant === room.localParticipant) setConnQuality(String(q));
+      });
+      // Hear stage guests (additive): play audio published by approved call-in viewers
+      room.on(RoomEvent.TrackSubscribed,(track:any,_pub:any,participant:any)=>{
+        try {
+          if (track.kind === Track.Kind.Audio && String(participant?.identity||"").startsWith("guest-")) {
+            const el = track.attach() as HTMLMediaElement;
+            el.autoplay = true; el.setAttribute("playsinline","true");
+            el.setAttribute("data-stage-guest", participant.identity);
+            document.body.appendChild(el);
+            el.play().catch(()=>{});
+          }
+        } catch {}
+      });
+      room.on(RoomEvent.TrackUnsubscribed,(track:any)=>{ try { track.detach().forEach((el:HTMLElement)=>el.remove()); } catch {} });
+      await room.connect(url,token);
+      await room.localParticipant.publishTrack(vt,{name:"screen",source:Track.Source.ScreenShare,simulcast:false});
+      if (at) await room.localParticipant.publishTrack(at,{name:"screen-audio",source:Track.Source.ScreenShareAudio});
+      // Publish the mic so "Mic ON" is real from the moment the stream starts
+      try { await room.localParticipant.setMicrophoneEnabled(true); setMicOn(true); } catch {}
+      setLive(true); setStatus(""); setViewers(room.remoteParticipants.size);
+      await put("livestatus",{live:true,ts:Date.now()});
+      hbRef.current = setInterval(()=>put("livestatus",{live:true,ts:Date.now()}),10000);
+      vt.mediaStreamTrack.addEventListener("ended", async () => {
+        // Screen share stopped (often an accidental click on the browser's "Stop sharing" bar).
+        // Offer to re-share instead of instantly killing the broadcast for everyone.
+        const reshare = window.confirm("Screen sharing stopped. Click OK to share again and keep the stream alive, or Cancel to end the stream.");
+        if (!reshare) { stopStream(); return; }
+        try {
+          const tracks = await createLocalScreenTracks({ audio: true });
+          const nvt = tracks.find(t => t.kind === Track.Kind.Video);
+          const nat = tracks.find(t => t.kind === Track.Kind.Audio);
+          if (!nvt || !roomRef.current) { stopStream(); return; }
+          if (screenRef.current) nvt.attach(screenRef.current);
+          await roomRef.current.localParticipant.publishTrack(nvt, { name: "screen", source: Track.Source.ScreenShare, simulcast: false });
+          if (nat) await roomRef.current.localParticipant.publishTrack(nat, { name: "screen-audio", source: Track.Source.ScreenShareAudio });
+          nvt.mediaStreamTrack.addEventListener("ended", () => stopStream());
+        } catch { stopStream(); }
+      });
+    } catch(err:any) { setStatus("Error: "+(err.message||String(err))); }
+  };
+
+  const stopStream = async () => {
+    if (hbRef.current) clearInterval(hbRef.current);
+    if (roomRef.current) { await roomRef.current.disconnect(); roomRef.current=null; }
+    await del("live/stage");
+    await put("livestatus",{live:false,ts:Date.now()});
+    setLive(false); setStatus(""); setViewers(0); setCamOn(false);
+    if (camTrackRef.current) { camTrackRef.current.stop(); camTrackRef.current=null; }
+    if (camRef.current) camRef.current.srcObject=null;
+  };
+
+  const toggleCam = async () => {
+    if (!roomRef.current || camBusyRef.current) return;
+    camBusyRef.current = true;
+    try {
+      if (camOn) {
+        if (camTrackRef.current) { await roomRef.current.localParticipant.unpublishTrack(camTrackRef.current); camTrackRef.current.stop(); camTrackRef.current=null; }
+        if (camRef.current) camRef.current.srcObject=null;
+        setCamOn(false);
+      } else {
+        const track = await createLocalVideoTrack({facingMode:"user"});
+        camTrackRef.current = track;
+        if (camRef.current) track.attach(camRef.current);
+        await roomRef.current.localParticipant.publishTrack(track,{name:"camera",source:Track.Source.Camera,simulcast:true});
+        // Some browsers restart the audio device when the camera starts — re-assert the mic so audio never drops
+        if (micOn) { try { await roomRef.current.localParticipant.setMicrophoneEnabled(true); } catch {} }
+        setCamOn(true);
+      }
+    } catch(err:any) { setStatus("Cam: "+(err.message||String(err))); }
+    finally { camBusyRef.current = false; }
+  };
+
+  const toggleMic = async () => {
+    if (!roomRef.current) return;
+    await roomRef.current.localParticipant.setMicrophoneEnabled(!micOn);
+    setMicOn(m=>!m);
+  };
+
+  const notifySubscribers = async () => {
+    if (notifying) return;
+    setNotifying(true);
+    setNotifyStatus("Sending...");
+    try {
+      const res = await fetch("/api/notify", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setNotifyStatus("✅ Sent to " + data.sent + " subscribers!");
+      } else {
+        setNotifyStatus("❌ " + (data.error || "Failed"));
+      }
+    } catch {
+      setNotifyStatus("❌ Network error");
+    }
+    setNotifying(false);
+    setTimeout(() => setNotifyStatus(""), 5000);
+  };
+
+  const sendChat = async () => {
+    if (!chatMsg.trim()||sendingRef.current) return;
+    sendingRef.current=true; const m=chatMsg.trim(); setChatMsg("");
+    await push("live/chat",{name:"Host",msg:m,ts:Date.now()});
+    sendingRef.current=false;
+  };
+
+  const sendReaction = async (emoji: string) => {
+    const x=Math.random(),ts=Date.now(),id="h_"+ts;
+    seenR.current.add(id);
+    setFloats(p=>[...p,{id,emoji,x}]);
+    setTimeout(()=>setFloats(p=>p.filter(r=>r.id!==id)),2500);
+    await push("live/reactions",{emoji,x,ts});
+  };
+
+  const auth = async () => {
+    if (await sha256(pw)===HASH) {
+      setAuthed(true); localStorage.setItem('gp_host','true');
+      await put("livestatus",{live:false,ts:Date.now()});
+      // Clear session data only — NEVER live/leads (the email list lives there)
+      await del("live/chat"); await del("live/reactions"); await del("live/stage");
+    }
+    else alert("Wrong password");
+  };
+
+  if (!authed) return (
+    <div style={{minHeight:"100dvh",background:"radial-gradient(ellipse at 25% 60%,#071a10 0%,#020807 55%,#020807 100%)",color:"#fff",fontFamily:"system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
+      <style>{`
+        @keyframes orbPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.08)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+        #studio-submit:hover{transform:translateY(-1px) scale(1.02)!important;box-shadow:0 8px 40px rgba(34,197,94,.6)!important}
+        #studio-submit:active{transform:scale(.98)!important}
+      `}</style>
+      <div style={{position:"absolute",top:"5%",left:"5%",width:500,height:500,background:"radial-gradient(circle,rgba(34,197,94,.1) 0%,transparent 65%)",animation:"orbPulse 4s ease-in-out infinite",pointerEvents:"none",zIndex:0}}/>
+      <div style={{position:"absolute",bottom:"0%",right:"0%",width:400,height:400,background:"radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%)",animation:"orbPulse 5s ease-in-out infinite 1s",pointerEvents:"none",zIndex:0}}/>
+      <div style={{position:"absolute",top:"50%",left:"50%",width:800,height:2,background:"linear-gradient(90deg,transparent,rgba(34,197,94,.08),transparent)",transform:"translate(-50%,-50%)",pointerEvents:"none",zIndex:0}}/>
+
+      <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1,animation:"fadeUp .6s ease"}}>
+
+        {/* Logo / Branding */}
+        <div style={{textAlign:"center",marginBottom:44}}>
+          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:72,height:72,borderRadius:20,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:20,boxShadow:"0 0 40px rgba(34,197,94,.15)"}}>
+            <span style={{fontSize:34}}>🎙️</span>
+          </div>
+          <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.6)",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Welcome back</div>
+          <div style={{fontSize:32,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e 0%,#4ade80 45%,#bbf7d0 100%)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"shimmer 4s linear infinite"}}>Greenprint Studio</div>
+        </div>
+
+        {/* Card */}
+        <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:24,padding:"36px 32px",backdropFilter:"blur(32px)",boxShadow:"0 0 80px rgba(34,197,94,.05),inset 0 1px 0 rgba(255,255,255,.05)"}}>
+          <div style={{marginBottom:10}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.35)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
+            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&auth()}
+              placeholder="Enter your studio password"
+              style={{width:"100%",padding:"16px 20px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,letterSpacing:".5px",transition:"border-color .2s ease"}}
+              onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
+              onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
+            />
+          </div>
+          <div style={{marginTop:20}}>
+            <button id="studio-submit" onClick={auth}
+              style={{width:"100%",padding:"16px 0",background:"linear-gradient(135deg,#15803d 0%,#22c55e 50%,#4ade80 100%)",border:"none",borderRadius:14,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 28px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
+              ENTER STUDIO
+            </button>
+            <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:12,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
+          </div>
+          <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"rgba(255,255,255,.15)",letterSpacing:"1px"}}>Host access only · thegreenprint.trade</div>
+        </div>
+      </div>
     </div>
   );
-}
-
-/* ─── Nav ────────────────────────────────────────────────────── */
-function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
 
   return (
-    <motion.nav
-      initial={{ y: -80 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-[#080808]/90 backdrop-blur-xl border-b border-white/5" : "bg-transparent"
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span className="text-white font-bold text-lg tracking-tight">
-            The <span className="text-[#00FF85]">Greenprint</span>
-          </span>
-        </Link>
+    <div style={{height:"100vh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-180px) scale(2)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 16px rgba(0,255,135,.2)}50%{box-shadow:0 0 32px rgba(0,255,135,.5)}}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+        @media(max-width:900px){.sg{grid-template-columns:1fr!important}.cc{max-height:260px!important}}
+      `}</style>
 
-        <div className="hidden md:flex items-center gap-8">
-          {[
-            { label: "How It Works", href: "#how-it-works" },
-            { label: "Programs", href: "#pricing" },
-            { label: "Watch Live", href: "/stream" },
-            { label: "Results", href: "#results" },
-          ].map(l => (
-            <Link key={l.label} href={l.href}
-              className="text-white/60 hover:text-white text-sm transition-colors duration-200">
-              {l.label}
-            </Link>
+      {/* ── STAGE PANEL (additive): call-in requests + on-air guests ── */}
+      {live && (stageReqs.length > 0 || stageOn.length > 0) && (
+        <div style={{position:"fixed",bottom:16,left:16,zIndex:9998,width:250,background:"rgba(8,12,9,.95)",border:"1px solid rgba(0,255,135,.3)",borderRadius:14,padding:"12px 14px",backdropFilter:"blur(12px)",boxShadow:"0 8px 30px rgba(0,0,0,.6)"}}>
+          <div style={{fontSize:11,fontWeight:900,letterSpacing:"1.5px",color:"#00ff87",marginBottom:8}}>🎙 STAGE</div>
+          {stageOn.map(g=>(
+            <div key={g.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+              <span style={{fontSize:12,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🔴 {g.name}</span>
+              <button onClick={()=>removeGuest(g)} style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:7,color:"#ff2d55",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>REMOVE</button>
+            </div>
+          ))}
+          {stageReqs.map(r=>(
+            <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+              <span style={{fontSize:12,color:"rgba(255,255,255,.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>✋ {r.name}</span>
+              <button onClick={()=>approveGuest(r)} style={{background:"rgba(0,255,135,.15)",border:"1px solid rgba(0,255,135,.4)",borderRadius:7,color:"#00ff87",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>PUT ON AIR</button>
+            </div>
           ))}
         </div>
+      )}
+      
 
-        <div className="hidden md:flex items-center gap-3">
-          <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
-            className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2">
-            Book a Call
-          </Link>
-          <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-            className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all"
-            style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}>
-            Join Now
-          </Link>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌿</div>
+          <div><div style={{fontWeight:900,fontSize:15}}>The Greenprint</div><div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>Broadcast Studio</div></div>
         </div>
-
-        <button className="md:hidden text-white p-2" onClick={() => setOpen(!open)}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {open ? <path d="M18 6L6 18M6 6l12 12"/> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
-          </svg>
-        </button>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {live && <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"5px 14px",fontSize:12,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:7,height:7,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
+          </span>}
+          <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:13}}>👁 {viewers} watching</span>
+          {live && <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:12,color:"rgba(255,255,255,.5)"}}>{fmt(dur)}</span>}
+          {live && connQuality && <span title="Your upload connection quality" style={{background:connQuality==="excellent"?"rgba(0,255,135,.12)":connQuality==="good"?"rgba(255,200,50,.12)":"rgba(255,45,85,.15)",border:"1px solid rgba(255,255,255,.12)",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,color:connQuality==="excellent"?"#00ff87":connQuality==="good"?"#ffc832":"#ff2d55"}}>📶 {connQuality}</span>}
+        </div>
       </div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }} className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6">
-            <div className="flex flex-col gap-4 pt-4">
-              {[
-                { label: "How It Works", href: "#how-it-works" },
-                { label: "Programs", href: "#pricing" },
-                { label: "Watch Live", href: "/stream" },
-                { label: "Results", href: "#results" },
-              ].map(l => (
-                <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
-                  className="text-white/60 text-sm hover:text-white">
-                  {l.label}
-                </Link>
+      <div className="sg" style={{flex:1,display:"grid",gridTemplateColumns:"1fr 340px",overflow:"hidden"}}>
+        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",padding:16,gap:14}}>
+          <div style={{flex:1,position:"relative",background:"#000",borderRadius:16,overflow:"hidden",border:"1px solid rgba(255,255,255,.08)"}}>
+            <video ref={screenRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
+            {/* Camera PiP — ALWAYS in DOM */}
+            <div style={{position:"absolute",bottom:16,right:16,width:200,height:113,borderRadius:12,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 24px rgba(0,255,135,.35)",display:camOn?"block":"none",zIndex:10}}>
+              <video ref={camRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)"}} />
+              <div style={{position:"absolute",top:6,left:8,background:"rgba(0,255,135,.9)",color:"#000",fontSize:9,fontWeight:900,letterSpacing:"1.5px",borderRadius:4,padding:"2px 6px"}}>CAM</div>
+            </div>
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
+              {floats.map(r=>(
+                <div key={r.id} style={{position:"absolute",bottom:60,left:`${10+r.x*75}%`,fontSize:40,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 8px rgba(0,0,0,.6))"}}>{r.emoji}</div>
               ))}
-              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
-              <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-                className="bg-[#00FF85] text-black text-sm font-bold px-5 py-3 rounded-full text-center">
-                Join Now
-              </Link>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
-  );
-}
-
-/* ─── Hero ───────────────────────────────────────────────────── */
-function Hero() {
-  return (
-    <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
-      {/* Background — hidden on mobile for performance */}
-      <div className="absolute inset-0 pointer-events-none hidden sm:block">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
-        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
-        <div className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "64px 64px",
-          }}
-        />
-      </div>
-      {/* Subtle mobile glow */}
-      <div className="absolute inset-0 pointer-events-none sm:hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
-      </div>
-
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1 }}
-        className="mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
-        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
-        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community · 2,400+ Members</span>
-      </motion.div>
-
-      <motion.h1
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center font-black leading-[0.88] tracking-tight px-4"
-        style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
-      >
-        <span className="block text-white">TRADE</span>
-        <span className="block text-[#00FF85]" style={{ textShadow: "0 0 60px rgba(0,255,133,0.45)" }}>
-          SMARTER.
-        </span>
-        <span className="block text-white">WIN BIGGER.</span>
-      </motion.h1>
-
-      <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed">
-        Real-time trade alerts, live sessions, and a proven system — built to help you level up.
-      </motion.p>
-
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="mt-7 sm:mt-10 flex items-center justify-center gap-3 sm:gap-4 px-4 w-full max-w-xs sm:max-w-none">
-        <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-          className="group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all flex-1 sm:flex-none justify-center"
-          style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
-          Get Access
-          <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </Link>
-        <Link href="/stream"
-          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all flex-1 sm:flex-none justify-center">
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-            <polygon points="6.5,5.5 11,8 6.5,10.5" fill="currentColor"/>
-          </svg>
-          Watch Free
-        </Link>
-      </motion.div>
-
-      {/* Stat badges — 2 on mobile, all 3 on desktop */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.8 }}
-        className="mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4">
-        {[
-          { label: "Active Members", value: "2,400+", color: "#00FF85" },
-          { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
-          { label: "Years Experience", value: "7+", color: "#00FF85", hideOnMobile: true },
-        ].map((stat, i) => (
-          <motion.div key={stat.label}
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 + i * 0.08 }}
-            className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
-            <span className="font-black text-lg sm:text-2xl" style={{ color: stat.color }}>{stat.value}</span>
-            <span className="text-white/40 text-xs">{stat.label}</span>
-          </motion.div>
-        ))}
-      </motion.div>
-    </section>
-  );
-}
-
-/* ─── Stats ──────────────────────────────────────────────────── */
-function Stats() {
-  return (
-    <section className="py-20 border-t border-white/5">
-      <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
-        {[
-          { value: 2400, suffix: "+", label: "Members" },
-          { value: 20, suffix: "+", label: "Live Sessions/Mo" },
-          { value: 1200, suffix: "+", label: "Trade Alerts Sent" },
-          { value: 7, suffix: "yrs", label: "Market Experience" },
-        ].map((s, i) => (
-          <FadeIn key={s.label} delay={i * 0.1} className="text-center">
-            <div className="text-5xl font-black mb-2"
-              style={{ color: i % 2 === 0 ? "#00FF85" : "#C9A84C" }}>
-              <Counter target={s.value} suffix={s.suffix}/>
-            </div>
-            <div className="text-white/35 text-sm">{s.label}</div>
-          </FadeIn>
-        ))}
-      </div>
-      <FadeIn className="mt-4 text-center">
-        <p className="text-white/20 text-xs max-w-lg mx-auto px-4">
-          For educational purposes only. Past results are not indicative of future performance. Trading involves substantial risk of loss.
-        </p>
-      </FadeIn>
-    </section>
-  );
-}
-
-/* ─── How It Works ───────────────────────────────────────────── */
-function HowItWorks() {
-  const steps = [
-    { num: "01", title: "Join The Community", icon: "🔐",
-      desc: "Get instant access to the private Discord, live sessions, and the full Greenprint educational system." },
-    { num: "02", title: "Learn The System", icon: "📊",
-      desc: "Study The Greenprint's approach — entry signals, risk management, and setups that have stood the test of time." },
-    { num: "03", title: "Receive Real-Time Alerts", icon: "⚡",
-      desc: "Get notified the second a setup is spotted. Follow along with live commentary and rationale for every alert." },
-    { num: "04", title: "Apply What You Learn", icon: "💰",
-      desc: "Take what you've learned and execute with a plan. Track your growth and refine your strategy over time." },
-  ];
-
-  return (
-    <section id="how-it-works" className="py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF85]/2 to-transparent pointer-events-none"/>
-      <div className="max-w-6xl mx-auto px-6">
-        <FadeIn className="text-center mb-16">
-          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">The Process</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
-          <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            A structured educational system designed to help you develop real trading skills.
-          </p>
-        </FadeIn>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {steps.map((step, i) => (
-            <FadeIn key={step.num} delay={i * 0.1}>
-              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
-                <div className="text-3xl mb-4">{step.icon}</div>
-                <div className="text-[#00FF85]/40 text-xs font-bold tracking-widest mb-2">{step.num}</div>
-                <h3 className="text-white font-bold text-base mb-2">{step.title}</h3>
-                <p className="text-white/40 text-sm leading-relaxed">{step.desc}</p>
+            {!live && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"rgba(0,0,0,.9)",overflowY:"auto",padding:16}}>
+              <div style={{fontSize:40}}>🎬</div>
+              <div style={{color:"#fff",fontWeight:900,fontSize:17,letterSpacing:".02em"}}>Pre-Flight Checklist</div>
+              <div style={{color:"rgba(255,255,255,.35)",fontSize:12,marginBottom:6}}>Run it down, then hit Go Live.</div>
+              <div style={{display:"flex",flexDirection:"column",gap:7,width:"100%",maxWidth:380}}>
+                {[
+                  ["tabs","Close private tabs & notifications (everything on screen goes out live)"],
+                  ["mic","Mic connected & tested — say something and watch the meter in your OS"],
+                  ["chart","Charts open and laid out the way you want them"],
+                  ["alert","Alert the community — 📧 email button + drop the Telegram link"],
+                  ["record","Start your recording (Win+Alt+R) so we can clip this later"],
+                ].map(([k,label])=>(
+                  <button key={k} onClick={()=>setPreflight(p=>({...p,[k]:!p[k]}))}
+                    style={{display:"flex",alignItems:"center",gap:10,textAlign:"left",background:preflight[k]?"rgba(0,255,135,.08)":"rgba(255,255,255,.04)",border:preflight[k]?"1px solid rgba(0,255,135,.35)":"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .2s"}}>
+                    <span style={{width:20,height:20,borderRadius:6,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,background:preflight[k]?"#00ff87":"rgba(255,255,255,.08)",color:"#000",fontWeight:900}}>{preflight[k]?"✓":""}</span>
+                    <span style={{fontSize:12,color:preflight[k]?"rgba(255,255,255,.85)":"rgba(255,255,255,.5)",lineHeight:1.4}}>{label}</span>
+                  </button>
+                ))}
               </div>
-            </FadeIn>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Features ───────────────────────────────────────────────── */
-function Features() {
-  const features = [
-    { icon: "⚡", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
-      desc: "Push alerts the moment a setup is identified, with full context on the reasoning behind it." },
-    { icon: "🎥", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
-      desc: "Watch The Greenprint trade in real time — entry, thesis, and exit streamed directly to you." },
-    { icon: "🔍", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
-      desc: "Scan for unusual options flow and spot potential moves before they develop." },
-    { icon: "👥", title: "Private Community", badge: null, badgeColor: "#00FF85",
-      desc: "A members-only Discord focused on education, setups, and accountability — no noise." },
-    { icon: "📖", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
-      desc: "The exact frameworks, chart setups, and decision rules used in The Greenprint system." },
-    { icon: "🛡️", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
-      desc: "Elite members get direct coaching sessions tailored to their personal trading goals." },
-  ];
-
-  return (
-    <section className="py-24">
-      <div className="max-w-6xl mx-auto px-6">
-        <FadeIn className="text-center mb-16">
-          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Everything You Need</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
-        </FadeIn>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((f, i) => (
-            <FadeIn key={f.title} delay={i * 0.08}>
-              <div className="group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
-                <div className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="text-3xl">{f.icon}</div>
-                    {f.badge && (
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-                        style={{ background: `${f.badgeColor}18`, color: f.badgeColor, border: `1px solid ${f.badgeColor}30` }}>
-                        {f.badge}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-white font-bold text-base mb-2">{f.title}</h3>
-                  <p className="text-white/40 text-sm leading-relaxed">{f.desc}</p>
-                </div>
+              <div style={{color:Object.values(preflight).filter(Boolean).length>=5?"#00ff87":"rgba(255,255,255,.25)",fontSize:12,fontWeight:700,marginTop:4}}>
+                {Object.values(preflight).filter(Boolean).length>=5 ? "✅ All clear — you're ready. Hit Go Live." : `${Object.values(preflight).filter(Boolean).length}/5 checked`}
               </div>
-            </FadeIn>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Live Stream Callout ────────────────────────────────────── */
-function LiveCallout() {
-  return (
-    <section className="py-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-[#00FF85]/5 via-transparent to-[#C9A84C]/5 pointer-events-none"/>
-      <div className="max-w-6xl mx-auto px-6">
-        <FadeIn>
-          <div className="rounded-3xl p-10 md:p-16 relative overflow-hidden"
-            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.06) 0%, rgba(0,0,0,0) 60%)", border: "1px solid rgba(0,255,133,0.2)" }}>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[80px] pointer-events-none"/>
-            <div className="relative grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/25 rounded-full px-3 py-1.5 mb-6">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
-                  <span className="text-red-400 text-xs font-bold tracking-wide">LIVE SESSIONS</span>
-                </div>
-                <h2 className="text-4xl md:text-5xl font-black text-white leading-tight mb-6">
-                  Watch The Greenprint Trade{" "}
-                  <span className="text-[#00FF85]">In Real Time</span>
-                </h2>
-                <p className="text-white/45 text-lg leading-relaxed mb-8">
-                  Subscribe free and get a front-row seat to live sessions — entry, thesis, and exit streamed directly to members on the web and mobile app.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Link href="/stream"
-                    className="inline-flex items-center justify-center gap-2 bg-[#00FF85] text-black font-bold px-7 py-3.5 rounded-full hover:bg-[#00e676] transition-all"
-                    style={{ boxShadow: "0 0 30px rgba(0,255,133,0.3)" }}>
-                    Watch Now — Free
-                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </Link>
-                  <Link href={WHOP_URL} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 border border-white/15 text-white font-semibold px-7 py-3.5 rounded-full hover:bg-white/5 transition-all">
-                    Join the Community
-                  </Link>
-                </div>
+            </div>}
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+            {!live
+              ? <button onClick={startStream} style={{background:"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer",animation:"glow 2s infinite"}}>🔴 Go Live</button>
+              : <button onClick={stopStream} style={{background:"#ff2d55",border:"none",borderRadius:10,color:"#fff",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer"}}>⏹ End Stream</button>
+            }
+            {!live && (
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",padding:"8px 12px",borderRadius:12,background:"rgba(0,255,135,.05)",border:"1px solid rgba(0,255,135,.18)"}}>
+                <span style={{fontSize:11,fontWeight:900,letterSpacing:"1px",color:"#00ff87"}}>👥 MEETING MODE</span>
+                <input value={meetCode} onChange={e=>{setMeetCode(e.target.value);setMeetSaved(false);}} placeholder="meeting code"
+                  style={{width:110,padding:"8px 10px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"#fff",fontSize:12,outline:"none"}}/>
+                <button onClick={saveMeetCode} style={{background:meetSaved?"rgba(0,255,135,.15)":"rgba(255,255,255,.08)",border:"1px solid rgba(0,255,135,.3)",borderRadius:8,color:meetSaved?"#00ff87":"#fff",fontWeight:700,padding:"8px 12px",fontSize:11,cursor:"pointer"}}>{meetSaved?"✓ Saved":"Save code"}</button>
+                <a href={`/meet?code=${encodeURIComponent(meetCode)}`} target="_blank" rel="noopener noreferrer"
+                  style={{background:meetSaved?"linear-gradient(135deg,#00ff87,#00c864)":"rgba(255,255,255,.08)",border:"none",borderRadius:8,color:meetSaved?"#000":"rgba(255,255,255,.4)",fontWeight:800,padding:"9px 14px",fontSize:11,textDecoration:"none",pointerEvents:meetSaved?"auto":"none"}}>
+                  Open Meeting Room →
+                </a>
               </div>
+            )}
 
-              {/* Visual mockup */}
-              <div className="relative">
-                <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] overflow-hidden">
-                  <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"/>
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"/>
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"/>
-                    <span className="ml-2 text-white/20 text-xs">thegreenprint.trade/stream</span>
-                  </div>
-                  <div className="p-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
-                    <div className="w-16 h-16 rounded-2xl bg-[#00FF85]/10 border border-[#00FF85]/20 flex items-center justify-center">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                        <polygon points="5,3 19,12 5,21" fill="#00FF85"/>
-                      </svg>
+            <button onClick={async()=>{setEmailSending(true);try{const r=await fetch('/api/notify-live',{method:'POST'});const d=await r.json();setEmailSent(d.sent??d.total??0);}catch(e){}setEmailSending(false);}} disabled={emailSending} style={{background:emailSent!==null?'rgba(0,255,135,.15)':'rgba(255,255,255,.08)',border:'1px solid rgba(0,255,135,.3)',borderRadius:10,color:emailSent!==null?'#00ff87':'#fff',fontWeight:800,padding:'11px 24px',fontSize:14,cursor:'pointer',width:'100%',marginTop:8}}>{emailSending?'Sending...':emailSent!==null?'\u2705 Sent to '+emailSent+' people':'\uD83D\uDCE7 Notify Email List'}</button>
+            <button onClick={toggleCam} disabled={!live} style={{background:camOn?"rgba(0,255,135,.15)":"rgba(255,255,255,.06)",border:camOn?"1px solid rgba(0,255,135,.4)":"1px solid rgba(255,255,255,.1)",borderRadius:10,color:camOn?"#00ff87":"rgba(255,255,255,.7)",padding:"10px 18px",cursor:live?"pointer":"not-allowed",opacity:live?1:.4,fontWeight:700,fontSize:14}}>
+              {camOn?"📸 Cam ON":"📷 Cam OFF"}
+            </button>
+            <button onClick={toggleMic} disabled={!live} style={{background:micOn?"rgba(0,255,135,.15)":"rgba(255,45,85,.15)",border:micOn?"1px solid rgba(0,255,135,.4)":"1px solid rgba(255,45,85,.4)",borderRadius:10,color:micOn?"#00ff87":"#ff2d55",padding:"10px 18px",cursor:live?"pointer":"not-allowed",opacity:live?1:.4,fontWeight:700,fontSize:14}}>
+              {micOn?"🎤 Mic ON":"🔇 Mic OFF"}
+            </button>
+              <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:8,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
+              <button onClick={notifySubscribers} disabled={notifying} style={{background:"rgba(251,191,36,.1)",border:"1px solid rgba(251,191,36,.4)",borderRadius:8,color:"#fbbf24",fontWeight:800,padding:"10px 18px",fontSize:13,cursor:notifying?"not-allowed":"pointer",opacity:notifying?0.6:1,letterSpacing:".05em"}}>🔔 {notifying?"SENDING...":"NOTIFY SUBSCRIBERS"}</button>
+              {notifyStatus && <span style={{color:notifyStatus.startsWith("✅")?"#22c55e":"#ff4444",fontSize:13,fontWeight:600}}>{notifyStatus}</span>}
+              <button onClick={()=>setShowPreview(p=>!p)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"rgba(255,255,255,.6)",fontWeight:600,padding:"10px 14px",fontSize:12,cursor:"pointer",letterSpacing:".05em"}}>{showPreview?"🙈 Hide Preview":"👁 Preview Email"}</button>
+              {showPreview && (
+                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPreview(false)}>
+                  <div style={{background:"#0a0a0a",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:0,maxWidth:580,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+                    <div style={{padding:"16px 24px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{color:"#fff",fontWeight:700,fontSize:14}}>📧 Email Preview</span>
+                      <button onClick={()=>setShowPreview(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,.4)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
                     </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
-                        <span className="text-white/60 text-sm font-semibold">Stream Active</span>
+                    <div style={{padding:"8px 24px 12px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>From: <span style={{color:"rgba(255,255,255,.6)"}}>The Greenprint &lt;noreply@thegreenprint.trade&gt;</span></p>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>Subject: <span style={{color:"rgba(255,255,255,.6)"}}>🟢 The Greenprint is LIVE — Free Day Trading Class</span></p>
+                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>To: <span style={{color:"rgba(255,255,255,.6)"}}>All subscribers (~890 people)</span></p>
+                    </div>
+                    <div style={{padding:24}}>
+                      <div style={{background:"#111",borderRadius:12,padding:"28px 24px",fontFamily:"-apple-system,sans-serif"}}>
+                        <div style={{textAlign:"center",marginBottom:24}}>
+                          <div style={{display:"inline-block",padding:"6px 16px",background:"rgba(34,197,94,.15)",border:"1px solid rgba(34,197,94,.4)",borderRadius:20,marginBottom:16}}>
+                            <span style={{color:"#22c55e",fontSize:12,fontWeight:700,letterSpacing:2}}>🟢 LIVE NOW</span>
+                          </div>
+                          <h2 style={{color:"#fff",margin:"0 0 6px",fontSize:22,fontWeight:900}}>The Greenprint is Live</h2>
+                          <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>Free Day Trading Class — happening right now</p>
+                        </div>
+                        <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:20,marginBottom:20}}>
+                          <p style={{margin:"0 0 10px",fontSize:13,lineHeight:1.6,color:"rgba(255,255,255,.8)"}}>Your free day trading class is live right now. Come watch live trades, scanner alerts, and real-time market analysis with The Greenprint.</p>
+                          <p style={{margin:0,fontSize:12,color:"rgba(255,255,255,.35)"}}>No cost. No catch. Just value.</p>
+                        </div>
+                        <div style={{textAlign:"center",marginBottom:20}}>
+                          <span style={{display:"inline-block",padding:"14px 36px",background:"linear-gradient(135deg,#15803d,#22c55e)",borderRadius:10,color:"#000",fontWeight:900,fontSize:14,letterSpacing:.5}}>JOIN THE CLASS →</span>
+                        </div>
+                        <p style={{textAlign:"center",fontSize:10,color:"rgba(255,255,255,.2)",margin:0}}>The Greenprint · thegreenprint.trade</p>
                       </div>
-                      <p className="text-white/25 text-xs">Broadcasts live to web + mobile app</p>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      {["NVDA", "TSLA", "SPY"].map(sym => (
-                        <span key={sym} className="bg-[#00FF85]/10 border border-[#00FF85]/20 text-[#00FF85] text-xs font-bold px-2.5 py-1 rounded-lg">
-                          {sym}
-                        </span>
-                      ))}
                     </div>
                   </div>
                 </div>
-                <div className="absolute -inset-4 bg-[#00FF85]/5 rounded-3xl blur-2xl -z-10"/>
-              </div>
-            </div>
-          </div>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Pricing ────────────────────────────────────────────────── */
-const WHOP_CHECKOUT = "https://whop.com/checkout/1qG9Z2JJtzx9EwqFqx-NniP-F77m-blPo-5FJfLrqeKabq/";
-const ONEHOUSE_REF  = "https://subscribe.1houseglobal.com/jay";
-
-function Check({ color }: { color: string }) {
-  return (
-    <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="7" fill={color} fillOpacity="0.12"/>
-      <path d="M5 8l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function Pricing() {
-  return (
-    <section id="pricing" className="py-24">
-      <div className="max-w-6xl mx-auto px-6">
-        <FadeIn className="text-center mb-16">
-          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
-          <p className="text-white/40 mt-4 max-w-lg mx-auto">
-            Start with The Greenprint or level up with our partner platform 1House Global — everything you need is right here.
-          </p>
-        </FadeIn>
-
-        <div className="grid md:grid-cols-3 gap-5 items-start">
-
-          {/* ── Tier 1: The Greenprint (own product) ── */}
-          <FadeIn delay={0}>
-            <div className="relative rounded-2xl p-7 flex flex-col border-2 border-[#00FF85]/50 bg-[#00FF85]/5">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#00FF85] text-black text-xs font-black px-4 py-1.5 rounded-full tracking-wide whitespace-nowrap">
-                ⚡ LIMITED SPOTS
-              </div>
-
-              {/* Label */}
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-5 h-5 rounded-md bg-[#00FF85] flex items-center justify-center shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <span className="text-[#00FF85] text-sm font-bold">The Greenprint</span>
-              </div>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-white/30 text-xl">$</span>
-                <span className="text-6xl font-black text-white">29</span>
-                <span className="text-white text-2xl font-black">.99</span>
-                <span className="text-white/30 text-sm">/mo</span>
-              </div>
-              <p className="text-white/40 text-sm mb-6">
-                Full access to everything The Greenprint — streams, alerts, app, and community. Priced to stay accessible.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "All live trading sessions",
-                  "Real-time trade alerts",
-                  "Mobile app access (iOS + Android)",
-                  "Private member community",
-                  "Stream replay library",
-                  "Weekly market breakdowns",
-                  "Trading playbook & education",
-                  "New content added weekly",
-                ].map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-white/70 text-sm">
-                    <Check color="#00FF85"/>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href={WHOP_CHECKOUT} target="_blank" rel="noopener noreferrer"
-                className="w-full text-center font-black py-4 rounded-xl text-sm block transition-all"
-                style={{ background: "#00FF85", color: "#080808", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>
-                Join The Greenprint — $29.99/mo
-              </Link>
-              <p className="text-white/20 text-xs text-center mt-3">Cancel anytime. Limited spots available.</p>
-            </div>
-          </FadeIn>
-
-          {/* ── Tier 2: 1House Stream ($99/mo) ── */}
-          <FadeIn delay={0.12}>
-            <div className="relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
-              {/* 1House badge */}
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
-                  Affiliate Partner
-                </span>
-              </div>
-
-              <div className="text-white/70 text-sm font-bold mb-1">1House Global — Stream</div>
-
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-white/30 text-xl">$</span>
-                <span className="text-6xl font-black text-white">99</span>
-                <span className="text-white/30 text-sm">/mo</span>
-              </div>
-              <p className="text-white/40 text-sm mb-6">
-                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more — all on one platform.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Unlimited live stream access",
-                  "100+ expert creators",
-                  "Stocks, Crypto, Real Estate & more",
-                  "Day Trading & Options education",
-                  "E-commerce, AI & Business content",
-                  "On-demand replay library",
-                  "1House mobile app included",
-                  "Live stream alerts & notifications",
-                  "Inner Circle creator access",
-                  "3-day money-back guarantee",
-                ].map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
-                    <Check color="#6366f1"/>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
-                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-white/10"
-                style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Subscribe via 1House — $99/mo
-              </Link>
-              <p className="text-white/20 text-xs text-center mt-3">
-                Via our affiliate link at 1House Global.
-              </p>
-            </div>
-          </FadeIn>
-
-          {/* ── Tier 3: 1House Startup ($200 + $165/mo) ── */}
-          <FadeIn delay={0.24}>
-            <div className="relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
-              {/* 1House badge */}
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
-                  Affiliate Partner
-                </span>
-              </div>
-
-              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global — Startup</div>
-
-              {/* Startup fee + monthly */}
-              <div className="mb-1">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-white/30 text-lg">$</span>
-                  <span className="text-5xl font-black text-white">200</span>
-                  <span className="text-white/40 text-sm ml-1">startup fee</span>
-                </div>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-[#C9A84C] font-bold text-lg">+</span>
-                  <span className="text-[#C9A84C] font-black text-2xl">$165</span>
-                  <span className="text-white/30 text-sm">/mo after</span>
-                </div>
-              </div>
-
-              <p className="text-white/40 text-sm mb-6 mt-3">
-                Everything in Stream, plus the ability to host your own content, build a subscriber base, and earn on the 1House platform.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Everything in 1House Stream",
-                  "Launch your own channel on 1House",
-                  "Monetize your content & community",
-                  "Creator dashboard & analytics",
-                  "Host live streams to 1House members",
-                  "Build your subscriber base",
-                  "Access to creator support team",
-                  "Business & marketing education",
-                  "1House Startup community access",
-                  "3-day money-back guarantee",
-                ].map(f => (
-                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
-                    <Check color="#C9A84C"/>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
-                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-[#C9A84C]/20"
-                style={{ background: "rgba(201,168,76,0.10)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}>
-                Get 1House Startup
-              </Link>
-              <p className="text-white/20 text-xs text-center mt-3">
-                Via our affiliate link at 1House Global.
-              </p>
-            </div>
-          </FadeIn>
-        </div>
-
-        {/* Bottom note */}
-        <FadeIn delay={0.3} className="mt-10 text-center">
-          <p className="text-white/25 text-xs max-w-xl mx-auto">
-            The 1House Global plans are offered through our affiliate partnership. Clicking those links may earn The Greenprint a referral commission at no extra cost to you. 1House plan details and pricing are set by 1House Global.
-          </p>
-          <p className="text-white/30 text-sm mt-4">
-            Not sure which plan is right for you?{" "}
-            <Link href={CALENDLY} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] hover:underline">
-              Book a free call
-            </Link>{" "}
-            and we&apos;ll help you decide.
-          </p>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Testimonials ───────────────────────────────────────────── */
-function Testimonials() {
-  const testimonials = [
-    { name: "Marcus T.", handle: "@marcust_trades", gain: "+34%",
-      text: "The Greenprint alerts are the real deal. I was down bad when I joined. Two months later I'm up and finally understand what I'm doing in the market." },
-    { name: "Aaliyah R.", handle: "@aaliyah_fx", gain: "+$8,200",
-      text: "The live streams are worth every penny. Watching the trades happen in real time and hearing the reasoning is something no YouTube video could teach me." },
-    { name: "Chris M.", handle: "@chrismoneymakerr", gain: "+61%",
-      text: "I've been in 3 other Discord trading groups. The Greenprint is the only one where the content actually makes sense and the community is engaged." },
-    { name: "Destiny W.", handle: "@destinywtrades", gain: "+$5,400",
-      text: "Went from barely understanding options to actually having a process every single week. The community alone is worth the price." },
-    { name: "Jordan P.", handle: "@jordanptrades", gain: "+127%",
-      text: "The Inner Circle coaching sessions literally transformed how I approach every trade. Best investment I've made in my trading education." },
-    { name: "Tiana B.", handle: "@tianabinvests", gain: "+$11k",
-      text: "The scanner + alerts combo is incredible. I understand the setups now instead of just copying blindly. That made all the difference." },
-  ];
-
-  return (
-    <section id="results" className="py-24 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#C9A84C]/2 to-transparent pointer-events-none"/>
-      <div className="max-w-6xl mx-auto px-6">
-        <FadeIn className="text-center mb-16">
-          <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Member Experiences</span>
-          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
-          <p className="text-white/40 mt-4">Real feedback from The Greenprint community.</p>
-        </FadeIn>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {testimonials.map((t, i) => (
-            <FadeIn key={t.handle} delay={i * 0.07}>
-              <div className="p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="text-white font-bold text-sm">{t.name}</div>
-                    <div className="text-white/30 text-xs">{t.handle}</div>
-                  </div>
-                  <div className="font-black text-sm px-2.5 py-1 rounded-lg"
-                    style={{ background: "rgba(0,255,133,0.1)", color: "#00FF85" }}>
-                    {t.gain}
-                  </div>
-                </div>
-                <p className="text-white/50 text-sm leading-relaxed">&ldquo;{t.text}&rdquo;</p>
-                <div className="flex gap-0.5 mt-4">
-                  {[...Array(5)].map((_, j) => (
-                    <svg key={j} className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="#C9A84C">
-                      <path d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8.06 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45z"/>
-                    </svg>
-                  ))}
-                </div>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-
-        {/* Compliance disclaimer */}
-        <FadeIn delay={0.2} className="mt-8 text-center">
-          <p className="text-white/20 text-xs max-w-2xl mx-auto px-4">
-            * Results shown are self-reported by community members and are not typical. Individual results vary significantly based on experience, capital, market conditions, and risk management. These testimonials are for educational illustration only and do not constitute a promise or guarantee of similar results.
-          </p>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Book a Call ────────────────────────────────────────────── */
-function BookACall() {
-  return (
-    <section className="py-24">
-      <div className="max-w-4xl mx-auto px-6">
-        <FadeIn>
-          <div className="rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
-            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.07) 0%, rgba(201,168,76,0.05) 100%)", border: "1px solid rgba(0,255,133,0.2)" }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#00FF85]/8 rounded-full blur-[80px] pointer-events-none"/>
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-4 py-2 mb-6">
-                <svg className="w-4 h-4 text-[#00FF85]" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                <span className="text-[#00FF85] text-sm font-medium">Free Strategy Call</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
-                Not Sure Where to Start?
-                <br/><span className="text-[#00FF85]">Let&apos;s Talk.</span>
-              </h2>
-              <p className="text-white/45 text-lg mb-10 max-w-xl mx-auto">
-                Book a free 15-minute call with The Greenprint team. No pressure, no pitch — just an honest conversation about where you are and how we can help.
-              </p>
-              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
-                style={{ boxShadow: "0 0 50px rgba(0,255,133,0.4)" }}>
-                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
-                  <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
-                  <path d="M7 2v3M13 2v3M3 8h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-                Book Your Free Call
-              </Link>
-              <p className="text-white/20 text-xs mt-5">No commitment. Spots fill fast.</p>
-            </div>
-          </div>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Footer ─────────────────────────────────────────────────── */
-function Footer() {
-  return (
-    <footer className="border-t border-white/5 pt-16 pb-8">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid md:grid-cols-4 gap-10 mb-12">
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <span className="text-white font-bold text-lg">
-                The <span className="text-[#00FF85]">Greenprint</span>
-              </span>
-            </div>
-            <p className="text-white/30 text-sm leading-relaxed max-w-xs">
-              A trading education community built around real-time sessions, alerts, and a proven learning system.
-            </p>
-          </div>
-
-          <div>
-            <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-4">Platform</div>
-            <ul className="space-y-2.5">
-              {[
-                { label: "Watch Live", href: "/stream" },
-                { label: "Dashboard", href: "/dashboard" },
-                { label: "Scanner", href: "/scanner" },
-                { label: "Alerts", href: "/alerts" },
-              ].map(l => (
-                <li key={l.label}>
-                  <Link href={l.href} className="text-white/30 hover:text-white text-sm transition-colors">{l.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-4">Company</div>
-            <ul className="space-y-2.5">
-              {[
-                { label: "Programs", href: "#pricing", ext: false },
-                { label: "Book a Call", href: CALENDLY, ext: true },
-                { label: "Join Now", href: WHOP_URL, ext: true },
-                { label: "Login", href: "/login", ext: false },
-              ].map(l => (
-                <li key={l.label}>
-                  <Link href={l.href} target={l.ext ? "_blank" : undefined}
-                    rel={l.ext ? "noopener noreferrer" : undefined}
-                    className="text-white/30 hover:text-white text-sm transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="border-t border-white/5 pt-8">
-          <p className="text-white/20 text-xs font-semibold mb-2 uppercase tracking-wide">Important Disclaimer</p>
-          <p className="text-white/15 text-xs leading-relaxed mb-6">
-            The Greenprint is an educational trading community. We are not registered investment advisors. All content, trade alerts, live sessions, and educational material are provided for informational and educational purposes only and do not constitute financial, investment, or trading advice. Trading stocks, options, futures, and other financial instruments involves substantial risk of loss and is not suitable for all investors. Past performance of any strategy, alert, or trade discussed is not indicative of future results. You should not trade with money you cannot afford to lose. Always conduct your own research and consult a licensed financial professional before making any investment decisions. The Greenprint and its operators are not liable for any trading losses incurred by members.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-white/15 text-xs">© {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
-            <div className="flex gap-6">
-              {["Privacy Policy", "Terms of Service"].map(l => (
-                <Link key={l} href="#" className="text-white/15 hover:text-white/30 text-xs transition-colors">{l}</Link>
+              )}
+            <div style={{display:"flex",gap:6,marginLeft:"auto"}}>
+              {EMOJIS.map(e=>(
+                <button key={e} onClick={()=>sendReaction(e)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"7px 10px",cursor:"pointer",fontSize:18}}>{e}</button>
               ))}
             </div>
+            {status && <span style={{fontSize:13,color:status.startsWith("Error")||status.startsWith("Cam")?"#ff4444":"#00ff87"}}>{status}</span>}
+          </div>
+        </div>
+
+        <div className="cc" style={{borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(0,0,0,.4)",backdropFilter:"blur(20px)"}}>
+          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:13}}>💬 Live Chat</div>
+          <div ref={chatBoxRef} style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
+            {chat.length===0&&<div style={{textAlign:"center",padding:"48px 0"}}><div style={{fontSize:36,marginBottom:10}}>💬</div><p style={{color:"rgba(255,255,255,.25)",fontSize:13,margin:0}}>No messages yet</p></div>}
+            {chat.map((m)=>(
+              <div key={m.ts + "|" + m.name} style={{marginBottom:10,lineHeight:1.5}}>
+                <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:13}}>{m.name}</span>
+                <span style={{color:"rgba(255,255,255,.85)",fontSize:13}}> {m.msg}</span>
+              </div>
+            ))}
+            <div ref={chatEndRef}/>
+          </div>
+          <div style={{padding:"12px 14px",borderTop:"1px solid rgba(255,255,255,.06)",display:"flex",gap:8}}>
+            <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Message as Host..."
+              style={{flex:1,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"#fff",padding:"10px 13px",fontSize:13,outline:"none",boxSizing:"border-box"}} />
+            <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"10px 14px",cursor:"pointer"}}>→</button>
           </div>
         </div>
       </div>
-    </footer>
-  );
-}
-
-/* ─── Root ───────────────────────────────────────────────────── */
-export default function HomePage() {
-  return (
-    <main className="min-h-screen bg-[#080808] text-white">
-      <Nav />
-      <Hero />
-      <Ticker />
-      <Stats />
-      <HowItWorks />
-      <Features />
-      <LiveCallout />
-      <Pricing />
-      <Testimonials />
-      <BookACall />
-      <Footer />
-    </main>
+    </div>
   );
 }
