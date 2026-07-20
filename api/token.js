@@ -40,6 +40,28 @@ module.exports = async function handler(req, res) {
   }
 
   const { AccessToken } = await import('livekit-server-sdk');
+
+  // ── MEETING MODE: Zoom-style room, entry gated by the meeting code the host set ──
+  if (String(q.mode || '') === 'meeting') {
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    let meetingCode = null;
+    try {
+      const fb = await fetch('https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/meeting/code.json');
+      meetingCode = await fb.json();
+    } catch (e) {}
+    if (!meetingCode || String(q.code || '') !== String(meetingCode)) {
+      return res.status(403).json({ error: 'Wrong meeting code' });
+    }
+    const mt = new AccessToken(apiKey, apiSecret, {
+      identity: 'meet-' + name.slice(0, 30) + '-' + Math.floor(Math.random() * 10000),
+      ttl: '4h',
+    });
+    mt.addGrant({ roomJoin: true, room: 'greenprint-meeting', canPublish: true, canSubscribe: true });
+    const mtoken = await mt.toJwt();
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ token: mtoken, url: url });
+  }
+
   const at = new AccessToken(apiKey, apiSecret, {
     identity: isHost ? 'host' : (isApprovedGuest ? 'guest-' + name : (name || 'viewer-' + Date.now())),
     ttl: isApprovedGuest ? '2h' : '4h',
