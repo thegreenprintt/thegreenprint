@@ -29,7 +29,7 @@ async function tg(method, body) {
 function instructions(name) {
   const hi = name ? " " + name : "";
   return (
-    "👋 Welcome" + hi + " to The Greenprint.\n\n" +
+    "👋 Welcome" + hi + " to free live trading signals.\n\n" +
     "Getting in takes 3 steps:\n\n" +
     "1️⃣ Open your account\n" +
     "Use my broker link to sign up (it has to be this one):\n" + BROKER_LINK + "\n\n" +
