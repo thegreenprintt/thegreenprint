@@ -9,7 +9,7 @@
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SIGNALS_CHAT = process.env.TELEGRAM_SIGNALS_CHAT_ID;
-const ADMIN_CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
+const ADMIN_CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1004342057901";
 const BROKER_LINK = "https://members.livvfxtrading.com/client/register/6a65379bb16ad";
 
 function api(method) {
