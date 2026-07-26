@@ -29,17 +29,15 @@ async function tg(method, body) {
 function instructions(name) {
   const hi = name ? " " + name : "";
   return (
-    "👋 Welcome" + hi + " to The Greenprint!\n\n" +
-    "New to trading? No worries — just follow these 3 simple steps and you're in:\n\n" +
-    "1️⃣  CREATE YOUR ACCOUNT\n" +
-    "Sign up using my broker link (it has to be this exact one):\n" + BROKER_LINK + "\n\n" +
-    "2️⃣  ADD FUNDS ($100+ recommended)\n" +
-    "This is the money you'll trade with — never add more than you can afford to lose.\n" +
-    "Brand new and not sure how to deposit? This quick guide walks you through it step by step:\n" + DEPOSIT_LINK + "\n\n" +
-    "3️⃣  SEND ME A SCREENSHOT\n" +
-    "Snap a screenshot of your funded account and send it right here in this chat. I'll check it and send you your private invite to the live signals channel.\n\n" +
-    "That's it — once you're verified, you're in.\n\n" +
-    "⚠️ Trading involves real risk. Only trade money you can afford to lose. The Greenprint is educational and not financial advice."
+    "👋 Welcome" + hi + " to The Greenprint.\n\n" +
+    "Getting in takes 3 steps:\n\n" +
+    "1️⃣ Open your account\n" +
+    "Use my broker link to sign up (it has to be this one):\n" + BROKER_LINK + "\n\n" +
+    "2️⃣ Add funds ($100+ is a solid start)\n" +
+    "Only fund what you're okay risking. New to depositing? Here's a quick walkthrough:\n" + DEPOSIT_LINK + "\n\n" +
+    "3️⃣ Send me a screenshot\n" +
+    "Once you're funded, screenshot your account and drop it right here. I'll check it and get your invite to the signals channel over to you.\n\n" +
+    "Only trade what you can afford to lose. This is educational, not financial advice."
   );
 }
 
@@ -81,7 +79,7 @@ module.exports = async function handler(req, res) {
             text:
               "✅ You're verified! Here's your private invite to the Greenprint signals channel:\n\n" +
               link + "\n\n" +
-              "This link works once — tap it to join. Welcome in.",
+              "It only works once, so tap it to jump in. Welcome aboard.",
             disable_web_page_preview: true,
           });
           await tg("answerCallbackQuery", { callback_query_id: cq.id, text: "Approved ✅ — invite sent." });
@@ -169,7 +167,7 @@ module.exports = async function handler(req, res) {
       }
       await tg("sendMessage", {
         chat_id: chatId,
-        text: "Got it ✅ — your screenshot is under review. You'll get your invite right here as soon as you're verified.",
+        text: "Got it ✅ Your screenshot's under review. I'll send your invite here as soon as you're verified.",
       });
       res.status(200).send("ok");
       return;
