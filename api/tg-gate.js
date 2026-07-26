@@ -11,6 +11,7 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SIGNALS_CHAT = process.env.TELEGRAM_SIGNALS_CHAT_ID;
 const ADMIN_CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1004342057901";
 const BROKER_LINK = "https://members.livvfxtrading.com/client/register/6a65379bb16ad";
+const DEPOSIT_LINK = "https://members.livvfxtrading.com/client/dwguide";
 
 function api(method) {
   return "https://api.telegram.org/bot" + TOKEN + "/" + method;
@@ -28,13 +29,17 @@ async function tg(method, body) {
 function instructions(name) {
   const hi = name ? " " + name : "";
   return (
-    "👋 Welcome" + hi + " to The Greenprint.\n\n" +
-    "Get into the live signals channel in 3 steps:\n\n" +
-    "1️⃣  SIGN UP with my broker link (must be this one):\n" + BROKER_LINK + "\n\n" +
-    "2️⃣  FUND your account ($100+ recommended).\n\n" +
-    "3️⃣  SEND A SCREENSHOT of your funded account right here in this chat.\n\n" +
-    "Once I verify it, I'll send you a private invite to the signals channel. 💚\n\n" +
-    "⚠️ Only trade what you can afford to lose. Educational only — not financial advice."
+    "👋 Welcome" + hi + " to The Greenprint!\n\n" +
+    "New to trading? No worries — just follow these 3 simple steps and you're in:\n\n" +
+    "1️⃣  CREATE YOUR ACCOUNT\n" +
+    "Sign up using my broker link (it has to be this exact one):\n" + BROKER_LINK + "\n\n" +
+    "2️⃣  ADD FUNDS ($100+ recommended)\n" +
+    "This is the money you'll trade with — never add more than you can afford to lose.\n" +
+    "Brand new and not sure how to deposit? This quick guide walks you through it step by step:\n" + DEPOSIT_LINK + "\n\n" +
+    "3️⃣  SEND ME A SCREENSHOT\n" +
+    "Snap a screenshot of your funded account and send it right here in this chat. I'll check it and send you your private invite to the live signals channel.\n\n" +
+    "That's it — once you're verified, you're in.\n\n" +
+    "⚠️ Trading involves real risk. Only trade money you can afford to lose. The Greenprint is educational and not financial advice."
   );
 }
 
@@ -76,7 +81,7 @@ module.exports = async function handler(req, res) {
             text:
               "✅ You're verified! Here's your private invite to the Greenprint signals channel:\n\n" +
               link + "\n\n" +
-              "This link works once — tap it to join. Welcome in. 💚",
+              "This link works once — tap it to join. Welcome in.",
             disable_web_page_preview: true,
           });
           await tg("answerCallbackQuery", { callback_query_id: cq.id, text: "Approved ✅ — invite sent." });
@@ -164,7 +169,7 @@ module.exports = async function handler(req, res) {
       }
       await tg("sendMessage", {
         chat_id: chatId,
-        text: "Got it ✅ — your screenshot is under review. You'll get your invite right here as soon as you're verified. 💚",
+        text: "Got it ✅ — your screenshot is under review. You'll get your invite right here as soon as you're verified.",
       });
       res.status(200).send("ok");
       return;
