@@ -153,6 +153,7 @@ export default function StreamPage() {
   const [dur, setDur] = useState(0);
   // smoothness/reliability helpers
   const [dropped, setDropped] = useState(false);
+  const [fillMode, setFillMode] = useState(false);
   const audioElsRef = useRef<HTMLMediaElement[]>([]);
   const isLiveRef = useRef(false);
   useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
@@ -423,6 +424,10 @@ export default function StreamPage() {
         .ci:focus{border-color:rgba(0,255,135,.5)}
         @media(max-width:768px){
           .mg{flex-direction:column!important}
+          /* phone: give the landscape stream a true 16:9 block instead of a tall black void,
+             and hand the reclaimed space to chat */
+          .vidwrap{flex:0 0 auto!important;aspect-ratio:16/9;max-height:56vh}
+          .cp{flex:1 1 auto!important;max-height:none!important}
           .cp{width:100%!important;height:auto!important;max-height:260px!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}
           .rbar{padding:6px 14px 16px!important;gap:4px!important}
           .pip-wrap{width:100px!important;height:56px!important;bottom:50px!important;right:8px!important}
@@ -519,11 +524,24 @@ export default function StreamPage() {
           </div>
 
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-            <div style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();roomRef.current?.startAudio().catch(()=>{});setNeedsClick(false);}:undefined}>
+            <div className="vidwrap" style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();roomRef.current?.startAudio().catch(()=>{});setNeedsClick(false);}:undefined}>
               {/* stage lighting */}
               <div aria-hidden style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:"70%",height:240,background:"radial-gradient(ellipse, rgba(0,255,135,.10) 0%, transparent 70%)",filter:"blur(30px)",pointerEvents:"none",animation:"stageGlow 5s ease-in-out infinite",zIndex:1}}/>
               <div aria-hidden style={{position:"absolute",inset:0,pointerEvents:"none",boxShadow:"inset 0 0 80px rgba(0,255,135,.05), inset 0 0 8px rgba(0,255,135,.06)",zIndex:1}}/>
-              <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
+              <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:fillMode?"cover":"contain"}} />
+              {/* fit / fill + fullscreen — viewer controls, top-right of the player */}
+              <div style={{position:"absolute",top:10,right:10,zIndex:22,display:"flex",gap:6}}>
+                <button onClick={(e)=>{e.stopPropagation();setFillMode(f=>!f);}} title={fillMode?"Show the whole screen":"Fill the screen (crops edges)"}
+                  style={{background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",border:"1px solid rgba(255,255,255,.18)",borderRadius:9,color:"#fff",fontSize:11,fontWeight:800,padding:"6px 10px",cursor:"pointer"}}>
+                  {fillMode?"⤡ Fit":"⤢ Fill"}
+                </button>
+                <button onClick={(e)=>{e.stopPropagation();const el:any=screenRef.current;if(!el)return;
+                    if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+                    else if(el.requestFullscreen){el.requestFullscreen().catch(()=>{});}
+                    else if(el.webkitEnterFullscreen){el.webkitEnterFullscreen();}}}
+                  title="Fullscreen"
+                  style={{background:"rgba(0,0,0,.55)",backdropFilter:"blur(6px)",border:"1px solid rgba(255,255,255,.18)",borderRadius:9,color:"#fff",fontSize:12,fontWeight:800,padding:"6px 10px",cursor:"pointer"}}>⛶</button>
+              </div>
 
               {hasCam && (
                 <div className="pip-wrap" style={{position:"absolute",bottom:56,right:12,width:160,height:90,borderRadius:10,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 20px rgba(0,255,135,.45)",zIndex:20}}>
