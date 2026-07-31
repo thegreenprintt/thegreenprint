@@ -245,19 +245,23 @@ export default function OnboardPage() {
               Back to Home
             </a>
             <p style={{ fontSize: 10.5, color: "rgba(255,255,255,.22)", lineHeight: 1.6, marginTop: 20, textAlign: "center" }}>
-              Educational only. Not financial advice. Trading involves risk of loss. The Greenprint receives compensation from LivvFX for accounts opened through this link.
+              Educational only. Not financial advice. Trading involves risk of loss.
             </p>
           </div>
         )}
 
-        {step < TOTAL && (
-          <div className="flex gap-3 mt-10">
-            {step > 1 && <button onClick={() => setStep(s => s - 1)} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">Back</button>}
-            <button onClick={() => setStep(s => Math.min(s + 1, TOTAL))} className="ob-btn flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base" style={{ boxShadow: "0 0 22px rgba(0,255,133,.3)" }}>
-              Continue
+        <div className="flex gap-3 mt-10">
+          {step > 1 && (
+            <button onClick={() => setStep(s => s - 1)} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">
+              ← Back
             </button>
-          </div>
-        )}
+          )}
+          {step < TOTAL && (
+            <button onClick={() => setStep(s => Math.min(s + 1, TOTAL))} className="ob-btn flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base" style={{ boxShadow: "0 0 22px rgba(0,255,133,.3)" }}>
+              Continue →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
