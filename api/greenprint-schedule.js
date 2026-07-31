@@ -153,7 +153,7 @@ function build(dayKey, dateLabel) {
   const trading = items.filter(x => TRADING.includes(x.c)).sort((a, b) => (b.feat ? 1 : 0) - (a.feat ? 1 : 0) || etMin(a.t) - etMin(b.t));
   const other = items.filter(x => !TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
 
-  const line = x => (x.feat ? "🟢 " : "🔸 ") + "<b>" + esc(x.title) + "</b>" + (x.host ? " — <i>" + esc(x.host) + "</i>" : "") + "\n      <code>" + zones(x.t) + "</code>";
+  const line = x => (x.feat ? "🟢 " : "🔸 ") + "<b>" + esc(x.title) + "</b>" + (x.host ? " — <i>" + esc(x.host) + "</i>" : "") + "\n" + zones(x.t) + "";
 
   let msg = "📅 <b>THE GREENPRINT SCHEDULE</b>\n" + esc(dateLabel) + "\n";
   msg += "————————————————\n";
