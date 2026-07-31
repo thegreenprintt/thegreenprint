@@ -839,7 +839,7 @@ function Pricing() {
                 No credit card. Takes 5 minutes.
               </p>
               <p className="text-white/20 text-xs text-center mt-2">
-                Broker signup required. We may earn a rebate from the broker.
+                Broker account required. Educational content only — not financial advice.
               </p>
             </div>
           </FadeIn>
