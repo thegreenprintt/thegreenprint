@@ -1,16 +1,182 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
 
-// ── MEMBER onboarding (1House Stream $99 / Startup $200) ────────────────────
-// Free-tier onboarding lives at /onboard. This is the paid member path.
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
-const BROKER_URL = "https://members.livvfxtrading.com/client/register/6a65379bb16ad";
-const SIGNALS_URL = "https://t.me/TheOnlyGreenprintBot";
-const COMMUNITY_URL = "https://t.me/+NFLNaB00u65mOTM5";
-const MARKET_BULLY_URL = "https://t.me/+1rvPMKd6MRw3NGUx";
-const ARIN_URL = "https://www.1house.tv/educators/a782da2a-81c6-4c32-9f6a-e36c9c74e218";
+/* ─── Custom icon system (brand SVGs, no emojis) ────────────────── */
+function GIcon({ name, size = 22 }: { name: string; size?: number }) {
+  const paths: Record<string, React.ReactNode> = {
+    users: (<><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.4c2.3.2 4 1.7 4.5 4.1"/></>),
+    chart: (<><path d="M3 20h18"/><path d="M5 16l4-5 3.5 3L19 6"/><path d="M15.5 6H19v3.5"/></>),
+    bolt: (<path d="M13 2L5 13.5h5.5L10 22l8-11.5h-5.5L13 2z"/>),
+    target: (<><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></>),
+    video: (<><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5L21 7.5v9l-5.5-3"/></>),
+    scan: (<><path d="M4 9V5.5A1.5 1.5 0 015.5 4H9M15 4h3.5A1.5 1.5 0 0120 5.5V9M20 15v3.5a1.5 1.5 0 01-1.5 1.5H15M9 20H5.5A1.5 1.5 0 014 18.5V15"/><path d="M7 14l2.5-3 2 1.8L15 9.5"/></>),
+    chat: (<><path d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7a2.5 2.5 0 01-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-7z"/><path d="M8 9h8M8 12h5"/></>),
+    book: (<><path d="M5 4.5A1.5 1.5 0 016.5 3H19v16H6.5A1.5 1.5 0 005 20.5v-16z"/><path d="M5 17.5A1.5 1.5 0 016.5 16H19"/><path d="M9 7.5h6"/></>),
+    shield: (<><path d="M12 3l7.5 2.8v5.4c0 4.7-3.2 8-7.5 9.8-4.3-1.8-7.5-5.1-7.5-9.8V5.8L12 3z"/><path d="M9 11.5l2.2 2.2L15.5 9"/></>),
+  };
+  return (
+    <div style={{
+      width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+      background: "rgba(0,255,133,0.08)", border: "1px solid rgba(0,255,133,0.22)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 0 16px rgba(0,255,133,0.07)",
+    }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#00FF85" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        {paths[name] || paths.chart}
+      </svg>
+    </div>
+  );
+}
 
-function OnboardCanvas() {
+/* ─── Constants ─────────────────────────────────────────────────── */
+const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
+const WHOP_URL = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
+
+/* ─── Cinematic Layer (visual only — no functionality) ─────────── */
+function Cinematic() {
+  const glowRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = glowRef.current;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    let raf = 0;
+    const move = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (el) el.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
+      });
+    };
+    if (el && !coarse) window.addEventListener("mousemove", move);
+
+    // scroll progress beam
+    const bar = progressRef.current;
+    let sraf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(sraf);
+      sraf = requestAnimationFrame(() => {
+        document.documentElement.style.setProperty("--sy", String(window.scrollY));
+        if (!bar) return;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        bar.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+
+    // 3D tilt on .gp-card (desktop only)
+    let tiltEl: HTMLElement | null = null;
+    const tiltMove = (e: MouseEvent) => {
+      const card = (e.target as HTMLElement)?.closest?.(".gp-card") as HTMLElement | null;
+      if (tiltEl && tiltEl !== card) { tiltEl.style.transform = ""; tiltEl = null; }
+      if (!card) return;
+      tiltEl = card;
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `perspective(900px) rotateX(${(-py * 7).toFixed(2)}deg) rotateY(${(px * 9).toFixed(2)}deg) translateY(-6px) scale(1.02)`;
+    };
+    const tiltLeave = () => { if (tiltEl) { tiltEl.style.transform = ""; tiltEl = null; } };
+    if (!coarse) {
+      document.addEventListener("mousemove", tiltMove, { passive: true });
+      document.addEventListener("mouseleave", tiltLeave);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("mousemove", tiltMove);
+      document.removeEventListener("mouseleave", tiltLeave);
+      cancelAnimationFrame(raf); cancelAnimationFrame(sraf);
+    };
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @keyframes gp-aurora { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(60px,-40px) scale(1.15)} 66%{transform:translate(-50px,30px) scale(0.92)} 100%{transform:translate(0,0) scale(1)} }
+        @keyframes gp-aurora2 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-70px,50px) scale(1.2)} 100%{transform:translate(0,0) scale(1)} }
+        @keyframes gp-gridpan { from{background-position:0 0} to{background-position:64px 64px} }
+        @keyframes gp-rise { from{opacity:0; transform:translateY(28px); filter:blur(10px)} to{opacity:1; transform:translateY(0); filter:blur(0)} }
+        @keyframes gp-shimmer { from{background-position:200% center} to{background-position:-200% center} }
+        @keyframes gp-breathe { 0%,100%{box-shadow:0 0 28px rgba(0,255,133,0.30)} 50%{box-shadow:0 0 52px rgba(0,255,133,0.60), 0 0 90px rgba(0,255,133,0.18)} }
+        @keyframes gp-floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes gp-scan { from{transform:translateY(-100%)} to{transform:translateY(100vh)} }
+        .gp-card { transition: transform .35s cubic-bezier(.2,.8,.3,1), box-shadow .35s ease, border-color .3s ease !important; will-change: transform; }
+        .gp-card:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 0 32px rgba(0,255,133,.10); }
+        .gp-in { opacity:0; animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards; }
+        .gp-shimmer-text {
+          background: linear-gradient(110deg, #00FF85 35%, #d8ffe9 50%, #00FF85 65%);
+          background-size: 250% auto; -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent; color: transparent;
+          animation: gp-shimmer 4.5s linear infinite;
+        }
+        .gp-breathe { animation: gp-breathe 3.2s ease-in-out infinite; }
+        .gp-floaty { animation: gp-floaty 5s ease-in-out infinite; }
+        .gp-in.gp-floaty { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-floaty 5s ease-in-out 1.1s infinite; }
+        .gp-in.gp-shimmer-text { animation: gp-rise .9s cubic-bezier(.16,.8,.3,1) forwards, gp-shimmer 4.5s linear 1.1s infinite; }
+        .gp-tickertrack:hover { animation-play-state: paused !important; }
+        .gp-input-glow:focus { border-color: rgba(0,255,133,.5) !important; box-shadow: 0 0 0 3px rgba(0,255,133,.12), 0 0 24px rgba(0,255,133,.15); }
+        @keyframes gp-rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @media (min-width: 641px) {
+          .gp-heroScroll { transform: translateY(calc(var(--sy, 0) * 0.22px)) scale(calc(1 - var(--sy, 0) * 0.00020)); opacity: calc(1 - var(--sy, 0) * 0.0015); will-change: transform, opacity; }
+          .gp-heroPar { transform: translateY(calc(var(--sy, 0) * 0.35px)); will-change: transform; }
+        }
+        .gp-conic { position: relative; }
+        .gp-conic::before { content:""; position:absolute; inset:-60%; z-index:0; pointer-events:none;
+          background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(0,255,133,.28) 330deg, transparent 360deg);
+          animation: gp-rotate 7s linear infinite; }
+        @media (max-width: 640px) { .gp-conic::before { display:none; } }
+        @media (max-width: 640px) {
+          .gp-in { animation-delay: 0s !important; animation-duration: .45s !important; }
+          .gp-in.gp-floaty, .gp-in.gp-shimmer-text { animation-delay: 0s !important; }
+          .gp-card:hover { transform: none; box-shadow: none; }
+          [data-fadein] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .gp-in, .gp-shimmer-text, .gp-breathe, .gp-floaty { animation: none !important; opacity: 1 !important; }
+        }
+      `}</style>
+      {/* fixed living background */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden>
+        <div className="hidden sm:block" style={{
+          position: "absolute", top: "-15%", left: "-10%", width: 700, height: 700, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,255,133,0.055) 0%, transparent 65%)",
+          filter: "blur(50px)", animation: "gp-aurora 26s ease-in-out infinite",
+        }}/>
+        <div className="hidden sm:block" style={{
+          position: "absolute", bottom: "-20%", right: "-12%", width: 800, height: 800, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 65%)",
+          filter: "blur(60px)", animation: "gp-aurora2 32s ease-in-out infinite",
+        }}/>
+        <div className="hidden sm:block" style={{
+          position: "absolute", top: "35%", right: "20%", width: 420, height: 420, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,255,133,0.035) 0%, transparent 65%)",
+          filter: "blur(45px)", animation: "gp-aurora 22s ease-in-out infinite reverse",
+        }}/>
+        <div className="hidden md:block" style={{
+          position: "absolute", inset: 0, opacity: 0.02,
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundSize: "64px 64px", animation: "gp-gridpan 6s linear infinite",
+        }}/>
+      </div>
+      {/* mouse spotlight (desktop) */}
+      <div ref={glowRef} className="hidden lg:block fixed pointer-events-none" style={{
+        zIndex: 0, top: 0, left: 0, width: 600, height: 600, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(0,255,133,0.05) 0%, transparent 60%)",
+        transition: "transform 0.18s ease-out",
+      }} aria-hidden/>
+      {/* scroll progress beam */}
+      <div className="fixed top-0 left-0 right-0 pointer-events-none" style={{ zIndex: 60, height: 2 }} aria-hidden>
+        <div ref={progressRef} style={{ height: "100%", width: "0%", background: "linear-gradient(90deg, #00cc6a, #00FF85)", boxShadow: "0 0 10px rgba(0,255,133,0.8), 0 0 24px rgba(0,255,133,0.35)", transition: "width 0.1s linear" }}/>
+      </div>
+    </>
+  );
+}
+
+/* ─── Hero Canvas: live market constellation (visual only) ─────── */
+function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return;
@@ -18,395 +184,1109 @@ function OnboardCanvas() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0, w = 0, h = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
-    resize(); window.addEventListener("resize", resize);
-    const P = Math.max(20, Math.min(46, Math.floor(w / 28)));
-    const pts = Array.from({ length: P }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .26, vy: (Math.random() - .5) * .26, r: Math.random() * 1.5 + .5 }));
+    const resize = () => {
+      w = canvas.clientWidth; h = canvas.clientHeight;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // cursor interaction (desktop): particles get pushed away from the mouse
+    const mouse = { x: -9999, y: -9999 };
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    const onMove = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    };
+    const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+    if (!coarse) {
+      window.addEventListener("mousemove", onMove, { passive: true });
+      window.addEventListener("mouseout", onLeave);
+    }
+
+    const lite = w < 640;
+    const P = Math.max(14, Math.min(lite ? 26 : 70, Math.floor(w / 18)));
+    const pts = Array.from({ length: P }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
+      r: Math.random() * 1.8 + 0.6,
+    }));
+
+    const CW = 26;
+    const count = Math.ceil(w / CW) + 2;
+    let price = h * 0.62;
+    const newCandle = () => {
+      const o = price;
+      let c = o + (Math.random() - 0.42) * 34;
+      c = Math.max(h * 0.35, Math.min(h * 0.88, c));
+      price = c;
+      return { o, c, hi: Math.max(o, c) + Math.random() * 16, lo: Math.min(o, c) - Math.random() * 16 };
+    };
+    const candles = Array.from({ length: count }, newCandle);
+    let off = 0;
+
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
-      for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1; }
-      ctx.lineWidth = 1;
-      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-        const a = pts[i], b = pts[j]; const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-        if (d < 14400) { ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 14400) * .08})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      for (const p of pts) {
+        // mouse repulsion
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const md = dx * dx + dy * dy;
+        if (md < 14400 && md > 1) {
+          const f = (1 - md / 14400) * 0.6;
+          const dist = Math.sqrt(md);
+          p.vx += (dx / dist) * f; p.vy += (dy / dist) * f;
+        }
+        p.vx *= 0.985; p.vy *= 0.985;
+        const sp = p.vx * p.vx + p.vy * p.vy;
+        if (sp < 0.02) { p.vx += (Math.random() - 0.5) * 0.08; p.vy += (Math.random() - 0.5) * 0.08; }
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+        p.x = Math.max(0, Math.min(w, p.x)); p.y = Math.max(0, Math.min(h, p.y));
       }
-      for (const p of pts) { ctx.fillStyle = "rgba(0,255,133,.28)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+      ctx.lineWidth = 1;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const a = pts[i], b = pts[j];
+          const d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+          if (d < 16900) {
+            ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 16900) * 0.10})`;
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          }
+        }
+      }
+      for (const p of pts) {
+        ctx.fillStyle = "rgba(0,255,133,0.35)";
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+      }
+      off -= 0.4;
+      if (off <= -CW) { off += CW; candles.shift(); candles.push(newCandle()); }
+      ctx.save();
+      ctx.shadowBlur = lite ? 0 : 12;
+      candles.forEach((cd, i) => {
+        const x = i * CW + off;
+        const up = cd.c <= cd.o;
+        const col = up ? "#00FF85" : "#1f6f4a";
+        ctx.shadowColor = col; ctx.strokeStyle = col; ctx.fillStyle = col;
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath(); ctx.moveTo(x + CW / 2, cd.lo); ctx.lineTo(x + CW / 2, cd.hi); ctx.stroke();
+        const top = Math.min(cd.o, cd.c);
+        const hgt = Math.max(3, Math.abs(cd.o - cd.c));
+        ctx.globalAlpha = up ? 0.4 : 0.28;
+        ctx.fillRect(x + 5, top, CW - 10, hgt);
+      });
+      ctx.restore();
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseout", onLeave);
+    };
   }, []);
-  return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .5, zIndex: 0 }} />;
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.5 }} aria-hidden />;
 }
 
-const APPS = [
-  { name: "1House", desc: "Community platform", ios: "https://apps.apple.com/us/app/1house/id6754260060", android: "" },
-  { name: "TradingView", desc: "Charts & analysis", ios: "https://apps.apple.com/us/app/tradingview-stock-market/id1205990992", android: "https://play.google.com/store/apps/details?id=com.tradingview.tradingviewapp" },
-  { name: "TradeLocker", desc: "Trading platform", ios: "https://apps.apple.com/us/app/tradelocker/id6447196449", android: "https://play.google.com/store/apps/details?id=com.tradelocker.mobile" },
-  { name: "Zoom", desc: "Live sessions", ios: "https://apps.apple.com/us/app/zoom-one-platform-to-connect/id546505307", android: "https://play.google.com/store/apps/details?id=us.zoom.videomeetings" },
-  { name: "Telegram", desc: "Community chat", ios: "https://apps.apple.com/us/app/telegram-messenger/id686449807", android: "https://play.google.com/store/apps/details?id=org.telegram.messenger" },
-  { name: "Boards", desc: "Task management", ios: "https://apps.apple.com/us/app/boards-com/id1507677341", android: "" },
-];
-
-// LivvFX account setup (replaces the old GenesisFX flow)
-const BROKER_STEPS = [
-  { n: 1, title: "Create Your LivvFX Account", desc: "Sign up through the link below so you're placed under The Greenprint.", href: BROKER_URL, linkLabel: "Open LivvFX Signup" },
-  { n: 2, title: "Fill In Your Real Details", desc: "Email, first + last name, password, country, and phone. Your name has to match your ID for verification." },
-  { n: 3, title: "Verify Your Email", desc: "Check your inbox and spam for the confirmation link from LivvFX, then click it. Your account is live." },
-];
-
-const PLATFORM_STEPS = [
-  { n: 1, title: "Download TradeLocker", desc: "This is where you place your trades. App Store or Google Play." },
-  { n: 2, title: "Log In To TradeLocker", desc: "Use your LivvFX email and password, and set the server to LIVVFX." },
-  { n: 3, title: "Create A Demo Account First", desc: "Open a demo in the app: leverage 1:500, size $10,000. Practice the signals here before real money." },
-  { n: 4, title: "Fund When You're Ready", desc: "Follow the Deposit steps below. Only risk capital you can afford to lose." },
-];
-
-const DEPOSIT_STEPS = [
-  { n: 1, title: "Log In To Your Portal", desc: "members.livvfxtrading.com/login" },
-  { n: 2, title: "Menu → My Fund → Deposit", desc: "All funding happens here." },
-  { n: 3, title: "Choose Card Or Crypto", desc: "Deposit with Card or Deposit with Crypto." },
-  { n: 4, title: "Card: Amount → Submit → Pay", desc: "Card deposits are instant." },
-  { n: 5, title: "Crypto: Network → Amount → Submit", desc: "Then send funds to the wallet address shown, on the exact network you selected." },
-  { n: 6, title: "Confirm Your Wallet Balance", desc: "On the Dashboard, make sure the balance updated." },
-  { n: 7, title: "My Account → Open Live Account", desc: "Open a live account, or find your existing account number." },
-  { n: 8, title: "My Wallet → Wallet To Trading Account", desc: "Transfer the funds in. Money sitting in the wallet can't be traded." },
-  { n: 9, title: "Open TradeLocker", desc: "Log in (email + password, server LIVVFX) and your balance is ready to trade." },
-];
-
-const WITHDRAW_STEPS = [
-  { n: 1, title: "My Wallet → Trading Account To Wallet", desc: "Move profits from the trading account back to your wallet first." },
-  { n: 2, title: "Select Account, Amount, Note → Submit", desc: "Pick the account, enter the amount, add a short note." },
-  { n: 3, title: "My Fund → Withdraw", desc: "Start the withdrawal." },
-  { n: 4, title: "Select Crypto Network", desc: "Match it to the wallet you're sending to." },
-  { n: 5, title: "Enter Your Wallet Address", desc: "Double-check it — crypto sent to the wrong address is gone." },
-  { n: 6, title: "Enter The Amount", desc: "How much you're taking out." },
-  { n: 7, title: "Enter Google 2FA Code → Submit", desc: "Required on every withdrawal." },
-  { n: 8, title: "Same-Day Payout", desc: "Processed the same day — usually minutes to a few hours." },
-];
-
-const ARIN_CLIPS = [
-  { n: 1, title: "New Trader Start Here", desc: "Begin here — no exceptions." },
-  { n: 2, title: "Market Basics", desc: "Foundation for everything we do." },
-  { n: 3, title: "Market Bully Strategy", desc: "The core strategy used inside The Greenprint." },
-];
-
-const TOTAL_STEPS = 6;
-
-export default function MembersOnboardPage() {
-  const [step, setStep] = useState(1);
-  const [done, setDone] = useState<Record<string, boolean>>({});
-  const [ready, setReady] = useState(false);
-  const [fundTab, setFundTab] = useState<"deposit" | "withdraw">("deposit");
-
+/* ─── Helpers ───────────────────────────────────────────────────── */
+function FadeIn({
+  children,
+  delay = 0,
+  className = "",
+  y = 15,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  y?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem("gp_members_onboard") || "null");
-      if (s?.step) setStep(Math.min(s.step, TOTAL_STEPS));
-      if (s?.done) setDone(s.done);
-    } catch {}
-    setReady(true);
-  }, []);
-  useEffect(() => { if (ready) { try { localStorage.setItem("gp_members_onboard", JSON.stringify({ step, done })); } catch {} } }, [step, done, ready]);
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
-
-  const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
-  const prev = () => setStep(s => Math.max(s - 1, 1));
-  const pct = Math.round((step / TOTAL_STEPS) * 100);
-  const toggle = (k: string) => setDone(d => ({ ...d, [k]: !d[k] }));
-
-  const Check = ({ k, n, title, desc, href, linkLabel }: { k: string; n: number; title: string; desc: string; href?: string; linkLabel?: string }) => (
-    <div className="ob-card" style={{ padding: "14px 15px", borderRadius: 14,
-      background: done[k] ? "rgba(0,255,133,.07)" : "rgba(255,255,255,.04)",
-      border: done[k] ? "1px solid rgba(0,255,133,.35)" : "1px solid rgba(255,255,255,.09)" }}>
-      <div onClick={() => toggle(k)} style={{ display: "flex", gap: 13, alignItems: "flex-start", cursor: "pointer" }}>
-        <span style={{ width: 26, height: 26, borderRadius: 9, flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center",
-          background: done[k] ? "#00FF85" : "rgba(255,255,255,.06)", border: done[k] ? "none" : "1px solid rgba(255,255,255,.18)", color: "#000", fontWeight: 900, fontSize: 13 }}>
-          {done[k] ? "✓" : n}
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "block", color: done[k] ? "#00FF85" : "#fff", fontWeight: 700, fontSize: 13.5, marginBottom: 3 }}>{title}</span>
-          <span style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: 12.5, lineHeight: 1.55 }}>{desc}</span>
-        </span>
-      </div>
-      {href && (
-        <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => toggle(k)}
-          style={{ display: "inline-block", marginTop: 10, marginLeft: 39, fontSize: 12, fontWeight: 800, color: "#00FF85", border: "1px solid rgba(0,255,133,.3)", borderRadius: 8, padding: "6px 12px", textDecoration: "none" }}>
-          {linkLabel} →
-        </a>
-      )}
+    const el = ref.current; if (!el) return;
+    if (window.innerWidth < 641) return; // mobile: instant, no scrub
+    let raf = 0;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      // progress 0→1 as the element travels up through the lower 45% of the viewport (staggered per element)
+      const p = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.45) - delay * 0.9));
+      const e = 1 - Math.pow(1 - p, 2); // ease-out
+      el.style.opacity = String(e);
+      el.style.transform = `translateY(${((1 - e) * (y + 22)).toFixed(1)}px) scale(${(0.97 + 0.03 * e).toFixed(4)})`;
+      el.style.filter = e > 0.98 ? "none" : `blur(${((1 - e) * 7).toFixed(1)}px)`;
+    };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [y, delay]);
+  return (
+    <div ref={ref} className={className} data-fadein="">
+      {children}
     </div>
   );
+}
 
-  const Meter = ({ keys, label }: { keys: string[]; label: string }) => {
-    const p = Math.round((keys.filter(k => done[k]).length / keys.length) * 100);
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", color: p === 100 ? "#00FF85" : "rgba(255,255,255,.35)", fontWeight: 800, marginBottom: 6 }}>
-          <span>{p === 100 ? "✓ " + label + " complete" : label}</span><span>{p}%</span>
-        </div>
-        <div style={{ height: 4, borderRadius: 4, background: "rgba(255,255,255,.07)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: p + "%", background: "linear-gradient(90deg,#00cc6a,#00FF85)", transition: "width .45s cubic-bezier(.2,.8,.3,1)", boxShadow: p ? "0 0 10px rgba(0,255,133,.7)" : "none" }} />
-        </div>
-      </div>
+function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
+  const [count, setCount] = useState(0);
+  const [inView, setInView] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { rootMargin: "0px" }
     );
-  };
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!inView) return;
+    let n = 0;
+    const step = target / (1800 / 16);
+    const t = setInterval(() => {
+      n += step;
+      if (n >= target) { setCount(target); clearInterval(t); }
+      else setCount(Math.floor(n));
+    }, 16);
+    return () => clearInterval(t);
+  }, [inView, target]);
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
+}
 
-  const brokerKeys = BROKER_STEPS.map((_, i) => "b" + i);
-  const platKeys = PLATFORM_STEPS.map((_, i) => "p" + i);
+/* ─── Ticker ────────────────────────────────────────────────────── */
+const TICKERS = [
+  { sym: "SPY", price: "542.18", chg: "+1.24%" },
+  { sym: "QQQ", price: "468.92", chg: "+1.87%" },
+  { sym: "AAPL", price: "211.35", chg: "+0.73%" },
+  { sym: "NVDA", price: "128.44", chg: "+3.21%" },
+  { sym: "TSLA", price: "248.67", chg: "+2.15%" },
+  { sym: "META", price: "524.88", chg: "+1.43%" },
+  { sym: "MSFT", price: "438.12", chg: "+0.91%" },
+  { sym: "AMZN", price: "198.45", chg: "+1.56%" },
+  { sym: "GOOGL", price: "178.23", chg: "+1.12%" },
+  { sym: "AMD", price: "165.77", chg: "+2.89%" },
+];
 
+function Ticker() {
+  const items = [...TICKERS, ...TICKERS];
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <style>{`
-        @keyframes ob-rise { from{opacity:0; transform:translateY(24px); filter:blur(7px)} to{opacity:1; transform:translateY(0); filter:blur(0)} }
-        @keyframes ob-aurora { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,-30px) scale(1.15)} }
-        @keyframes ob-pop { 0%{transform:scale(0); opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1); opacity:1} }
-        @keyframes ob-confetti { 0%{transform:translate(0,0) rotate(0) scale(1); opacity:1} 100%{transform:translate(var(--cx),var(--cy)) rotate(var(--cr)) scale(.4); opacity:0} }
-        @keyframes ob-shine { from{transform:translateX(-150%) skewX(-20deg)} to{transform:translateX(350%) skewX(-20deg)} }
-        @keyframes ob-glow { 0%,100%{box-shadow:0 0 22px rgba(0,255,133,.30)} 50%{box-shadow:0 0 40px rgba(0,255,133,.55)} }
-        .ob-step { animation: ob-rise .6s cubic-bezier(.16,.8,.3,1) both; }
-        .ob-btn { position:relative; overflow:hidden; transition: transform .25s cubic-bezier(.2,.8,.3,1), box-shadow .25s ease; }
-        .ob-btn:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 0 32px rgba(0,255,133,.45); }
-        .ob-btn::after { content:""; position:absolute; top:0; bottom:0; width:40%; left:0;
-          background: linear-gradient(105deg, transparent, rgba(255,255,255,.32), transparent);
-          animation: ob-shine 3.2s ease-in-out infinite; pointer-events:none; }
-        .ob-card { transition: transform .25s cubic-bezier(.2,.8,.3,1), border-color .25s, background .25s; }
-        .ob-card:hover { transform: translateY(-2px); border-color: rgba(0,255,133,.3) !important; }
-        .ob-pop { animation: ob-pop .7s cubic-bezier(.3,1.4,.5,1) both; }
-        .ob-hero { animation: ob-glow 3s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .ob-step,.ob-pop,.ob-btn::after,.ob-hero { animation:none !important } }
-      `}</style>
-      <OnboardCanvas />
-      <div className="pointer-events-none fixed inset-0" aria-hidden>
-        <div style={{ position: "absolute", top: "-12%", left: "-10%", width: 460, height: 460, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,255,133,0.07) 0%, transparent 65%)", filter: "blur(50px)", animation: "ob-aurora 18s ease-in-out infinite" }} />
-        <div style={{ position: "absolute", bottom: "-15%", right: "-12%", width: 540, height: 540, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,200,100,0.05) 0%, transparent 65%)", filter: "blur(60px)", animation: "ob-aurora 24s ease-in-out infinite reverse" }} />
-      </div>
-
-      <div className="fixed top-0 left-0 right-0 h-1 bg-white/10 z-50">
-        <div className="h-full bg-[#00FF85] transition-all duration-700" style={{ width: pct + "%", boxShadow: "0 0 12px rgba(0,255,133,.9), 0 0 30px rgba(0,255,133,.4)" }} />
-      </div>
-
-      <div className="max-w-lg mx-auto px-6 pt-12 pb-28 relative">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 26 }}>
-          <p className="text-white/30 text-xs tracking-widest uppercase">Member Setup · Step {step} of {TOTAL_STEPS}</p>
-          <p style={{ fontSize: 11, color: "rgba(0,255,133,.55)", fontWeight: 800, letterSpacing: ".1em" }}>{pct}%</p>
-        </div>
-
-        {/* 1 · 1HOUSE */}
-        {step === 1 && (
-          <div className="ob-step">
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Your Home Base</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Log In to 1House</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-8">
-              1House is where everything lives — the community, the content, and your connection to The Greenprint. Log in and take 5 minutes to explore before moving on. Get familiar with how it is laid out.
-            </p>
-            <a href="https://www.1house.tv" target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-4" style={{ textDecoration: "none" }}>
-              Open 1House
-            </a>
-            <a href="https://apps.apple.com/us/app/1house/id6754260060" target="_blank" rel="noopener noreferrer" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center" style={{ textDecoration: "none" }}>
-              Download the App (iOS)
-            </a>
-          </div>
-        )}
-
-        {/* 2 · APPS */}
-        {step === 2 && (
-          <div className="ob-step">
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Setup</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Download Your Apps</h2>
-            <p className="text-white/50 text-sm mb-6">These are the tools you will use every day inside The Greenprint.</p>
-            <video controls playsInline preload="metadata" src="/videos/1house-onboarding.mp4" className="w-full rounded-xl border border-white/10 bg-black mb-6" />
-            <div className="flex flex-col gap-3">
-              {APPS.map(app => (
-                <div key={app.name} className="ob-card flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div>
-                    <p className="text-white font-semibold text-sm">{app.name}</p>
-                    <p className="text-white/40 text-xs">{app.desc}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {app.ios && <a href={app.ios} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] text-xs font-semibold border border-[#00FF85]/30 px-2 py-1 rounded-lg">iOS</a>}
-                    {app.android && <a href={app.android} target="_blank" rel="noopener noreferrer" className="text-white/60 text-xs font-semibold border border-white/20 px-2 py-1 rounded-lg">Android</a>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 3 · CHATS (now includes FREE SIGNALS) */}
-        {step === 3 && (
-          <div className="ob-step">
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Community</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Join the Chats</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-7">
-              Get plugged in. This is where signals, updates, and live session alerts happen.
-            </p>
-
-            <div style={{ padding: "16px 16px 14px", borderRadius: 18, background: "linear-gradient(160deg, rgba(0,255,133,.09), rgba(0,0,0,0) 70%)", border: "1px solid rgba(0,255,133,.3)", marginBottom: 14 }}>
-              <p style={{ color: "#00FF85", fontWeight: 800, fontSize: 10.5, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>⚡ Start here — live signals</p>
-              <a href={SIGNALS_URL} target="_blank" rel="noopener noreferrer" className="ob-btn flex items-center gap-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(0,255,133,.25)", textDecoration: "none" }}>
-                <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5" fill="#fff" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z" /></svg>
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">Greenprint Free Signals</p>
-                  <p className="text-white/40 text-xs">Live entries · stops · targets</p>
-                </div>
-                <span className="ml-auto text-[#00FF85] text-sm">→</span>
-              </a>
-              <p style={{ color: "rgba(255,255,255,.35)", fontSize: 11.5, lineHeight: 1.55, margin: "10px 0 0" }}>
-                Tap START in Telegram, then make sure notifications are unmuted so you never miss an entry.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {[
-                { url: COMMUNITY_URL, name: "The Greenprint", desc: "Main community chat" },
-                { url: MARKET_BULLY_URL, name: "Market Bully Community", desc: "Market Bully chat" },
-              ].map(c => (
-                <a key={c.url} href={c.url} target="_blank" rel="noopener noreferrer" className="ob-card flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#00FF85]/40 transition-colors" style={{ textDecoration: "none" }}>
-                  <div className="w-10 h-10 rounded-xl bg-[#229ED9] flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5" fill="#fff" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z" /></svg>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{c.name}</p>
-                    <p className="text-white/40 text-xs">{c.desc}</p>
-                  </div>
-                  <span className="ml-auto text-white/30 text-sm">→</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 4 · BROKER — LivvFX */}
-        {step === 4 && (
-          <div className="ob-step">
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Go Live</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-3">Set Up Your Broker</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-7">
-              Create your LivvFX account, verify it, then set up your trading platform. Practice on demo first — funding comes when you can follow the plan without hesitating.
-            </p>
-
-            <Meter keys={brokerKeys} label="LivvFX account" />
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 26 }}>
-              {BROKER_STEPS.map((s, i) => <Check key={s.n} k={"b" + i} n={s.n} title={s.title} desc={s.desc} href={(s as any).href} linkLabel={(s as any).linkLabel} />)}
-            </div>
-
-            <div style={{ borderTop: "1px solid rgba(255,255,255,.1)", paddingTop: 22 }}>
-              <Meter keys={platKeys} label="Trading platform" />
-              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 26 }}>
-                {PLATFORM_STEPS.map((s, i) => <Check key={s.n} k={"p" + i} n={s.n} title={s.title} desc={s.desc} />)}
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid rgba(255,255,255,.1)", paddingTop: 22 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                {(["deposit", "withdraw"] as const).map(t => (
-                  <button key={t} onClick={() => setFundTab(t)}
-                    style={{ flex: 1, padding: "10px 0", borderRadius: 11, cursor: "pointer", fontWeight: 800, fontSize: 12.5,
-                      background: fundTab === t ? "#00FF85" : "rgba(255,255,255,.05)",
-                      color: fundTab === t ? "#000" : "rgba(255,255,255,.55)",
-                      border: fundTab === t ? "none" : "1px solid rgba(255,255,255,.1)",
-                      boxShadow: fundTab === t ? "0 0 18px rgba(0,255,133,.3)" : "none", transition: "all .2s" }}>
-                    {t === "deposit" ? "💰 How to Deposit" : "🏦 How to Withdraw"}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                {(fundTab === "deposit" ? DEPOSIT_STEPS : WITHDRAW_STEPS).map((s, i) => (
-                  <Check key={fundTab + s.n} k={(fundTab === "deposit" ? "d" : "w") + i} n={s.n} title={s.title} desc={s.desc} />
-                ))}
-              </div>
-            </div>
-
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,.28)", lineHeight: 1.6, marginTop: 18 }}>
-              Disclosure: The Greenprint receives compensation from LivvFX for accounts opened through this link. Trading involves substantial risk of loss.
-            </p>
-          </div>
-        )}
-
-        {/* 5 · EDUCATION */}
-        {step === 5 && (
-          <div className="ob-step">
-            <span className="text-[#00FF85] text-xs font-semibold tracking-widest uppercase">Education</span>
-            <h2 className="text-2xl font-bold text-white mt-3 mb-4">Watch Arin Long&apos;s Clips</h2>
-            <p className="text-white/50 text-sm leading-relaxed mb-6">
-              Watch these in order on her 1House channel. This is your foundation before you touch a live chart.
-            </p>
-            <div className="flex flex-col gap-3 mb-8">
-              {ARIN_CLIPS.map(item => (
-                <div key={item.n} className="ob-card flex gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div className="w-7 h-7 rounded-full bg-[#00FF85]/10 border border-[#00FF85]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#00FF85] text-xs font-bold">{item.n}</span>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{item.title}</p>
-                    <p className="text-white/40 text-xs mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <a href={ARIN_URL} target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center" style={{ textDecoration: "none" }}>
-              Open Arin&apos;s Channel on 1House →
-            </a>
-          </div>
-        )}
-
-        {/* 6 · DONE */}
-        {step === 6 && (
-          <div className="ob-step text-center pt-8">
-            <div className="relative w-16 h-16 mx-auto mb-8">
-              <div className="ob-pop w-16 h-16 bg-[#00FF85] rounded-full flex items-center justify-center" style={{ boxShadow: "0 0 40px rgba(0,255,133,.6), 0 0 90px rgba(0,255,133,.25)" }}>
-                <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              </div>
-              {[...Array(14)].map((_, i) => {
-                const ang = (i / 14) * Math.PI * 2, dist = 70 + (i % 3) * 30;
-                const colors = ["#00FF85", "#C9A84C", "#ffffff", "#00cc6a"];
-                return <span key={i} aria-hidden style={{
-                  position: "absolute", top: "50%", left: "50%", width: i % 2 ? 6 : 8, height: i % 2 ? 6 : 8,
-                  borderRadius: i % 3 === 0 ? "50%" : 2, background: colors[i % 4],
-                  ["--cx" as any]: `${Math.cos(ang) * dist}px`, ["--cy" as any]: `${Math.sin(ang) * dist}px`,
-                  ["--cr" as any]: `${(i % 2 ? 1 : -1) * (180 + i * 20)}deg`,
-                  animation: `ob-confetti ${.9 + (i % 4) * .15}s cubic-bezier(.2,.8,.4,1) ${.25 + (i % 5) * .04}s both`, pointerEvents: "none",
-                }} />;
-              })}
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-4">You are All Set.</h2>
-            <p className="text-white/50 text-base leading-relaxed mb-8">
-              You have got the apps, the broker, the community access, and the foundation. Welcome to The Greenprint — we will see you inside.
-            </p>
-            <video controls playsInline preload="metadata" src="/videos/tradelocker-tutorial.mp4" className="w-full rounded-xl border border-white/10 bg-black mb-4" />
-            <p style={{ fontSize: 11.5, color: "rgba(255,255,255,.3)", lineHeight: 1.6, marginBottom: 24 }}>
-              Platform walkthrough — setting up and placing your first trade.
-            </p>
-            <div style={{ display: "grid", gap: 8, marginBottom: 22, textAlign: "left" }}>
-              <a href="/stream" className="ob-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 15px", borderRadius: 13, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", textDecoration: "none" }}>
-                <span>
-                  <span style={{ display: "block", color: "#fff", fontWeight: 700, fontSize: 13 }}>Live sessions</span>
-                  <span style={{ display: "block", color: "rgba(255,255,255,.45)", fontSize: 12, marginTop: 2 }}>Wednesdays 8:00 AM CST</span>
-                </span>
-                <span style={{ color: "rgba(0,255,133,.6)" }}>→</span>
-              </a>
-            </div>
-            <a href={SIGNALS_URL} target="_blank" rel="noopener noreferrer" className="ob-btn block w-full py-4 rounded-2xl bg-[#00FF85] text-black font-bold text-base text-center mb-3" style={{ textDecoration: "none" }}>
-              Open Free Signals →
-            </a>
-            <a href="/" className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-base text-center" style={{ textDecoration: "none" }}>
-              Back to Home
-            </a>
-          </div>
-        )}
-
-        {step < TOTAL_STEPS && (
-          <div className="flex gap-3 mt-11">
-            {step > 1 && <button onClick={prev} className="flex-1 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-base">Back</button>}
-            <button onClick={next} className="ob-btn flex-1 py-3.5 rounded-xl bg-[#00FF85] text-black font-bold text-base" style={{ boxShadow: "0 0 22px rgba(0,255,133,.3)" }}>
-              {step === 1 ? "Let's Go" : "Continue"}
-            </button>
-          </div>
-        )}
+    <div className="relative overflow-hidden border-y border-white/5 bg-[#0a0a0a] py-3">
+      <style>{`@keyframes gp-ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}`}</style>
+      <div
+        className="gp-tickertrack flex gap-12 whitespace-nowrap"
+        style={{ animation: "gp-ticker 30s linear infinite", display: "flex" }}
+      >
+        {items.map((t, i) => (
+          <span key={i} className="text-xs font-mono text-white/40 shrink-0">
+            <span className="text-white/70 font-bold mr-1">{t.sym}</span>
+            {t.price}
+            <span className={t.chg.startsWith("+") ? "text-emerald-400 ml-1" : "text-red-400 ml-1"}>{t.chg}</span>
+          </span>
+        ))}
       </div>
     </div>
+  );
+}
+
+/* ─── Nav ───────────────────────────────────────────────────────── */
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? "bg-[#080808]/90 backdrop-blur-xl border-b border-white/5" : "bg-transparent"
+      }`}
+      style={{ animation: "gp-slideDown 0.6s cubic-bezier(0.22,1,0.36,1) forwards" }}
+    >
+      <style>{`@keyframes gp-slideDown{from{transform:translateY(-80px)}to{transform:translateY(0)}}`}</style>
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="text-white font-bold text-lg tracking-tight">
+            The <span className="text-[#00FF85]">Greenprint</span>
+          </span>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-8">
+          {[
+            { label: "How It Works", href: "#how-it-works" },
+            { label: "Programs", href: "#pricing" },
+            { label: "Watch Live", href: "/stream" },
+            { label: "Results", href: "#results" },
+          ].map(l => (
+            <Link key={l.label} href={l.href}
+              className="text-white/60 hover:text-white text-sm transition-colors duration-200">
+              {l.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-3">
+          <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2">
+            Book a Call
+          </Link>
+          <Link href="/onboard"
+            className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all"
+            style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}>
+            Get Free Signals
+          </Link>
+        </div>
+
+        <button className="md:hidden text-white p-2" onClick={() => setOpen(!open)}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {open ? <path d="M18 6L6 18M6 6l12 12"/> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
+          </svg>
+        </button>
+      </div>
+
+      {open && (
+        <div className="md:hidden bg-[#0d0d0d] border-t border-white/5 px-6 pb-6">
+          <div className="flex flex-col gap-4 pt-4">
+            {[
+              { label: "How It Works", href: "#how-it-works" },
+              { label: "Programs", href: "#pricing" },
+              { label: "Watch Live", href: "/stream" },
+              { label: "Results", href: "#results" },
+            ].map(l => (
+              <Link key={l.label} href={l.href} onClick={() => setOpen(false)}
+                className="text-white/60 text-sm hover:text-white">
+                {l.label}
+              </Link>
+            ))}
+            <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+              className="text-[#00FF85] text-sm font-semibold">Book a Call</Link>
+            
+        </div>
+          </div>
+        )}
+      </nav>
+    );
+  }
+
+/* ─── Hero ──────────────────────────────────────────────────────── */
+function Hero() {
+  return (
+    <section className="relative min-h-[75vh] sm:min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-10 sm:pb-16">
+      {/* Background hidden on mobile for performance */}
+      <div className="gp-heroPar absolute inset-0 pointer-events-none hidden sm:block">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full bg-[#00FF85]/4 blur-[140px]"/>
+        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#00FF85]/3 blur-[100px]"/>
+        <div className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            backgroundSize: "64px 64px",
+          }}
+        />
+      </div>
+      <div className="absolute inset-0 pointer-events-none sm:hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full bg-[#00FF85]/5 blur-[80px]"/>
+      </div>
+      <HeroCanvas />
+
+      <div className="gp-in gp-floaty mb-5 sm:mb-8 flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-3 py-1.5 sm:px-4 sm:py-2" style={{ animationDelay: "0.1s, 1s" }}>
+        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00FF85] animate-pulse"/>
+        <span className="text-[#00FF85] text-xs sm:text-sm font-medium">Live Trading Community &middot; 2,400+ Members</span>
+      </div>
+
+      <h1
+        className="gp-heroScroll text-center font-black leading-[0.88] tracking-tight px-4"
+        style={{ fontSize: "clamp(44px, 9vw, 130px)" }}
+      >
+        <span className="gp-in block text-white" style={{ animationDelay: "0.2s" }}>TRADE</span>
+        <span className="gp-in gp-shimmer-text block" style={{ animationDelay: "0.38s", textShadow: "none", filter: "drop-shadow(0 0 40px rgba(0,255,133,0.45))" }}>
+          SMARTER.
+        </span>
+        <span className="gp-in block text-white" style={{ animationDelay: "0.56s" }}>WIN BIGGER.</span>
+      </h1>
+
+      <p className="gp-in mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed" style={{ animationDelay: "0.75s" }}>
+        My live trades sent straight to your phone &ndash; entries, stops, and targets. <span className="text-[#00FF85] font-semibold">Free.</span>
+      </p>
+
+      <div className="gp-in mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto" style={{ animationDelay: "0.9s" }}>
+        <Link href="/onboard"
+          className="gp-breathe group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
+          style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
+          Get Free Signals
+          <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </Link>
+<Link href="/stream"
+          className="inline-flex items-center gap-1.5 border border-white/15 text-white font-semibold text-sm sm:text-base px-5 sm:px-8 py-3 sm:py-4 rounded-full hover:border-white/30 hover:bg-white/5 transition-all w-full sm:w-auto justify-center">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+            <polygon points="6.5,5.5 11,8 6.5,10.5" fill="currentColor"/>
+          </svg>
+          Watch Free
+        </Link>
+      </div>
+
+      <div className="gp-in mt-10 sm:mt-16 flex flex-wrap justify-center gap-2 sm:gap-3 px-4" style={{ animationDelay: "1.05s" }}>
+        {[
+          { label: "Active Members", value: "2,400+", color: "#00FF85" },
+          { label: "Live Sessions/Mo", value: "20+", color: "#C9A84C" },
+          { label: "Years Experience", value: "4+", color: "#00FF85", hideOnMobile: true },
+        ].map((stat) => (
+          <div key={stat.label}
+            className={`bg-white/5 border border-white/8 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3${stat.hideOnMobile ? " hidden sm:flex" : ""}`}>
+            <span className="font-black text-lg sm:text-2xl" style={{ color: stat.color }}>{stat.value}</span>
+            <span className="text-white/40 text-xs">{stat.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Stats ─────────────────────────────────────────────────────── */
+function Stats() {
+  return (
+    <section className="py-20 border-t border-white/5">
+      <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+        {[
+          { value: 2400, suffix: "+", label: "Members" },
+          { value: 20, suffix: "+", label: "Live Sessions/Mo" },
+          { value: 1200, suffix: "+", label: "Trade Alerts Sent" },
+          { value: 4, suffix: "yrs", label: "Market Experience" },
+        ].map((s, i) => (
+          <FadeIn key={s.label} delay={i * 0.1} className="text-center">
+            <div className="text-5xl font-black mb-2"
+              style={{ color: i % 2 === 0 ? "#00FF85" : "#C9A84C" }}>
+              <Counter target={s.value} suffix={s.suffix}/>
+            </div>
+            <div className="text-white/35 text-sm">{s.label}</div>
+          </FadeIn>
+        ))}
+      </div>
+      <FadeIn className="mt-4 text-center">
+        <p className="text-white/20 text-xs max-w-lg mx-auto px-4">
+          For educational purposes only. Past results are not indicative of future performance. Trading involves substantial risk of loss.
+        </p>
+      </FadeIn>
+    </section>
+  );
+}
+
+/* ─── How It Works ──────────────────────────────────────────────── */
+function HowItWorks() {
+  const steps = [
+    { num: "01", title: "Join The Community", icon: "users",
+      desc: "Get instant access to the private Discord, live sessions, and the full Greenprint educational system." },
+    { num: "02", title: "Learn The System", icon: "chart",
+      desc: "Study The Greenprint's approach – entry signals, risk management, and setups that have stood the test of time." },
+    { num: "03", title: "Receive Real-Time Alerts", icon: "bolt",
+      desc: "Get notified the second a setup is spotted. Follow along with live commentary and rationale for every alert." },
+    { num: "04", title: "Apply What You Learn", icon: "target",
+      desc: "Take what you've learned and execute with a plan. Track your growth and refine your strategy over time." },
+  ];
+
+  return (
+    <section id="how-it-works" className="py-24 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF85]/2 to-transparent pointer-events-none"/>
+      <div className="max-w-6xl mx-auto px-6">
+        <FadeIn className="text-center mb-16">
+          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">The Process</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">How The Greenprint Works</h2>
+          <p className="text-white/40 mt-4 max-w-lg mx-auto">
+            A structured educational system designed to help you develop real trading skills.
+          </p>
+        </FadeIn>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {steps.map((step, i) => (
+            <FadeIn key={step.num} delay={i * 0.1}>
+              <div className="gp-card group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-[#00FF85]/30 hover:bg-[#00FF85]/3 transition-all duration-300 h-full">
+                <div className="mb-4"><GIcon name={step.icon}/></div>
+                <div className="text-[#00FF85]/40 text-xs font-bold tracking-widest mb-2">{step.num}</div>
+                <h3 className="text-white font-bold text-base mb-2">{step.title}</h3>
+                <p className="text-white/40 text-sm leading-relaxed">{step.desc}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Features ──────────────────────────────────────────────────── */
+function Features() {
+  const features = [
+    { icon: "bolt", title: "Real-Time Alerts", badge: "Live", badgeColor: "#00FF85",
+      desc: "Push alerts the moment a setup is identified, with full context on the reasoning behind it." },
+    { icon: "video", title: "Live Stream Sessions", badge: null, badgeColor: "#00FF85",
+      desc: "Watch The Greenprint trade in real time – entry, thesis, and exit streamed directly to you." },
+    { icon: "scan", title: "Options Scanner", badge: "Pro", badgeColor: "#00FF85",
+      desc: "Scan for unusual options flow and spot potential moves before they develop." },
+    { icon: "chat", title: "Private Community", badge: null, badgeColor: "#00FF85",
+      desc: "A members-only Discord focused on education, setups, and accountability – no noise." },
+    { icon: "book", title: "Trading Playbook", badge: null, badgeColor: "#C9A84C",
+      desc: "The exact frameworks, chart setups, and decision rules used in The Greenprint system." },
+    { icon: "shield", title: "1-on-1 Coaching", badge: "Elite", badgeColor: "#C9A84C",
+      desc: "Elite members get direct coaching sessions tailored to their personal trading goals." },
+  ];
+
+  return (
+    <section className="py-24">
+      <div className="max-w-6xl mx-auto px-6">
+        <FadeIn className="text-center mb-16">
+          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Everything You Need</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Built for Serious Traders</h2>
+        </FadeIn>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map((f, i) => (
+            <FadeIn key={f.title} delay={i * 0.08}>
+              <div className="gp-card group p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <GIcon name={f.icon}/>
+                    {f.badge && (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                        style={{ background: `${f.badgeColor}18`, color: f.badgeColor, border: `1px solid ${f.badgeColor}30` }}>
+                        {f.badge}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-white font-bold text-base mb-2">{f.title}</h3>
+                  <p className="text-white/40 text-sm leading-relaxed">{f.desc}</p>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Live Stream Callout ───────────────────────────────────────── */
+function LiveCallout() {
+  return (
+    <section className="py-24 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#00FF85]/5 via-transparent to-[#C9A84C]/5 pointer-events-none"/>
+      <div className="max-w-6xl mx-auto px-6">
+        <FadeIn>
+          <div className="gp-conic rounded-3xl p-10 md:p-16 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.06) 0%, rgba(0,0,0,0) 60%)", border: "1px solid rgba(0,255,133,0.2)" }}>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#00FF85]/5 rounded-full blur-[80px] pointer-events-none"/>
+            <div className="relative grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-500/25 rounded-full px-3 py-1.5 mb-6">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
+                  <span className="text-red-400 text-xs font-bold tracking-wide">LIVE SESSIONS</span>
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black text-white leading-tight mb-6">
+                  Watch The Greenprint Trade{" "}
+                  <span className="text-[#00FF85]">In Real Time</span>
+                </h2>
+                <p className="text-white/45 text-lg leading-relaxed mb-8">
+                  Subscribe free and get a front-row seat to live sessions &ndash; entry, thesis, and exit streamed directly to members on the web and mobile app.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Link href="/stream"
+                    className="inline-flex items-center justify-center gap-2 bg-[#00FF85] text-black font-bold px-7 py-3.5 rounded-full hover:bg-[#00e676] transition-all"
+                    style={{ boxShadow: "0 0 30px rgba(0,255,133,0.3)" }}>
+                    Watch Now &ndash; Free
+                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </Link>
+                  <Link href="/join" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 border border-white/15 text-white font-semibold px-7 py-3.5 rounded-full hover:bg-white/5 transition-all">
+                    Join the Community
+                  </Link>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] overflow-hidden">
+                  <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"/>
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"/>
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"/>
+                    <span className="ml-2 text-white/20 text-xs">thegreenprint.trade/stream</span>
+                  </div>
+                  <div className="p-8 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+                    <div className="w-16 h-16 rounded-2xl bg-[#00FF85]/10 border border-[#00FF85]/20 flex items-center justify-center">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5,3 19,12 5,21" fill="#00FF85"/>
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
+                        <span className="text-white/60 text-sm font-semibold">Stream Active</span>
+                      </div>
+                      <p className="text-white/25 text-xs">Broadcasts live to web + mobile app</p>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      {["NVDA", "TSLA", "SPY"].map(sym => (
+                        <span key={sym} className="bg-[#00FF85]/10 border border-[#00FF85]/20 text-[#00FF85] text-xs font-bold px-2.5 py-1 rounded-lg">
+                          {sym}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute -inset-4 bg-[#00FF85]/5 rounded-3xl blur-2xl -z-10"/>
+              </div>
+            </div>
+          </div>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Pricing ───────────────────────────────────────────────────── */
+const WHOP_CHECKOUT = "https://buy.stripe.com/6oUaEX2GtaRAgQ07P14gg00";
+const ONEHOUSE_REF = "https://subscribe.1houseglobal.com/jay";
+
+function Check({ color }: { color: string }) {
+  return (
+    <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" fill={color} fillOpacity="0.12"/>
+      <path d="M5 8l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function Pricing() {
+  return (
+    <section id="pricing" className="py-24">
+      <div className="max-w-6xl mx-auto px-6">
+        <FadeIn className="text-center mb-16">
+          <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Programs</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">Choose Your Level</h2>
+          <p className="text-white/40 mt-4 max-w-lg mx-auto">
+            Start with The Greenprint or level up with our partner platform 1House Global &ndash; everything you need is right here.
+          </p>
+        </FadeIn>
+
+        <div className="grid md:grid-cols-3 gap-5 items-start">
+
+                    <FadeIn delay={0.08}>
+            <div className="gp-card relative flex flex-col rounded-2xl p-7 border transition-all"
+              style={{
+                border: "1px solid rgba(0,255,133,0.35)",
+                background: "linear-gradient(160deg, rgba(0,255,133,0.07), rgba(0,0,0,0) 65%)",
+                boxShadow: "0 0 34px rgba(0,255,133,0.10)",
+              }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                <span className="text-[10px] font-black px-3 py-1 rounded font-mono tracking-widest uppercase"
+                  style={{background:"#00FF85",color:"#000",boxShadow:"0 0 18px rgba(0,255,133,0.5)"}}>
+                  Start Here
+                </span>
+              </div>
+              <div className="mb-5">
+                <p className="font-mono text-[10px] tracking-widest uppercase mb-1" style={{color:"rgba(0,255,133,0.7)"}}>Free Signals</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-white/35 text-2xl font-bold" style={{textDecoration:"line-through",textDecorationColor:"rgba(255,45,85,0.85)",textDecorationThickness:"2px"}}>$29.99</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded" style={{background:"rgba(255,45,85,0.15)",color:"#ff2d55",border:"1px solid rgba(255,45,85,0.35)",letterSpacing:"0.1em"}}>100% OFF</span>
+                </div>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-white/30 text-xl">$</span>
+                  <span className="text-6xl font-black text-white">0</span>
+                  <span className="text-white/30 text-sm">/month</span>
+                </div>
+                <p className="text-sm mb-6 text-white/45">
+                  Open your trading account under The Greenprint and my live signals come to your phone free — entries, stops, and targets, the same trades I&apos;m taking.
+                </p>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  "Live signals: entry, stop loss & targets",
+                  "Step-by-step onboarding walkthrough",
+                  "Signal playbook — how to take a trade",
+                  "Private community chats",
+                  "Live sessions Wednesdays 8AM CST",
+                  "No subscription. No paywall. Ever.",
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2.5 text-white/65 text-sm">
+                    <Check color="#00FF85"/>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/onboard"
+                className="gp-breathe w-full text-center font-black py-4 rounded-xl text-sm block transition-all hover:bg-[#00e676]"
+                style={{background:"#00FF85",color:"#000",boxShadow:"0 0 24px rgba(0,255,133,0.35)"}}>
+                Start Free — Get Onboarded →
+              </Link>
+              <p className="text-center mt-3" style={{fontSize:11.5,color:"rgba(0,255,133,0.55)",fontWeight:700}}>
+                No credit card. Takes 5 minutes.
+              </p>
+              <p className="text-white/20 text-xs text-center mt-2">
+                Broker signup required. We may earn a rebate from the broker.
+              </p>
+            </div>
+          </FadeIn>
+<FadeIn delay={0.12}>
+            <div className="gp-card relative rounded-2xl p-7 flex flex-col border border-white/10 bg-white/3">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-white/70 text-sm font-bold mb-1">1House Global &ndash; Stream</div>
+
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-white/30 text-xl">$</span>
+                <span className="text-6xl font-black text-white">99</span>
+                <span className="text-white/30 text-sm">/mo</span>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Unlimited access to 100+ expert creators across stocks, crypto, real estate, business, AI, and more &ndash; all on one platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Unlimited live stream access",
+                  "100+ expert creators",
+                  "Stocks, Crypto, Real Estate & more",
+                  "Day Trading & Options education",
+                  "E-commerce, AI & Business content",
+                  "On-demand replay library",
+                  "1House mobile app included",
+                  "Live stream alerts & notifications",
+                  "Inner Circle creator access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#6366f1"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-white/10"
+                style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
+                Subscribe via 1House &ndash; $99/mo
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.24}>
+            <div className="gp-card relative rounded-2xl p-7 flex flex-col border border-[#C9A84C]/25 bg-[#C9A84C]/3">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/30 border border-white/10 px-2 py-0.5 rounded-full">
+                  Affiliate Partner
+                </span>
+              </div>
+
+              <div className="text-[#C9A84C] text-sm font-bold mb-1">1House Global &ndash; Startup</div>
+
+              <div className="mb-1">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-white/30 text-lg">$</span>
+                  <span className="text-5xl font-black text-white">200</span>
+                  <span className="text-white/40 text-sm ml-1">startup fee</span>
+                </div>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-[#C9A84C] font-bold text-lg">+</span>
+                  <span className="text-[#C9A84C] font-black text-2xl">$165</span>
+                  <span className="text-white/30 text-sm">/mo after</span>
+                </div>
+              </div>
+
+              <p className="text-white/40 text-sm mb-6 mt-3">
+                Everything in Stream, plus the ability to host your own content, build a subscriber base, and earn on the 1House platform.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Everything in 1House Stream",
+                  "Launch your own channel on 1House",
+                  "Monetize your content & community",
+                  "Creator dashboard & analytics",
+                  "Host live streams to 1House members",
+                  "Build your subscriber base",
+                  "Access to creator support team",
+                  "Business & marketing education",
+                  "1House Startup community access",
+                  "3-day money-back guarantee",
+                ].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-white/60 text-sm">
+                    <Check color="#C9A84C"/>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href={ONEHOUSE_REF} target="_blank" rel="noopener noreferrer"
+                className="w-full text-center font-bold py-4 rounded-xl text-sm block transition-all hover:bg-[#C9A84C]/20"
+                style={{ background: "rgba(201,168,76,0.10)", color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}>
+                Get 1House Startup
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Via our affiliate link at 1House Global.
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+
+        <FadeIn delay={0.3} className="mt-10 text-center">
+          <p className="text-white/25 text-xs max-w-xl mx-auto">
+            The 1House Global plans are offered through our affiliate partnership. Clicking those links may earn The Greenprint a referral commission at no extra cost to you. 1House plan details and pricing are set by 1House Global.
+          </p>
+          <p className="text-white/30 text-sm mt-4">
+            Not sure which plan is right for you?{" "}
+            <Link href={CALENDLY} target="_blank" rel="noopener noreferrer" className="text-[#00FF85] hover:underline">
+              Book a free call
+            </Link>{" "}
+            and we&apos;ll help you decide.
+          </p>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Testimonials ──────────────────────────────────────────────── */
+function Testimonials() {
+  const testimonials = [
+    { name: "Marcus T.", handle: "@marcust_trades", gain: "+34%",
+      text: "The Greenprint alerts are the real deal. I was down bad when I joined. Two months later I'm up and finally understand what I'm doing in the market." },
+    { name: "Aaliyah R.", handle: "@aaliyah_fx", gain: "+$8,200",
+      text: "The live streams are worth every penny. Watching the trades happen in real time and hearing the reasoning is something no YouTube video could teach me." },
+    { name: "Chris M.", handle: "@chrismoneymakerr", gain: "+61%",
+      text: "I've been in 3 other Discord trading groups. The Greenprint is the only one where the content actually makes sense and the community is engaged." },
+    { name: "Destiny W.", handle: "@destinywtrades", gain: "+$5,400",
+      text: "Went from barely understanding options to actually having a process every single week. The community alone is worth the price." },
+    { name: "Jordan P.", handle: "@jordanptrades", gain: "+127%",
+      text: "The Inner Circle coaching sessions literally transformed how I approach every trade. Best investment I've made in my trading education." },
+    { name: "Tiana B.", handle: "@tianabinvests", gain: "+$11k",
+      text: "The scanner + alerts combo is incredible. I understand the setups now instead of just copying blindly. That made all the difference." },
+  ];
+
+  return (
+    <section id="results" className="py-24 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#C9A84C]/2 to-transparent pointer-events-none"/>
+      <div className="max-w-6xl mx-auto px-6">
+        <FadeIn className="text-center mb-16">
+          <span className="text-[#C9A84C] text-sm font-semibold tracking-widest uppercase">Member Experiences</span>
+          <h2 className="text-4xl md:text-5xl font-black text-white mt-3">The Community Is Growing</h2>
+          <p className="text-white/40 mt-4">Real feedback from The Greenprint community.</p>
+        </FadeIn>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {testimonials.map((t, i) => (
+            <FadeIn key={t.handle} delay={i * 0.07}>
+              <div className="gp-card p-6 rounded-2xl border border-white/8 bg-white/3 hover:border-white/15 transition-all duration-300 h-full">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="text-white font-bold text-sm">{t.name}</div>
+                    <div className="text-white/30 text-xs">{t.handle}</div>
+                  </div>
+                  <div className="font-black text-sm px-2.5 py-1 rounded-lg"
+                    style={{ background: "rgba(0,255,133,0.1)", color: "#00FF85" }}>
+                    {t.gain}
+                  </div>
+                </div>
+                <p className="text-white/50 text-sm leading-relaxed">&ldquo;{t.text}&rdquo;</p>
+                <div className="flex gap-0.5 mt-4">
+                  {[...Array(5)].map((_, j) => (
+                    <svg key={j} className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="#C9A84C">
+                      <path d="M6 1l1.39 2.82 3.11.45-2.25 2.19.53 3.09L6 8.06 3.22 9.55l.53-3.09L1.5 4.27l3.11-.45z"/>
+                    </svg>
+                  ))}
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+
+        <FadeIn delay={0.2} className="mt-8 text-center">
+          <p className="text-white/20 text-xs max-w-2xl mx-auto px-4">
+            * Results shown are self-reported by community members and are not typical. Individual results vary significantly based on experience, capital, market conditions, and risk management. These testimonials are for educational illustration only and do not constitute a promise or guarantee of similar results.
+          </p>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Book a Call ───────────────────────────────────────────────── */
+function MemberAccess() {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(false);
+  function handleSubmit(e: any) {
+    e.preventDefault();
+    if (pw === 'legacy') {
+      window.location.href = '/members';
+    } else {
+      setErr(true);
+      setTimeout(() => setErr(false), 2000);
+    }
+  }
+  return (
+    <section id="member-access" className="py-24 px-6 border-t border-white/5">
+      <div className="max-w-md mx-auto text-center">
+        <span className="text-[#00FF85] text-sm font-semibold tracking-widest uppercase">Member Access</span>
+        <h2 className="text-3xl sm:text-4xl font-bold text-white mt-3 mb-4">Already Enrolled?</h2>
+        <p className="text-white/50 mb-10">Enter your access code to begin your onboarding.</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input
+            type="password"
+            value={pw}
+            onChange={e => { setPw(e.target.value); setErr(false); }}
+            placeholder="Enter access code"
+            className="gp-input-glow w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none text-center text-lg tracking-widest transition-all duration-300"
+          />
+          {err && <p className="text-red-400 text-sm mt-1">Incorrect access code.</p>}
+          <button type="submit" className="gp-breathe w-full py-4 rounded-xl bg-[#00FF85] text-black font-bold text-base hover:bg-[#00e676] transition-colors">
+            Get Started →
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+function BookACall() {
+  return (
+    <section className="py-24">
+      <div className="max-w-4xl mx-auto px-6">
+        <FadeIn>
+          <div className="gp-conic rounded-3xl p-12 md:p-16 text-center relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(0,255,133,0.07) 0%, rgba(201,168,76,0.05) 100%)", border: "1px solid rgba(0,255,133,0.2)" }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#00FF85]/8 rounded-full blur-[80px] pointer-events-none"/>
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 bg-[#00FF85]/10 border border-[#00FF85]/20 rounded-full px-4 py-2 mb-6">
+                <svg className="w-4 h-4 text-[#00FF85]" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <span className="text-[#00FF85] text-sm font-medium">Free Strategy Call</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
+                Not Sure Where to Start?
+                <br/><span className="text-[#00FF85]">Let&apos;s Talk.</span>
+              </h2>
+              <p className="text-white/45 text-lg mb-10 max-w-xl mx-auto">
+                Book a free 15-minute call with The Greenprint team. No pressure, no pitch &ndash; just an honest conversation about where you are and how we can help.
+              </p>
+              <Link href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                className="gp-breathe inline-flex items-center gap-3 bg-[#00FF85] text-black font-black text-lg px-10 py-5 rounded-full hover:bg-[#00e676] transition-all"
+                style={{ boxShadow: "0 0 50px rgba(0,255,133,0.4)" }}>
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+                  <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+                  <path d="M7 2v3M13 2v3M3 8h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Book Your Free Call
+              </Link>
+              <p className="text-white/20 text-xs mt-5">No commitment. Spots fill fast.</p>
+            </div>
+          </div>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Footer ────────────────────────────────────────────────────── */
+function Footer() {
+  return (
+    <footer className="border-t border-white/5 pt-16 pb-8">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="grid md:grid-cols-4 gap-10 mb-12">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-[#00FF85] flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 12L6 7L9 10L13 4" stroke="#080808" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className="text-white font-bold text-lg">
+                The <span className="text-[#00FF85]">Greenprint</span>
+              </span>
+            </div>
+            <p className="text-white/30 text-sm leading-relaxed max-w-xs">
+              A trading education community built around real-time sessions, alerts, and a proven learning system.
+            </p>
+          </div>
+
+          <div>
+            <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-4">Platform</div>
+            <ul className="space-y-2.5">
+              {[
+                { label: "Watch Live", href: "/stream" },
+                { label: "Dashboard", href: "/dashboard" },
+                { label: "Alerts", href: "/alerts" },
+              ].map(l => (
+                <li key={l.label}>
+                  <Link href={l.href} className="text-white/30 hover:text-white text-sm transition-colors">{l.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-4">Company</div>
+            <ul className="space-y-2.5">
+              {[
+                { label: "Programs", href: "#pricing", ext: false },
+                { label: "Book a Call", href: CALENDLY, ext: true },
+                { label: "Join Now", href: "/join", ext: true },
+                { label: "Login", href: "/login", ext: false },
+              ].map(l => (
+                <li key={l.label}>
+                  <Link href={l.href} target={l.ext ? "_blank" : undefined}
+                    rel={l.ext ? "noopener noreferrer" : undefined}
+                    className="text-white/30 hover:text-white text-sm transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-white/5 pt-8">
+          <p className="text-white/20 text-xs font-semibold mb-2 uppercase tracking-wide">Important Disclaimer</p>
+          <p className="text-white/15 text-xs leading-relaxed mb-6">
+            The Greenprint is an educational trading community. We are not registered investment advisors. All content, trade alerts, live sessions, and educational material are provided for informational and educational purposes only and do not constitute financial, investment, or trading advice. Trading stocks, options, futures, and other financial instruments involves substantial risk of loss and is not suitable for all investors. Past performance of any strategy, alert, or trade discussed is not indicative of future results. You should not trade with money you cannot afford to lose. Always conduct your own research and consult a licensed financial professional before making any investment decisions. The Greenprint and its operators are not liable for any trading losses incurred by members.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-white/15 text-xs">&copy; {new Date().getFullYear()} The Greenprint. All rights reserved.</p>
+            <div className="flex gap-6">
+              {[
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
+              ].map(l => (
+                <Link key={l.label} href={l.href} className="text-white/15 hover:text-white/30 text-xs transition-colors">{l.label}</Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ─── Win Toasts ────────────────────────────────────────────────── */
+type Win = { text: string; result: string; when: string };
+
+function WinToasts() {
+  const [wins, setWins] = useState<Win[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    fetch("/wins.json")
+      .then(r => (r.ok ? r.json() : []))
+      .then((data: Win[]) => { if (Array.isArray(data) && data.length) setWins(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!wins.length || dismissed) return;
+    let showTimer: ReturnType<typeof setTimeout>;
+    let hideTimer: ReturnType<typeof setTimeout>;
+    const cycle = (first: boolean) => {
+      showTimer = setTimeout(() => {
+        setVisible(true);
+        hideTimer = setTimeout(() => {
+          setVisible(false);
+          setIdx(i => (i + 1) % wins.length);
+          cycle(false);
+        }, 6000);
+      }, first ? 3500 : 9000);
+    };
+    cycle(true);
+    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+  }, [wins, dismissed]);
+
+  if (!wins.length || dismissed) return null;
+  const w = wins[idx % wins.length];
+
+  return (
+    <div
+      style={{
+        position: "fixed", left: 16, bottom: 76, zIndex: 60, maxWidth: 320,
+        transform: visible ? "translateX(0)" : "translateX(-120%)",
+        opacity: visible ? 1 : 0,
+        transition: "transform 0.45s cubic-bezier(.2,.9,.3,1.2), opacity 0.4s",
+        pointerEvents: visible ? "auto" : "none",
+      }}
+    >
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+        background: "rgba(10,16,12,0.95)", border: "1px solid rgba(0,255,133,0.35)",
+        borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.55), 0 0 18px rgba(0,255,133,0.12)",
+        backdropFilter: "blur(8px)",
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+          background: "rgba(0,255,133,0.12)", border: "1px solid rgba(0,255,133,0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+        }}>🟢</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, color: "white", fontWeight: 700, fontSize: 13, lineHeight: 1.35 }}>
+            {w.text} <span style={{ color: "#00FF85" }}>{w.result}</span>
+          </p>
+          <p style={{ margin: 0, color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 2 }}>
+            Signal closed · {w.when}
+          </p>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss"
+          style={{
+            background: "transparent", border: "none", color: "rgba(255,255,255,0.35)",
+            cursor: "pointer", fontSize: 14, padding: 4, lineHeight: 1, flexShrink: 0,
+          }}
+        >✕</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Root ──────────────────────────────────────────────────────── */
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-[#080808] text-white relative">
+      <Cinematic />
+      <Nav />
+      <Hero />
+      <Ticker />
+      <Stats />
+      <HowItWorks />
+      <Features />
+      <LiveCallout />
+      <Pricing />
+      <Testimonials />
+      <MemberAccess />
+      <BookACall />
+      <Footer />
+      <WinToasts />
+    </main>
   );
 }
