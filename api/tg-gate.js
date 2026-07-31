@@ -128,6 +128,7 @@ module.exports = async function handler(req, res) {
     // --- direct messages ---
     const msg = update.message;
     if (!msg) { res.status(200).send("ok"); return; }
+    if (msg.chat && msg.chat.type !== "private") { res.status(200).send("ok"); return; }
     const chatId = msg.chat.id;
     const from = msg.from || {};
     const firstName = from.first_name || "";
