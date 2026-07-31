@@ -16,17 +16,38 @@ async function tg(method, body) {
   return r.json();
 }
 
-// times below are stored in Eastern (as listed on 1house.tv); shown in Central
-function etToCt(t) {
+// times below are stored in Eastern (as listed on 1house.tv); shown in CT/ET/PT/HT
+function parseET(t) {
   const m = String(t).match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!m) return t;
-  let h = Number(m[1]) % 12;
-  if (/PM/i.test(m[3])) h += 12;
-  let mins = (h * 60 + Number(m[2]) - 60 + 1440) % 1440; // ET -> CT (-1h)
-  let H = Math.floor(mins / 60), M = mins % 60;
-  const ap = H >= 12 ? "PM" : "AM";
-  let hh = H % 12; if (hh === 0) hh = 12;
-  return hh + ":" + String(M).padStart(2, "0") + " " + ap;
+  if (!m) return null;
+  let h = Number(m[1]) % 12; if (/PM/i.test(m[3])) h += 12;
+  return { h: h, mi: Number(m[2]) };
+}
+function tzOffMin(instant, tz) {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    .formatToParts(instant).reduce((a, x) => (a[x.type] = x.value, a), {});
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return (asUTC - instant.getTime()) / 60000;
+}
+function etInstant(t) {
+  const p = parseET(t); if (!p) return null;
+  const ny = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(new Date()).reduce((a, x) => (a[x.type] = x.value, a), {});
+  const y = +ny.year, mo = +ny.month - 1, d = +ny.day;
+  let ts = Date.UTC(y, mo, d, p.h, p.mi);
+  let off = tzOffMin(new Date(ts), "America/New_York");
+  ts = Date.UTC(y, mo, d, p.h, p.mi) - off * 60000;
+  const off2 = tzOffMin(new Date(ts), "America/New_York");
+  if (off2 !== off) ts = Date.UTC(y, mo, d, p.h, p.mi) - off2 * 60000;
+  return new Date(ts);
+}
+function fmtTz(inst, tz) {
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).format(inst);
+}
+function zones(t) {
+  const inst = etInstant(t); if (!inst) return t;
+  return fmtTz(inst, "America/Chicago") + " CT · " + fmtTz(inst, "America/New_York") + " ET · " +
+         fmtTz(inst, "America/Los_Angeles") + " PT · " + fmtTz(inst, "Pacific/Honolulu") + " HT";
 }
 function etMin(t) {
   const m = String(t).match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -46,7 +67,7 @@ const SCHED = {
     ["10:00 PM","Finance","Naomi Brown Live","Naomi Brown"],
   ],
   Mon: [
-    ["9:00 AM","Business Mastery","Joshua Stewart Live","Joshua Stewart"],
+    ["9:00 AM","Business Mastery","The Heist","Joshua Stewart"],
     ["11:00 AM","E-Commerce","Christianna Hurt Live","Christianna Hurt"],
     ["1:00 PM","Daytrading","Table Runna Univ.","Table Runna Univ."],
     ["5:00 PM","Health & Fitness","Champ Glory","Champ Glory"],
@@ -98,7 +119,7 @@ const SCHED = {
     ["2:00 AM","Daytrading","Jimmy El Andre","Jimmy El Andre"],
     ["7:00 AM","Daytrading","GOLDMINED LIVE","Khai Lashley"],
     ["8:00 AM","Daytrading","Luc Longmire Live","Luc Longmire"],
-    ["9:00 AM","Business Mastery","Joshua Stewart Live","Joshua Stewart"],
+    ["9:00 AM","Business Mastery","The Heist","Joshua Stewart"],
     ["1:00 PM","Daytrading","Table Runna Univ.","Table Runna Univ."],
     ["1:30 PM","Daytrading","TRU Live Trading Session","Table Runna Univ."],
     ["4:00 PM","Education","Khaki Donoso Live","Khaki Donoso"],
@@ -113,7 +134,7 @@ const SCHED = {
   ],
   Fri: [
     ["12:00 AM","Daytrading","TRU Live Streamathon","Table Runna Univ."],
-    ["9:00 AM","Business Mastery","Joshua Stewart Live","Joshua Stewart"],
+    ["9:00 AM","Business Mastery","The Heist","Joshua Stewart"],
     ["5:00 PM","Health & Fitness","Champ Glory","Champ Glory"],
     ["7:00 PM","Finance","Jamiu Oladimeji Live","Jamiu Oladimeji"],
   ],
@@ -132,14 +153,14 @@ function build(dayKey, dateLabel) {
   const trading = items.filter(x => TRADING.includes(x.c)).sort((a, b) => (b.feat ? 1 : 0) - (a.feat ? 1 : 0) || etMin(a.t) - etMin(b.t));
   const other = items.filter(x => !TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
 
-  const line = x => (x.feat ? "🟢 " : "🕒 ") + "<b>" + etToCt(x.t) + "</b>  " + esc(x.title) + (x.host ? " — <i>" + esc(x.host) + "</i>" : "");
+  const line = x => (x.feat ? "🟢 " : "🔸 ") + "<b>" + esc(x.title) + "</b>" + (x.host ? " — <i>" + esc(x.host) + "</i>" : "") + "\n      <code>" + zones(x.t) + "</code>";
 
   let msg = "📅 <b>THE GREENPRINT SCHEDULE</b>\n" + esc(dateLabel) + "\n";
   msg += "————————————————\n";
   if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n") + "\n";
   if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n") + "\n";
   if (!trading.length && !other.length) msg += "\nNo streams on the board today — rest up. 💤\n";
-  msg += "\n————————————————\n▶️ Watch it all free at 1house.tv\n<i>All times Central (CT)</i>";
+  msg += "\n————————————————\n▶️ Watch it all free at 1house.tv\n<i>Times shown in CT · ET · PT · HT</i>";
   return msg;
 }
 
@@ -154,7 +175,6 @@ module.exports = async function handler(req, res) {
     const dateLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(now);
     const text = build(dayKey, dateLabel);
 
-    // remove yesterday's schedule pin (leave any other pins alone)
     try {
       const chat = await tg("getChat", { chat_id: CHAT });
       const pin = chat && chat.result && chat.result.pinned_message;
