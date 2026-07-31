@@ -788,41 +788,52 @@ function Pricing() {
         <div className="grid md:grid-cols-3 gap-5 items-start">
 
                     <FadeIn delay={0.08}>
-            <div className="relative flex flex-col rounded-2xl p-7 border transition-all"
+            <div className="gp-card relative flex flex-col rounded-2xl p-7 border transition-all"
               style={{
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.02)",
-                filter: "blur(6px)",
-                pointerEvents: "none",
-                userSelect: "none",
+                border: "1px solid rgba(0,255,133,0.35)",
+                background: "linear-gradient(160deg, rgba(0,255,133,0.07), rgba(0,0,0,0) 65%)",
+                boxShadow: "0 0 34px rgba(0,255,133,0.10)",
               }}>
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10" style={{filter:"none"}}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                 <span className="text-[10px] font-black px-3 py-1 rounded font-mono tracking-widest uppercase"
-                  style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",border:"1px solid rgba(255,255,255,0.15)"}}>
-                  Coming Soon
+                  style={{background:"#00FF85",color:"#000",boxShadow:"0 0 18px rgba(0,255,133,0.5)"}}>
+                  Start Here
                 </span>
               </div>
               <div className="mb-5">
-                <p className="font-mono text-[10px] tracking-widest uppercase mb-1" style={{color:"rgba(255,255,255,0.3)"}}>???</p>
+                <p className="font-mono text-[10px] tracking-widest uppercase mb-1" style={{color:"rgba(0,255,133,0.7)"}}>Free Signals</p>
                 <div className="flex items-baseline gap-1 mb-1">
                   <span className="text-white/30 text-xl">$</span>
-                  <span className="text-6xl font-black text-white">???</span>
+                  <span className="text-6xl font-black text-white">0</span>
                   <span className="text-white/30 text-sm">/month</span>
                 </div>
-                <p className="text-sm mb-6" style={{color:"rgba(255,255,255,0.3)"}}>??? ??? ??? ??? ???</p>
+                <p className="text-sm mb-6 text-white/45">
+                  Open your trading account under The Greenprint and my live signals come to your phone free — entries, stops, and targets, the same trades I&apos;m taking.
+                </p>
               </div>
               <ul className="space-y-3 mb-8 flex-1">
-                {["???","???","???","???","???"].map((item, j) => (
-                  <li key={j} className="flex items-start gap-2.5">
-                    <span className="text-white/20 text-xs mt-1">—</span>
-                    <span className="text-xs" style={{color:"rgba(255,255,255,0.2)"}}>???</span>
+                {[
+                  "Live signals: entry, stop loss & targets",
+                  "Step-by-step onboarding walkthrough",
+                  "Signal playbook — how to take a trade",
+                  "Private community chats",
+                  "Live sessions Wednesdays 8AM CST",
+                  "No subscription. No paywall. Ever.",
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2.5 text-white/65 text-sm">
+                    <Check color="#00FF85"/>
+                    {item}
                   </li>
                 ))}
               </ul>
-              <button disabled className="w-full py-3.5 rounded-xl font-bold text-sm tracking-wide"
-                style={{background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.08)",cursor:"not-allowed"}}>
-                🔒 Coming Soon
-              </button>
+              <Link href="/onboard"
+                className="gp-breathe w-full text-center font-black py-4 rounded-xl text-sm block transition-all hover:bg-[#00e676]"
+                style={{background:"#00FF85",color:"#000",boxShadow:"0 0 24px rgba(0,255,133,0.35)"}}>
+                Start Free — Get Onboarded →
+              </Link>
+              <p className="text-white/20 text-xs text-center mt-3">
+                Broker signup required. We may earn a rebate from the broker.
+              </p>
             </div>
           </FadeIn>
 <FadeIn delay={0.12}>
@@ -1022,7 +1033,7 @@ function MemberAccess() {
   function handleSubmit(e: any) {
     e.preventDefault();
     if (pw === 'legacy') {
-      window.location.href = '/onboard';
+      window.location.href = '/members';
     } else {
       setErr(true);
       setTimeout(() => setErr(false), 2000);
