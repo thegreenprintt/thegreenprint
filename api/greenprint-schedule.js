@@ -153,12 +153,12 @@ function build(dayKey, dateLabel) {
   const trading = items.filter(x => TRADING.includes(x.c)).sort((a, b) => (b.feat ? 1 : 0) - (a.feat ? 1 : 0) || etMin(a.t) - etMin(b.t));
   const other = items.filter(x => !TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
 
-  const line = x => (x.feat ? "🟢 " : "🔸 ") + "<b>" + esc(x.title) + "</b>" + (x.host ? " — <i>" + esc(x.host) + "</i>" : "") + "\n" + zones(x.t) + "";
+  const line = x => (x.feat ? "🟢 " : "🔹 ") + "<b>" + esc(x.title) + "</b>\n👤 <i>" + esc(x.host || "TBA") + "</i> · " + esc(x.c) + "\n🕒 " + zones(x.t);
 
   let msg = "📅 <b>THE GREENPRINT SCHEDULE</b>\n" + esc(dateLabel) + "\n";
   msg += "————————————————\n";
-  if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n") + "\n";
-  if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n") + "\n";
+  if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n\n") + "\n";
+  if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n\n") + "\n";
   if (!trading.length && !other.length) msg += "\nNo streams on the board today — rest up. 💤\n";
   msg += "\n————————————————\n▶️ Watch it all free at 1house.tv\n<i>Times shown in CT · ET · PT · HT</i>";
   return msg;
