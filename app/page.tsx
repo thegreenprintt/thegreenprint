@@ -445,10 +445,10 @@ function Nav() {
             className="text-sm text-white/70 hover:text-white transition-colors px-4 py-2">
             Book a Call
           </Link>
-          <Link href="/join" target="_blank" rel="noopener noreferrer"
+          <Link href="/onboard"
             className="text-sm bg-[#00FF85] text-black font-bold px-5 py-2.5 rounded-full hover:bg-[#00e676] transition-all"
             style={{ boxShadow: "0 0 20px rgba(0,255,133,0.3)" }}>
-            Join Now
+            Get Free Signals
           </Link>
         </div>
 
@@ -520,14 +520,14 @@ function Hero() {
       </h1>
 
       <p className="gp-in mt-5 sm:mt-8 text-white/45 text-center max-w-sm sm:max-w-xl px-6 text-sm sm:text-lg leading-relaxed" style={{ animationDelay: "0.75s" }}>
-        Real-time trade alerts, live sessions, and a proven system &ndash; built to help you level up.
+        My live trades sent straight to your phone &ndash; entries, stops, and targets. <span className="text-[#00FF85] font-semibold">Free.</span>
       </p>
 
       <div className="gp-in mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto" style={{ animationDelay: "0.9s" }}>
-        <Link href="/join"
+        <Link href="/onboard"
           className="gp-breathe group inline-flex items-center gap-2 bg-[#00FF85] text-black font-bold text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-full hover:bg-[#00e676] transition-all w-full sm:w-auto justify-center"
           style={{ boxShadow: "0 0 32px rgba(0,255,133,0.35)" }}>
-          Get Access
+          Get Free Signals
           <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -802,23 +802,27 @@ function Pricing() {
               </div>
               <div className="mb-5">
                 <p className="font-mono text-[10px] tracking-widest uppercase mb-1" style={{color:"rgba(0,255,133,0.7)"}}>Free Signals</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-white/35 text-2xl font-bold" style={{textDecoration:"line-through",textDecorationColor:"rgba(255,45,85,0.85)",textDecorationThickness:"2px"}}>$29.99</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded" style={{background:"rgba(255,45,85,0.15)",color:"#ff2d55",border:"1px solid rgba(255,45,85,0.35)",letterSpacing:"0.1em"}}>100% OFF</span>
+                </div>
                 <div className="flex items-baseline gap-1 mb-1">
                   <span className="text-white/30 text-xl">$</span>
                   <span className="text-6xl font-black text-white">0</span>
                   <span className="text-white/30 text-sm">/month</span>
                 </div>
                 <p className="text-sm mb-6 text-white/45">
-                  Open your trading account under The Greenprint and my live signals come to your phone free — entries, stops, and targets, the same trades I&apos;m taking.
+                  Follow along with my trade breakdowns in real time — the pair, the levels, and the reasoning behind them, sent to your phone. Educational only: you place your own trades and manage your own risk.
                 </p>
               </div>
               <ul className="space-y-3 mb-8 flex-1">
                 {[
-                  "Live signals: entry, stop loss & targets",
-                  "Step-by-step onboarding walkthrough",
-                  "Signal playbook — how to take a trade",
-                  "Private community chats",
+                  "Real-time trade breakdowns & key levels",
+                  "Step-by-step broker setup walkthrough",
+                  "TradeLocker how-to video",
+                  "2026 New Traders community chat",
                   "Live sessions Wednesdays 8AM CST",
-                  "No subscription. No paywall. Ever.",
+                  "No subscription. No card required.",
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-white/65 text-sm">
                     <Check color="#00FF85"/>
@@ -831,7 +835,10 @@ function Pricing() {
                 style={{background:"#00FF85",color:"#000",boxShadow:"0 0 24px rgba(0,255,133,0.35)"}}>
                 Start Free — Get Onboarded →
               </Link>
-              <p className="text-white/20 text-xs text-center mt-3">
+              <p className="text-center mt-3" style={{fontSize:11.5,color:"rgba(0,255,133,0.55)",fontWeight:700}}>
+                No credit card. Takes 5 minutes.
+              </p>
+              <p className="text-white/20 text-xs text-center mt-2">
                 Broker signup required. We may earn a rebate from the broker.
               </p>
             </div>
