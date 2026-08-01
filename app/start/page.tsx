@@ -73,6 +73,17 @@ const QUESTIONS = [
       { v: "no", label: "Not right now", emoji: "⏳" },
     ],
   },
+  {
+    key: "ideas",
+    showIf: (a: Record<string, string>) => a.budget === "no",
+    q: "If the money's not there yet — would you still want my trade ideas?",
+    sub: "They're free either way. I just want to know how to help you.",
+    options: [
+      { v: "yes", label: "Yes — send me the trades", emoji: "🙌" },
+      { v: "learn", label: "I want to learn first", emoji: "📚" },
+      { v: "looking", label: "Just looking around", emoji: "👀" },
+    ],
+  },
 ];
 
 export default function StartPage() {
@@ -81,29 +92,49 @@ export default function StartPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, qi]);
 
+  const shows = (i: number, a: Record<string, string>) => {
+    const q: any = QUESTIONS[i];
+    return !q.showIf || q.showIf(a);
+  };
+
   const pick = (key: string, v: string) => {
     const next = { ...answers, [key]: v };
     setAnswers(next);
     setTimeout(() => {
-      if (qi < QUESTIONS.length - 1) setQi(i => i + 1);
-      else setScreen("capture");
+      let n = qi + 1;
+      while (n < QUESTIONS.length && !shows(n, next)) n++;
+      if (n < QUESTIONS.length) setQi(n); else setScreen("capture");
     }, 220);
   };
 
   const back = () => {
-    if (screen === "capture") { setScreen("q"); setQi(QUESTIONS.length - 1); return; }
-    if (screen === "q" && qi > 0) { setQi(i => i - 1); return; }
-    if (screen === "q") { setScreen("welcome"); return; }
+    const prevFrom = (start: number) => {
+      let p = start - 1;
+      while (p >= 0 && !shows(p, answers)) p--;
+      return p;
+    };
+    if (screen === "capture") {
+      const p = prevFrom(QUESTIONS.length);
+      setScreen("q"); setQi(Math.max(0, p)); return;
+    }
+    if (screen === "q") {
+      const p = prevFrom(qi);
+      if (p >= 0) setQi(p); else setScreen("welcome");
+    }
   };
 
   const submit = async () => {
     if (!name.trim()) { setErr("What should I call you?"); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr("Enter a valid email so I can reach you."); return; }
+    const digits = phone.replace(/\D/g, "");
+    if (answers.budget === "yes" && digits.length < 10) { setErr("Drop your number so I can reach out personally."); return; }
+    if (digits.length > 0 && digits.length < 10) { setErr("That number looks short — check it?"); return; }
     setErr(""); setSaving(true);
     const ready = answers.budget === "yes";
     try {
@@ -114,11 +145,13 @@ export default function StartPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
+          phone: phone.trim(),
           src: "start-quiz",
-          path: ready ? "READY ($100-200)" : "free",
+          path: ready ? "🔥 CALL — ready ($100-200)" : answers.ideas === "yes" ? "WANTS TRADES (free)" : answers.ideas === "learn" ? "WANTS TO LEARN (free)" : "browsing",
           experience: answers.experience || "",
           why: answers.why || "",
           budget: answers.budget || "",
+          wantsIdeas: answers.ideas || "",
           firstSeen: new Date().toISOString(),
           lastSeen: new Date().toISOString(),
         }),
@@ -217,12 +250,16 @@ export default function StartPage() {
         {screen === "capture" && (
           <div className="st-in">
             <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>Last step</p>
-            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>Where should I send it?</h2>
+            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>How do I reach you?</h2>
             <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, lineHeight: 1.6, margin: "0 0 24px" }}>
-              So I know who you are and can send you the live session times.
+              {answers.budget === "yes"
+                ? "I reach out personally to everyone who's ready — drop your number and I'll get you set up myself."
+                : "So I know who you are, and I can text you when we go live."}
             </p>
             <input className="st-inp" value={name} onChange={e => { setName(e.target.value); setErr(""); }} placeholder="Your first name" style={{ marginBottom: 11 }} />
-            <input className="st-inp" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()} type="email" placeholder="Your email" />
+            <input className="st-inp" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} type="email" placeholder="Your email" style={{ marginBottom: 11 }} />
+            <input className="st-inp" value={phone} onChange={e => { setPhone(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()} type="tel"
+              placeholder={answers.budget === "yes" ? "Phone number" : "Phone number (optional)"} />
             {err && <p style={{ color: "#ff5566", fontSize: 13, margin: "12px 0 0" }}>{err}</p>}
             <button onClick={submit} disabled={saving} className="st-cta"
               style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: saving ? "rgba(255,255,255,.1)" : "linear-gradient(135deg,#00FF85,#00c864)", color: saving ? "rgba(255,255,255,.4)" : "#000", fontWeight: 900, fontSize: 16.5, border: "none", cursor: saving ? "wait" : "pointer", marginTop: 18 }}>
@@ -242,31 +279,35 @@ export default function StartPage() {
             {ready ? (
               <>
                 <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
-                  Perfect{firstName ? `, ${firstName}` : ""}. Here&apos;s what I&apos;ve got for you.
+                  Perfect{firstName ? `, ${firstName}` : ""} — I&apos;ll reach out personally.
                 </h2>
-                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 24px" }}>
-                  You&apos;re ready to move, so let&apos;s put you in the room where the education lives — then I&apos;ll get you set up personally.
+                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 22px" }}>
+                  Keep an eye on your phone — I&apos;ll hit you directly and walk you through getting set up.
+                  <br /><br />
+                  <span style={{ color: "rgba(255,255,255,.75)", fontWeight: 600 }}>While you wait, jump in the chat so you&apos;re in the room already.</span>
                 </p>
-                <a href={CALENDLY} target="_blank" rel="noopener noreferrer" className="st-cta"
+                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer" className="st-cta"
                   style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  📞 Book My Free 15-Min Call
+                  💬 Join the Chat Now
                 </a>
-                <a href={ONEHOUSE_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  See the 1House programs →
-                </a>
-                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
-                  💬 Join the 2026 New Traders chat
+                <Link href="/onboard"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
+                  Get a head start — set up my account →
+                </Link>
+                <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
+                  Or pick a time to talk →
                 </a>
               </>
             ) : (
               <>
                 <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
-                  No problem{firstName ? `, ${firstName}` : ""}. Start free.
+                  {answers.ideas === "looking" ? `All good${firstName ? `, ${firstName}` : ""} — look around.` : `Say less${firstName ? `, ${firstName}` : ""}. You&apos;re in.`}
                 </h2>
                 <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 24px" }}>
-                  You don&apos;t need to pay me anything. Open your trading account through The Greenprint and my live trade breakdowns come to you free in the chat — the setup walkthrough takes about 5 minutes.
+                  {answers.ideas === "looking"
+                    ? "No pressure at all. Watch a live session, sit in the chat, and see if it's for you. I'll be here."
+                    : "You don't need to pay me a dime. Open your trading account through The Greenprint and my trade breakdowns come to you free in the chat — setup takes about 5 minutes."}
                 </p>
                 <Link href="/onboard" className="st-cta"
                   style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
