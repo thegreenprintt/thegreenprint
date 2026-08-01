@@ -60,6 +60,7 @@ function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").
 // e = [ET time, category, title, host, featured?]
 const SCHED = {
   Sun: [
+    ["3:00 PM","Exec Call","Exec Call — Bryce Thompson (CEO)","Bryce Thompson",true],
     ["11:00 AM","E-Commerce","Patty Perches Live","Patty Perches"],
     ["5:30 PM","Finance","From Side Hustle to Real Business","Jamiu Oladimeji"],
     ["6:00 PM","Education","Carl Wesley Live","Carl Wesley"],
@@ -150,16 +151,18 @@ function build(dayKey, dateLabel) {
   const seen = new Set();
   items = items.filter(x => { const k = x.t + "|" + x.title; if (seen.has(k)) return false; seen.add(k); return true; });
 
-  const trading = items.filter(x => TRADING.includes(x.c)).sort((a, b) => (b.feat ? 1 : 0) - (a.feat ? 1 : 0) || etMin(a.t) - etMin(b.t));
-  const other = items.filter(x => !TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
+  const featured = items.filter(x => x.feat).sort((a, b) => etMin(a.t) - etMin(b.t));
+  const trading = items.filter(x => !x.feat && TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
+  const other = items.filter(x => !x.feat && !TRADING.includes(x.c)).sort((a, b) => etMin(a.t) - etMin(b.t));
 
   const line = x => (x.feat ? "🟢 " : "🔹 ") + "<b>" + esc(x.title) + "</b>\n👤 <i>" + esc(x.host || "TBA") + "</i> · " + esc(x.c) + "\n🕒 " + zones(x.t);
 
   let msg = "📅 <b>THE GREENPRINT SCHEDULE</b>\n" + esc(dateLabel) + "\n";
   msg += "————————————————\n";
+  if (featured.length) msg += "\n⭐ <b>FEATURED TODAY</b>\n" + featured.map(line).join("\n____________________\n") + "\n";
   if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n____________________\n") + "\n";
   if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n____________________\n") + "\n";
-  if (!trading.length && !other.length) msg += "\nNo streams on the board today — rest up. 💤\n";
+  if (!trading.length && !other.length && !featured.length) msg += "\nNo streams on the board today — rest up. 💤\n";
   msg += "\n————————————————\n▶️ Watch it all free at 1house.tv\n<i>Times shown in CT · ET · PT · HT</i>";
   return msg;
 }
@@ -171,9 +174,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const now = new Date();
-    const dayKey = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/Chicago" }).format(now);
+    let dayKey = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/Chicago" }).format(now);
+    if (req.query && req.query.day) dayKey = req.query.day;
     const dateLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(now);
     const text = build(dayKey, dateLabel);
+    if (req.query && req.query.dry) { res.status(200).json({ dry: true, text: text }); return; }
 
     try {
       const chat = await tg("getChat", { chat_id: CHAT });
