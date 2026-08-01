@@ -1,334 +1,206 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 
-// ── /start — interactive welcome quiz for the IG bio link ───────────────────
-// Asks 3 questions, captures name + email, then routes:
-//   ready to invest  → paid options + book a call
-//   not right now    → free path (broker + free signals chat)
-// Every answer is saved so Jay knows who to follow up with and how.
+// ── CRM / call board ────────────────────────────────────────────────────────
+// Works the leads captured by /start (quiz) and /stream (viewers).
+// Tap to call, tap to text, set status, leave notes. Everything saves live.
 
-const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const NEW_TRADERS_URL = "https://t.me/TheGreenprintt";
-const ONEHOUSE_URL = "https://subscribe.1houseglobal.com/jay";
-const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
+const DB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+const CORRECT_HASH = "133f3d597c724b06170216e7562f77e42196a334b57f711213297aa77bac2121";
 
-function Constellation() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0, w = 0, h = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
-    resize(); window.addEventListener("resize", resize);
-    const P = window.innerWidth < 640 ? 16 : 30;
-    const pts = Array.from({ length: P }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22, r: Math.random() * 1.4 + .5 }));
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1; }
-      ctx.lineWidth = 1;
-      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-        const a = pts[i], b = pts[j]; const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-        if (d < 15000) { ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 15000) * .08})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-      }
-      for (const p of pts) { ctx.fillStyle = "rgba(0,255,133,.28)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
-  return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
+async function sha256(str: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-const QUESTIONS = [
-  {
-    key: "experience",
-    q: "Have you traded before?",
-    sub: "Be honest — it changes what I point you to.",
-    options: [
-      { v: "never", label: "Never traded", emoji: "🌱" },
-      { v: "tried", label: "Tried it, didn't stick", emoji: "🔁" },
-      { v: "active", label: "I trade now", emoji: "📈" },
-    ],
-  },
-  {
-    key: "why",
-    q: "What's got you into trading?",
-    sub: "There's no wrong answer.",
-    options: [
-      { v: "income", label: "Extra income on the side", emoji: "💵" },
-      { v: "freedom", label: "Financial freedom", emoji: "🕊️" },
-      { v: "skill", label: "Learn a real skill", emoji: "🎯" },
-      { v: "fulltime", label: "Do this full-time one day", emoji: "🚀" },
-    ],
-  },
-  {
-    key: "budget",
-    q: "Do you have $100–$200 to invest in yourself right now?",
-    sub: "This just tells me which lane fits you today.",
-    options: [
-      { v: "yes", label: "Yes — I'm ready to go", emoji: "✅" },
-      { v: "no", label: "Not right now", emoji: "⏳" },
-    ],
-  },
-  {
-    key: "ideas",
-    showIf: (a: Record<string, string>) => a.budget === "no",
-    q: "If the money's not there yet — would you still want my trade ideas?",
-    sub: "They're free either way. I just want to know how to help you.",
-    options: [
-      { v: "yes", label: "Yes — send me the trades", emoji: "🙌" },
-      { v: "learn", label: "I want to learn first", emoji: "📚" },
-      { v: "looking", label: "Just looking around", emoji: "👀" },
-    ],
-  },
-];
+type Lead = {
+  _key: string;
+  name?: string; email?: string; phone?: string;
+  firstSeen?: string; lastSeen?: string; joinCount?: number;
+  src?: string; path?: string; experience?: string; why?: string; budget?: string; wantsIdeas?: string;
+  status?: string; note?: string;
+};
 
-export default function StartPage() {
-  const [screen, setScreen] = useState<"welcome" | "q" | "capture" | "result">("welcome");
-  const [qi, setQi] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [err, setErr] = useState("");
-  const [saving, setSaving] = useState(false);
+const STATUSES = ["New", "Called", "No answer", "Signed up", "Not now"] as const;
+const STATUS_COLOR: Record<string, string> = {
+  "New": "#00ff87", "Called": "#6bcbff", "No answer": "#ffc832", "Signed up": "#00ff87", "Not now": "rgba(255,255,255,.35)",
+};
+const EXP: Record<string, string> = { never: "Never traded", tried: "Tried, didn't stick", active: "Trades now" };
+const WHY: Record<string, string> = { income: "Extra income", freedom: "Financial freedom", skill: "Learn a skill", fulltime: "Full-time goal" };
+const IDEAS: Record<string, string> = { yes: "Wants the trades", learn: "Wants to learn", looking: "Just looking" };
 
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, qi]);
+export default function LeadsPage() {
+  const [authed, setAuthed] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"hot" | "all" | "todo">("hot");
+  const [open, setOpen] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const shows = (i: number, a: Record<string, string>) => {
-    const q: any = QUESTIONS[i];
-    return !q.showIf || q.showIf(a);
-  };
+  async function checkPassword() {
+    if (await sha256(pw) === CORRECT_HASH) { setAuthed(true); setPwError(""); localStorage.setItem("gp_leads", "1"); }
+    else setPwError("Wrong password.");
+  }
+  useEffect(() => { try { if (localStorage.getItem("gp_leads") === "1") setAuthed(true); } catch {} }, []);
 
-  const pick = (key: string, v: string) => {
-    const next = { ...answers, [key]: v };
-    setAnswers(next);
-    setTimeout(() => {
-      let n = qi + 1;
-      while (n < QUESTIONS.length && !shows(n, next)) n++;
-      if (n < QUESTIONS.length) setQi(n); else setScreen("capture");
-    }, 220);
-  };
-
-  const back = () => {
-    const prevFrom = (start: number) => {
-      let p = start - 1;
-      while (p >= 0 && !shows(p, answers)) p--;
-      return p;
-    };
-    if (screen === "capture") {
-      const p = prevFrom(QUESTIONS.length);
-      setScreen("q"); setQi(Math.max(0, p)); return;
-    }
-    if (screen === "q") {
-      const p = prevFrom(qi);
-      if (p >= 0) setQi(p); else setScreen("welcome");
-    }
-  };
-
-  const submit = async () => {
-    if (!name.trim()) { setErr("What should I call you?"); return; }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr("Enter a valid email so I can reach you."); return; }
-    const digits = phone.replace(/\D/g, "");
-    if (answers.budget === "yes" && digits.length < 10) { setErr("Drop your number so I can reach out personally."); return; }
-    if (digits.length > 0 && digits.length < 10) { setErr("That number looks short — check it?"); return; }
-    setErr(""); setSaving(true);
-    const ready = answers.budget === "yes";
+  async function fetchLeads() {
     try {
-      const key = email.trim().toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60);
-      await fetch(`${FB}/live/leads/${key}.json`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim(),
-          src: "start-quiz",
-          path: ready ? "🔥 CALL — ready ($100-200)" : answers.ideas === "yes" ? "WANTS TRADES (free)" : answers.ideas === "learn" ? "WANTS TO LEARN (free)" : "browsing",
-          experience: answers.experience || "",
-          why: answers.why || "",
-          budget: answers.budget || "",
-          wantsIdeas: answers.ideas || "",
-          firstSeen: new Date().toISOString(),
-          lastSeen: new Date().toISOString(),
-        }),
+      const res = await fetch(`${DB}/live/leads.json`, { cache: "no-store" });
+      const data = await res.json();
+      if (!data) { setLeads([]); return; }
+      const list: Lead[] = Object.entries(data).map(([k, v]: [string, any]) => ({ ...(v || {}), _key: k }));
+      list.sort((a, b) => {
+        const hot = (l: Lead) => (l.path || "").startsWith("🔥") ? 0 : 1;
+        if (hot(a) !== hot(b)) return hot(a) - hot(b);
+        return new Date(b.lastSeen || b.firstSeen || 0).getTime() - new Date(a.lastSeen || a.firstSeen || 0).getTime();
       });
-      localStorage.setItem("gp_viewer", JSON.stringify({ name: name.trim(), email: email.trim() }));
+      setLeads(list);
     } catch {}
-    setSaving(false);
-    setScreen("result");
+  }
+
+  useEffect(() => {
+    if (!authed) return;
+    setLoading(true);
+    fetchLeads().finally(() => setLoading(false));
+    timerRef.current = setInterval(fetchLeads, 15000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [authed]);
+
+  const save = async (key: string, patch: Partial<Lead>) => {
+    setLeads(ls => ls.map(l => l._key === key ? { ...l, ...patch } : l));
+    try { await fetch(`${DB}/live/leads/${key}.json`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
   };
 
-  const ready = answers.budget === "yes";
-  const firstName = name.trim().split(" ")[0] || "";
+  function exportCSV() {
+    const header = "Name,Email,Phone,Priority,Status,Experience,Why,Budget,Note,First Seen\n";
+    const rows = leads.map(l => [l.name, l.email, l.phone, l.path, l.status || "New", EXP[l.experience || ""] || "", WHY[l.why || ""] || "", l.budget, (l.note || "").replace(/,/g, ";"), l.firstSeen]
+      .map(v => `"${(v ?? "").toString().replace(/"/g, '""')}"`).join(","));
+    const blob = new Blob([header + rows.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `greenprint-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
 
-  const card: React.CSSProperties = { display: "flex", alignItems: "center", gap: 13, width: "100%", padding: "16px 16px", borderRadius: 15, background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 14.5, textAlign: "left", cursor: "pointer" };
+  const isHot = (l: Lead) => (l.path || "").startsWith("🔥");
+  const shown = leads.filter(l => {
+    if (filter === "hot" && !isHot(l)) return false;
+    if (filter === "todo" && (l.status && l.status !== "New")) return false;
+    const q = search.toLowerCase();
+    return !q || [l.name, l.email, l.phone, l.path].some(v => (v || "").toLowerCase().includes(q));
+  });
+  const hotCount = leads.filter(isHot).length;
+  const todoCount = leads.filter(l => !l.status || l.status === "New").length;
+
+  if (!authed) return (
+    <div style={{ minHeight: "100dvh", background: "#050705", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "system-ui,-apple-system,sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: 320, textAlign: "center" }}>
+        <div style={{ fontSize: 34, marginBottom: 14 }}>🔒</div>
+        <h1 style={{ fontSize: 21, fontWeight: 900, margin: "0 0 18px" }}>Call Board</h1>
+        <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && checkPassword()} placeholder="Password"
+          style={{ width: "100%", padding: "14px 16px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+        {pwError && <p style={{ color: "#ff5566", fontSize: 13, marginTop: 10 }}>{pwError}</p>}
+        <button onClick={checkPassword} style={{ width: "100%", marginTop: 12, padding: "14px 0", background: "#00ff87", border: "none", borderRadius: 12, color: "#000", fontWeight: 900, fontSize: 15, cursor: "pointer" }}>Open</button>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ minHeight: "100dvh", background: "radial-gradient(900px 600px at 50% -5%, #0a1810 0%, #050705 60%)", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 22px", position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100dvh", background: "#050705", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", paddingBottom: 40 }}>
       <style>{`
-        @keyframes st-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes st-glow{0%,100%{box-shadow:0 0 26px rgba(0,255,133,.35)}50%{box-shadow:0 0 46px rgba(0,255,133,.6)}}
-        @keyframes st-shine{from{transform:translateX(-150%) skewX(-20deg)}to{transform:translateX(350%) skewX(-20deg)}}
-        @keyframes st-pulse{0%,100%{opacity:1}50%{opacity:.45}}
-        @keyframes st-pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
-        .st-in{opacity:0;animation:st-rise .55s cubic-bezier(.16,.8,.3,1) forwards}
-        .st-cta{position:relative;overflow:hidden;animation:st-glow 3s ease-in-out infinite;transition:transform .2s}
-        .st-cta:hover{transform:translateY(-2px) scale(1.015)} .st-cta:active{transform:scale(.99)}
-        .st-cta::after{content:"";position:absolute;top:0;bottom:0;width:38%;left:0;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);animation:st-shine 3.4s ease-in-out infinite;pointer-events:none}
-        .st-opt{transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,border-color .18s}
-        .st-opt:hover{transform:translateY(-2px);background:rgba(0,255,133,.08)!important;border-color:rgba(0,255,133,.4)!important}
-        .st-opt:active{transform:scale(.985)}
-        .st-inp{width:100%;padding:15px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);border-radius:14px;color:#fff;font-size:15px;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
-        .st-inp:focus{border-color:rgba(0,255,133,.5);box-shadow:0 0 0 3px rgba(0,255,133,.1)}
-        .st-pop{animation:st-pop .6s cubic-bezier(.3,1.4,.5,1) both}
-        @media(prefers-reduced-motion:reduce){.st-in,.st-cta,.st-cta::after,.st-pop{animation:none;opacity:1}}
+        .lead-card{transition:border-color .2s,background .2s}
+        .lead-card:hover{border-color:rgba(0,255,135,.3)}
+        .pill{padding:6px 11px;border-radius:9px;font-size:11.5px;font-weight:800;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.55);transition:all .15s}
+        .pill:hover{background:rgba(255,255,255,.1)}
+        input,textarea{font-family:inherit}
       `}</style>
-      <Constellation />
 
-      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 420 }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(5,7,5,.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.07)", padding: "14px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>📞 Call Board</h1>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,.4)", margin: "2px 0 0" }}>{leads.length} leads · {hotCount} ready to call · {todoCount} not contacted</p>
+          </div>
+          <button onClick={exportCSV} style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 9, color: "#fff", fontSize: 11.5, fontWeight: 700, padding: "8px 12px", cursor: "pointer" }}>Export CSV</button>
+        </div>
+        <div style={{ display: "flex", gap: 7, marginBottom: 10 }}>
+          {([["hot", `🔥 Ready (${hotCount})`], ["todo", `To call (${todoCount})`], ["all", `All (${leads.length})`]] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setFilter(id)}
+              style={{ flex: 1, padding: "9px 0", borderRadius: 10, cursor: "pointer", fontWeight: 800, fontSize: 12,
+                background: filter === id ? "#00ff87" : "rgba(255,255,255,.05)", color: filter === id ? "#000" : "rgba(255,255,255,.5)",
+                border: filter === id ? "none" : "1px solid rgba(255,255,255,.1)" }}>{label}</button>
+          ))}
+        </div>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, email, phone…"
+          style={{ width: "100%", padding: "10px 13px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: "#fff", fontSize: 13.5, outline: "none", boxSizing: "border-box" }} />
+      </div>
 
-        {/* ── WELCOME ── */}
-        {screen === "welcome" && (
-          <div style={{ textAlign: "center" }}>
-            <div className="st-in" style={{ animationDelay: ".05s" }}>
-              <div style={{ width: 74, height: 74, borderRadius: 21, background: "linear-gradient(135deg,#00FF85,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 0 40px rgba(0,255,133,.35)" }}>
-                <svg width="34" height="34" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7L9 10L13 4" stroke="#050705" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, maxWidth: 620, margin: "0 auto" }}>
+        {loading && <p style={{ color: "rgba(255,255,255,.35)", fontSize: 13, textAlign: "center" }}>Loading…</p>}
+        {!loading && shown.length === 0 && <p style={{ color: "rgba(255,255,255,.3)", fontSize: 13.5, textAlign: "center", padding: "40px 0" }}>Nothing here yet.</p>}
+
+        {shown.map(l => {
+          const hot = isHot(l);
+          const st = l.status || "New";
+          const isOpen = open === l._key;
+          return (
+            <div key={l._key} className="lead-card" style={{ borderRadius: 15, background: hot ? "rgba(0,255,135,.05)" : "rgba(255,255,255,.035)", border: hot ? "1px solid rgba(0,255,135,.3)" : "1px solid rgba(255,255,255,.09)", padding: "13px 14px" }}>
+              <div onClick={() => setOpen(isOpen ? "" : l._key)} style={{ display: "flex", alignItems: "flex-start", gap: 11, cursor: "pointer" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: hot ? "linear-gradient(135deg,#00ff87,#00c864)" : "rgba(255,255,255,.07)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 15, color: hot ? "#000" : "#fff" }}>
+                  {(l.name || l.email || "?").slice(0, 1).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 800, fontSize: 14.5 }}>{l.name || "—"}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 6, background: "rgba(255,255,255,.07)", color: STATUS_COLOR[st] }}>{st}</span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,.45)", margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {l.phone ? l.phone + " · " : ""}{l.email}
+                  </p>
+                  {l.path && <p style={{ fontSize: 11, color: hot ? "#00ff87" : "rgba(255,255,255,.35)", margin: "4px 0 0", fontWeight: 700 }}>{l.path}</p>}
+                </div>
+                <span style={{ color: "rgba(255,255,255,.25)", fontSize: 13 }}>{isOpen ? "▲" : "▼"}</span>
               </div>
-            </div>
-            <div className="st-in" style={{ animationDelay: ".15s", display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(0,255,133,.1)", border: "1px solid rgba(0,255,133,.28)", borderRadius: 20, padding: "5px 13px", marginBottom: 18 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00FF85", animation: "st-pulse 1.6s infinite" }} />
-              <span style={{ color: "#00FF85", fontSize: 11, fontWeight: 800, letterSpacing: ".1em" }}>LIVE WEDNESDAYS · 8AM CST</span>
-            </div>
-            <h1 className="st-in" style={{ animationDelay: ".25s", fontSize: "clamp(30px,8.5vw,42px)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-.03em", margin: "0 0 12px" }}>
-              Welcome to<br /><span style={{ color: "#00FF85" }}>The Greenprint</span>
-            </h1>
-            <p className="st-in" style={{ animationDelay: ".35s", color: "rgba(255,255,255,.55)", fontSize: 15, lineHeight: 1.65, margin: "0 0 28px" }}>
-              Glad you made it 🤝 Answer 3 quick questions and I&apos;ll point you exactly where to start.
-            </p>
-            <button onClick={() => setScreen("q")} className="st-cta"
-              style={{ display: "block", width: "100%", padding: "18px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 17, border: "none", cursor: "pointer", marginBottom: 12 }}>
-              Start Here →
-            </button>
-            <p className="st-in" style={{ animationDelay: ".5s", color: "rgba(0,255,133,.5)", fontSize: 12, fontWeight: 700, margin: 0 }}>
-              Takes 30 seconds
-            </p>
-          </div>
-        )}
 
-        {/* ── QUESTIONS ── */}
-        {screen === "q" && (
-          <div key={qi} className="st-in" style={{ animationDelay: "0s" }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 26 }}>
-              {QUESTIONS.map((_, i) => (
-                <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= qi ? "#00FF85" : "rgba(255,255,255,.12)", boxShadow: i <= qi ? "0 0 8px rgba(0,255,133,.6)" : "none", transition: "all .4s" }} />
-              ))}
+              {isOpen && (
+                <div style={{ marginTop: 13, paddingTop: 13, borderTop: "1px solid rgba(255,255,255,.08)" }}>
+                  {(l.experience || l.why || l.wantsIdeas) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                      {l.experience && <span style={{ fontSize: 11, padding: "5px 9px", borderRadius: 8, background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.65)" }}>{EXP[l.experience] || l.experience}</span>}
+                      {l.why && <span style={{ fontSize: 11, padding: "5px 9px", borderRadius: 8, background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.65)" }}>Wants: {WHY[l.why] || l.why}</span>}
+                      {l.wantsIdeas && <span style={{ fontSize: 11, padding: "5px 9px", borderRadius: 8, background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.65)" }}>{IDEAS[l.wantsIdeas] || l.wantsIdeas}</span>}
+                    </div>
+                  )}
+
+                  {l.phone && (
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      <a href={`tel:${l.phone.replace(/\D/g, "")}`} onClick={() => save(l._key, { status: "Called" })}
+                        style={{ flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 11, background: "linear-gradient(135deg,#00ff87,#00c864)", color: "#000", fontWeight: 900, fontSize: 14, textDecoration: "none" }}>📞 Call</a>
+                      <a href={`sms:${l.phone.replace(/\D/g, "")}`}
+                        style={{ flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 11, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>💬 Text</a>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                    {STATUSES.map(s => (
+                      <button key={s} className="pill" onClick={() => save(l._key, { status: s })}
+                        style={st === s ? { background: "rgba(0,255,135,.15)", borderColor: "rgba(0,255,135,.4)", color: "#00ff87" } : {}}>{s}</button>
+                    ))}
+                  </div>
+
+                  <textarea defaultValue={l.note || ""} onBlur={e => save(l._key, { note: e.target.value })} placeholder="Notes from the call…"
+                    style={{ width: "100%", minHeight: 60, padding: "10px 12px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }} />
+
+                  <p style={{ fontSize: 10.5, color: "rgba(255,255,255,.25)", margin: "9px 0 0" }}>
+                    {l.src === "start-quiz" ? "From the welcome quiz" : l.src === "viewer-csv" ? "From a stream" : "Imported"} · {(l.firstSeen || "").slice(0, 10)}
+                  </p>
+                </div>
+              )}
             </div>
-            <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>
-              Question {qi + 1} of {QUESTIONS.length}
-            </p>
-            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>{QUESTIONS[qi].q}</h2>
-            <p style={{ color: "rgba(255,255,255,.4)", fontSize: 13.5, margin: "0 0 24px" }}>{QUESTIONS[qi].sub}</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {QUESTIONS[qi].options.map(o => (
-                <button key={o.v} onClick={() => pick(QUESTIONS[qi].key, o.v)} className="st-opt"
-                  style={{ ...card, ...(answers[QUESTIONS[qi].key] === o.v ? { background: "rgba(0,255,133,.1)", borderColor: "rgba(0,255,133,.45)" } : {}) }}>
-                  <span style={{ fontSize: 20 }}>{o.emoji}</span>
-                  <span style={{ flex: 1 }}>{o.label}</span>
-                  <span style={{ color: "rgba(255,255,255,.25)" }}>→</span>
-                </button>
-              ))}
-            </div>
-            <button onClick={back} style={{ marginTop: 22, background: "transparent", border: "none", color: "rgba(255,255,255,.35)", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>← Back</button>
-          </div>
-        )}
-
-        {/* ── NAME + EMAIL ── */}
-        {screen === "capture" && (
-          <div className="st-in">
-            <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>Last step</p>
-            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>How do I reach you?</h2>
-            <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, lineHeight: 1.6, margin: "0 0 24px" }}>
-              {answers.budget === "yes"
-                ? "I reach out personally to everyone who's ready — drop your number and I'll get you set up myself."
-                : "So I know who you are, and I can text you when we go live."}
-            </p>
-            <input className="st-inp" value={name} onChange={e => { setName(e.target.value); setErr(""); }} placeholder="Your first name" style={{ marginBottom: 11 }} />
-            <input className="st-inp" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} type="email" placeholder="Your email" style={{ marginBottom: 11 }} />
-            <input className="st-inp" value={phone} onChange={e => { setPhone(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()} type="tel"
-              placeholder={answers.budget === "yes" ? "Phone number" : "Phone number (optional)"} />
-            {err && <p style={{ color: "#ff5566", fontSize: 13, margin: "12px 0 0" }}>{err}</p>}
-            <button onClick={submit} disabled={saving} className="st-cta"
-              style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: saving ? "rgba(255,255,255,.1)" : "linear-gradient(135deg,#00FF85,#00c864)", color: saving ? "rgba(255,255,255,.4)" : "#000", fontWeight: 900, fontSize: 16.5, border: "none", cursor: saving ? "wait" : "pointer", marginTop: 18 }}>
-              {saving ? "One sec…" : "Show Me →"}
-            </button>
-            <button onClick={back} style={{ marginTop: 18, background: "transparent", border: "none", color: "rgba(255,255,255,.35)", fontSize: 13, cursor: "pointer", fontWeight: 600, width: "100%" }}>← Back</button>
-          </div>
-        )}
-
-        {/* ── RESULT ── */}
-        {screen === "result" && (
-          <div className="st-in">
-            <div className="st-pop" style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#00FF85,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 0 36px rgba(0,255,133,.5)" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            </div>
-
-            {ready ? (
-              <>
-                <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
-                  Perfect{firstName ? `, ${firstName}` : ""} — I&apos;ll reach out personally.
-                </h2>
-                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 22px" }}>
-                  Keep an eye on your phone — I&apos;ll hit you directly and walk you through getting set up.
-                  <br /><br />
-                  <span style={{ color: "rgba(255,255,255,.75)", fontWeight: 600 }}>While you wait, jump in the chat so you&apos;re in the room already.</span>
-                </p>
-                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer" className="st-cta"
-                  style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  💬 Join the Chat Now
-                </a>
-                <Link href="/onboard"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  Get a head start — set up my account →
-                </Link>
-                <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
-                  Or pick a time to talk →
-                </a>
-              </>
-            ) : (
-              <>
-                <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
-                  {answers.ideas === "looking" ? `All good${firstName ? `, ${firstName}` : ""} — look around.` : `Say less${firstName ? `, ${firstName}` : ""}. You&apos;re in.`}
-                </h2>
-                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 24px" }}>
-                  {answers.ideas === "looking"
-                    ? "No pressure at all. Watch a live session, sit in the chat, and see if it's for you. I'll be here."
-                    : "You don't need to pay me a dime. Open your trading account through The Greenprint and my trade breakdowns come to you free in the chat — setup takes about 5 minutes."}
-                </p>
-                <Link href="/onboard" className="st-cta"
-                  style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  Set Me Up Free →
-                </Link>
-                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
-                  💬 Join the 2026 New Traders chat
-                </a>
-                <Link href="/stream"
-                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
-                  ▶ Watch a live session
-                </Link>
-              </>
-            )}
-
-            <p style={{ color: "rgba(255,255,255,.22)", fontSize: 10.5, lineHeight: 1.6, marginTop: 26, textAlign: "center" }}>
-              Educational content only. Not financial advice. Trading involves risk of loss.
-            </p>
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
