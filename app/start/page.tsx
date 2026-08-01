@@ -42,15 +42,19 @@ function Constellation() {
   return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
 }
 
+const WHY_TEXT: Record<string, string> = {
+  income: "extra income", freedom: "financial freedom", skill: "a real skill", fulltime: "doing this full-time",
+};
+
 const QUESTIONS = [
   {
     key: "experience",
     q: "Have you traded before?",
     sub: "Be honest — it changes what I point you to.",
     options: [
-      { v: "never", label: "Never traded", emoji: "🌱" },
-      { v: "tried", label: "Tried it, didn't stick", emoji: "🔁" },
-      { v: "active", label: "I trade now", emoji: "📈" },
+      { v: "never", label: "Never traded", emoji: "🌱", r: "Perfect. No bad habits to unlearn — that's actually an advantage." },
+      { v: "tried", label: "Tried it, didn't stick", emoji: "🔁", r: "That's almost everybody. Usually the plan failed you, not the other way around." },
+      { v: "active", label: "I trade now", emoji: "📈", r: "Good. Then you already know what a real system is worth." },
     ],
   },
   {
@@ -58,10 +62,10 @@ const QUESTIONS = [
     q: "What's got you into trading?",
     sub: "There's no wrong answer.",
     options: [
-      { v: "income", label: "Extra income on the side", emoji: "💵" },
-      { v: "freedom", label: "Financial freedom", emoji: "🕊️" },
-      { v: "skill", label: "Learn a real skill", emoji: "🎯" },
-      { v: "fulltime", label: "Do this full-time one day", emoji: "🚀" },
+      { v: "income", label: "Extra income on the side", emoji: "💵", r: "Real answer. That's how it starts for damn near everybody." },
+      { v: "freedom", label: "Financial freedom", emoji: "🕊️", r: "That's the one. Freedom is just having options you can afford." },
+      { v: "skill", label: "Learn a real skill", emoji: "🎯", r: "Respect. Nobody can take a skill away from you." },
+      { v: "fulltime", label: "Do this full-time one day", emoji: "🚀", r: "Big goal — and everybody doing it full-time started exactly where you are." },
     ],
   },
   {
@@ -69,8 +73,8 @@ const QUESTIONS = [
     q: "Do you have $100–$200 to invest in yourself right now?",
     sub: "This just tells me which lane fits you today.",
     options: [
-      { v: "yes", label: "Yes — I'm ready to go", emoji: "✅" },
-      { v: "no", label: "Not right now", emoji: "⏳" },
+      { v: "yes", label: "Yes — I'm ready to go", emoji: "✅", r: "Say less. Then let's do this properly — I'll handle you personally." },
+      { v: "no", label: "Not right now", emoji: "⏳", r: "No shame in that at all. Most people start there. Me included." },
     ],
   },
   {
@@ -79,9 +83,9 @@ const QUESTIONS = [
     q: "If the money's not there yet — would you still want my trade ideas?",
     sub: "They're free either way. I just want to know how to help you.",
     options: [
-      { v: "yes", label: "Yes — send me the trades", emoji: "🙌" },
-      { v: "learn", label: "I want to learn first", emoji: "📚" },
-      { v: "looking", label: "Just looking around", emoji: "👀" },
+      { v: "yes", label: "Yes — send me the trades", emoji: "🙌", r: "That's all I needed to hear. Let's get you set up." },
+      { v: "learn", label: "I want to learn first", emoji: "📚", r: "Smart. Learn first, earn after — that order matters more than people think." },
+      { v: "looking", label: "Just looking around", emoji: "👀", r: "Fair enough. Look around as long as you need — I'll be here." },
     ],
   },
 ];
@@ -95,6 +99,7 @@ export default function StartPage() {
   const [phone, setPhone] = useState("");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
+  const [flash, setFlash] = useState("");
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, qi]);
 
@@ -106,11 +111,14 @@ export default function StartPage() {
   const pick = (key: string, v: string) => {
     const next = { ...answers, [key]: v };
     setAnswers(next);
+    const opt: any = (QUESTIONS[qi].options as any[]).find(o => o.v === v);
+    setFlash(opt?.r || "");
     setTimeout(() => {
+      setFlash("");
       let n = qi + 1;
       while (n < QUESTIONS.length && !shows(n, next)) n++;
       if (n < QUESTIONS.length) setQi(n); else setScreen("capture");
-    }, 220);
+    }, opt?.r ? 1500 : 220);
   };
 
   const back = () => {
@@ -219,8 +227,18 @@ export default function StartPage() {
           </div>
         )}
 
+        {/* ── JAY'S REPLY (between questions) ── */}
+        {screen === "q" && flash && (
+          <div className="st-in" style={{ textAlign: "center", padding: "20px 0" }}>
+            <div className="st-pop" style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#00FF85,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", boxShadow: "0 0 34px rgba(0,255,133,.45)" }}>
+              <svg width="24" height="24" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7L9 10L13 4" stroke="#050705" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+            <p style={{ fontSize: 19, fontWeight: 800, lineHeight: 1.4, letterSpacing: "-.01em", margin: 0, color: "#fff" }}>{flash}</p>
+          </div>
+        )}
+
         {/* ── QUESTIONS ── */}
-        {screen === "q" && (
+        {screen === "q" && !flash && (
           <div key={qi} className="st-in" style={{ animationDelay: "0s" }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 26 }}>
               {QUESTIONS.map((_, i) => (
@@ -282,9 +300,9 @@ export default function StartPage() {
                   Perfect{firstName ? `, ${firstName}` : ""} — I&apos;ll reach out personally.
                 </h2>
                 <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 22px" }}>
-                  Keep an eye on your phone — I&apos;ll hit you directly and walk you through getting set up.
+                  You said you&apos;re after <span style={{ color: "#00FF85", fontWeight: 700 }}>{WHY_TEXT[answers.why] || "this"}</span>{answers.experience === "never" ? " and you're starting fresh" : answers.experience === "tried" ? " and you've been burned before" : ""} — that&apos;s exactly what we&apos;ll map out.
                   <br /><br />
-                  <span style={{ color: "rgba(255,255,255,.75)", fontWeight: 600 }}>While you wait, jump in the chat so you&apos;re in the room already.</span>
+                  Keep an eye on your phone, I&apos;ll hit you directly. <span style={{ color: "rgba(255,255,255,.75)", fontWeight: 600 }}>While you wait, get in the chat so you&apos;re already in the room.</span>
                 </p>
                 <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer" className="st-cta"
                   style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
@@ -307,8 +325,14 @@ export default function StartPage() {
                 <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 24px" }}>
                   {answers.ideas === "looking"
                     ? "No pressure at all. Watch a live session, sit in the chat, and see if it's for you. I'll be here."
-                    : "You don't need to pay me a dime. Open your trading account through The Greenprint and my trade breakdowns come to you free in the chat — setup takes about 5 minutes."}
+                    : <>You want <span style={{ color: "#00FF85", fontWeight: 700 }}>{WHY_TEXT[answers.why] || "this"}</span> — and you don&apos;t need to pay me a dime to start. Open your trading account through The Greenprint and my trade breakdowns come to you free in the chat. Setup takes about 5 minutes.</>}
                 </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 13px", borderRadius: 12, background: "rgba(0,255,133,.06)", border: "1px solid rgba(0,255,133,.2)", marginBottom: 18 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00FF85", flexShrink: 0, animation: "st-pulse 1.6s infinite" }} />
+                  <span style={{ fontSize: 12.5, color: "rgba(255,255,255,.7)", lineHeight: 1.5 }}>
+                    Next live session: <b style={{ color: "#fff" }}>Wednesday 8:00 AM CST</b> — be set up before then.
+                  </span>
+                </div>
                 <Link href="/onboard" className="st-cta"
                   style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
                   Set Me Up Free →
