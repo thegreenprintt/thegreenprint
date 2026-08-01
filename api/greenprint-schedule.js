@@ -157,8 +157,8 @@ function build(dayKey, dateLabel) {
 
   let msg = "📅 <b>THE GREENPRINT SCHEDULE</b>\n" + esc(dateLabel) + "\n";
   msg += "————————————————\n";
-  if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n\n") + "\n";
-  if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n\n") + "\n";
+  if (trading.length) msg += "\n🔥 <b>DAY TRADING — MAIN CARD</b>\n" + trading.map(line).join("\n____________________\n") + "\n";
+  if (other.length) msg += "\n📺 <b>ALSO STREAMING TODAY</b>\n" + other.map(line).join("\n____________________\n") + "\n";
   if (!trading.length && !other.length) msg += "\nNo streams on the board today — rest up. 💤\n";
   msg += "\n————————————————\n▶️ Watch it all free at 1house.tv\n<i>Times shown in CT · ET · PT · HT</i>";
   return msg;
