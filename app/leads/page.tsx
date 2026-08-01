@@ -1,179 +1,333 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
-const DB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const CORRECT_HASH = "133f3d597c724b06170216e7562f77e42196a334b57f711213297aa77bac2121";
+// ── /start — interactive welcome quiz for the IG bio link ───────────────────
+// Asks 3 questions, captures name + email, then routes:
+//   ready to invest  → paid options + book a call
+//   not right now    → free path (broker + free signals chat)
+// Every answer is saved so Jay knows who to follow up with and how.
 
-async function sha256(str: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
+const NEW_TRADERS_URL = "https://t.me/TheGreenprintt";
+const ONEHOUSE_URL = "https://subscribe.1houseglobal.com/jay";
+const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
+
+function Constellation() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0, w = 0, h = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    resize(); window.addEventListener("resize", resize);
+    const P = window.innerWidth < 640 ? 16 : 30;
+    const pts = Array.from({ length: P }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22, r: Math.random() * 1.4 + .5 }));
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1; }
+      ctx.lineWidth = 1;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j]; const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+        if (d < 15000) { ctx.strokeStyle = `rgba(0,255,133,${(1 - d / 15000) * .08})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      }
+      for (const p of pts) { ctx.fillStyle = "rgba(0,255,133,.28)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
 }
 
-type Lead = {
-  name: string;
-  email: string;
-  firstSeen: string;
-  lastSeen: string;
-  joinCount: number;
-};
+const QUESTIONS = [
+  {
+    key: "experience",
+    q: "Have you traded before?",
+    sub: "Be honest — it changes what I point you to.",
+    options: [
+      { v: "never", label: "Never traded", emoji: "🌱" },
+      { v: "tried", label: "Tried it, didn't stick", emoji: "🔁" },
+      { v: "active", label: "I trade now", emoji: "📈" },
+    ],
+  },
+  {
+    key: "why",
+    q: "What's got you into trading?",
+    sub: "There's no wrong answer.",
+    options: [
+      { v: "income", label: "Extra income on the side", emoji: "💵" },
+      { v: "freedom", label: "Financial freedom", emoji: "🕊️" },
+      { v: "skill", label: "Learn a real skill", emoji: "🎯" },
+      { v: "fulltime", label: "Do this full-time one day", emoji: "🚀" },
+    ],
+  },
+  {
+    key: "budget",
+    q: "Do you have $100–$200 to invest in yourself right now?",
+    sub: "This just tells me which lane fits you today.",
+    options: [
+      { v: "yes", label: "Yes — I'm ready to go", emoji: "✅" },
+      { v: "no", label: "Not right now", emoji: "⏳" },
+    ],
+  },
+  {
+    key: "ideas",
+    showIf: (a: Record<string, string>) => a.budget === "no",
+    q: "If the money's not there yet — would you still want my trade ideas?",
+    sub: "They're free either way. I just want to know how to help you.",
+    options: [
+      { v: "yes", label: "Yes — send me the trades", emoji: "🙌" },
+      { v: "learn", label: "I want to learn first", emoji: "📚" },
+      { v: "looking", label: "Just looking around", emoji: "👀" },
+    ],
+  },
+];
 
-export default function LeadsPage() {
-  const [authed, setAuthed] = useState(false);
-  const [pw, setPw] = useState("");
-  const [pwError, setPwError] = useState("");
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+export default function StartPage() {
+  const [screen, setScreen] = useState<"welcome" | "q" | "capture" | "result">("welcome");
+  const [qi, setQi] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function checkPassword() {
-    const hash = await sha256(pw);
-    if (hash === CORRECT_HASH) {
-      setAuthed(true);
-      setPwError("");
-    } else {
-      setPwError("Wrong password.");
-    }
-  }
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, qi]);
 
-  async function fetchLeads() {
-    try {
-      const res = await fetch(`${DB}/live/leads.json`);
-      const data = await res.json();
-      if (!data) { setLeads([]); return; }
-      const list: Lead[] = Object.values(data) as Lead[];
-      list.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
-      setLeads(list);
-    } catch {}
-  }
-
-  useEffect(() => {
-    if (!authed) return;
-    setLoading(true);
-    fetchLeads().finally(() => setLoading(false));
-    timerRef.current = setInterval(fetchLeads, 10000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [authed]);
-
-  function exportCSV() {
-    const header = "Name,Email,First Seen,Last Seen,Join Count\n";
-    const rows = leads.map(l =>
-      `"${l.name}","${l.email}","${l.firstSeen}","${l.lastSeen}",${l.joinCount}`
-    ).join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "greenprint-leads.csv"; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  const filtered = leads.filter(l =>
-    l.name?.toLowerCase().includes(search.toLowerCase()) ||
-    l.email?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  type CSSProps = React.CSSProperties;
-  const s: Record<string, CSSProps> = {
-    page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", fontFamily: "monospace", padding: "40px 24px" },
-    card: { maxWidth: 960, margin: "0 auto", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 32 },
-    h1: { fontSize: 28, fontWeight: 700, color: "#22c55e", marginBottom: 8 },
-    sub: { color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 32 },
-    input: { width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "#fff", fontSize: 16, outline: "none", boxSizing: "border-box" },
-    btn: { padding: "12px 28px", background: "#22c55e", color: "#000", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 12 },
-    table: { width: "100%", borderCollapse: "collapse", fontSize: 14 },
-    th: { textAlign: "left", padding: "10px 12px", color: "rgba(255,255,255,0.5)", borderBottom: "1px solid rgba(255,255,255,0.08)", fontWeight: 600 },
-    td: { padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.85)" },
-    topRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 },
-    searchInput: { padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 14, outline: "none", minWidth: 220 },
-    csvBtn: { padding: "10px 20px", background: "rgba(34,197,94,0.15)", border: "1px solid #22c55e", color: "#22c55e", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 },
+  const shows = (i: number, a: Record<string, string>) => {
+    const q: any = QUESTIONS[i];
+    return !q.showIf || q.showIf(a);
   };
 
-  if (!authed) {
-    return (
-      <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 30% 60%,#071a10 0%,#020807 55%)",color:"#fff",fontFamily:"system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
-        <style>{`
-          @keyframes orbPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.65;transform:scale(1.08)}}
-          @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-          #leads-submit:hover{transform:translateY(-1px) scale(1.02)!important;box-shadow:0 8px 36px rgba(34,197,94,.6)!important}
-        `}</style>
-        <div style={{position:"absolute",top:"10%",right:"10%",width:380,height:380,background:"radial-gradient(circle,rgba(34,197,94,.09) 0%,transparent 65%)",animation:"orbPulse 4s ease-in-out infinite",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",bottom:"5%",left:"5%",width:300,height:300,background:"radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%)",animation:"orbPulse 5s ease-in-out infinite 1.5s",pointerEvents:"none"}}/>
+  const pick = (key: string, v: string) => {
+    const next = { ...answers, [key]: v };
+    setAnswers(next);
+    setTimeout(() => {
+      let n = qi + 1;
+      while (n < QUESTIONS.length && !shows(n, next)) n++;
+      if (n < QUESTIONS.length) setQi(n); else setScreen("capture");
+    }, 220);
+  };
 
-        <div style={{width:"100%",maxWidth:400,position:"relative",zIndex:1,animation:"fadeUp .5s ease"}}>
-          <div style={{textAlign:"center",marginBottom:40}}>
-            <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:66,height:66,borderRadius:18,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:18,boxShadow:"0 0 36px rgba(34,197,94,.12)"}}>
-              <span style={{fontSize:30}}>📋</span>
-            </div>
-            <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.55)",textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Host Only</div>
-            <div style={{fontSize:28,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e,#4ade80,#bbf7d0)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Leads Dashboard</div>
-          </div>
+  const back = () => {
+    const prevFrom = (start: number) => {
+      let p = start - 1;
+      while (p >= 0 && !shows(p, answers)) p--;
+      return p;
+    };
+    if (screen === "capture") {
+      const p = prevFrom(QUESTIONS.length);
+      setScreen("q"); setQi(Math.max(0, p)); return;
+    }
+    if (screen === "q") {
+      const p = prevFrom(qi);
+      if (p >= 0) setQi(p); else setScreen("welcome");
+    }
+  };
 
-          <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:22,padding:"32px 28px",backdropFilter:"blur(28px)",boxShadow:"0 0 60px rgba(34,197,94,.05)"}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
-            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError("Incorrect password");setPw('');}})()}
-              placeholder="Enter password"
-              style={{width:"100%",padding:"15px 18px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,marginBottom:16,transition:"border-color .2s"}}
-              onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
-              onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
-            />
-            <button id="leads-submit" onClick={async()=>{const h=await sha256(pw);if(h===CORRECT_HASH){setAuthed(true);}else{setPwError("Incorrect password");setPw('');}}}
-              style={{width:"100%",padding:"15px 0",background:"linear-gradient(135deg,#15803d,#22c55e,#4ade80)",border:"none",borderRadius:12,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 24px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
-              VIEW LEADS
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const submit = async () => {
+    if (!name.trim()) { setErr("What should I call you?"); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr("Enter a valid email so I can reach you."); return; }
+    const digits = phone.replace(/\D/g, "");
+    if (answers.budget === "yes" && digits.length < 10) { setErr("Drop your number so I can reach out personally."); return; }
+    if (digits.length > 0 && digits.length < 10) { setErr("That number looks short — check it?"); return; }
+    setErr(""); setSaving(true);
+    const ready = answers.budget === "yes";
+    try {
+      const key = email.trim().toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60);
+      await fetch(`${FB}/live/leads/${key}.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          src: "start-quiz",
+          path: ready ? "🔥 CALL — ready ($100-200)" : answers.ideas === "yes" ? "WANTS TRADES (free)" : answers.ideas === "learn" ? "WANTS TO LEARN (free)" : "browsing",
+          experience: answers.experience || "",
+          why: answers.why || "",
+          budget: answers.budget || "",
+          wantsIdeas: answers.ideas || "",
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+        }),
+      });
+      localStorage.setItem("gp_viewer", JSON.stringify({ name: name.trim(), email: email.trim() }));
+    } catch {}
+    setSaving(false);
+    setScreen("result");
+  };
+
+  const ready = answers.budget === "yes";
+  const firstName = name.trim().split(" ")[0] || "";
+
+  const card: React.CSSProperties = { display: "flex", alignItems: "center", gap: 13, width: "100%", padding: "16px 16px", borderRadius: 15, background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 14.5, textAlign: "left", cursor: "pointer" };
 
   return (
-    <div style={s.page}>
-      <div style={s.card}>
-        <div style={s.topRow}>
-          <div>
-            <h1 style={s.h1}>Leads Dashboard</h1>
-            <p style={s.sub}>
-              {leads.length} total · auto-refreshes every 10s{loading ? " · loading..." : ""}
+    <div style={{ minHeight: "100dvh", background: "radial-gradient(900px 600px at 50% -5%, #0a1810 0%, #050705 60%)", color: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 22px", position: "relative", overflow: "hidden" }}>
+      <style>{`
+        @keyframes st-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes st-glow{0%,100%{box-shadow:0 0 26px rgba(0,255,133,.35)}50%{box-shadow:0 0 46px rgba(0,255,133,.6)}}
+        @keyframes st-shine{from{transform:translateX(-150%) skewX(-20deg)}to{transform:translateX(350%) skewX(-20deg)}}
+        @keyframes st-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+        @keyframes st-pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+        .st-in{opacity:0;animation:st-rise .55s cubic-bezier(.16,.8,.3,1) forwards}
+        .st-cta{position:relative;overflow:hidden;animation:st-glow 3s ease-in-out infinite;transition:transform .2s}
+        .st-cta:hover{transform:translateY(-2px) scale(1.015)} .st-cta:active{transform:scale(.99)}
+        .st-cta::after{content:"";position:absolute;top:0;bottom:0;width:38%;left:0;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);animation:st-shine 3.4s ease-in-out infinite;pointer-events:none}
+        .st-opt{transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,border-color .18s}
+        .st-opt:hover{transform:translateY(-2px);background:rgba(0,255,133,.08)!important;border-color:rgba(0,255,133,.4)!important}
+        .st-opt:active{transform:scale(.985)}
+        .st-inp{width:100%;padding:15px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);border-radius:14px;color:#fff;font-size:15px;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+        .st-inp:focus{border-color:rgba(0,255,133,.5);box-shadow:0 0 0 3px rgba(0,255,133,.1)}
+        .st-pop{animation:st-pop .6s cubic-bezier(.3,1.4,.5,1) both}
+        @media(prefers-reduced-motion:reduce){.st-in,.st-cta,.st-cta::after,.st-pop{animation:none;opacity:1}}
+      `}</style>
+      <Constellation />
+
+      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 420 }}>
+
+        {/* ── WELCOME ── */}
+        {screen === "welcome" && (
+          <div style={{ textAlign: "center" }}>
+            <div className="st-in" style={{ animationDelay: ".05s" }}>
+              <div style={{ width: 74, height: 74, borderRadius: 21, background: "linear-gradient(135deg,#00FF85,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 0 40px rgba(0,255,133,.35)" }}>
+                <svg width="34" height="34" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7L9 10L13 4" stroke="#050705" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+            </div>
+            <div className="st-in" style={{ animationDelay: ".15s", display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(0,255,133,.1)", border: "1px solid rgba(0,255,133,.28)", borderRadius: 20, padding: "5px 13px", marginBottom: 18 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00FF85", animation: "st-pulse 1.6s infinite" }} />
+              <span style={{ color: "#00FF85", fontSize: 11, fontWeight: 800, letterSpacing: ".1em" }}>LIVE WEDNESDAYS · 8AM CST</span>
+            </div>
+            <h1 className="st-in" style={{ animationDelay: ".25s", fontSize: "clamp(30px,8.5vw,42px)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-.03em", margin: "0 0 12px" }}>
+              Welcome to<br /><span style={{ color: "#00FF85" }}>The Greenprint</span>
+            </h1>
+            <p className="st-in" style={{ animationDelay: ".35s", color: "rgba(255,255,255,.55)", fontSize: 15, lineHeight: 1.65, margin: "0 0 28px" }}>
+              Glad you made it 🤝 Answer 3 quick questions and I&apos;ll point you exactly where to start.
+            </p>
+            <button onClick={() => setScreen("q")} className="st-cta"
+              style={{ display: "block", width: "100%", padding: "18px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 17, border: "none", cursor: "pointer", marginBottom: 12 }}>
+              Start Here →
+            </button>
+            <p className="st-in" style={{ animationDelay: ".5s", color: "rgba(0,255,133,.5)", fontSize: 12, fontWeight: 700, margin: 0 }}>
+              Takes 30 seconds
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search name or email..."
-              style={s.searchInput}
-            />
-            <button onClick={exportCSV} style={s.csvBtn}>Export CSV</button>
-          </div>
-        </div>
+        )}
 
-        {filtered.length === 0 ? (
-          <p style={{ color: "rgba(255,255,255,0.3)", textAlign: "center", padding: 40 }}>
-            {loading ? "Loading..." : "No leads yet."}
-          </p>
-        ) : (
-          <table style={s.table}>
-            <thead>
-              <tr>
-                <th style={s.th}>Name</th>
-                <th style={s.th}>Email</th>
-                <th style={s.th}>First Seen</th>
-                <th style={s.th}>Last Seen</th>
-                <th style={s.th}>Joins</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((l, i) => (
-                <tr key={i}>
-                  <td style={s.td}>{l.name || "—"}</td>
-                  <td style={s.td}>{l.email || "—"}</td>
-                  <td style={s.td}>{l.firstSeen ? new Date(l.firstSeen).toLocaleString() : "—"}</td>
-                  <td style={s.td}>{l.lastSeen ? new Date(l.lastSeen).toLocaleString() : "—"}</td>
-                  <td style={s.td}>{l.joinCount ?? 1}</td>
-                </tr>
+        {/* ── QUESTIONS ── */}
+        {screen === "q" && (
+          <div key={qi} className="st-in" style={{ animationDelay: "0s" }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 26 }}>
+              {QUESTIONS.map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 3, borderRadius: 3, background: i <= qi ? "#00FF85" : "rgba(255,255,255,.12)", boxShadow: i <= qi ? "0 0 8px rgba(0,255,133,.6)" : "none", transition: "all .4s" }} />
               ))}
-            </tbody>
-          </table>
+            </div>
+            <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>
+              Question {qi + 1} of {QUESTIONS.length}
+            </p>
+            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>{QUESTIONS[qi].q}</h2>
+            <p style={{ color: "rgba(255,255,255,.4)", fontSize: 13.5, margin: "0 0 24px" }}>{QUESTIONS[qi].sub}</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {QUESTIONS[qi].options.map(o => (
+                <button key={o.v} onClick={() => pick(QUESTIONS[qi].key, o.v)} className="st-opt"
+                  style={{ ...card, ...(answers[QUESTIONS[qi].key] === o.v ? { background: "rgba(0,255,133,.1)", borderColor: "rgba(0,255,133,.45)" } : {}) }}>
+                  <span style={{ fontSize: 20 }}>{o.emoji}</span>
+                  <span style={{ flex: 1 }}>{o.label}</span>
+                  <span style={{ color: "rgba(255,255,255,.25)" }}>→</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={back} style={{ marginTop: 22, background: "transparent", border: "none", color: "rgba(255,255,255,.35)", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>← Back</button>
+          </div>
+        )}
+
+        {/* ── NAME + EMAIL ── */}
+        {screen === "capture" && (
+          <div className="st-in">
+            <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>Last step</p>
+            <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>How do I reach you?</h2>
+            <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, lineHeight: 1.6, margin: "0 0 24px" }}>
+              {answers.budget === "yes"
+                ? "I reach out personally to everyone who's ready — drop your number and I'll get you set up myself."
+                : "So I know who you are, and I can text you when we go live."}
+            </p>
+            <input className="st-inp" value={name} onChange={e => { setName(e.target.value); setErr(""); }} placeholder="Your first name" style={{ marginBottom: 11 }} />
+            <input className="st-inp" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} type="email" placeholder="Your email" style={{ marginBottom: 11 }} />
+            <input className="st-inp" value={phone} onChange={e => { setPhone(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()} type="tel"
+              placeholder={answers.budget === "yes" ? "Phone number" : "Phone number (optional)"} />
+            {err && <p style={{ color: "#ff5566", fontSize: 13, margin: "12px 0 0" }}>{err}</p>}
+            <button onClick={submit} disabled={saving} className="st-cta"
+              style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: saving ? "rgba(255,255,255,.1)" : "linear-gradient(135deg,#00FF85,#00c864)", color: saving ? "rgba(255,255,255,.4)" : "#000", fontWeight: 900, fontSize: 16.5, border: "none", cursor: saving ? "wait" : "pointer", marginTop: 18 }}>
+              {saving ? "One sec…" : "Show Me →"}
+            </button>
+            <button onClick={back} style={{ marginTop: 18, background: "transparent", border: "none", color: "rgba(255,255,255,.35)", fontSize: 13, cursor: "pointer", fontWeight: 600, width: "100%" }}>← Back</button>
+          </div>
+        )}
+
+        {/* ── RESULT ── */}
+        {screen === "result" && (
+          <div className="st-in">
+            <div className="st-pop" style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#00FF85,#00c864)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 0 36px rgba(0,255,133,.5)" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            </div>
+
+            {ready ? (
+              <>
+                <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
+                  Perfect{firstName ? `, ${firstName}` : ""} — I&apos;ll reach out personally.
+                </h2>
+                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 22px" }}>
+                  Keep an eye on your phone — I&apos;ll hit you directly and walk you through getting set up.
+                  <br /><br />
+                  <span style={{ color: "rgba(255,255,255,.75)", fontWeight: 600 }}>While you wait, jump in the chat so you&apos;re in the room already.</span>
+                </p>
+                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer" className="st-cta"
+                  style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
+                  💬 Join the Chat Now
+                </a>
+                <Link href="/onboard"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
+                  Get a head start — set up my account →
+                </Link>
+                <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
+                  Or pick a time to talk →
+                </a>
+              </>
+            ) : (
+              <>
+                <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, textAlign: "center", margin: "0 0 10px" }}>
+                  {answers.ideas === "looking" ? `All good${firstName ? `, ${firstName}` : ""} — look around.` : `Say less${firstName ? `, ${firstName}` : ""}. You&apos;re in.`}
+                </h2>
+                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 14, lineHeight: 1.65, textAlign: "center", margin: "0 0 24px" }}>
+                  {answers.ideas === "looking"
+                    ? "No pressure at all. Watch a live session, sit in the chat, and see if it's for you. I'll be here."
+                    : "You don't need to pay me a dime. Open your trading account through The Greenprint and my trade breakdowns come to you free in the chat — setup takes about 5 minutes."}
+                </p>
+                <Link href="/onboard" className="st-cta"
+                  style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: "linear-gradient(135deg,#00FF85,#00c864)", color: "#000", fontWeight: 900, fontSize: 16.5, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
+                  Set Me Up Free →
+                </Link>
+                <a href={NEW_TRADERS_URL} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(0,255,133,.07)", border: "1px solid rgba(0,255,133,.28)", color: "#00FF85", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none", marginBottom: 10 }}>
+                  💬 Join the 2026 New Traders chat
+                </a>
+                <Link href="/stream"
+                  style={{ display: "block", width: "100%", padding: "15px 0", borderRadius: 15, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.13)", color: "#fff", fontWeight: 800, fontSize: 14, textAlign: "center", textDecoration: "none" }}>
+                  ▶ Watch a live session
+                </Link>
+              </>
+            )}
+
+            <p style={{ color: "rgba(255,255,255,.22)", fontSize: 10.5, lineHeight: 1.6, marginTop: 26, textAlign: "center" }}>
+              Educational content only. Not financial advice. Trading involves risk of loss.
+            </p>
+          </div>
         )}
       </div>
     </div>
