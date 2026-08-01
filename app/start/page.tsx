@@ -165,6 +165,14 @@ export default function StartPage() {
         }),
       });
       localStorage.setItem("gp_viewer", JSON.stringify({ name: name.trim(), email: email.trim() }));
+      // ping Jay's phone instantly — speed to lead is everything
+      fetch("/api/lead-alert", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(), email: email.trim(), phone: phone.trim(),
+          experience: answers.experience, why: answers.why, budget: answers.budget, wantsIdeas: answers.ideas,
+        }),
+      }).catch(() => {});
     } catch {}
     setSaving(false);
     setScreen("result");
