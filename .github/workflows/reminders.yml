@@ -1,0 +1,11 @@
+name: greenprint-reminders
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping reminders endpoint
+        run: curl -s -m 30 "https://thegreenprint.trade/api/reminders?key=gpsched" || true
