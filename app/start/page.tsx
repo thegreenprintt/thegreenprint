@@ -141,8 +141,7 @@ export default function StartPage() {
     if (!name.trim()) { setErr("What should I call you?"); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setErr("Enter a valid email so I can reach you."); return; }
     const digits = phone.replace(/\D/g, "");
-    if (answers.budget === "yes" && digits.length < 10) { setErr("Drop your number so I can reach out personally."); return; }
-    if (digits.length > 0 && digits.length < 10) { setErr("That number looks short — check it?"); return; }
+    if (digits.length < 10) { setErr("Drop your number so I can reach out personally."); return; }
     setErr(""); setSaving(true);
     const ready = answers.budget === "yes";
     try {
@@ -278,14 +277,12 @@ export default function StartPage() {
             <p style={{ color: "rgba(0,255,133,.6)", fontSize: 11, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", margin: "0 0 10px" }}>Last step</p>
             <h2 style={{ fontSize: 25, fontWeight: 900, lineHeight: 1.2, letterSpacing: "-.02em", margin: "0 0 8px" }}>How do I reach you?</h2>
             <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, lineHeight: 1.6, margin: "0 0 24px" }}>
-              {answers.budget === "yes"
-                ? "I reach out personally to everyone who's ready — drop your number and I'll get you set up myself."
-                : "So I know who you are, and I can text you when we go live."}
+              I reach out to everyone who fills this out — drop your info and I&apos;ll make sure you get set up right.
             </p>
             <input className="st-inp" value={name} onChange={e => { setName(e.target.value); setErr(""); }} placeholder="Your first name" style={{ marginBottom: 11 }} />
             <input className="st-inp" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} type="email" placeholder="Your email" style={{ marginBottom: 11 }} />
             <input className="st-inp" value={phone} onChange={e => { setPhone(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()} type="tel"
-              placeholder={answers.budget === "yes" ? "Phone number" : "Phone number (optional)"} />
+              placeholder="Phone number" />
             {err && <p style={{ color: "#ff5566", fontSize: 13, margin: "12px 0 0" }}>{err}</p>}
             <button onClick={submit} disabled={saving} className="st-cta"
               style={{ display: "block", width: "100%", padding: "17px 0", borderRadius: 16, background: saving ? "rgba(255,255,255,.1)" : "linear-gradient(135deg,#00FF85,#00c864)", color: saving ? "rgba(255,255,255,.4)" : "#000", fontWeight: 900, fontSize: 16.5, border: "none", cursor: saving ? "wait" : "pointer", marginTop: 18 }}>
