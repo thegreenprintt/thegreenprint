@@ -160,9 +160,9 @@ module.exports = async function handler(req, res) {
       if (q.force !== undefined) mins = Number(q.force);
 
       let msg = null;
-      if (mins >= 55 && mins < 64) {
+      if (mins >= 55 && mins < 60) {
         msg = "⏰ <b>1 HOUR OUT</b>\n<b>" + esc(x.title) + "</b> with <i>" + esc(x.host) + "</i>\n🕒 " + zones(x.t) + "\n\nGet ready — live on 1house.tv";
-      } else if (mins >= -4 && mins < 5) {
+      } else if (mins >= 0 && mins < 5) {
         msg = "🔴 <b>LIVE NOW</b>\n<b>" + esc(x.title) + "</b> with <i>" + esc(x.host) + "</i> is streaming!\n\nTap in — live on 1house.tv";
       }
       if (!msg) continue;
