@@ -61,7 +61,7 @@ const SCHED = {
     ["5:30 PM","Finance","From Side Hustle to Real Business","Jamiu Oladimeji"],
     ["6:00 PM","Education","Carl Wesley Live","Carl Wesley"],
     ["7:00 PM","Cryptocurrency","Stephanie Jeudy Live","Steph Rozay"],
-    ["10:00 PM","Finance","Naomi Brown Live","Naomi Brown"],
+    ["10:00 PM","Daytrading","Naomi Brown Live","Naomi Brown"],
   ],
   Mon: [
     ["9:00 AM","Business Mastery","The Heist","Koliah Licon & Joshua Stewart"],
@@ -75,7 +75,7 @@ const SCHED = {
     ["9:00 PM","Daytrading","Dante Robinson","Dante Robinson"],
     ["9:00 PM","Daytrading","Leo Diaz Live","Leo Diaz"],
     ["10:00 PM","Daytrading","Edwins Vargas","Edwins Vargas"],
-    ["10:00 PM","Finance","Naomi Brown Live","Naomi Brown"],
+    ["10:00 PM","Daytrading","Naomi Brown Live","Naomi Brown"],
   ],
   Tue: [
     ["7:00 AM","Daytrading","GOLDMINED LIVE","Khai Lashley"],
@@ -108,7 +108,7 @@ const SCHED = {
     ["8:00 PM","Cryptocurrency","Corey Williams Live","Corey Williams"],
     ["8:30 PM","Credit","Nainoa Shin","Nainoa Shin"],
     ["9:00 PM","Daytrading","Leo Diaz Live","Leo Diaz"],
-    ["10:00 PM","Finance","Naomi Brown Live","Naomi Brown"],
+    ["10:00 PM","Daytrading","Naomi Brown Live","Naomi Brown"],
     ["10:00 PM","Daytrading","Edwins Vargas","Edwins Vargas"],
     ["11:00 PM","Daytrading","Get the Bag","Richard Hall aka Pops",false,true],
     ["11:00 PM","Sales & Marketing","Marquis Jenkins","Marquis Jenkins"],
