@@ -168,13 +168,13 @@ module.exports = async function handler(req, res) {
       const closeHour = isExec ? "Biggest call of the week — live on 1house.tv" : "Don't miss this one — live on 1house.tv";
 
       let msg = null;
-      if (mins >= 55 && mins < 60) {
+      if (mins >= 57.5 && mins < 62.5) {
         if (x.e) {
           msg = banner + "⏰ <b>1 HOUR OUT</b>\n" + nameLine + "\n🕒 " + zones(x.t) + "\n\n" + closeHour;
         } else {
           msg = "⏰ <b>1 HOUR OUT</b>\n" + nameLine + "\n🕒 " + zones(x.t) + "\n\nGet ready — live on 1house.tv";
         }
-      } else if (mins >= 0 && mins < 5) {
+      } else if (mins >= -2.5 && mins < 2.5) {
         if (x.e) {
           msg = banner + "🔴 <b>LIVE NOW</b>\n" + nameLine + " is streaming!\n\nTap in now — live on 1house.tv";
         } else {
