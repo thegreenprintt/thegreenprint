@@ -16,6 +16,10 @@ const GP_REACTIONS = [
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
+// true  = stream video comes from your 1House SafeHouse room (free, no LiveKit)
+// false = stream video comes from your own /go-live studio (LiveKit)
+const USE_SAFEHOUSE = true;
+
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const JOIN_URL = "https://subscribe.1houseglobal.com/jay";
 const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`,{cache:"no-store"}); return await r.json(); } catch { return null; } };
@@ -152,6 +156,26 @@ export default function StreamPage() {
   const [chatOpen, setChatOpen] = useState(true);
   const [dur, setDur] = useState(0);
   // smoothness/reliability helpers
+  // ── SafeHouse mode: video comes from a 1House SafeHouse room instead of LiveKit.
+  //    Everything else on this page (join gate, lead capture, chat, reactions) is unchanged.
+  //    Flip USE_SAFEHOUSE to false to go back to the LiveKit studio.
+  const [shUrl, setShUrl] = useState("");
+  const [shDraft, setShDraft] = useState("");
+  const [isHostView, setIsHostView] = useState(false);
+  useEffect(() => {
+    try { setIsHostView(localStorage.getItem("gp_host") === "true"); } catch {}
+    const load = () => get("safehouse").then(d => { if (d && typeof d.url === "string") { setShUrl(d.url); setShDraft(d.url); } });
+    load();
+    const id = setInterval(load, 20000);
+    return () => clearInterval(id);
+  }, []);
+  const saveSafehouse = async () => {
+    const u = shDraft.trim();
+    await put("safehouse", { url: u, ts: Date.now() });
+    setShUrl(u);
+  };
+  const setLiveFlag = async (on: boolean) => { await put("livestatus", { live: on, ts: Date.now() }); setIsLive(on); };
+
   const [dropped, setDropped] = useState(false);
   const [fillMode, setFillMode] = useState(false);
   const audioElsRef = useRef<HTMLMediaElement[]>([]);
@@ -314,6 +338,36 @@ export default function StreamPage() {
     if (!/^\S+@\S+\.\S+$/.test(joinEmail)) { alert("Please enter a valid email address"); return; }
     setName(joinName);
     setConnecting(true); setStatusText("Connecting...");
+
+    // ─── LEAD CAPTURE (runs the same in both modes) ───────────────
+    const captureLead = async () => {
+      try {
+        const cleanEmail = joinEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
+        const leadRef = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + cleanEmail + '.json';
+        const existing = await fetch(leadRef).then(r=>r.json()).catch(()=>null);
+        await fetch(leadRef, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: joinName,
+            email: joinEmail,
+            src: existing?.src || 'stream',
+            firstSeen: existing?.firstSeen || new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            joinCount: (existing?.joinCount || 0) + 1,
+          }),
+        });
+        localStorage.setItem('gp_viewer', JSON.stringify({ name: joinName, email: joinEmail }));
+      } catch {}
+    };
+
+    if (USE_SAFEHOUSE) {
+      await captureLead();
+      await push("live/presence", { name: joinName, ts: Date.now() });
+      setJoined(true); setConnecting(false); setStatusText("Live");
+      setHasVideo(true);
+      return;
+    }
+
     try {
       const tokenRes = await fetch(`/api/token?isHost=0&name=${encodeURIComponent(joinName)}`, { cache: "no-store" });
       const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
@@ -448,6 +502,23 @@ export default function StreamPage() {
 
       <video ref={camRef} autoPlay playsInline muted style={{position:"fixed",width:0,height:0,opacity:0,pointerEvents:"none"}} />
 
+      {/* ── HOST ONLY: set this week's SafeHouse room + flip the live switch ── */}
+      {USE_SAFEHOUSE && isHostView && (
+        <div style={{position:"fixed",top:8,left:8,zIndex:99999,width:250,background:"rgba(8,12,9,.97)",border:"1px solid rgba(0,255,135,.35)",borderRadius:12,padding:"10px 11px",backdropFilter:"blur(10px)",boxShadow:"0 8px 26px rgba(0,0,0,.6)"}}>
+          <div style={{fontSize:9.5,fontWeight:900,letterSpacing:"1.4px",color:"#00ff87",marginBottom:7}}>HOST · SAFEHOUSE</div>
+          <input value={shDraft} onChange={e=>setShDraft(e.target.value)} placeholder="Paste SafeHouse room link"
+            style={{width:"100%",padding:"7px 9px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.14)",borderRadius:8,color:"#fff",fontSize:11,outline:"none",boxSizing:"border-box",marginBottom:6}}/>
+          <div style={{display:"flex",gap:5}}>
+            <button onClick={saveSafehouse} style={{flex:1,background:shUrl===shDraft&&shUrl?"rgba(0,255,135,.18)":"rgba(255,255,255,.07)",border:"1px solid rgba(0,255,135,.3)",borderRadius:7,color:shUrl===shDraft&&shUrl?"#00ff87":"#fff",fontSize:10,fontWeight:800,padding:"6px 0",cursor:"pointer"}}>
+              {shUrl===shDraft&&shUrl?"✓ Saved":"Save room"}
+            </button>
+            <button onClick={()=>setLiveFlag(!isLive)} style={{flex:1,background:isLive?"rgba(255,45,85,.2)":"rgba(0,255,135,.15)",border:isLive?"1px solid rgba(255,45,85,.45)":"1px solid rgba(0,255,135,.4)",borderRadius:7,color:isLive?"#ff2d55":"#00ff87",fontSize:10,fontWeight:800,padding:"6px 0",cursor:"pointer"}}>
+              {isLive?"⏹ End":"▶ Go Live"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {!joined && <StreamCanvas />}
 
       {!joined ? (
@@ -528,7 +599,24 @@ export default function StreamPage() {
               {/* stage lighting */}
               <div aria-hidden style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:"70%",height:240,background:"radial-gradient(ellipse, rgba(0,255,135,.10) 0%, transparent 70%)",filter:"blur(30px)",pointerEvents:"none",animation:"stageGlow 5s ease-in-out infinite",zIndex:1}}/>
               <div aria-hidden style={{position:"absolute",inset:0,pointerEvents:"none",boxShadow:"inset 0 0 80px rgba(0,255,135,.05), inset 0 0 8px rgba(0,255,135,.06)",zIndex:1}}/>
-              <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:fillMode?"cover":"contain"}} />
+              {USE_SAFEHOUSE ? (
+                shUrl ? (
+                  <iframe
+                    src={shUrl}
+                    allow="camera; microphone; autoplay; fullscreen; display-capture; picture-in-picture"
+                    allowFullScreen
+                    style={{width:"100%",height:"100%",border:0,background:"#000"}}
+                    title="The Greenprint live session"
+                  />
+                ) : (
+                  <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,background:"#000",padding:20,textAlign:"center"}}>
+                    <div style={{fontSize:34}}>🎬</div>
+                    <p style={{color:"rgba(255,255,255,.45)",fontSize:13,margin:0}}>The session hasn&apos;t been set up yet — check back in a minute.</p>
+                  </div>
+                )
+              ) : (
+                <video ref={screenRef} autoPlay playsInline style={{width:"100%",height:"100%",objectFit:fillMode?"cover":"contain"}} />
+              )}
               {/* fit / fill + fullscreen — viewer controls, top-right of the player */}
               <div style={{position:"absolute",top:10,right:10,zIndex:22,display:"flex",gap:6}}>
                 <button onClick={(e)=>{e.stopPropagation();setFillMode(f=>!f);}} title={fillMode?"Show the whole screen":"Fill the screen (crops edges)"}
