@@ -18,7 +18,7 @@ const GP_REACTIONS = [
 
 // true  = stream video comes from your 1House SafeHouse room (free, no LiveKit)
 // false = stream video comes from your own /go-live studio (LiveKit)
-const USE_SAFEHOUSE = true;
+const USE_SAFEHOUSE = false;
 
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const JOIN_URL = "https://subscribe.1houseglobal.com/jay";
