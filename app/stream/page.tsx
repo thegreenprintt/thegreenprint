@@ -24,6 +24,7 @@ const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const JOIN_URL = "https://subscribe.1houseglobal.com/jay";
 const get = async (p: string) => { try { const r = await fetch(`${FB}/${p}.json`,{cache:"no-store"}); return await r.json(); } catch { return null; } };
 const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); } catch {} };
+const put = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); } catch {} };
 
 type CM = { name: string; msg: string; ts: number };
 type FE = { id: string; emoji: string; x: number };
