@@ -366,9 +366,9 @@ export default function MeetPage() {
     else { await fbPut("live/meeting/spotlight", p.identity); setSpotlightId(p.identity); setToast(`📣 Spotlighting ${cleanName(p.identity)} for everyone`); }
   };
   const toggleShareAll = async () => {
-    const s = { ...settings, shareAll: !(settings as any).shareAll };
+    const s = { ...settings, shareLocked: !(settings as any).shareLocked };
     setSettings(s); await fbPut("live/meeting/settings", s);
-    setToast((s as any).shareAll ? "🖥 Everyone can share their screen" : "🖥 Screen share is host & co-hosts only");
+    setToast((s as any).shareLocked ? "🖥 Screen share locked to host & co-hosts" : "🖥 Everyone can share their screen");
   };
   const muteAll = async () => { await fbPut("live/meeting/muteAll", Date.now()); setToast("Muted everyone"); };
   const admit = async (w: { key: string; name: string }) => { await fbPut(`live/meeting/admitted/${w.key}`, { name: w.name, ts: Date.now() }); setToast(`Let ${w.name} in`); };
@@ -381,7 +381,7 @@ export default function MeetPage() {
   const toggleShare = async () => {
     const r = roomRef.current; if (!r) return;
     const canMod = isHost || !!cohosts[keyOf(myIdRef.current)];
-    if (!sharing && !canMod && !(settings as any).shareAll) { setToast("Only the host can share screens right now"); return; }
+    if (!sharing && !canMod && (settings as any).shareLocked) { setToast("The host has screen sharing locked right now"); return; }
     try { await r.localParticipant.setScreenShareEnabled(!sharing, { audio: true }); setSharing(s => !s); setVersion(v => v + 1); } catch {}
   };
   const toggleHand = async () => {
@@ -570,8 +570,8 @@ export default function MeetPage() {
                 <button onClick={muteAll} title="Mute everyone except you"
                   style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,200,50,.4)", borderRadius: 9, color: "#ffc832", fontWeight: 700, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>🔇 All</button>
                 <button onClick={toggleShareAll} title="Allow or block screen sharing for participants"
-                  style={{ background: (settings as any).shareAll ? "rgba(0,255,135,.15)" : "rgba(255,255,255,.06)", border: "1px solid rgba(0,255,135,.3)", borderRadius: 9, color: (settings as any).shareAll ? "#00ff87" : "rgba(255,255,255,.7)", fontWeight: 700, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>
-                  🖥 {(settings as any).shareAll ? "All" : "Host"}
+                  style={{ background: (settings as any).shareLocked ? "rgba(255,200,50,.18)" : "rgba(0,255,135,.15)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 9, color: (settings as any).shareLocked ? "#ffc832" : "#00ff87", fontWeight: 700, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>
+                  🖥 {(settings as any).shareLocked ? "Host only" : "All"}
                 </button>
                 <button onClick={endForAll} style={{ background: "rgba(255,45,85,.15)", border: "1px solid rgba(255,45,85,.45)", borderRadius: 9, color: "#ff2d55", fontWeight: 800, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>End for all</button>
               </>)}
