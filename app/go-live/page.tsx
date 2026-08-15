@@ -338,6 +338,7 @@ export default function GoLive() {
   const auth = async () => {
     if (await sha256(pw)===HASH) {
       setAuthed(true); localStorage.setItem('gp_host','true');
+      try { localStorage.setItem('gp_hk', pw); } catch {}
       await put("livestatus",{live:false,ts:Date.now()});
       // Clear session data only — NEVER live/leads (the email list lives there)
       await del("live/chat"); await del("live/reactions"); await del("live/stage");
