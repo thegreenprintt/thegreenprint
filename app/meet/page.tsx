@@ -110,6 +110,8 @@ export default function MeetPage() {
   const [waitingList, setWaitingList] = useState<{ key: string; name: string }[]>([]);
   const [settings, setSettings] = useState<{ waiting?: boolean; locked?: boolean }>({});
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [hostPrompt, setHostPrompt] = useState(false);
+  const [hostPw, setHostPw] = useState("");
   // device selection (mic / camera source)
   const [devOpen, setDevOpen] = useState(false);
   const [mics, setMics] = useState<{ id: string; label: string }[]>([]);
@@ -489,6 +491,38 @@ export default function MeetPage() {
               <p style={{ color: "rgba(255,255,255,.22)", fontSize: 11, marginTop: 16, lineHeight: 1.6 }}>
                 Camera & mic turn on when you join — you can mute anytime.
               </p>
+
+              {/* Host sign-in: one tap, one time, per device */}
+              {hostKeyRef.current ? (
+                <p style={{ color: "rgba(0,255,133,.55)", fontSize: 11.5, fontWeight: 700, marginTop: 14, textAlign: "center" }}>
+                  ⭐ You&apos;ll join as host on this device
+                </p>
+              ) : hostPrompt ? (
+                <div style={{ marginTop: 16, padding: "12px 13px", borderRadius: 13, background: "rgba(0,255,133,.05)", border: "1px solid rgba(0,255,133,.25)" }}>
+                  <input type="password" value={hostPw} onChange={e => setHostPw(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== "Enter") return;
+                      const v = hostPw.trim(); if (!v) return;
+                      try { localStorage.setItem("gp_hk", v); } catch {}
+                      hostKeyRef.current = v; setHostPw(""); setHostPrompt(false); setErr("");
+                    }}
+                    placeholder="Host password"
+                    style={{ width: "100%", padding: "11px 13px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.13)", borderRadius: 10, color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                  <button onClick={() => {
+                    const v = hostPw.trim(); if (!v) return;
+                    try { localStorage.setItem("gp_hk", v); } catch {}
+                    hostKeyRef.current = v; setHostPw(""); setHostPrompt(false); setErr("");
+                  }}
+                    style={{ width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 10, border: "none", background: "#00FF85", color: "#000", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+                    Save — I&apos;m the host
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setHostPrompt(true)}
+                  style={{ width: "100%", marginTop: 14, background: "transparent", border: "none", color: "rgba(255,255,255,.3)", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                  Host sign-in
+                </button>
+              )}
             </div>
           </div>
         </div>
