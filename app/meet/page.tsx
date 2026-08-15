@@ -18,13 +18,14 @@ const EMOJIS = ["🔥", "❤️", "😂", "👏", "💯", "🚀"];
 const COLORS = ["#00ff87", "#6bcbff", "#ffd93d", "#c77dff", "#ff9f43", "#ff6b9d", "#48dbfb"];
 const nc = (n: string) => COLORS[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-const cleanName = (id: string) => id.replace(/^meet-/, "").replace(/-\d+$/, "");
+const cleanName = (id: string) => id.replace(/^(meet|mhost)-/, "").replace(/-\d+$/, "");
 const keyOf = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 50);
 
-function Tile({ participant, isLocal, version, speaking, big, isHost, hand, pinned, onPin, onKick, onMute }: {
+function Tile({ participant, isLocal, version, speaking, big, isHost, hand, pinned, isCo, spotted, onPin, onKick, onMute, onSpot, onCohost }: {
   participant: RemoteParticipant | LocalParticipant; isLocal: boolean; version: number;
   speaking: boolean; big?: boolean; isHost?: boolean; hand?: boolean; pinned?: boolean;
-  onPin?: () => void; onKick?: () => void; onMute?: () => void;
+  isCo?: boolean; spotted?: boolean;
+  onPin?: () => void; onKick?: () => void; onMute?: () => void; onSpot?: () => void; onCohost?: () => void;
 }) {
   const vidRef = useRef<HTMLVideoElement>(null);
   const [hasVideo, setHasVideo] = useState(false);
@@ -66,14 +67,18 @@ function Tile({ participant, isLocal, version, speaking, big, isHost, hand, pinn
       <div style={{ position: "absolute", left: 8, bottom: 8, display: "flex", alignItems: "center", gap: 6, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", borderRadius: 8, padding: "3px 9px" }}>
         {micMuted && !big && <span style={{ fontSize: 10 }}>🔇</span>}
         <span style={{ fontSize: 11.5, fontWeight: 700, color: "#fff", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {isLocal ? `${name} (you)` : name}{big ? " — sharing" : ""}
+          {isCo ? "⭐ " : ""}{isLocal ? `${name} (you)` : name}{big ? " — sharing" : ""}{spotted && !big ? " 📣" : ""}
         </span>
       </div>
-      {isHost && !isLocal && !big && (
+      {isHost && !big && (
         <div style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 5 }}>
-          {onMute && <button onClick={(e) => { e.stopPropagation(); onMute(); }} title="Mute this person"
+          {onSpot && <button onClick={(e) => { e.stopPropagation(); onSpot(); }} title={spotted ? "Remove spotlight" : "Spotlight for everyone"}
+            style={{ width: 24, height: 24, borderRadius: 7, border: "1px solid rgba(0,255,135,.5)", background: spotted ? "rgba(0,255,135,.35)" : "rgba(0,0,0,.6)", color: "#00ff87", fontSize: 11, cursor: "pointer", lineHeight: 1 }}>📣</button>}
+          {!isLocal && onCohost && <button onClick={(e) => { e.stopPropagation(); onCohost(); }} title={isCo ? "Remove co-host" : "Make co-host"}
+            style={{ width: 24, height: 24, borderRadius: 7, border: "1px solid rgba(255,200,50,.5)", background: isCo ? "rgba(255,200,50,.35)" : "rgba(0,0,0,.6)", color: "#ffc832", fontSize: 11, cursor: "pointer", lineHeight: 1 }}>⭐</button>}
+          {!isLocal && onMute && <button onClick={(e) => { e.stopPropagation(); onMute(); }} title="Mute this person"
             style={{ width: 24, height: 24, borderRadius: 7, border: "1px solid rgba(255,200,50,.5)", background: "rgba(0,0,0,.6)", color: "#ffc832", fontSize: 11, cursor: "pointer", lineHeight: 1 }}>🔇</button>}
-          {onKick && <button onClick={(e) => { e.stopPropagation(); onKick(); }} title="Remove from meeting"
+          {!isLocal && onKick && <button onClick={(e) => { e.stopPropagation(); onKick(); }} title="Remove from meeting"
             style={{ width: 24, height: 24, borderRadius: 7, border: "1px solid rgba(255,45,85,.5)", background: "rgba(0,0,0,.6)", color: "#ff2d55", fontSize: 12, fontWeight: 900, cursor: "pointer", lineHeight: 1 }}>✕</button>}
         </div>
       )}
@@ -135,9 +140,13 @@ export default function MeetPage() {
   const prevCount = useRef(0);
   const waitPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [cohosts, setCohosts] = useState<Record<string, any>>({});
+  const [spotlightId, setSpotlightId] = useState("");
+  const hostKeyRef = useRef("");
+
   useEffect(() => {
     try { const saved = JSON.parse(localStorage.getItem("gp_viewer") || "null"); if (saved?.name) setName(saved.name); } catch {}
-    try { if (localStorage.getItem("gp_host") === "true") setIsHost(true); } catch {}
+    try { hostKeyRef.current = localStorage.getItem("gp_hk") || ""; } catch {}
     const c = new URLSearchParams(window.location.search).get("code"); if (c) setCode(c);
   }, []);
 
@@ -191,9 +200,11 @@ export default function MeetPage() {
         muteSeen.current = muteReq;
         try { await roomRef.current?.localParticipant.setMicrophoneEnabled(false); setMicOn(false); setToast("🔇 The host muted you"); } catch {}
       }
-      // hands + settings
+      // hands + settings + moderation state
       setHands(M.hands || {});
       setSettings(M.settings || {});
+      setCohosts(M.cohosts || {});
+      setSpotlightId(typeof M.spotlight === "string" ? M.spotlight : "");
       // reactions
       if (M.reactions) {
         const now = Date.now();
@@ -256,6 +267,8 @@ export default function MeetPage() {
     });
     await room.connect(url, token);
     myIdRef.current = room.localParticipant.identity;
+    // host status comes from the SERVER-issued identity — not from this browser
+    setIsHost(room.localParticipant.identity.startsWith("mhost-"));
     joinTsRef.current = Date.now(); muteSeen.current = 0; prevCount.current = 0;
     try { await room.localParticipant.setMicrophoneEnabled(true); setMicOn(true); } catch { setMicOn(false); }
     try { await room.localParticipant.setCameraEnabled(true); setCamOn(true); } catch { setCamOn(false); }
@@ -264,20 +277,18 @@ export default function MeetPage() {
     fbPush("live/meeting/chat", { name: "💚", msg: `${name.trim()} joined the meeting`, ts: Date.now() });
   };
 
-  const fetchToken = () => fetch(`/api/token?mode=meeting&name=${encodeURIComponent(name.trim())}&code=${encodeURIComponent(code.trim())}`, { cache: "no-store" });
+  const fetchToken = () => fetch(`/api/token?mode=meeting&name=${encodeURIComponent(name.trim())}&code=${encodeURIComponent(code.trim())}${hostKeyRef.current ? `&hostkey=${encodeURIComponent(hostKeyRef.current)}` : ""}`, { cache: "no-store" });
 
   const join = async () => {
     if (!name.trim()) { setErr("Enter your name."); return; }
     if (!code.trim()) { setErr("Enter the meeting code."); return; }
     setErr(""); setConnecting(true);
     try {
-      // Host prep: self-admit and reset per-meeting signals so the room starts clean
-      if (isHost) {
-        const myKey = keyOf(name.trim());
+      // Host prep: reset per-meeting signals so the room starts clean
+      if (hostKeyRef.current) {
         await Promise.all([
-          fbPut(`live/meeting/admitted/${myKey}`, { name: name.trim(), ts: Date.now() }),
           fbDel("live/meeting/hands"), fbDel("live/meeting/mute"), fbDel("live/meeting/muteAll"),
-          fbDel("live/meeting/denied"),
+          fbDel("live/meeting/denied"), fbDel("live/meeting/spotlight"),
         ]);
       }
       const res = await fetchToken();
@@ -335,9 +346,24 @@ export default function MeetPage() {
   const kick = async (p: RemoteParticipant) => {
     await fbPut(`live/meeting/kick/${keyOf(p.identity)}`, { ts: Date.now() });
     await fbDel(`live/meeting/admitted/${keyOf(cleanName(p.identity))}`);
+    await fbDel(`live/meeting/cohosts/${keyOf(p.identity)}`);
     setToast(`Removed ${cleanName(p.identity)}`);
   };
   const muteOne = async (p: RemoteParticipant) => { await fbPut(`live/meeting/mute/${keyOf(p.identity)}`, { ts: Date.now() }); setToast(`Muted ${cleanName(p.identity)}`); };
+  const grantCohost = async (p: RemoteParticipant) => {
+    const k = keyOf(p.identity);
+    if (cohosts[k]) { await fbDel(`live/meeting/cohosts/${k}`); setToast(`${cleanName(p.identity)} is no longer co-host`); }
+    else { await fbPut(`live/meeting/cohosts/${k}`, { name: cleanName(p.identity), ts: Date.now() }); setToast(`⭐ ${cleanName(p.identity)} is now co-host`); }
+  };
+  const spotlight = async (p: RemoteParticipant | LocalParticipant) => {
+    if (spotlightId === p.identity) { await fbDel("live/meeting/spotlight"); setSpotlightId(""); setToast("Spotlight off"); }
+    else { await fbPut("live/meeting/spotlight", p.identity); setSpotlightId(p.identity); setToast(`📣 Spotlighting ${cleanName(p.identity)} for everyone`); }
+  };
+  const toggleShareAll = async () => {
+    const s = { ...settings, shareAll: !(settings as any).shareAll };
+    setSettings(s); await fbPut("live/meeting/settings", s);
+    setToast((s as any).shareAll ? "🖥 Everyone can share their screen" : "🖥 Screen share is host & co-hosts only");
+  };
   const muteAll = async () => { await fbPut("live/meeting/muteAll", Date.now()); setToast("Muted everyone"); };
   const admit = async (w: { key: string; name: string }) => { await fbPut(`live/meeting/admitted/${w.key}`, { name: w.name, ts: Date.now() }); setToast(`Let ${w.name} in`); };
   const deny = async (w: { key: string; name: string }) => { await fbPut(`live/meeting/denied/${w.key}`, Date.now()); };
@@ -348,7 +374,9 @@ export default function MeetPage() {
   const toggleCam = async () => { const r = roomRef.current; if (!r) return; try { await r.localParticipant.setCameraEnabled(!camOn); setCamOn(c => !c); setVersion(v => v + 1); } catch {} };
   const toggleShare = async () => {
     const r = roomRef.current; if (!r) return;
-    try { await r.localParticipant.setScreenShareEnabled(!sharing); setSharing(s => !s); setVersion(v => v + 1); } catch {}
+    const canMod = isHost || !!cohosts[keyOf(myIdRef.current)];
+    if (!sharing && !canMod && !(settings as any).shareAll) { setToast("Only the host can share screens right now"); return; }
+    try { await r.localParticipant.setScreenShareEnabled(!sharing, { audio: true }); setSharing(s => !s); setVersion(v => v + 1); } catch {}
   };
   const toggleHand = async () => {
     const k = keyOf(myIdRef.current);
@@ -394,9 +422,12 @@ export default function MeetPage() {
 
   const all: (RemoteParticipant | LocalParticipant)[] = roomRef.current ? [roomRef.current.localParticipant, ...remotes] : [];
   const sharer = all.find(p => { const pub = p.getTrackPublication(Track.Source.ScreenShare); return pub && pub.track && !(pub as any).isMuted; });
+  const spotP = spotlightId ? all.find(p => p.identity === spotlightId) : undefined;
   const pinnedP = pinnedId ? all.find(p => p.identity === pinnedId) : undefined;
   const activeP = speakerView && speakingIds.length ? all.find(p => speakingIds.includes(p.identity)) : undefined;
-  const stageP = sharer || pinnedP || activeP;
+  const stageP = sharer || spotP || pinnedP || activeP;
+  const isCohost = !!cohosts[keyOf(myIdRef.current)];
+  const canMod = isHost || isCohost;
   const count = remotes.length + (phase === "in" ? 1 : 0);
   const cols = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
   const handFor = (p: RemoteParticipant | LocalParticipant) => !!hands[keyOf(p.identity)];
@@ -500,6 +531,10 @@ export default function MeetPage() {
                 </button>
                 <button onClick={muteAll} title="Mute everyone except you"
                   style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,200,50,.4)", borderRadius: 9, color: "#ffc832", fontWeight: 700, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>🔇 All</button>
+                <button onClick={toggleShareAll} title="Allow or block screen sharing for participants"
+                  style={{ background: (settings as any).shareAll ? "rgba(0,255,135,.15)" : "rgba(255,255,255,.06)", border: "1px solid rgba(0,255,135,.3)", borderRadius: 9, color: (settings as any).shareAll ? "#00ff87" : "rgba(255,255,255,.7)", fontWeight: 700, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>
+                  🖥 {(settings as any).shareAll ? "All" : "Host"}
+                </button>
                 <button onClick={endForAll} style={{ background: "rgba(255,45,85,.15)", border: "1px solid rgba(255,45,85,.45)", borderRadius: 9, color: "#ff2d55", fontWeight: 800, fontSize: 11, padding: "7px 11px", cursor: "pointer" }}>End for all</button>
               </>)}
             </div>
@@ -532,7 +567,10 @@ export default function MeetPage() {
                     {all.map(p => (
                       <div key={p.identity} style={{ width: 150, flexShrink: 0 }}>
                         <Tile participant={p} isLocal={p === roomRef.current?.localParticipant} version={version}
-                          speaking={speakingIds.includes(p.identity)} isHost={isHost} hand={handFor(p)}
+                          speaking={speakingIds.includes(p.identity)} isHost={canMod} hand={handFor(p)}
+                          isCo={!!cohosts[keyOf(p.identity)]} spotted={p.identity === spotlightId}
+                          onSpot={() => spotlight(p)}
+                          onCohost={isHost && p !== roomRef.current?.localParticipant ? () => grantCohost(p as RemoteParticipant) : undefined}
                           pinned={p.identity === pinnedId}
                           onPin={() => setPinnedId(id => id === p.identity ? "" : p.identity)}
                           onKick={p !== roomRef.current?.localParticipant ? () => kick(p as RemoteParticipant) : undefined}
@@ -545,7 +583,10 @@ export default function MeetPage() {
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 11, maxWidth: 1150, margin: "0 auto" }}>
                   {all.map(p => (
                     <Tile key={p.identity} participant={p} isLocal={p === roomRef.current?.localParticipant} version={version}
-                      speaking={speakingIds.includes(p.identity)} isHost={isHost} hand={handFor(p)}
+                      speaking={speakingIds.includes(p.identity)} isHost={canMod} hand={handFor(p)}
+                          isCo={!!cohosts[keyOf(p.identity)]} spotted={p.identity === spotlightId}
+                          onSpot={() => spotlight(p)}
+                          onCohost={isHost && p !== roomRef.current?.localParticipant ? () => grantCohost(p as RemoteParticipant) : undefined}
                       pinned={p.identity === pinnedId}
                       onPin={() => setPinnedId(id => id === p.identity ? "" : p.identity)}
                       onKick={p !== roomRef.current?.localParticipant ? () => kick(p as RemoteParticipant) : undefined}
