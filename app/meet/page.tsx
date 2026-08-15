@@ -146,8 +146,12 @@ export default function MeetPage() {
 
   useEffect(() => {
     try { const saved = JSON.parse(localStorage.getItem("gp_viewer") || "null"); if (saved?.name) setName(saved.name); } catch {}
-    try { hostKeyRef.current = localStorage.getItem("gp_hk") || ""; } catch {}
-    const c = new URLSearchParams(window.location.search).get("code"); if (c) setCode(c);
+    const params = new URLSearchParams(window.location.search);
+    // Host yourself on this device: open /meet?host=YOUR_BROADCAST_PASSWORD once.
+    const hp = params.get("host");
+    if (hp) { try { localStorage.setItem("gp_hk", hp); } catch {} }
+    try { hostKeyRef.current = hp || localStorage.getItem("gp_hk") || ""; } catch { hostKeyRef.current = hp || ""; }
+    const c = params.get("code"); if (c) setCode(c);
   }, []);
 
   useEffect(() => () => {
