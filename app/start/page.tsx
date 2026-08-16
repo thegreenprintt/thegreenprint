@@ -42,6 +42,19 @@ function Constellation() {
   return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
 }
 
+// Always send the CRM a number with a country code. US numbers typed
+// without one get "+1" prepended.
+function toE164(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  if (s.startsWith("+")) return "+" + s.slice(1).replace(/\D/g, "");
+  const digits = s.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10) return "+1" + digits;
+  if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
+  return "+" + digits;
+}
+
 const WHY_TEXT: Record<string, string> = {
   income: "extra income", freedom: "financial freedom", skill: "a real skill", fulltime: "doing this full-time",
 };
@@ -164,12 +177,42 @@ export default function StartPage() {
         }),
       });
       localStorage.setItem("gp_viewer", JSON.stringify({ name: name.trim(), email: email.trim() }));
+      // ── CRM webhook (Viato) — fire-and-forget, never blocks the submission ──
+      try {
+        const digitsOnly = phone.replace(/\D/g, "");
+        const e164 =
+          phone.trim().startsWith("+") ? phone.trim()
+          : digitsOnly.length === 10 ? `+1${digitsOnly}`
+          : digitsOnly.length === 11 && digitsOnly.startsWith("1") ? `+${digitsOnly}`
+          : `+${digitsOnly}`;
+        fetch("https://viato.ai/api/webhooks/automation/zNoKqErts4Mn-BCl1uRBgtm3KUP4uOfu", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: name.trim(),
+            email: email.trim().toLowerCase(),
+            phone: e164,
+          }),
+        }).catch(() => {});
+      } catch {}
+
       // ping Jay's phone instantly — speed to lead is everything
       fetch("/api/lead-alert", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(), email: email.trim(), phone: phone.trim(),
           experience: answers.experience, why: answers.why, budget: answers.budget, wantsIdeas: answers.ideas,
+        }),
+      }).catch(() => {});
+
+      // ── CRM webhook (Viato) — additive, never blocks the form ──
+      fetch("/api/crm-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: name.trim(),
+          email: email.trim(),
+          phone: toE164(phone),
         }),
       }).catch(() => {});
     } catch {}
