@@ -42,6 +42,8 @@ function Constellation() {
   return <canvas ref={ref} aria-hidden style={{ position: "fixed", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: .45, zIndex: 0 }} />;
 }
 
+const CRM_WEBHOOK_URL = "https://viato.ai/api/webhooks/automation/zNoKqErts4Mn-BCl1uRBgtm3KUP4uOfu";
+
 // Always send the CRM a number with a country code. US numbers typed
 // without one get "+1" prepended.
 function toE164(raw: string): string {
@@ -206,15 +208,25 @@ export default function StartPage() {
       }).catch(() => {});
 
       // ── CRM webhook (Viato) — additive, never blocks the form ──
-      fetch("/api/crm-webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: name.trim(),
-          email: email.trim(),
-          phone: toE164(phone),
-        }),
-      }).catch(() => {});
+      const crmPayload = {
+        firstName: name.trim(),
+        email: email.trim(),
+        phone: toE164(phone),
+      };
+      try {
+        await fetch(CRM_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(crmPayload),
+        });
+      } catch {
+        // Browser blocked it (CORS) — send it server-side instead so the lead still lands.
+        fetch("/api/crm-webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(crmPayload),
+        }).catch(() => {});
+      }
     } catch {}
     setSaving(false);
     setScreen("result");
