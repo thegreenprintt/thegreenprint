@@ -206,7 +206,7 @@ function HeroCanvas() {
     }
 
     const lite = w < 640;
-    const P = Math.max(14, Math.min(lite ? 26 : 70, Math.floor(w / 18)));
+    const P = Math.max(14, Math.min(lite ? 20 : 45, Math.floor(w / 22)));
     const pts = Array.from({ length: P }, () => ({
       x: Math.random() * w, y: Math.random() * h,
       vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
@@ -263,7 +263,7 @@ function HeroCanvas() {
       off -= 0.4;
       if (off <= -CW) { off += CW; candles.shift(); candles.push(newCandle()); }
       ctx.save();
-      ctx.shadowBlur = lite ? 0 : 12;
+      ctx.shadowBlur = 0;
       candles.forEach((cd, i) => {
         const x = i * CW + off;
         const up = cd.c <= cd.o;
@@ -277,11 +277,23 @@ function HeroCanvas() {
         ctx.fillRect(x + 5, top, CW - 10, hgt);
       });
       ctx.restore();
-      raf = requestAnimationFrame(draw);
+      if (running) raf = requestAnimationFrame(draw);
     };
-    raf = requestAnimationFrame(draw);
+    let running = false, onScreen = true;
+    const tick = () => {
+      const shouldRun = onScreen && !document.hidden;
+      if (shouldRun && !running) { running = true; raf = requestAnimationFrame(draw); }
+      else if (!shouldRun && running) { running = false; cancelAnimationFrame(raf); }
+    };
+    const io = new IntersectionObserver((es) => { onScreen = es[0].isIntersecting; tick(); }, { threshold: 0 });
+    io.observe(canvas);
+    document.addEventListener("visibilitychange", tick);
+    tick();
     return () => {
+      running = false;
       cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", tick);
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseout", onLeave);
@@ -306,26 +318,22 @@ function FadeIn({
   useEffect(() => {
     const el = ref.current; if (!el) return;
     if (window.innerWidth < 641) return; // mobile: instant, no scrub
-    let raf = 0;
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      const vh = window.innerHeight;
-      // progress 0→1 as the element travels up through the lower 45% of the viewport (staggered per element)
-      const p = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.45) - delay * 0.9));
-      const e = 1 - Math.pow(1 - p, 2); // ease-out
-      el.style.opacity = String(e);
-      el.style.transform = `translateY(${((1 - e) * (y + 22)).toFixed(1)}px) scale(${(0.97 + 0.03 * e).toFixed(4)})`;
-      el.style.filter = e > 0.98 ? "none" : `blur(${((1 - e) * 7).toFixed(1)}px)`;
-    };
-    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    update();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      cancelAnimationFrame(raf);
-    };
+    // Fade + rise ONCE when the element enters view, via a GPU-composited CSS
+    // transition. No per-frame scroll math, no layout thrash, no blur churn.
+    el.style.opacity = "0";
+    el.style.transform = `translateY(${y + 22}px) scale(0.97)`;
+    el.style.transition = `opacity .7s cubic-bezier(.16,.8,.3,1) ${(delay * 0.12).toFixed(2)}s, transform .7s cubic-bezier(.16,.8,.3,1) ${(delay * 0.12).toFixed(2)}s`;
+    el.style.willChange = "opacity, transform";
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        el.style.opacity = "1";
+        el.style.transform = "translateY(0) scale(1)";
+        setTimeout(() => { el.style.willChange = "auto"; }, 800);
+        io.disconnect();
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    io.observe(el);
+    return () => io.disconnect();
   }, [y, delay]);
   return (
     <div ref={ref} className={className} data-fadein="">
