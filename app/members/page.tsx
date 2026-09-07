@@ -48,7 +48,7 @@ const APPS = [
   { name: "Boards", desc: "Task management", ios: "https://apps.apple.com/us/app/boards-com/id1507677341", android: "" },
 ];
 
-// LivvFX account setup (replaces the old GenesisFX flow)
+// LivvFX account setup
 const BROKER_STEPS = [
   { n: 1, title: "Create Your LivvFX Account", desc: "Sign up through the link below so you're placed under The Greenprint.", href: BROKER_URL, linkLabel: "Open LivvFX Signup" },
   { n: 2, title: "Fill In Your Real Details", desc: "Email, first + last name, password, country, and phone. Your name has to match your ID for verification." },
