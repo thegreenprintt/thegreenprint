@@ -37,7 +37,7 @@ const BROKER_STEPS_DATA = [
   { n: "01", title: "Create Your Account", body: "Sign up at TradeLocker using your email address." },
   { n: "02", title: "Fund Your Account", body: "Start with risk capital you can afford to lose.", action: { label: "Open TradeLocker →", url: "https://tradelocker.com" } },
   { n: "03", title: "Download the App", body: "TradeLocker is your primary trading platform." },
-  { n: "04", title: "Connect Your Credentials", body: "Log into TradeLocker using your GenesisFX account credentials." },
+  { n: "04", title: "Connect Your Credentials", body: "Log into TradeLocker using your LivvFX account credentials." },
 ];
 
 const TOPICS = [
@@ -115,7 +115,7 @@ export default function OnboardingPage() {
               <h1 style={{ fontSize: 34, fontWeight: 900, color: "white", marginBottom: 10, lineHeight: 1.2, letterSpacing: "-0.02em" }}>Welcome to The Greenprint,{" "}<span style={{ color: "#00FF85" }}>{name}.</span></h1>
               <p style={{ color: "rgba(255,255,255,0.35)", marginBottom: 40, fontSize: 15 }}>This takes about 2 minutes.</p>
               <button onClick={() => setStep(2)} style={{ background: "#00FF85", color: "#000", fontWeight: 900, fontSize: 15, padding: "15px 44px", borderRadius: 12, border: "none", cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 0 28px rgba(0,255,133,0.35)" }}>Begin →</button>
-              <p style={{ marginTop: 36, fontSize: 11, color: "rgba(255,255,255,0.18)", lineHeight: 1.8 }}>Educational purposes only. Not financial advice. Trading involves risk of loss.{" "}<a href="/disclaimer" style={{ color: "rgba(0,255,133,0.4)", textDecoration: "none" }}>See disclaimer →</a></p>
+              <p style={{ marginTop: 36, fontSize: 11, color: "rgba(255,255,255,0.18)", lineHeight: 1.8 }}>Educational purposes only. Not financial advice. Trading involves risk of loss.{" "}<a href="/risk-disclosure" style={{ color: "rgba(0,255,133,0.4)", textDecoration: "none" }}>See disclaimer →</a></p>
             </div>
           )}
           {step === 2 && (
