@@ -90,7 +90,7 @@ export default function GoLive() {
       { id: "rmult", re: /r[- ]multiple|what does \+?\d(\.\d)?r mean|mean by \+?\d(\.\d)?r/i, a: "R = risk unit. +2R means the trade made 2x what was risked. It keeps wins and losses comparable." },
       { id: "join", re: /how (do i|to|can i) (join|sign ?up)|how much (is|does)|what('| i)?s the price/i, a: "Tap 'Join The Greenprint' below the chat for full access — alerts, signals & the community. 🌿" },
       { id: "sched", re: /when (are you|is he|do you).{0,15}(live|stream)|stream schedule/i, a: "We go live around market opens — join the free Telegram (link on the homepage) to get notified." },
-      { id: "broker", re: /(what|which) broker/i, a: "The community uses GenesisFX + TradeLocker — full setup steps at thegreenprint.trade/onboard." },
+      { id: "broker", re: /(what|which) broker/i, a: "The community uses LivvFX + TradeLocker — full setup steps at thegreenprint.trade/onboard." },
       { id: "demo", re: /paper trad|demo account|practice account/i, a: "Start on a TradeLocker demo account — onboarding walks you through it. Practice before real money. 💪" },
       { id: "advice", re: /financial advice/i, a: "Nothing here is financial advice — it's education. Trade your own plan and manage your risk." },
       { id: "callput", re: /what('| i)?s a (call|put)/i, a: "Calls profit when price rises, puts when it falls. The free Academy on the app page covers the basics." },
