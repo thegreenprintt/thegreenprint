@@ -20,7 +20,7 @@ export default function JoinPage() {
     if (!/.+@.+\..+/.test(email.trim())) { setErr(true); return; }
     setErr(false); setPhase("sending");
     try {
-      await fetch("/api/join/confirm", {
+      await fetch("/gp/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -58,9 +58,9 @@ export default function JoinPage() {
         .jp .barlbl{font-size:12px;color:var(--mut);font-weight:500;white-space:nowrap;}.jp .barlbl b{color:var(--green);}
         .jp .item{display:flex;gap:13px;align-items:center;border:.5px solid var(--stroke);background:var(--card);border-radius:16px;padding:13px 14px;margin-bottom:11px;transition:.35s;}
         .jp .item.done{border-color:rgba(0,255,133,.3);background:rgba(0,255,133,.05);}
-        .jp .ic{width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-        .jp .ic.tl{background:#0b0f14;border:.5px solid rgba(0,255,133,.4);}
-        .jp .ic.tg{background:#229ED9;}
+        .jp .ic{width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+        .jp .ic.tl{background:#0a1512;border:.5px solid rgba(0,255,133,.4);}
+        .jp .ic.tg{background:transparent;}
         .jp .ic.br{background:var(--green);}
         .jp .it{flex:1;min-width:0;}
         .jp .it b{display:block;font-size:14.5px;font-weight:600;}
@@ -130,7 +130,7 @@ export default function JoinPage() {
             </div>
 
             <div className={"item" + (done[0] ? " done" : "")}>
-              <div className="ic tl"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="9" width="3" height="9" rx="1" fill="#00FF85" /><rect x="4" y="6" width="1" height="3" fill="#00FF85" /><rect x="10.5" y="5" width="3" height="13" rx="1" fill="#00FF85" /><rect x="11.5" y="2" width="1" height="3" fill="#00FF85" /><rect x="18" y="11" width="3" height="7" rx="1" fill="#1f6f4a" /><rect x="19" y="8" width="1" height="3" fill="#1f6f4a" /></svg></div>
+              <div className="ic tl"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="10" width="3.4" height="8" rx="1.2" fill="#00FF85" /><rect x="4.7" y="6.5" width="1" height="3.5" fill="#00FF85" /><rect x="4.7" y="18" width="1" height="2.5" fill="#00FF85" /><rect x="10.3" y="5" width="3.4" height="13" rx="1.2" fill="#00FF85" /><rect x="11.5" y="2" width="1" height="3" fill="#00FF85" /><rect x="11.5" y="18" width="1" height="2.5" fill="#00FF85" /><rect x="17.1" y="12" width="3.4" height="6" rx="1.2" fill="#33d68f" /><rect x="18.3" y="8.5" width="1" height="3.5" fill="#33d68f" /></svg></div>
               <div className="it">
                 <b>Get TradeLocker</b><span>The app you place your trades in</span>
                 <div className="mini2">
@@ -143,7 +143,7 @@ export default function JoinPage() {
             </div>
 
             <div className={"item" + (done[1] ? " done" : "")}>
-              <div className="ic tg"><svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.412 14.6l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.736.959z" /></svg></div>
+              <div className="ic tg"><svg width="46" height="46" viewBox="0 0 240 240" aria-hidden="true"><defs><linearGradient id="tgg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2AABEE" /><stop offset="1" stopColor="#229ED9" /></linearGradient></defs><circle cx="120" cy="120" r="120" fill="url(#tgg)" /><path fill="#fff" d="M54 118l125-48c6-2 11 1 9 10l-21 100c-2 8-6 10-13 6l-36-27-17 17c-2 2-4 3-7 3l3-38 68-61c3-3-1-4-5-2l-84 53-36-11c-8-3-8-8 2-11z" /></svg></div>
               <div className="it">
                 <b>Get Telegram</b><span>Where I send the live signals</span>
                 <div className="mini2">
