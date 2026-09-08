@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -7,7 +7,7 @@ const SIGNALS_CHAT_ID = process.env.TELEGRAM_SIGNALS_CHAT_ID || "-1004402136352"
 
 function sign(payloadB64: string) {
   const secret = process.env.TV_WEBHOOK_KEY || "";
-  return crypto.createHmac("sha256", secret).update(payloadB64).digest("hex");
+  return createHmac("sha256", secret).update(payloadB64).digest("hex");
 }
 
 function verify(token: string): { n: string; e: string; exp: number } | null {
@@ -17,7 +17,7 @@ function verify(token: string): { n: string; e: string; exp: number } | null {
   const sig = token.slice(dot + 1);
   const expected = sign(b64);
   if (sig.length !== expected.length) return null;
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   try {
     const p = JSON.parse(Buffer.from(b64, "base64url").toString("utf8"));
     if (!p || !p.e || !p.exp || Date.now() > p.exp) return null;
