@@ -31,7 +31,7 @@ module.exports = async function handler(req, res) {
     const experience = body.experience ? String(body.experience).trim() : "";
     if (!/.+@.+\..+/.test(e)) { res.status(400).json({ ok: false, error: "invalid_email" }); return; }
 
-    const approveUrl = SITE + "/gpapprove?t=" + encodeURIComponent(makeToken(n, e));
+    const approveUrl = SITE + "/api/gp-approve?t=" + encodeURIComponent(makeToken(n, e));
     const text =
       "🟢 <b>New signals request</b>\n\n" +
       "👤 " + (n || "—") + "\n" +
@@ -47,4 +47,5 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ ok: false, error: String(err) });
   }
 };
+
 
