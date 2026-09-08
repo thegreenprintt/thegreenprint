@@ -1,12 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function JoinPage() {
   const [screen, setScreen] = useState<"apps" | "confirm">("apps");
   const [done, setDone] = useState([false, false, false]);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState(false);
-  const [phase, setPhase] = useState<"form" | "sending" | "sent">("form");
+  const [phase, setPhase] = useState<"form" | "sending" | "sent" | "approved" | "denied">("form");
+  const [token, setToken] = useState("");
+  const [invite, setInvite] = useState("");
   const [copied, setCopied] = useState(false);
 
   const count = done.filter(Boolean).length;
@@ -16,15 +18,32 @@ export default function JoinPage() {
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   };
 
+  useEffect(() => {
+    if (phase !== "sent" || !token) return;
+    let stop = false;
+    const id = setInterval(async () => {
+      try {
+        const r = await fetch("/api/gp-confirm?poll=" + encodeURIComponent(token));
+        const j = await r.json();
+        if (stop) return;
+        if (j.status === "approved") { setInvite(j.invite || ""); setPhase("approved"); }
+        else if (j.status === "denied") { setPhase("denied"); }
+      } catch {}
+    }, 3000);
+    return () => { stop = true; clearInterval(id); };
+  }, [phase, token]);
+
   const submit = async () => {
     if (!/.+@.+\..+/.test(email.trim())) { setErr(true); return; }
     setErr(false); setPhase("sending");
     try {
-      await fetch("/api/gp-confirm", {
+      const r = await fetch("/api/gp-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
+      const j = await r.json().catch(() => ({}));
+      if (j && j.token) setToken(j.token);
     } catch {}
     setPhase("sent");
   };
@@ -117,10 +136,10 @@ export default function JoinPage() {
               <h1>Get set up in <span className="g">minutes.</span></h1>
               <p className="sub">Grab the two apps and open your free account. Tick each one off and I&apos;ll take you to the chat.</p>
             </>
-          ) : phase === "sent" ? (
+          ) : phase === "sent" || phase === "approved" || phase === "denied" ? (
             <>
-              <h1>Request <span className="g">received.</span></h1>
-              <p className="sub">I&apos;m confirming your account. Your private invite lands in your email the moment you&apos;re verified.</p>
+              <h1>{phase === "approved" ? (<>You&apos;re <span className="g">in.</span></>) : phase === "denied" ? (<>Almost <span className="g">there.</span></>) : (<>Request <span className="g">received.</span></>)}</h1>
+              <p className="sub">{phase === "approved" ? "Approved — your chat is unlocked below." : phase === "denied" ? "I couldn\u0027t verify that one just yet." : "I\u0027m reviewing your account. The moment I approve you, this page unlocks the chat — keep it open."}</p>
             </>
           ) : (
             <>
@@ -202,15 +221,32 @@ export default function JoinPage() {
             <div style={{ margin: "10px 0 4px" }}>
               <div className="tk done"><div className="line" /><div className="dot">✓</div><div className="tx"><b>Signed up</b><span>Account created under The Greenprint</span></div></div>
               <div className="tk active"><div className="line" /><div className="dot"><span className="spin">◌</span></div><div className="tx"><b>Confirming your account</b><span>Matching your email to your signup.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">🔒</div><div className="tx"><b>Signals chat</b><span>Your invite is emailed the moment you&apos;re confirmed</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">🔒</div><div className="tx"><b>Signals chat</b><span>Unlocks here the moment you&apos;re approved</span></div></div>
               <div className="tk"><div className="dot">📈</div><div className="tx"><b>Start trading</b><span>Copy the live calls and go</span></div></div>
             </div>
-            <p className="foot">You can close this — check your email for your private invite. Confirmations are usually quick.</p>
+            <p className="foot">Keep this page open — it unlocks automatically the moment you&apos;re approved.</p>
+          </div>
+        )}
+
+        {screen === "confirm" && phase === "approved" && (
+          <div style={{ textAlign: "center" }}>
+            <div className="seal">✓</div>
+            <p className="sub" style={{ margin: "0 auto 18px" }}>Your account checked out. Tap below to open the free signals chat — this link is just for you and works once.</p>
+            <a className="btn primary" href={invite} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none" }}>Enter the free signals chat →</a>
+            <p className="foot">Button not opening? Copy this link: {invite}</p>
+          </div>
+        )}
+
+        {screen === "confirm" && phase === "denied" && (
+          <div style={{ textAlign: "center" }}>
+            <div className="seal" style={{ background: "#ff6a6a", boxShadow: "0 0 40px rgba(255,80,80,.4)" }}>!</div>
+            <p className="sub" style={{ margin: "0 auto" }}>I couldn&apos;t match this to a signup under my link yet. Make sure you used my link to create your account, then message me and I&apos;ll sort it out.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
 
 
