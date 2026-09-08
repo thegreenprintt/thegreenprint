@@ -153,7 +153,7 @@ export default function JoinPage() {
 
             <div className={"card" + (done[1] ? " done" : "")}>
               <div className="row">
-                <div className="ic tg"><svg width="50" height="50" viewBox="0 0 240 240" aria-hidden="true"><defs><linearGradient id="tgg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2AABEE" /><stop offset="1" stopColor="#229ED9" /></linearGradient></defs><rect width="240" height="240" rx="56" fill="url(#tgg)" /><path fill="#fff" d="M54 118l125-48c6-2 11 1 9 10l-21 100c-2 8-6 10-13 6l-36-27-17 17c-2 2-4 3-7 3l3-38 68-61c3-3-1-4-5-2l-84 53-36-11c-8-3-8-8 2-11z" /></svg></div>
+                <div className="ic tg"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5a/2b/59/5a2b59f4-1458-d32d-7b33-00ba66d2d59e/Telegram-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg" alt="Telegram" /></div>
                 <div className="it"><b>Get Telegram</b><span>Where I send the live signals</span></div>
                 <button className="tick" onClick={() => mark(1)} aria-label="Mark done">{done[1] ? "✓" : "2"}</button>
               </div>
@@ -212,3 +212,4 @@ export default function JoinPage() {
     </div>
   );
 }
+
