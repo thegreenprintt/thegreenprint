@@ -4,7 +4,7 @@
 const crypto = require("crypto");
 
 const SIGNALS_CHAT_ID = process.env.TELEGRAM_SIGNALS_CHAT_ID || "-1004402136352";
-const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1003849673824";
+const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1004342057901";
 
 function sign(b) {
   return crypto.createHmac("sha256", process.env.TV_WEBHOOK_KEY || "").update(b).digest("hex");
@@ -70,4 +70,5 @@ module.exports = async function handler(req, res) {
     page(res, "Something went wrong", String(err));
   }
 };
+
 
