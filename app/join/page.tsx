@@ -10,7 +10,6 @@ export default function JoinPage() {
   const [token, setToken] = useState("");
   const [invite, setInvite] = useState("");
   const [slide, setSlide] = useState(0);
-  const VIDEO_ID = "";
   const [copied, setCopied] = useState(false);
 
   const count = done.filter(Boolean).length;
@@ -276,13 +275,9 @@ export default function JoinPage() {
             <span className="flag">STEP 3 OF 3 · LEARN THE APP</span>
             <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Learn to <span className="g">place a trade.</span></h1>
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Before real money, practice on demo — same buttons, fake cash. This quick video shows you how to place your first trade in TradeLocker.</p>
-            {VIDEO_ID ? (
-              <div style={{ position: "relative", paddingTop: "56%", borderRadius: 14, overflow: "hidden", border: ".5px solid var(--stroke)" }}>
-                <iframe src={"https://drive.google.com/file/d/" + VIDEO_ID + "/preview"} allow="autoplay" allowFullScreen style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
-              </div>
-            ) : (
-              <div className="card"><div className="it"><span>🎥 Your walkthrough video will play here.</span></div></div>
-            )}
+            <video controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 14, border: ".5px solid var(--stroke)", background: "#000", display: "block" }}>
+              <source src="/tradelocker-overview.mp4" type="video/mp4" />
+            </video>
             <p className="foot" style={{ marginTop: 12 }}>Do this first. A few demo trades and you&apos;re ready for the real calls.</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
               <button className="back" onClick={() => setSlide(2)}>← Back</button>
@@ -301,6 +296,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
