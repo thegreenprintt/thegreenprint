@@ -2,7 +2,7 @@
 // POST { name, email, phone, experience } -> sends an approval request to the admin Telegram chat.
 const crypto = require("crypto");
 
-const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1003849673824";
+const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "-1004342057901";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://thegreenprint.trade";
 
 function sign(b) {
@@ -47,5 +47,6 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ ok: false, error: String(err) });
   }
 };
+
 
 
