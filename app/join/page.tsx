@@ -20,7 +20,7 @@ export default function JoinPage() {
     if (!/.+@.+\..+/.test(email.trim())) { setErr(true); return; }
     setErr(false); setPhase("sending");
     try {
-      await fetch("/gpconfirm", {
+      await fetch("/api/gp-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -212,4 +212,5 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
