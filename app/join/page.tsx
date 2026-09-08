@@ -9,6 +9,8 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<"form" | "sending" | "sent" | "approved" | "denied">("form");
   const [token, setToken] = useState("");
   const [invite, setInvite] = useState("");
+  const [slide, setSlide] = useState(0);
+  const VIDEO_ID = "";
   const [copied, setCopied] = useState(false);
 
   const count = done.filter(Boolean).length;
@@ -198,7 +200,7 @@ export default function JoinPage() {
           </div>
         )}
 
-        {screen === "confirm" && phase !== "sent" && (
+        {screen === "confirm" && (phase === "form" || phase === "sending") && (
           <div>
             <span className="flag">STEP 2 OF 2 · CONFIRM &amp; ENTER</span>
             <div className="emailcard">
@@ -228,12 +230,64 @@ export default function JoinPage() {
           </div>
         )}
 
-        {screen === "confirm" && phase === "approved" && (
+        {screen === "confirm" && phase === "approved" && slide === 0 && (
           <div style={{ textAlign: "center" }}>
             <div className="seal">✓</div>
-            <p className="sub" style={{ margin: "0 auto 18px" }}>Your account checked out. Tap below to open the free signals chat — this link is just for you and works once.</p>
-            <a className="btn primary" href={invite} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none" }}>Enter the free signals chat →</a>
-            <p className="foot">Button not opening? Copy this link: {invite}</p>
+            <span className="flag">YOU&apos;RE APPROVED</span>
+            <p className="sub" style={{ margin: "8px auto 20px" }}>You&apos;re in. Jump into the signals chat, then let me walk you through getting set up to trade.</p>
+            <a className="btn primary" href={invite} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", marginTop: 0 }}>Join the free signals chat →</a>
+            <button className="btn" style={{ background: "rgba(255,255,255,.06)", color: "#fff" }} onClick={() => setSlide(1)}>Continue getting set up →</button>
+          </div>
+        )}
+
+        {screen === "confirm" && phase === "approved" && slide === 1 && (
+          <div>
+            <span className="flag">STEP 1 OF 3 · YOUR BROKER</span>
+            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Set up your <span className="g">broker.</span></h1>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}><b>LivvFX</b> is your bank account for trading — where your money sits, where you deposit or withdraw, and where every trade is tracked. <b>TradeLocker</b> is the app you actually place trades in.</p>
+            <div className="card"><div className="it"><b>1.</b><span>Tap Create free account below and sign up.</span></div></div>
+            <div className="card"><div className="it"><b>2.</b><span>Verify your email, then log in.</span></div></div>
+            <div className="card"><div className="it"><b>3.</b><span>In TradeLocker, choose server <b>LIVVFX</b>.</span></div></div>
+            <div className="card"><div className="it"><b>4.</b><span>Start on a <b>demo</b> account — practice with fake cash first.</span></div></div>
+            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+              <button className="back" onClick={() => setSlide(0)}>← Back</button>
+              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(2)}>Next →</button>
+            </div>
+          </div>
+        )}
+
+        {screen === "confirm" && phase === "approved" && slide === 2 && (
+          <div>
+            <span className="flag">STEP 2 OF 3 · YOUR CHAT</span>
+            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Get in the <span className="g">signals chat.</span></h1>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>This is the room where I call the trades — like a coach shouting the play. When I post an entry, you copy it in TradeLocker.</p>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>You should already be in from the last step. If not, tap here:</p>
+            <a className="cta" href={invite} target="_blank" rel="noopener noreferrer">Open the signals chat →</a>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+              <button className="back" onClick={() => setSlide(1)}>← Back</button>
+              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(3)}>Next →</button>
+            </div>
+          </div>
+        )}
+
+        {screen === "confirm" && phase === "approved" && slide === 3 && (
+          <div>
+            <span className="flag">STEP 3 OF 3 · LEARN THE APP</span>
+            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Learn to <span className="g">place a trade.</span></h1>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Before real money, practice on demo — same buttons, fake cash. This quick video shows you how to place your first trade in TradeLocker.</p>
+            {VIDEO_ID ? (
+              <div style={{ position: "relative", paddingTop: "56%", borderRadius: 14, overflow: "hidden", border: ".5px solid var(--stroke)" }}>
+                <iframe src={"https://drive.google.com/file/d/" + VIDEO_ID + "/preview"} allow="autoplay" allowFullScreen style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+              </div>
+            ) : (
+              <div className="card"><div className="it"><span>🎥 Your walkthrough video will play here.</span></div></div>
+            )}
+            <p className="foot" style={{ marginTop: 12 }}>Do this first. A few demo trades and you&apos;re ready for the real calls.</p>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+              <button className="back" onClick={() => setSlide(2)}>← Back</button>
+              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(0)}>Done 🎉</button>
+            </div>
           </div>
         )}
 
@@ -247,6 +301,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
