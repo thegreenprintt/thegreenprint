@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { createHmac } from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://thegreenprint.trade";
 
 function sign(payloadB64: string) {
   const secret = process.env.TV_WEBHOOK_KEY || "";
-  return crypto.createHmac("sha256", secret).update(payloadB64).digest("hex");
+  return createHmac("sha256", secret).update(payloadB64).digest("hex");
 }
 
 function makeToken(name: string, email: string) {
