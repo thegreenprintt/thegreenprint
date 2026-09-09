@@ -2,14 +2,13 @@
 import { useState, useEffect } from "react";
 
 export default function JoinPage() {
-  const [screen, setScreen] = useState<"apps" | "confirm">("apps");
+  const [step, setStep] = useState(1);
   const [done, setDone] = useState([false, false, false]);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState(false);
   const [phase, setPhase] = useState<"form" | "sending" | "sent" | "approved" | "denied">("form");
   const [token, setToken] = useState("");
   const [invite, setInvite] = useState("");
-  const [slide, setSlide] = useState(0);
   const [copied, setCopied] = useState(false);
 
   const count = done.filter(Boolean).length;
@@ -132,33 +131,16 @@ export default function JoinPage() {
         <div className="top">
           <div className="rl"><div className="halo" /><div className="core">G</div></div>
           <div className="kick">The Greenprint</div>
-          {screen === "apps" ? (
-            <>
-              <h1>Get set up in <span className="g">minutes.</span></h1>
-              <p className="sub">Grab the two apps and open your free account. Tick each one off and I&apos;ll take you to the chat.</p>
-            </>
-          ) : phase === "sent" || phase === "approved" || phase === "denied" ? (
-            <>
-              <h1>{phase === "approved" ? (<>You&apos;re <span className="g">in.</span></>) : phase === "denied" ? (<>Almost <span className="g">there.</span></>) : (<>Request <span className="g">received.</span></>)}</h1>
-              <p className="sub">{phase === "approved" ? "Approved — your chat is unlocked below." : phase === "denied" ? "I couldn\u0027t verify that one just yet." : "I\u0027m reviewing your account. The moment I approve you, this page unlocks the chat — keep it open."}</p>
-            </>
-          ) : (
-            <>
-              <h1>One last <span className="g">check.</span></h1>
-              <p className="sub">Confirm the email you signed up with and I&apos;ll get you into the chat.</p>
-            </>
-          )}
+          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (<>Set up your <span className="g">account.</span></>) : step === 3 ? (<>Join the <span className="g">signals chat.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
+          <p className="sub">{step === 1 ? "Three quick downloads: TradeLocker, Telegram, and your free broker account." : step === 2 ? "Your broker is the middleman between you and the markets. Let's open your trading account." : step === 3 ? "Confirm your email and I'll approve you straight into the free signals chat." : "Watch this once and you'll know how to place your first trade."}</p>
         </div>
 
-        {screen === "apps" && (
-          <div>
-            <span className="flag">STEP 1 OF 2 · GET SET UP</span>
-            <div className="bar">
-              <div className="track"><div className="fill" style={{ width: (count / 3) * 100 + "%" }} /></div>
-              <div className="barlbl"><b>{count}</b> of 3 done</div>
-            </div>
+        <span className="flag">STEP {step} OF 4</span>
 
-            <div className={"card" + (done[0] ? " done" : "")}>
+        {step === 1 && (
+          <div>
+            <div className="bar"><div className="track"><div className="fill" style={{ width: (count / 3) * 100 + "%" }} /></div><div className="barlbl"><b>{count}</b> of 3 done</div></div>
+<div className={"card" + (done[0] ? " done" : "")}>
               <div className="row">
                 <div className="ic tl"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6c/25/c3/6c25c3c6-bbc4-f961-c32d-da661aeaee6f/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg" alt="TradeLocker" /></div>
                 <div className="it"><b>Get TradeLocker</b><span>The app you place your trades in</span></div>
@@ -191,117 +173,81 @@ export default function JoinPage() {
               </div>
               <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
             </div>
-
-            <button className="btn primary" disabled={count < 3} onClick={() => setScreen("confirm")}>
-              {count < 3 ? `Finish all 3 to continue (${count}/3)` : "Continue →"}
-            </button>
-            <p className="foot">Educational only. Not financial advice. Past performance is not indicative of future results. Trading involves substantial risk of loss.</p>
+            <button className="btn primary" onClick={() => setStep(2)}>Next: set up your account →</button>
           </div>
         )}
 
-        {screen === "confirm" && (phase === "form" || phase === "sending") && (
+        {step === 2 && (
           <div>
-            <span className="flag">STEP 2 OF 2 · CONFIRM &amp; ENTER</span>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Your broker is the <b>middleman</b> between you and the markets — the only thing between you and a live account. Let&apos;s open yours on <b>demo</b> first (fake money to practice).</p>
+            <div style={{ margin: "4px 0 6px" }}>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Open the menu</b><span>In TradeLocker, tap the arrow at the top-left once you&apos;re logged in.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Tap Trade Accounts</b><span>Then tap Open Demo Account.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s practice money.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set leverage to 1:500</b><span>Then tap Submit.</span></div></div>
+              <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into your new account</b><span>Pick the demo account you just made — you&apos;re ready.</span></div></div>
+            </div>
+            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+              <button className="back" onClick={() => setStep(1)}>← Back</button>
+              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (phase === "form" || phase === "sending") && (
+          <div>
             <div className="emailcard">
               <b>Confirm it&apos;s you</b>
-              <p>Type the email you signed up with. I&apos;ll match it to your account, then send your private invite.</p>
-              <input type="email" placeholder="you@email.com" autoComplete="email" value={email}
-                onChange={(e) => { setEmail(e.target.value); setErr(false); }} />
+              <p>Type the email you signed up with. I&apos;ll match it to your account, then approve you into the chat.</p>
+              <input type="email" placeholder="you@email.com" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(false); }} />
               {err && <div className="er">Enter the email you used to sign up.</div>}
-              <button className="btn primary" disabled={phase === "sending"} onClick={submit}>
-                {phase === "sending" ? "Sending…" : "Confirm my account"}
-              </button>
+              <button className="btn primary" disabled={phase === "sending"} onClick={submit}>{phase === "sending" ? "Sending…" : "Confirm my account"}</button>
             </div>
-            <button className="back" onClick={() => setScreen("apps")}>← Back to setup</button>
+            <button className="back" onClick={() => setStep(2)}>← Back</button>
           </div>
         )}
 
-        {screen === "confirm" && phase === "sent" && (
-          <div>
-            <span className="flag">STEP 2 OF 2 · CONFIRMING</span>
-            <div style={{ margin: "10px 0 4px" }}>
-              <div className="tk done"><div className="line" /><div className="dot">✓</div><div className="tx"><b>Signed up</b><span>Account created under The Greenprint</span></div></div>
-              <div className="tk active"><div className="line" /><div className="dot"><span className="spin">◌</span></div><div className="tx"><b>Confirming your account</b><span>Matching your email to your signup.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">🔒</div><div className="tx"><b>Signals chat</b><span>Unlocks here the moment you&apos;re approved</span></div></div>
-              <div className="tk"><div className="dot">📈</div><div className="tx"><b>Start trading</b><span>Copy the live calls and go</span></div></div>
-            </div>
-            <p className="foot">Keep this page open — it unlocks automatically the moment you&apos;re approved.</p>
+        {step === 3 && phase === "sent" && (
+          <div style={{ margin: "10px 0 4px" }}>
+            <div className="tk done"><div className="line" /><div className="dot">✓</div><div className="tx"><b>Request received</b><span>I&apos;m reviewing your account.</span></div></div>
+            <div className="tk active"><div className="line" /><div className="dot"><span className="spin">◌</span></div><div className="tx"><b>Confirming you</b><span>This page unlocks the moment I approve you — keep it open.</span></div></div>
+            <div className="tk"><div className="dot">🔓</div><div className="tx"><b>Chat unlocks here</b><span>Your one-time invite appears right on this screen.</span></div></div>
           </div>
         )}
 
-        {screen === "confirm" && phase === "approved" && slide === 0 && (
+        {step === 3 && phase === "approved" && (
           <div style={{ textAlign: "center" }}>
             <div className="seal">✓</div>
             <span className="flag">YOU&apos;RE APPROVED</span>
-            <p className="sub" style={{ margin: "8px auto 20px" }}>You&apos;re in. Jump into the signals chat, then let me walk you through getting set up to trade.</p>
+            <p className="sub" style={{ margin: "8px auto 18px" }}>You&apos;re in. Tap below to open the free signals chat — this invite is just for you and works once.</p>
             <a className="btn primary" href={invite} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", marginTop: 0 }}>Join the free signals chat →</a>
-            <button className="btn" style={{ background: "rgba(255,255,255,.06)", color: "#fff" }} onClick={() => setSlide(1)}>Continue getting set up →</button>
+            <button className="btn" style={{ background: "rgba(255,255,255,.06)", color: "#fff" }} onClick={() => setStep(4)}>Next: learn to trade →</button>
           </div>
         )}
 
-        {screen === "confirm" && phase === "approved" && slide === 1 && (
-          <div>
-            <span className="flag">STEP 1 OF 3 · YOUR BROKER</span>
-            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Set up your <span className="g">broker.</span></h1>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}><b>LivvFX</b> is your bank account for trading — where your money sits, where you deposit or withdraw, and where every trade is tracked. <b>TradeLocker</b> is the app you actually place trades in.</p>
-            <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Create your free account</b><span>Tap the green button below to sign up.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Verify your email</b><span>Confirm it, then log in to TradeLocker.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Choose server LIVVFX</b><span>When it asks for a server, pick LIVVFX.</span></div></div>
-              <div className="tk"><div className="dot">4</div><div className="tx"><b>Start on a demo account</b><span>Practice with fake money before going live.</span></div></div>
-            </div>
-            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setSlide(0)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(2)}>Next →</button>
-            </div>
+        {step === 3 && phase === "denied" && (
+          <div style={{ textAlign: "center" }}>
+            <div className="seal" style={{ background: "#ff6a6a", boxShadow: "0 0 40px rgba(255,80,80,.4)" }}>!</div>
+            <p className="sub" style={{ margin: "0 auto 14px" }}>I couldn&apos;t match this to a signup under my link yet. Make sure you used my link, then message me and I&apos;ll sort it out.</p>
+            <button className="back" onClick={() => { setPhase("form"); }}>← Try a different email</button>
           </div>
         )}
 
-        {screen === "confirm" && phase === "approved" && slide === 2 && (
+        {step === 4 && (
           <div>
-            <span className="flag">STEP 2 OF 3 · YOUR CHAT</span>
-            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Get in the <span className="g">signals chat.</span></h1>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>This is the room where I call the trades — like a coach shouting the play. When I post an entry, you copy it in TradeLocker.</p>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>You should already be in from the last step. If not, tap here:</p>
-            <a className="cta" href={invite} target="_blank" rel="noopener noreferrer">Open the signals chat →</a>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setSlide(1)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(3)}>Next →</button>
-            </div>
-          </div>
-        )}
-
-        {screen === "confirm" && phase === "approved" && slide === 3 && (
-          <div>
-            <span className="flag">STEP 3 OF 3 · LEARN THE APP</span>
-            <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Learn to <span className="g">place a trade.</span></h1>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Before real money, practice on demo — same buttons, fake cash. This quick video shows you how to place your first trade in TradeLocker.</p>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Practice on demo first — same buttons, fake cash. This shows you how to place your first trade.</p>
             <video controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 14, border: ".5px solid var(--stroke)", background: "#000", display: "block" }}>
               <source src="/tradelocker-overview.mp4" type="video/mp4" />
             </video>
-            <p className="foot" style={{ marginTop: 12 }}>Do this first. A few demo trades and you&apos;re ready for the real calls.</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setSlide(2)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setSlide(0)}>Done 🎉</button>
+              <button className="back" onClick={() => setStep(3)}>← Back</button>
+              <a className="btn primary" href={invite || "https://t.me/+iNKnU8qINq8xMjc5"} target="_blank" rel="noopener noreferrer" style={{ width: "auto", padding: "13px 24px", marginTop: 0, textDecoration: "none" }}>Open the chat →</a>
             </div>
-          </div>
-        )}
-
-        {screen === "confirm" && phase === "denied" && (
-          <div style={{ textAlign: "center" }}>
-            <div className="seal" style={{ background: "#ff6a6a", boxShadow: "0 0 40px rgba(255,80,80,.4)" }}>!</div>
-            <p className="sub" style={{ margin: "0 auto" }}>I couldn&apos;t match this to a signup under my link yet. Make sure you used my link to create your account, then message me and I&apos;ll sort it out.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-
-
-
-
-
 
