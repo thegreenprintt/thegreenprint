@@ -5,6 +5,7 @@ export default function JoinPage() {
   const [step, setStep] = useState(1);
   const [done, setDone] = useState([false, false, false]);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [err, setErr] = useState(false);
   const [phase, setPhase] = useState<"form" | "sending" | "sent" | "approved" | "denied">("form");
   const [token, setToken] = useState("");
@@ -33,6 +34,13 @@ export default function JoinPage() {
     return () => { stop = true; clearInterval(id); };
   }, [phase, token]);
 
+  useEffect(() => {
+    const links = Array.from(document.querySelectorAll("a")).filter((a) => /See full disclaimer/i.test(a.textContent || ""));
+    const changed = [];
+    links.forEach((a) => { const box = a.closest("div"); if (box) { changed.push([box, box.style.display]); box.style.display = "none"; } });
+    return () => { changed.forEach((pair) => { pair[0].style.display = pair[1]; }); };
+  }, []);
+
   const submit = async () => {
     if (!/.+@.+\..+/.test(email.trim())) { setErr(true); return; }
     setErr(false); setPhase("sending");
@@ -40,7 +48,7 @@ export default function JoinPage() {
       const r = await fetch("/api/gp-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
       });
       const j = await r.json().catch(() => ({}));
       if (j && j.token) setToken(j.token);
@@ -140,11 +148,12 @@ export default function JoinPage() {
         {step === 1 && (
           <div>
             <div className="bar"><div className="track"><div className="fill" style={{ width: (count / 3) * 100 + "%" }} /></div><div className="barlbl"><b>{count}</b> of 3 done</div></div>
+            <p className="sub" style={{ margin: "2px 0 8px", fontSize: "12.5px", maxWidth: "none" }}>Tap the circle on the right of each one as you finish it.</p>
 <div className={"card" + (done[0] ? " done" : "")}>
               <div className="row">
                 <div className="ic tl"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6c/25/c3/6c25c3c6-bbc4-f961-c32d-da661aeaee6f/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg" alt="TradeLocker" /></div>
                 <div className="it"><b>Get TradeLocker</b><span>The app you place your trades in</span></div>
-                <button className="tick" onClick={() => mark(0)} aria-label="Mark done">{done[0] ? "✓" : "1"}</button>
+                <button className="tick" onClick={() => mark(0)} aria-label="Mark done">{done[0] ? "✓" : ""}</button>
               </div>
               <div className="acts">
                 <a className="store" href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
@@ -157,7 +166,7 @@ export default function JoinPage() {
               <div className="row">
                 <div className="ic tg"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5a/2b/59/5a2b59f4-1458-d32d-7b33-00ba66d2d59e/Telegram-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg" alt="Telegram" /></div>
                 <div className="it"><b>Get Telegram</b><span>Where I send the live signals</span></div>
-                <button className="tick" onClick={() => mark(1)} aria-label="Mark done">{done[1] ? "✓" : "2"}</button>
+                <button className="tick" onClick={() => mark(1)} aria-label="Mark done">{done[1] ? "✓" : ""}</button>
               </div>
               <div className="acts">
                 <a className="store" href="https://apps.apple.com/us/app/telegram-messenger/id686449807" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
@@ -169,23 +178,24 @@ export default function JoinPage() {
               <div className="row">
                 <div className="ic br"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5l5-5 4 3 6.5-7.5" stroke="#053" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 6.5h4v4" stroke="#053" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
                 <div className="it"><b>Sign up with the broker</b><span>Your free account — with my link</span></div>
-                <button className="tick" onClick={() => mark(2)} aria-label="Mark done">{done[2] ? "✓" : "3"}</button>
+                <button className="tick" onClick={() => mark(2)} aria-label="Mark done">{done[2] ? "✓" : ""}</button>
               </div>
               <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
             </div>
-            <button className="btn primary" onClick={() => setStep(2)}>Next: set up your account →</button>
+            <button className="btn primary" disabled={count < 3} onClick={() => setStep(2)}>{count < 3 ? "Tap all 3 to continue (" + count + "/3)" : "Next: set up your account →"}</button>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Your broker is the <b>middleman</b> between you and the markets — the only thing between you and a live account. Let&apos;s open yours on <b>demo</b> first (fake money to practice).</p>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, log into your broker and follow these in order:</p>
             <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Open the menu</b><span>In TradeLocker, tap the arrow at the top-left once you&apos;re logged in.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Tap Trade Accounts</b><span>Then tap Open Demo Account.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s practice money.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set leverage to 1:500</b><span>Then tap Submit.</span></div></div>
-              <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into your new account</b><span>Pick the demo account you just made — you&apos;re ready.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Log into your broker</b><span>Open TradeLocker and sign in with the LivvFX account you made.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open the menu</b><span>Tap the arrow at the top-left of the screen.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Trade Accounts, then Open Demo Account</b><span>Demo = practice money, so zero risk while you learn.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s not real money.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">5</div><div className="tx"><b>Set leverage to 1:500, then Submit</b><span>This matches how we trade in the chat.</span></div></div>
+              <div className="tk"><div className="dot">6</div><div className="tx"><b>Log into your new demo account</b><span>Pick it from the list — that&apos;s your trading account, done.</span></div></div>
             </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
@@ -199,7 +209,8 @@ export default function JoinPage() {
           <div>
             <div className="emailcard">
               <b>Confirm it&apos;s you</b>
-              <p>Type the email you signed up with. I&apos;ll match it to your account, then approve you into the chat.</p>
+              <p>Drop your name (or nickname) and the email you signed up with. I&apos;ll match it, then approve you into the chat.</p>
+              <input type="text" placeholder="Name or nickname" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} style={{ marginBottom: 10 }} />
               <input type="email" placeholder="you@email.com" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(false); }} />
               {err && <div className="er">Enter the email you used to sign up.</div>}
               <button className="btn primary" disabled={phase === "sending"} onClick={submit}>{phase === "sending" ? "Sending…" : "Confirm my account"}</button>
@@ -236,7 +247,7 @@ export default function JoinPage() {
 
         {step === 4 && (
           <div>
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Practice on demo first — same buttons, fake cash. This shows you how to place your first trade.</p>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Watch it all the way through — and do each step in TradeLocker as you go. Follow along and you&apos;ll place your first practice trade by the end.</p>
             <video controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 14, border: ".5px solid var(--stroke)", background: "#000", display: "block" }}>
               <source src="/tradelocker-overview.mp4" type="video/mp4" />
             </video>
@@ -250,4 +261,5 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
