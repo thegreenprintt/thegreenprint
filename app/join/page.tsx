@@ -244,10 +244,12 @@ export default function JoinPage() {
             <span className="flag">STEP 1 OF 3 · YOUR BROKER</span>
             <h1 style={{ fontSize: "23px", margin: "10px 0 8px" }}>Set up your <span className="g">broker.</span></h1>
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}><b>LivvFX</b> is your bank account for trading — where your money sits, where you deposit or withdraw, and where every trade is tracked. <b>TradeLocker</b> is the app you actually place trades in.</p>
-            <div className="card"><div className="it"><b>1.</b><span>Tap Create free account below and sign up.</span></div></div>
-            <div className="card"><div className="it"><b>2.</b><span>Verify your email, then log in.</span></div></div>
-            <div className="card"><div className="it"><b>3.</b><span>In TradeLocker, choose server <b>LIVVFX</b>.</span></div></div>
-            <div className="card"><div className="it"><b>4.</b><span>Start on a <b>demo</b> account — practice with fake cash first.</span></div></div>
+            <div style={{ margin: "4px 0 6px" }}>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Create your free account</b><span>Tap the green button below to sign up.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Verify your email</b><span>Confirm it, then log in to TradeLocker.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Choose server LIVVFX</b><span>When it asks for a server, pick LIVVFX.</span></div></div>
+              <div className="tk"><div className="dot">4</div><div className="tx"><b>Start on a demo account</b><span>Practice with fake money before going live.</span></div></div>
+            </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
               <button className="back" onClick={() => setSlide(0)}>← Back</button>
@@ -296,6 +298,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
