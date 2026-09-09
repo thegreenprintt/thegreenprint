@@ -56,7 +56,7 @@ export default function JoinPage() {
     <div className="jp">
       <style>{`
         .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
-          position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;}
+          position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
         .jp .fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
         .jp .blob{position:absolute;border-radius:50%;filter:blur(90px);}
@@ -296,6 +296,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
