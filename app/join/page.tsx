@@ -34,13 +34,6 @@ export default function JoinPage() {
     return () => { stop = true; clearInterval(id); };
   }, [phase, token]);
 
-  useEffect(() => {
-    const links = Array.from(document.querySelectorAll("a")).filter((a) => /See full disclaimer/i.test(a.textContent || ""));
-    const changed = [];
-    links.forEach((a) => { const box = a.closest("div"); if (box) { changed.push([box, box.style.display]); box.style.display = "none"; } });
-    return () => { changed.forEach((pair) => { pair[0].style.display = pair[1]; }); };
-  }, []);
-
   const submit = async () => {
     if (!/.+@.+\..+/.test(email.trim())) { setErr(true); return; }
     setErr(false); setPhase("sending");
@@ -62,6 +55,8 @@ export default function JoinPage() {
   return (
     <div className="jp">
       <style>{`
+        html,body{overflow-x:hidden;max-width:100vw;}
+        .fixed.bottom-0.left-0.right-0.z-50{display:none!important;}
         .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
           position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
@@ -190,8 +185,8 @@ export default function JoinPage() {
           <div>
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, log into your broker and follow these in order:</p>
             <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Log into your broker</b><span>Open TradeLocker and sign in with the LivvFX account you made.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open the menu</b><span>Tap the arrow at the top-left of the screen.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Your LivvFX account is what unlocks TradeLocker — start there.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open TradeLocker</b><span>Log in with your LivvFX account, then tap the menu (arrow, top-left).</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Trade Accounts, then Open Demo Account</b><span>Demo = practice money, so zero risk while you learn.</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s not real money.</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">5</div><div className="tx"><b>Set leverage to 1:500, then Submit</b><span>This matches how we trade in the chat.</span></div></div>
@@ -261,5 +256,6 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
