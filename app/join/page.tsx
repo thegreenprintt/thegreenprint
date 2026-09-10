@@ -57,6 +57,8 @@ export default function JoinPage() {
       <style>{`
         html,body{overflow-x:hidden;max-width:100vw;}
         .fixed.bottom-0.left-0.right-0.z-50{display:none!important;}
+        @keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .jp .gstep{animation:gpIn .4s cubic-bezier(.2,.8,.3,1) both;}
         .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
           position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
@@ -141,7 +143,7 @@ export default function JoinPage() {
         <span className="flag">STEP {step} OF 4</span>
 
         {step === 1 && (
-          <div>
+          <div className="gstep">
             <div className="bar"><div className="track"><div className="fill" style={{ width: (count / 3) * 100 + "%" }} /></div><div className="barlbl"><b>{count}</b> of 3 done</div></div>
             <p className="sub" style={{ margin: "2px 0 8px", fontSize: "12.5px", maxWidth: "none" }}>Tap the circle on the right of each one as you finish it.</p>
 <div className={"card" + (done[0] ? " done" : "")}>
@@ -182,7 +184,7 @@ export default function JoinPage() {
         )}
 
         {step === 2 && (
-          <div>
+          <div className="gstep">
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, log into your broker and follow these in order:</p>
             <div style={{ margin: "4px 0 6px" }}>
               <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Your LivvFX account is what unlocks TradeLocker — start there.</span></div></div>
@@ -201,7 +203,7 @@ export default function JoinPage() {
         )}
 
         {step === 3 && (phase === "form" || phase === "sending") && (
-          <div>
+          <div className="gstep">
             <div className="emailcard">
               <b>Confirm it&apos;s you</b>
               <p>Drop your name (or nickname) and the email you signed up with. I&apos;ll match it, then approve you into the chat.</p>
@@ -215,7 +217,7 @@ export default function JoinPage() {
         )}
 
         {step === 3 && phase === "sent" && (
-          <div style={{ margin: "10px 0 4px" }}>
+          <div className="gstep" style={{ margin: "10px 0 4px" }}>
             <div className="tk done"><div className="line" /><div className="dot">✓</div><div className="tx"><b>Request received</b><span>I&apos;m reviewing your account.</span></div></div>
             <div className="tk active"><div className="line" /><div className="dot"><span className="spin">◌</span></div><div className="tx"><b>Confirming you</b><span>This page unlocks the moment I approve you — keep it open.</span></div></div>
             <div className="tk"><div className="dot">🔓</div><div className="tx"><b>Chat unlocks here</b><span>Your one-time invite appears right on this screen.</span></div></div>
@@ -223,7 +225,7 @@ export default function JoinPage() {
         )}
 
         {step === 3 && phase === "approved" && (
-          <div style={{ textAlign: "center" }}>
+          <div className="gstep" style={{ textAlign: "center" }}>
             <div className="seal">✓</div>
             <span className="flag">YOU&apos;RE APPROVED</span>
             <p className="sub" style={{ margin: "8px auto 18px" }}>You&apos;re in. Tap below to open the free signals chat — this invite is just for you and works once.</p>
@@ -233,7 +235,7 @@ export default function JoinPage() {
         )}
 
         {step === 3 && phase === "denied" && (
-          <div style={{ textAlign: "center" }}>
+          <div className="gstep" style={{ textAlign: "center" }}>
             <div className="seal" style={{ background: "#ff6a6a", boxShadow: "0 0 40px rgba(255,80,80,.4)" }}>!</div>
             <p className="sub" style={{ margin: "0 auto 14px" }}>I couldn&apos;t match this to a signup under my link yet. Make sure you used my link, then message me and I&apos;ll sort it out.</p>
             <button className="back" onClick={() => { setPhase("form"); }}>← Try a different email</button>
@@ -241,7 +243,7 @@ export default function JoinPage() {
         )}
 
         {step === 4 && (
-          <div>
+          <div className="gstep">
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Watch it all the way through — and do each step in TradeLocker as you go. Follow along and you&apos;ll place your first practice trade by the end.</p>
             <video controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 14, border: ".5px solid var(--stroke)", background: "#000", display: "block" }}>
               <source src="/tradelocker-overview.mp4" type="video/mp4" />
@@ -256,6 +258,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
