@@ -16,62 +16,62 @@ export default function OneHousePage() {
       <style>{`
         html,body{overflow-x:hidden;max-width:100vw;}
         .fixed.bottom-0.left-0.right-0.z-50{display:none!important;}
-        .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
+        .jp{--green:#E8B84B;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
           position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
         @keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         .jp .gstep{animation:gpIn .4s cubic-bezier(.2,.8,.3,1) both;}
         .jp .fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
         .jp .blob{position:absolute;border-radius:50%;filter:blur(90px);}
-        .jp .b1{width:480px;height:480px;background:radial-gradient(circle,rgba(0,255,133,.16),transparent 65%);top:-200px;left:50%;margin-left:-240px;animation:jpp 9s ease-in-out infinite;}
-        .jp .b2{width:420px;height:420px;background:radial-gradient(circle,rgba(0,255,133,.08),transparent 65%);bottom:-220px;right:-120px;}
+        .jp .b1{width:480px;height:480px;background:radial-gradient(circle,rgba(232,184,75,.16),transparent 65%);top:-200px;left:50%;margin-left:-240px;animation:jpp 9s ease-in-out infinite;}
+        .jp .b2{width:420px;height:420px;background:radial-gradient(circle,rgba(232,184,75,.08),transparent 65%);bottom:-220px;right:-120px;}
         @keyframes jpp{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
         .jp .wrap{position:relative;z-index:1;max-width:440px;margin:0 auto;padding:34px 20px 48px;}
         .jp .top{text-align:center;margin-bottom:22px;}
         .jp .rl{position:relative;width:54px;height:54px;margin:0 auto 14px;}
-        .jp .rl .halo{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,133,.4),transparent 70%);animation:jpp 3.5s ease-in-out infinite;}
-        .jp .rl .core{position:absolute;inset:0;border-radius:15px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:26px;box-shadow:0 0 30px rgba(0,255,133,.55);}
+        .jp .rl .halo{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(232,184,75,.4),transparent 70%);animation:jpp 3.5s ease-in-out infinite;}
+        .jp .rl .core{position:absolute;inset:0;border-radius:15px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:26px;box-shadow:0 0 30px rgba(232,184,75,.55);}
         .jp .kick{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--green);font-weight:600;}
         .jp h1{font-size:29px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:11px 0 10px;}
-        .jp h1 .g{background:linear-gradient(180deg,#eafff4,#00FF85);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+        .jp h1 .g{background:linear-gradient(180deg,#fff7e6,#E8B84B);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
         .jp .sub{font-size:14px;color:var(--mut);line-height:1.6;max-width:340px;margin:0 auto;}
         .jp .flag{display:inline-block;font-size:10.5px;color:var(--mut2);letter-spacing:.14em;margin-bottom:8px;font-weight:600;}
         .jp .bar{display:flex;align-items:center;gap:11px;margin:14px 0 18px;}
         .jp .track{flex:1;height:7px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;}
-        .jp .fill{height:100%;background:linear-gradient(90deg,#0bd873,#00FF85);border-radius:7px;box-shadow:0 0 12px rgba(0,255,133,.6);transition:width .55s cubic-bezier(.2,.8,.3,1);}
+        .jp .fill{height:100%;background:linear-gradient(90deg,#c9973a,#E8B84B);border-radius:7px;box-shadow:0 0 12px rgba(232,184,75,.6);transition:width .55s cubic-bezier(.2,.8,.3,1);}
         .jp .barlbl{font-size:12px;color:var(--mut);font-weight:500;white-space:nowrap;}.jp .barlbl b{color:var(--green);}
 
         .jp .card{border:.5px solid var(--stroke);background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px;transition:border-color .3s,background .3s;}
-        .jp .card.done{border-color:rgba(0,255,133,.32);background:rgba(0,255,133,.055);}
+        .jp .card.done{border-color:rgba(232,184,75,.32);background:rgba(232,184,75,.055);}
         .jp .row{display:flex;gap:13px;align-items:center;}
         .jp .ic{width:50px;height:50px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35);overflow:hidden;}
         .jp .ic img{width:100%;height:100%;object-fit:cover;display:block;}
         .jp .ic.tl{background:#0a1512;}
-        .jp .ic.br{background:linear-gradient(135deg,#00FF85,#0bd873);}
+        .jp .ic.br{background:linear-gradient(135deg,#E8B84B,#c9973a);}
         .jp .it{flex:1;min-width:0;}
         .jp .it b{display:block;font-size:15px;font-weight:600;line-height:1.25;}
         .jp .card.done .it b{color:var(--green);}
         .jp .it span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.4;}
         .jp .tick{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:var(--mut);border:1.5px solid rgba(255,255,255,.18);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.25s;}
-        .jp .card.done .tick{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(0,255,133,.5);}
+        .jp .card.done .tick{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(232,184,75,.5);}
         .jp .acts{display:flex;gap:9px;margin-top:14px;}
         .jp .store{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 10px;border-radius:12px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.14);color:#fff;font-size:13px;font-weight:600;text-decoration:none;transition:.2s;}
         .jp .store:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.24);}
         .jp .store svg{width:15px;height:16px;flex-shrink:0;}
-        .jp .cta{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;width:100%;padding:13px 0;border-radius:12px;background:var(--green);color:#000;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 0 26px rgba(0,255,133,.35);}
+        .jp .cta{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;width:100%;padding:13px 0;border-radius:12px;background:var(--green);color:#000;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 0 26px rgba(232,184,75,.35);}
         .jp .srv{display:flex;align-items:center;gap:9px;margin-top:11px;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.04);border:.5px solid var(--stroke);}
         .jp .srv .lbl{font-size:11.5px;color:var(--mut2);text-transform:uppercase;letter-spacing:.08em;}
         .jp .srv .val{font-size:14px;font-weight:700;letter-spacing:.06em;color:#fff;font-family:ui-monospace,Menlo,monospace;}
-        .jp .srv .cpy{margin-left:auto;font-size:11px;font-weight:600;color:var(--green);border:.5px solid rgba(0,255,133,.35);border-radius:9px;padding:6px 12px;cursor:pointer;}
+        .jp .srv .cpy{margin-left:auto;font-size:11px;font-weight:600;color:var(--green);border:.5px solid rgba(232,184,75,.35);border-radius:9px;padding:6px 12px;cursor:pointer;}
         .jp .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:17px 0;border-radius:15px;border:none;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .3s;margin-top:18px;}
         .jp .btn:active{transform:scale(.98);}
-        .jp .btn.primary{background:var(--green);color:#000;box-shadow:0 0 34px rgba(0,255,133,.4);}
+        .jp .btn.primary{background:var(--green);color:#000;box-shadow:0 0 34px rgba(232,184,75,.4);}
         .jp .btn.primary:disabled{background:rgba(255,255,255,.07);color:var(--mut2);cursor:not-allowed;box-shadow:none;}
         .jp .emailcard{border:.5px solid var(--stroke);background:var(--card);border-radius:18px;padding:18px;}
         .jp .emailcard b{font-size:16px;font-weight:600;}.jp .emailcard p{font-size:13px;color:var(--mut);margin:4px 0 14px;line-height:1.55;}
         .jp input{width:100%;padding:15px 16px;background:rgba(255,255,255,.05);border:.5px solid var(--stroke);border-radius:13px;color:#fff;font-size:15px;font-family:inherit;outline:none;transition:.2s;}
         .jp input::placeholder{color:var(--mut2);}
-        .jp input:focus{border-color:rgba(0,255,133,.55);box-shadow:0 0 0 3px rgba(0,255,133,.12);}
+        .jp input:focus{border-color:rgba(232,184,75,.55);box-shadow:0 0 0 3px rgba(232,184,75,.12);}
         .jp .er{font-size:12px;color:#ff6a6a;margin-top:8px;}
         .jp .back{background:none;border:none;color:var(--mut2);font-family:inherit;font-size:12.5px;cursor:pointer;padding:12px 0 0;display:block;margin:8px auto 0;}
         .jp .tk{display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:22px;}
@@ -81,20 +81,20 @@ export default function OneHousePage() {
         .jp .tk .dot{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;background:rgba(255,255,255,.06);color:var(--mut);border:1.5px solid rgba(255,255,255,.18);z-index:1;}
         .jp .tk .tx b{display:block;font-size:15.5px;font-weight:600;margin-top:6px;}
         .jp .tk .tx span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.45;}
-        .jp .tk.done .dot{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(0,255,133,.5);}
+        .jp .tk.done .dot{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(232,184,75,.5);}
         .jp .tk.done .tx b{color:var(--green);}.jp .tk.done .line{background:var(--green);}
-        .jp .tk.active .dot{background:rgba(0,255,133,.12);color:var(--green);border-color:rgba(0,255,133,.5);}
+        .jp .tk.active .dot{background:rgba(232,184,75,.12);color:var(--green);border-color:rgba(232,184,75,.5);}
         .jp .spin{display:inline-block;animation:jpsp 1s linear infinite;}@keyframes jpsp{to{transform:rotate(360deg)}}
-        .jp .seal{width:76px;height:76px;margin:4px auto 18px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-size:36px;box-shadow:0 0 54px rgba(0,255,133,.6);}
+        .jp .seal{width:76px;height:76px;margin:4px auto 18px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-size:36px;box-shadow:0 0 54px rgba(232,184,75,.6);}
         .jp .foot{font-size:10px;color:var(--mut2);text-align:center;line-height:1.6;margin-top:22px;}
       `}</style>
       <div className="fx"><div className="blob b1" /><div className="blob b2" /></div>
       <div className="wrap">
         <div className="top">
           <div className="rl"><div className="halo" /><div className="core" style={{ fontSize: "20px" }}>1H</div></div>
-          <div className="kick">1House × The Greenprint</div>
+          <div className="kick">1House · Exclusive Start Guide</div>
           <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (<>Set up your <span className="g">broker.</span></>) : step === 3 ? (<>Log into <span className="g">1House.</span></>) : step === 4 ? (<>Get in the <span className="g">chats.</span></>) : step === 5 ? (<>5 keys to a <span className="g">strong start.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
-          <p className="sub">{step === 1 ? "Grab the apps and open your free broker account — three quick downloads." : step === 2 ? "Sign in to LivvFX first, then open TradeLocker and set up a demo account." : step === 3 ? "This is your home base — log in and get familiar with the platform." : step === 4 ? "Where the community lives. Ask questions and catch the live calls." : step === 5 ? "Do these and you'll start strong. Real talk, from us to you." : "Start with the video, then keep learning inside 1House."}</p>
+          <p className="sub">{step === 1 ? "Your private, step-by-step guide to getting started. Three quick downloads to begin." : step === 2 ? "Sign in to LivvFX first, then open TradeLocker and set up a demo account." : step === 3 ? "This is your home base — log in and get familiar with the platform." : step === 4 ? "Where the community lives. Ask questions and catch the live calls." : step === 5 ? "Do these and you'll start strong. Real talk, from us to you." : "Start with the video, then keep learning inside 1House."}</p>
         </div>
 
         <span className="flag">STEP {step} OF 6</span>
@@ -219,5 +219,6 @@ export default function OneHousePage() {
     </div>
   );
 }
+
 
 
