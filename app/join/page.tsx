@@ -256,7 +256,7 @@ export default function JoinPage() {
               <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
             </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
-                <a className="cta" href="https://www.livvfx.com/new-page" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, background: "rgba(255,255,255,.06)", color: "#fff", boxShadow: "none" }}>Livv&apos;s deposit guide →</a>
+                <a className="cta" href="https://members.livvglobal.com/client/dwguide#deposit" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, background: "rgba(255,255,255,.06)", color: "#fff", boxShadow: "none" }}>Livv&apos;s deposit guide →</a>
                 <p className="foot" style={{ marginTop: 12 }}>Trading involves real risk of loss. Only deposit what you can afford to lose — most beginners start on demo first.</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
               <button className="back" onClick={() => setAcctType("")}>← Change</button>
@@ -323,6 +323,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
