@@ -113,7 +113,7 @@ export default function OneHousePage() {
                 <a className="store" href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
                 <a className="store" href="https://play.google.com/store/apps/details?id=com.tradelocker.mobile" target="_blank" rel="noopener noreferrer"><Play /> Google Play</a>
               </div>
-              <div className="srv"><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
+              
             </div>
 
             <div className={"card" + (done[1] ? " done" : "")}>
@@ -231,6 +231,7 @@ export default function OneHousePage() {
     </div>
   );
 }
+
 
 
 
