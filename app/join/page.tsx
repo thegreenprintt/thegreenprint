@@ -150,8 +150,8 @@ export default function JoinPage() {
         <div className="top">
           <div className="rl"><div className="halo" /><div className="core">G</div></div>
           <div className="kick">The Greenprint</div>
-          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (acctType ? (<>Set up your <span className="g">account.</span></>) : (<>Demo or <span className="g">live?</span></>)) : step === 3 ? (<>Join the <span className="g">signals chat.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
-          <p className="sub">{step === 1 ? "Three quick downloads: TradeLocker, Telegram, and your free broker account." : step === 2 ? (acctType ? "Your broker is the middleman between you and the markets. Let's open your trading account." : "How do you want to start? You can switch anytime — most beginners start on demo.") : step === 3 ? "Confirm your email and I'll approve you straight into the free signals chat." : "Watch this once and you'll know how to place your first trade."}</p>
+          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (acctType === "live" ? (<>Fund your <span className="g">account.</span></>) : acctType === "demo" ? (<>Set up your <span className="g">account.</span></>) : (<>Demo or <span className="g">live?</span></>)) : step === 3 ? (<>Join the <span className="g">signals chat.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
+          <p className="sub">{step === 1 ? "Three quick downloads: TradeLocker, Telegram, and your free broker account." : step === 2 ? (acctType === "live" ? "Deposit and move your funds into a live trading account — step by step." : acctType === "demo" ? "Your broker is the middleman between you and the markets. Let's open your trading account." : "How do you want to start? You can switch anytime — most beginners start on demo.") : step === 3 ? "Confirm your email and I'll approve you straight into the free signals chat." : "Watch this once and you'll know how to place your first trade."}</p>
         </div>
 
         <span className="flag">STEP {step} OF 4</span>
@@ -243,25 +243,27 @@ export default function JoinPage() {
               <>
                 <span className="flag">LIVE ACCOUNT · REAL MONEY</span>
                 <div style={{ margin: "6px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Create your free LivvFX account and verify your email.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open Trading Accounts</b><span>In LivvFX, tap the menu (top-left), then &quot;Trade Accounts.&quot;</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Open a Live Account</b><span>Choose &quot;Open Live Account&quot; and set leverage to 1:500.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Deposit funds</b><span>In LivvFX, go to Deposit and fund your account (card, bank or crypto).</span></div></div>
-              <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into TradeLocker</b><span>Open TradeLocker and log in with your live account — you&apos;re ready.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Log in &amp; open My Funds</b><span>Go to members.livvglobal.com/login and sign in. Open the side menu → MY FUNDS → DEPOSIT.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Choose Card or Crypto</b><span>Tap DEPOSIT NOW under Card (instant) or Crypto (arrives after the network confirms). For card: enter the amount, tap SUBMIT, complete the payment.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Check your wallet balance</b><span>Side menu → DASHBOARD. Your Wallet Balance now shows your deposit.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Open or find your account</b><span>Menu → TRADING ACCOUNT. First time? Tap OPEN LIVE ACCOUNT. Already have one? Tap ACCOUNT LIST and note your account number.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">5</div><div className="tx"><b>Move your funds over</b><span>INTERNAL FUND TRANSFER → WALLET TO TRADING ACCOUNT. Pick your account, enter the amount, type anything in Note (required), tap SUBMIT.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">6</div><div className="tx"><b>Download TradeLocker</b><span>Grab the TradeLocker app from the App Store or Google Play if you haven&apos;t.</span></div></div>
+                  <div className="tk"><div className="line" /><div className="dot">7</div><div className="tx"><b>Log into TradeLocker</b><span>Open the app → LOGIN with your LivvFX email &amp; password (server LIVVFX).</span></div></div>
+                  <div className="tk"><div className="dot">8</div><div className="tx"><b>You&apos;re funded &amp; ready</b><span>Your live account shows up automatically. Place your first trade.</span></div></div>
                 </div>
-            <div className="card" style={{ marginTop: 4 }}>
-              <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Logging into TradeLocker? Type in:</b>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>the email you used on LivvFX</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0" }}><span style={{ color: "var(--mut)" }}>Password</span><b>the password you made</b></div>
-              <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
-            </div>
-            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
-                <a className="cta" href="https://members.livvglobal.com/client/dwguide#deposit" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, background: "rgba(255,255,255,.06)", color: "#fff", boxShadow: "none" }}>Livv&apos;s deposit guide →</a>
-                <p className="foot" style={{ marginTop: 12 }}>Trading involves real risk of loss. Only deposit what you can afford to lose — most beginners start on demo first.</p>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setAcctType("")}>← Change</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
-            </div>
+                <div className="card" style={{ marginTop: 4 }}>
+                  <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Your TradeLocker login:</b>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>your LivvFX email</b></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0" }}><span style={{ color: "var(--mut)" }}>Password</span><b>your LivvFX password</b></div>
+                  <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
+                </div>
+                <a className="cta" href="https://members.livvglobal.com/login" target="_blank" rel="noopener noreferrer">Open Livv to deposit →</a>
+                <p className="foot" style={{ marginTop: 12 }}>Trading involves real risk of loss. Only deposit what you can afford to lose. Questions? Support@livvfxtrades.com</p>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+                  <button className="back" onClick={() => setAcctType("")}>← Change</button>
+                  <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
+                </div>
               </>
             )}
           </div>
@@ -323,6 +325,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
