@@ -60,6 +60,16 @@ export default function JoinPage() {
         .fixed.bottom-0.left-0.right-0.z-50{display:none!important;}
         @keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
         .jp .gstep{animation:gpIn .4s cubic-bezier(.2,.8,.3,1) both;}
+        .jp .choice{display:flex;align-items:center;gap:13px;padding:15px;border-radius:16px;background:rgba(255,255,255,.045);border:1px solid var(--stroke);cursor:pointer;transition:.2s;margin-bottom:12px;}
+        .jp .choice:hover{border-color:rgba(0,255,133,.5);background:rgba(0,255,133,.05);}
+        .jp .choice:active{transform:scale(.99);}
+        .jp .cic{width:48px;height:48px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:23px;background:rgba(0,255,133,.12);border:1px solid rgba(0,255,133,.28);}
+        .jp .ctx{flex:1;min-width:0;}
+        .jp .ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .jp .ch b{font-size:16px;font-weight:700;}
+        .jp .rec{font-size:9px;font-weight:700;letter-spacing:.1em;color:#001a0e;background:var(--green);padding:3px 7px;border-radius:6px;}
+        .jp .ctx p{margin:3px 0 0;font-size:12.5px;color:var(--mut);line-height:1.45;}
+        .jp .cgo{color:var(--green);font-weight:700;font-size:20px;flex-shrink:0;}
         .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
           position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
@@ -188,12 +198,16 @@ export default function JoinPage() {
           <div className="gstep">
             {!acctType && (
               <>
-                <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>First — how do you want to start? You can switch anytime.</p>
-                <div className="card" role="button" tabIndex={0} onClick={() => setAcctType("demo")} style={{ cursor: "pointer" }}>
-                  <div className="row"><div className="it"><b>Demo account</b><span>Practice with fake money — zero risk. Best if you&apos;re brand new.</span></div><span style={{ color: "var(--green)", fontWeight: 700, fontSize: "18px" }}>→</span></div>
+                <p className="sub" style={{ margin: "0 0 16px", maxWidth: "none" }}>How do you want to start? You can switch anytime.</p>
+                <div className="choice" role="button" tabIndex={0} onClick={() => setAcctType("demo")}>
+                  <div className="cic">📈</div>
+                  <div className="ctx"><div className="ch"><b>Demo account</b><span className="rec">RECOMMENDED</span></div><p>Practice with fake money — zero risk. Perfect if you&apos;re brand new.</p></div>
+                  <span className="cgo">›</span>
                 </div>
-                <div className="card" role="button" tabIndex={0} onClick={() => setAcctType("live")} style={{ cursor: "pointer" }}>
-                  <div className="row"><div className="it"><b>Live account</b><span>Fund a real account and trade with your own money.</span></div><span style={{ color: "var(--green)", fontWeight: 700, fontSize: "18px" }}>→</span></div>
+                <div className="choice" role="button" tabIndex={0} onClick={() => setAcctType("live")}>
+                  <div className="cic">💵</div>
+                  <div className="ctx"><div className="ch"><b>Live account</b></div><p>Fund a real account and trade with your own money.</p></div>
+                  <span className="cgo">›</span>
                 </div>
                 <button className="back" onClick={() => setStep(1)}>← Back</button>
               </>
@@ -306,6 +320,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
