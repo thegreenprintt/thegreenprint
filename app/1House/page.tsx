@@ -2,223 +2,163 @@
 import { useState } from "react";
 
 export default function OneHousePage() {
-  const [step, setStep] = useState(1);
-  const [done, setDone] = useState([false, false, false]);
+  const [done, setDone] = useState([false, false, false, false, false, false]);
   const [copied, setCopied] = useState(false);
-  const count = done.filter(Boolean).length;
-  const mark = (k: number) => setDone((d) => d.map((v, i) => (i === k ? true : v)));
+  const toggle = (i: number) => setDone((d) => d.map((v, k) => (k === i ? !v : v)));
   const copyServer = () => { try { navigator.clipboard.writeText("LIVVFX"); } catch {} setCopied(true); setTimeout(() => setCopied(false), 1500); };
-  const Apple = () => (<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.04c-.03-2.6 2.12-3.85 2.22-3.9-1.21-1.77-3.1-2.02-3.77-2.05-1.6-.16-3.13.94-3.94.94-.81 0-2.07-.92-3.4-.9-1.75.03-3.36 1.02-4.26 2.58-1.82 3.15-.46 7.8 1.3 10.36.86 1.25 1.88 2.65 3.22 2.6 1.3-.05 1.78-.84 3.35-.84 1.56 0 2 .84 3.37.81 1.39-.02 2.27-1.27 3.12-2.53.98-1.45 1.39-2.85 1.41-2.92-.03-.01-2.7-1.04-2.73-4.13M14.6 4.9c.71-.86 1.19-2.06 1.06-3.25-1.02.04-2.26.68-2.99 1.54-.66.76-1.23 1.98-1.08 3.15 1.14.09 2.3-.58 3.01-1.44" /></svg>);
-  const Play = () => (<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 3.5v17l13-8.5-13-8.5z" /></svg>);
+  const count = done.filter(Boolean).length;
 
   return (
-    <div className="jp">
+    <div className="oh">
       <style>{`
         html,body{overflow-x:hidden;max-width:100vw;}
         .fixed.bottom-0.left-0.right-0.z-50{display:none!important;}
-        .jp{--green:#E8B84B;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
-          position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
-        .jp *{box-sizing:border-box;}
-        @keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-        .jp .gstep{animation:gpIn .4s cubic-bezier(.2,.8,.3,1) both;}
-        .jp .fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
-        .jp .blob{position:absolute;border-radius:50%;filter:blur(90px);}
-        .jp .b1{width:480px;height:480px;background:radial-gradient(circle,rgba(232,184,75,.16),transparent 65%);top:-200px;left:50%;margin-left:-240px;animation:jpp 9s ease-in-out infinite;}
-        .jp .b2{width:420px;height:420px;background:radial-gradient(circle,rgba(232,184,75,.08),transparent 65%);bottom:-220px;right:-120px;}
-        @keyframes jpp{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
-        .jp .wrap{position:relative;z-index:1;max-width:440px;margin:0 auto;padding:34px 20px 48px;}
-        .jp .top{text-align:center;margin-bottom:22px;}
-        .jp .rl{position:relative;width:54px;height:54px;margin:0 auto 14px;}
-        .jp .rl .halo{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(232,184,75,.4),transparent 70%);animation:jpp 3.5s ease-in-out infinite;}
-        .jp .rl .core{position:absolute;inset:0;border-radius:15px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:26px;box-shadow:0 0 30px rgba(232,184,75,.55);}
-        .jp .kick{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--green);font-weight:600;}
-        .jp h1{font-size:29px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:11px 0 10px;}
-        .jp h1 .g{background:linear-gradient(180deg,#fff7e6,#E8B84B);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-        .jp .sub{font-size:14px;color:var(--mut);line-height:1.6;max-width:340px;margin:0 auto;}
-        .jp .flag{display:inline-block;font-size:10.5px;color:var(--mut2);letter-spacing:.14em;margin-bottom:8px;font-weight:600;}
-        .jp .bar{display:flex;align-items:center;gap:11px;margin:14px 0 18px;}
-        .jp .track{flex:1;height:7px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;}
-        .jp .fill{height:100%;background:linear-gradient(90deg,#c9973a,#E8B84B);border-radius:7px;box-shadow:0 0 12px rgba(232,184,75,.6);transition:width .55s cubic-bezier(.2,.8,.3,1);}
-        .jp .barlbl{font-size:12px;color:var(--mut);font-weight:500;white-space:nowrap;}.jp .barlbl b{color:var(--green);}
-
-        .jp .card{border:.5px solid var(--stroke);background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px;transition:border-color .3s,background .3s;}
-        .jp .card.done{border-color:rgba(232,184,75,.32);background:rgba(232,184,75,.055);}
-        .jp .row{display:flex;gap:13px;align-items:center;}
-        .jp .ic{width:50px;height:50px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35);overflow:hidden;}
-        .jp .ic img{width:100%;height:100%;object-fit:cover;display:block;}
-        .jp .ic.tl{background:#0a1512;}
-        .jp .ic.br{background:linear-gradient(135deg,#E8B84B,#c9973a);}
-        .jp .it{flex:1;min-width:0;}
-        .jp .it b{display:block;font-size:15px;font-weight:600;line-height:1.25;}
-        .jp .card.done .it b{color:var(--green);}
-        .jp .it span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.4;}
-        .jp .tick{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:var(--mut);border:1.5px solid rgba(255,255,255,.18);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.25s;}
-        .jp .card.done .tick{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(232,184,75,.5);}
-        .jp .acts{display:flex;gap:9px;margin-top:14px;}
-        .jp .store{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 10px;border-radius:12px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.14);color:#fff;font-size:13px;font-weight:600;text-decoration:none;transition:.2s;}
-        .jp .store:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.24);}
-        .jp .store svg{width:15px;height:16px;flex-shrink:0;}
-        .jp .cta{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;width:100%;padding:13px 0;border-radius:12px;background:var(--green);color:#000;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 0 26px rgba(232,184,75,.35);}
-        .jp .srv{display:flex;align-items:center;gap:9px;margin-top:11px;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.04);border:.5px solid var(--stroke);}
-        .jp .srv .lbl{font-size:11.5px;color:var(--mut2);text-transform:uppercase;letter-spacing:.08em;}
-        .jp .srv .val{font-size:14px;font-weight:700;letter-spacing:.06em;color:#fff;font-family:ui-monospace,Menlo,monospace;}
-        .jp .srv .cpy{margin-left:auto;font-size:11px;font-weight:600;color:var(--green);border:.5px solid rgba(232,184,75,.35);border-radius:9px;padding:6px 12px;cursor:pointer;}
-        .jp .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:17px 0;border-radius:15px;border:none;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .3s;margin-top:18px;}
-        .jp .btn:active{transform:scale(.98);}
-        .jp .btn.primary{background:var(--green);color:#000;box-shadow:0 0 34px rgba(232,184,75,.4);}
-        .jp .btn.primary:disabled{background:rgba(255,255,255,.07);color:var(--mut2);cursor:not-allowed;box-shadow:none;}
-        .jp .emailcard{border:.5px solid var(--stroke);background:var(--card);border-radius:18px;padding:18px;}
-        .jp .emailcard b{font-size:16px;font-weight:600;}.jp .emailcard p{font-size:13px;color:var(--mut);margin:4px 0 14px;line-height:1.55;}
-        .jp input{width:100%;padding:15px 16px;background:rgba(255,255,255,.05);border:.5px solid var(--stroke);border-radius:13px;color:#fff;font-size:15px;font-family:inherit;outline:none;transition:.2s;}
-        .jp input::placeholder{color:var(--mut2);}
-        .jp input:focus{border-color:rgba(232,184,75,.55);box-shadow:0 0 0 3px rgba(232,184,75,.12);}
-        .jp .er{font-size:12px;color:#ff6a6a;margin-top:8px;}
-        .jp .back{background:none;border:none;color:var(--mut2);font-family:inherit;font-size:12.5px;cursor:pointer;padding:12px 0 0;display:block;margin:8px auto 0;}
-        .jp .tk{display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:22px;}
-        .jp .tk:last-child{padding-bottom:0;}
-        .jp .tk .line{position:absolute;left:17px;top:36px;bottom:-2px;width:2px;background:rgba(255,255,255,.12);}
-        .jp .tk:last-child .line{display:none;}
-        .jp .tk .dot{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;background:rgba(255,255,255,.06);color:var(--mut);border:1.5px solid rgba(255,255,255,.18);z-index:1;}
-        .jp .tk .tx b{display:block;font-size:15.5px;font-weight:600;margin-top:6px;}
-        .jp .tk .tx span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.45;}
-        .jp .tk.done .dot{background:var(--green);color:#000;border-color:var(--green);box-shadow:0 0 16px rgba(232,184,75,.5);}
-        .jp .tk.done .tx b{color:var(--green);}.jp .tk.done .line{background:var(--green);}
-        .jp .tk.active .dot{background:rgba(232,184,75,.12);color:var(--green);border-color:rgba(232,184,75,.5);}
-        .jp .spin{display:inline-block;animation:jpsp 1s linear infinite;}@keyframes jpsp{to{transform:rotate(360deg)}}
-        .jp .seal{width:76px;height:76px;margin:4px auto 18px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#000;font-size:36px;box-shadow:0 0 54px rgba(232,184,75,.6);}
-        .jp .foot{font-size:10px;color:var(--mut2);text-align:center;line-height:1.6;margin-top:22px;}
+        .oh{--gold:#E8B84B;--gold2:#c9973a;--mut:rgba(255,255,255,.58);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.09);position:relative;min-height:100vh;background:#07070a;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
+        .oh *{box-sizing:border-box;}
+        .oh .glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(620px 400px at 50% -80px,rgba(232,184,75,.16),transparent 70%);}
+        @keyframes ohIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        .oh .hero{position:relative;z-index:1;text-align:center;padding:48px 22px 22px;max-width:600px;margin:0 auto;animation:ohIn .5s ease both;}
+        .oh .pill{display:inline-block;font-size:10.5px;letter-spacing:.28em;color:var(--gold);border:1px solid rgba(232,184,75,.4);border-radius:999px;padding:6px 14px;font-weight:600;}
+        .oh .mark{width:66px;height:66px;border-radius:18px;background:linear-gradient(140deg,var(--gold),var(--gold2));color:#1a1205;font-weight:800;font-size:23px;display:flex;align-items:center;justify-content:center;margin:18px auto 10px;box-shadow:0 10px 40px rgba(232,184,75,.35);}
+        .oh .wm{font-size:12px;letter-spacing:.35em;text-transform:uppercase;color:var(--mut);font-weight:600;}
+        .oh h1{font-size:31px;font-weight:800;letter-spacing:-.02em;line-height:1.08;margin:12px 0 12px;}
+        .oh h1 .g{background:linear-gradient(180deg,#fff7e6,var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+        .oh .lede{font-size:15px;color:var(--mut);line-height:1.6;max-width:450px;margin:0 auto;}
+        .oh .prog{margin-top:18px;font-size:12px;color:var(--gold);font-weight:600;letter-spacing:.05em;}
+        .oh .guide{position:relative;z-index:1;max-width:600px;margin:12px auto 0;padding:0 22px;}
+        .oh .ms{display:flex;gap:15px;align-items:stretch;animation:ohIn .5s ease both;}
+        .oh .rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:40px;}
+        .oh .node{width:40px;height:40px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(232,184,75,.5);background:rgba(232,184,75,.08);color:var(--gold);font-weight:700;font-size:16px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.25s;}
+        .oh .node.on{background:var(--gold);color:#1a1205;border-color:var(--gold);box-shadow:0 0 22px rgba(232,184,75,.5);}
+        .oh .line{width:2px;flex:1;min-height:24px;margin:6px 0;background:var(--stroke);border-radius:2px;transition:.25s;}
+        .oh .line.on{background:linear-gradient(var(--gold),var(--gold2));opacity:.5;}
+        .oh .body{flex:1;min-width:0;padding-bottom:30px;}
+        .oh .body h3{font-size:19px;font-weight:700;margin:5px 0 6px;}
+        .oh .body .d{font-size:14px;color:var(--mut);line-height:1.6;margin:0 0 12px;}
+        .oh .approw{display:flex;align-items:center;gap:12px;}
+        .oh .aic{width:46px;height:46px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+        .oh .aic img{width:100%;height:100%;object-fit:cover;display:block;}
+        .oh .an b{display:block;font-size:15px;font-weight:600;}
+        .oh .an span{display:block;font-size:12.5px;color:var(--mut);}
+        .oh .stores{display:flex;gap:8px;margin:10px 0 4px;}
+        .oh .stores a{flex:1;text-align:center;padding:10px;border-radius:11px;background:rgba(255,255,255,.06);border:.5px solid var(--stroke);color:#fff;font-size:13px;font-weight:600;text-decoration:none;transition:.2s;}
+        .oh .srv{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 13px;border-radius:11px;background:rgba(255,255,255,.04);border:.5px solid var(--stroke);}
+        .oh .srv i{font-style:normal;font-size:11px;color:var(--mut2);letter-spacing:.08em;}
+        .oh .srv b{font-size:14px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;}
+        .oh .srv button{margin-left:auto;font-size:11px;font-weight:600;color:var(--gold);background:none;border:.5px solid rgba(232,184,75,.4);border-radius:9px;padding:6px 12px;cursor:pointer;font-family:inherit;}
+        .oh .act{display:flex;align-items:center;justify-content:center;margin-top:14px;padding:13px;border-radius:13px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1205;font-size:14.5px;font-weight:700;text-decoration:none;box-shadow:0 8px 26px rgba(232,184,75,.28);}
+        .oh ol.steps,.oh ul.keys{list-style:none;margin:0;padding:0;}
+        .oh ol.steps{counter-reset:st;}
+        .oh ol.steps li{counter-increment:st;position:relative;padding:9px 0 9px 30px;font-size:14px;color:var(--mut);line-height:1.5;border-bottom:.5px solid rgba(255,255,255,.05);}
+        .oh ol.steps li:last-child{border-bottom:none;}
+        .oh ol.steps li::before{content:counter(st);position:absolute;left:0;top:8px;width:20px;height:20px;border-radius:50%;background:rgba(232,184,75,.14);color:var(--gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+        .oh ol.steps li b{color:#fff;font-weight:600;}
+        .oh ul.keys li{padding:11px 0;font-size:14px;color:var(--mut);line-height:1.55;border-bottom:.5px solid rgba(255,255,255,.05);}
+        .oh ul.keys li:last-child{border-bottom:none;}
+        .oh ul.keys li b{color:var(--gold);font-weight:700;}
+        .oh video{width:100%;border-radius:14px;border:.5px solid var(--stroke);background:#000;display:block;}
+        .oh .end{position:relative;z-index:1;text-align:center;padding:16px 22px 60px;max-width:600px;margin:0 auto;}
+        .oh .fseal{width:60px;height:60px;border-radius:50%;background:linear-gradient(140deg,var(--gold),var(--gold2));color:#1a1205;font-size:27px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 0 40px rgba(232,184,75,.4);}
+        .oh .end h2{font-size:24px;font-weight:800;margin:0 0 6px;}
+        .oh .end p{font-size:14px;color:var(--mut);line-height:1.6;max-width:380px;margin:0 auto;}
       `}</style>
-      <div className="fx"><div className="blob b1" /><div className="blob b2" /></div>
-      <div className="wrap">
-        <div className="top">
-          <div className="rl"><div className="halo" /><div className="core" style={{ fontSize: "20px" }}>1H</div></div>
-          <div className="kick">1House · Exclusive Start Guide</div>
-          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (<>Set up your <span className="g">broker.</span></>) : step === 3 ? (<>Log into <span className="g">1House.</span></>) : step === 4 ? (<>Get in the <span className="g">chats.</span></>) : step === 5 ? (<>5 keys to a <span className="g">strong start.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
-          <p className="sub">{step === 1 ? "Your private, step-by-step guide to getting started. Three quick downloads to begin." : step === 2 ? "Sign in to LivvFX first, then open TradeLocker and set up a demo account." : step === 3 ? "This is your home base — log in and get familiar with the platform." : step === 4 ? "Where the community lives. Ask questions and catch the live calls." : step === 5 ? "Do these and you'll start strong. Real talk, from us to you." : "Start with the video, then keep learning inside 1House."}</p>
-        </div>
+      <div className="glow" />
 
-        <span className="flag">STEP {step} OF 6</span>
+      <header className="hero">
+        <div className="pill">PRIVATE START GUIDE</div>
+        <div className="mark">1H</div>
+        <div className="wm">1House</div>
+        <h1>Welcome. Let&apos;s get you <span className="g">started.</span></h1>
+        <p className="lede">Follow this top to bottom. By the end you&apos;ll have your broker set up, be inside the community, and know how to take your first trade.</p>
+        <div className="prog">{count} of 6 complete</div>
+      </header>
 
-        {step === 1 && (
-          <div className="gstep">
-            <div className="bar"><div className="track"><div className="fill" style={{ width: (count / 3) * 100 + "%" }} /></div><div className="barlbl"><b>{count}</b> of 3 done</div></div>
-            <p className="sub" style={{ margin: "2px 0 8px", fontSize: "12.5px", maxWidth: "none" }}>Tap the circle on the right of each one as you finish it.</p>
-            <div className={"card" + (done[0] ? " done" : "")}>
-              <div className="row">
-                <div className="ic tl"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6c/25/c3/6c25c3c6-bbc4-f961-c32d-da661aeaee6f/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg" alt="TradeLocker" /></div>
-                <div className="it"><b>Get TradeLocker</b><span>The app you place your trades in</span></div>
-                <button className="tick" onClick={() => mark(0)} aria-label="Mark done">{done[0] ? "✓" : ""}</button>
-              </div>
-              <div className="acts">
-                <a className="store" href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
-                <a className="store" href="https://play.google.com/store/apps/details?id=com.tradelocker.mobile" target="_blank" rel="noopener noreferrer"><Play /> Google Play</a>
-              </div>
-              <div className="srv"><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
-            </div>
-
-            <div className={"card" + (done[1] ? " done" : "")}>
-              <div className="row">
-                <div className="ic tg"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5a/2b/59/5a2b59f4-1458-d32d-7b33-00ba66d2d59e/Telegram-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg" alt="Telegram" /></div>
-                <div className="it"><b>Get Telegram</b><span>Where I send the live signals</span></div>
-                <button className="tick" onClick={() => mark(1)} aria-label="Mark done">{done[1] ? "✓" : ""}</button>
-              </div>
-              <div className="acts">
-                <a className="store" href="https://apps.apple.com/us/app/telegram-messenger/id686449807" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
-                <a className="store" href="https://play.google.com/store/apps/details?id=org.telegram.messenger" target="_blank" rel="noopener noreferrer"><Play /> Google Play</a>
-              </div>
-            </div>
-
-            <div className={"card" + (done[2] ? " done" : "")}>
-              <div className="row">
-                <div className="ic br"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5l5-5 4 3 6.5-7.5" stroke="#053" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 6.5h4v4" stroke="#053" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-                <div className="it"><b>Sign up with the broker</b><span>Your free account — with my link</span></div>
-                <button className="tick" onClick={() => mark(2)} aria-label="Mark done">{done[2] ? "✓" : ""}</button>
-              </div>
-              <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Create free account →</a>
-            </div>
-            <button className="btn primary" disabled={count < 3} onClick={() => setStep(2)}>{count < 3 ? "Tap all 3 to continue (" + count + "/3)" : "Next: set up your broker →"}</button>
+      <main className="guide">
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[0] ? " on" : "")} onClick={() => toggle(0)} aria-label="Mark done">{done[0] ? "✓" : 1}</button><div className={"line" + (done[0] ? " on" : "")} /></div>
+          <div className="body">
+            <h3>Download your apps</h3>
+            <p className="d">Two apps to grab, plus your free broker account.</p>
+            <div className="approw"><div className="aic"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6c/25/c3/6c25c3c6-bbc4-f961-c32d-da661aeaee6f/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg" alt="TradeLocker" /></div><div className="an"><b>TradeLocker</b><span>Where you place your trades</span></div></div>
+            <div className="stores"><a href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer">App Store</a><a href="https://play.google.com/store/apps/details?id=com.tradelocker.mobile" target="_blank" rel="noopener noreferrer">Google Play</a></div>
+            <div className="srv"><i>SERVER</i><b>LIVVFX</b><button onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</button></div>
+            <div className="approw" style={{ marginTop: 14 }}><div className="aic"><img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5a/2b/59/5a2b59f4-1458-d32d-7b33-00ba66d2d59e/Telegram-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg" alt="Telegram" /></div><div className="an"><b>Telegram</b><span>Where the community lives</span></div></div>
+            <div className="stores"><a href="https://apps.apple.com/us/app/telegram-messenger/id686449807" target="_blank" rel="noopener noreferrer">App Store</a><a href="https://play.google.com/store/apps/details?id=org.telegram.messenger" target="_blank" rel="noopener noreferrer">Google Play</a></div>
+            <a className="act" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your free broker account →</a>
           </div>
-        )}
+        </section>
 
-        {step === 2 && (
-          <div className="gstep">
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, follow these in order:</p>
-            <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Your LivvFX account is what unlocks TradeLocker — start there.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open TradeLocker</b><span>Log in with your LivvFX account, then tap the menu (arrow, top-left).</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Trade Accounts, then Open Demo Account</b><span>Demo = practice money, zero risk while you learn.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s not real money.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">5</div><div className="tx"><b>Set leverage to 1:500, then Submit</b><span>This matches how we trade.</span></div></div>
-              <div className="tk"><div className="dot">6</div><div className="tx"><b>Log into your new demo account</b><span>Pick it from the list — your trading account is done.</span></div></div>
-            </div>
-            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
-            </div>
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[1] ? " on" : "")} onClick={() => toggle(1)} aria-label="Mark done">{done[1] ? "✓" : 2}</button><div className={"line" + (done[1] ? " on" : "")} /></div>
+          <div className="body">
+            <h3>Set up your broker</h3>
+            <p className="d">Sign in to LivvFX first — that&apos;s what unlocks TradeLocker. Then open a demo account: practice money, zero risk.</p>
+            <ol className="steps">
+              <li><b>Sign in to LivvFX</b> — start there; it unlocks TradeLocker.</li>
+              <li><b>Open TradeLocker</b> and tap the menu (arrow, top-left).</li>
+              <li><b>Trade Accounts, then Open Demo Account.</b></li>
+              <li><b>Set your balance</b> — $1,000 to $10,000 (not real money).</li>
+              <li><b>Set leverage to 1:500,</b> then Submit.</li>
+              <li><b>Log into your new demo account.</b> Done.</li>
+            </ol>
           </div>
-        )}
+        </section>
 
-        {step === 3 && (
-          <div className="gstep">
-            <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Go to 1house.tv</b><span>Open it in your browser and sign in.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Log into your account</b><span>Use the login you created for 1House.</span></div></div>
-              <div className="tk"><div className="dot">3</div><div className="tx"><b>Explore the platform</b><span>Check out the educators, live rooms, and lessons.</span></div></div>
-            </div>
-            <a className="cta" href="https://www.1house.tv" target="_blank" rel="noopener noreferrer">Open 1house.tv →</a>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(2)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(4)}>Next →</button>
-            </div>
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[2] ? " on" : "")} onClick={() => toggle(2)} aria-label="Mark done">{done[2] ? "✓" : 3}</button><div className={"line" + (done[2] ? " on" : "")} /></div>
+          <div className="body">
+            <h3>Log into 1House</h3>
+            <p className="d">Your home base. Log in and get familiar with the platform.</p>
+            <ol className="steps">
+              <li><b>Go to 1house.tv</b> and sign in.</li>
+              <li><b>Log into your account.</b></li>
+              <li><b>Explore</b> the educators, live rooms and lessons.</li>
+            </ol>
+            <a className="act" href="https://www.1house.tv" target="_blank" rel="noopener noreferrer">Open 1house.tv →</a>
           </div>
-        )}
+        </section>
 
-        {step === 4 && (
-          <div className="gstep">
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Get plugged in — ask questions, share wins, and be there for the live calls. The people who talk are the people who grow.</p>
-            <a className="cta" href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer">Join the community chat →</a>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(3)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(5)}>Next →</button>
-            </div>
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[3] ? " on" : "")} onClick={() => toggle(3)} aria-label="Mark done">{done[3] ? "✓" : 4}</button><div className={"line" + (done[3] ? " on" : "")} /></div>
+          <div className="body">
+            <h3>Get in the community</h3>
+            <p className="d">Ask questions, share wins, and be there for the live calls. The people who talk are the people who grow.</p>
+            <a className="act" href="https://t.me/+NFLNaB00u65mOTM5" target="_blank" rel="noopener noreferrer">Join the community chat →</a>
           </div>
-        )}
+        </section>
 
-        {step === 5 && (
-          <div className="gstep">
-            <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Listen to your mentors</b><span>Don&apos;t swerve off — do what they do. If you knew what we knew, you&apos;d do what we do.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Communicate</b><span>Get in the chats, ask questions, show up to the live calls.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>It works if you work</b><span>Consistency beats intensity. Show up every day.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Practice on demo first</b><span>Get your reps in with fake money before you risk real.</span></div></div>
-              <div className="tk"><div className="dot">5</div><div className="tx"><b>Be patient</b><span>Protect your money. Slow is smooth, smooth is fast.</span></div></div>
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(4)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(6)}>Next →</button>
-            </div>
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[4] ? " on" : "")} onClick={() => toggle(4)} aria-label="Mark done">{done[4] ? "✓" : 5}</button><div className={"line" + (done[4] ? " on" : "")} /></div>
+          <div className="body">
+            <h3>5 keys to a strong start</h3>
+            <ul className="keys">
+              <li><b>Listen to your mentors.</b> Don&apos;t swerve — do what they do. If you knew what we knew, you&apos;d do what we do.</li>
+              <li><b>Communicate.</b> Get in the chats, ask questions, show up to the calls.</li>
+              <li><b>It works if you work.</b> Consistency beats intensity.</li>
+              <li><b>Practice on demo first.</b> Get your reps before you risk real money.</li>
+              <li><b>Be patient.</b> Protect your money. Slow is smooth, smooth is fast.</li>
+            </ul>
           </div>
-        )}
+        </section>
 
-        {step === 6 && (
-          <div className="gstep">
-            <p className="sub" style={{ margin: "0 0 12px", maxWidth: "none" }}>Start here: watch <b>&quot;New Trader Start Here&quot;</b> on Arin Long&apos;s page, then keep learning inside 1House.</p>
-            <a className="cta" href="https://www.1house.tv/educators/arin-long" target="_blank" rel="noopener noreferrer">Watch &quot;New Trader Start Here&quot; →</a>
-            <p className="sub" style={{ margin: "16px 0 8px", maxWidth: "none", fontSize: "13px" }}>Bonus — a quick walkthrough of TradeLocker itself:</p>
-            <video controls playsInline preload="metadata" style={{ width: "100%", borderRadius: 14, border: ".5px solid var(--stroke)", background: "#000", display: "block" }}>
-              <source src="/tradelocker-overview.mp4" type="video/mp4" />
-            </video>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(5)}>← Back</button>
-              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(1)}>Done 🎉</button>
-            </div>
+        <section className="ms">
+          <div className="rail"><button className={"node" + (done[5] ? " on" : "")} onClick={() => toggle(5)} aria-label="Mark done">{done[5] ? "✓" : 6}</button></div>
+          <div className="body">
+            <h3>Learn to trade</h3>
+            <p className="d">Start here: watch <b>&quot;New Trader Start Here&quot;</b> on Arin Long&apos;s page, then keep learning inside 1House.</p>
+            <a className="act" href="https://www.1house.tv/educators/arin-long" target="_blank" rel="noopener noreferrer">Watch &quot;New Trader Start Here&quot; →</a>
+            <p className="d" style={{ marginTop: 16 }}>Bonus — a quick TradeLocker walkthrough:</p>
+            <video controls playsInline preload="metadata"><source src="/tradelocker-overview.mp4" type="video/mp4" /></video>
           </div>
-        )}
-      </div>
+        </section>
+      </main>
+
+      <footer className="end">
+        <div className="fseal">✓</div>
+        <h2>You&apos;re set.</h2>
+        <p>Everything you need is above. Come back anytime — welcome to 1House.</p>
+      </footer>
     </div>
   );
 }
-
-
 
