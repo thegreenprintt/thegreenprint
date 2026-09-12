@@ -187,12 +187,17 @@ export default function JoinPage() {
           <div className="gstep">
             <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, log into your broker and follow these in order:</p>
             <div style={{ margin: "4px 0 6px" }}>
-              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Your LivvFX account is what unlocks TradeLocker — start there.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open TradeLocker</b><span>Log in with your LivvFX account, then tap the menu (arrow, top-left).</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Trade Accounts, then Open Demo Account</b><span>Demo = practice money, so zero risk while you learn.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set your balance</b><span>Anywhere from $1,000 to $10,000 — it&apos;s not real money.</span></div></div>
-              <div className="tk"><div className="line" /><div className="dot">5</div><div className="tx"><b>Set leverage to 1:500, then Submit</b><span>This matches how we trade in the chat.</span></div></div>
-              <div className="tk"><div className="dot">6</div><div className="tx"><b>Log into your new demo account</b><span>Pick it from the list — that&apos;s your trading account, done.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Create your free LivvFX account — this is your login for everything.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open Trading Accounts</b><span>In LivvFX, tap the menu (top-left), then &quot;Trade Accounts.&quot;</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Open a Demo Account</b><span>Tap &quot;Open Demo Account&quot; — demo is practice money, zero risk.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set balance &amp; leverage</b><span>Balance $1,000–$10,000, leverage 1:500, then Submit.</span></div></div>
+              <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into TradeLocker</b><span>Open TradeLocker and log in with the demo account you just made — you&apos;re ready.</span></div></div>
+            </div>
+            <div className="card" style={{ marginTop: 4 }}>
+              <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Logging into TradeLocker? Type in:</b>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>the email you used on LivvFX</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0" }}><span style={{ color: "var(--mut)" }}>Password</span><b>the password you made</b></div>
+              <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
             </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
@@ -258,6 +263,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
