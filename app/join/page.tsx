@@ -150,8 +150,8 @@ export default function JoinPage() {
         <div className="top">
           <div className="rl"><div className="halo" /><div className="core">G</div></div>
           <div className="kick">The Greenprint</div>
-          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (<>Set up your <span className="g">account.</span></>) : step === 3 ? (<>Join the <span className="g">signals chat.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
-          <p className="sub">{step === 1 ? "Three quick downloads: TradeLocker, Telegram, and your free broker account." : step === 2 ? "Your broker is the middleman between you and the markets. Let's open your trading account." : step === 3 ? "Confirm your email and I'll approve you straight into the free signals chat." : "Watch this once and you'll know how to place your first trade."}</p>
+          <h1>{step === 1 ? (<>Download your <span className="g">apps.</span></>) : step === 2 ? (acctType ? (<>Set up your <span className="g">account.</span></>) : (<>Demo or <span className="g">live?</span></>)) : step === 3 ? (<>Join the <span className="g">signals chat.</span></>) : (<>Learn to <span className="g">trade.</span></>)}</h1>
+          <p className="sub">{step === 1 ? "Three quick downloads: TradeLocker, Telegram, and your free broker account." : step === 2 ? (acctType ? "Your broker is the middleman between you and the markets. Let's open your trading account." : "How do you want to start? You can switch anytime — most beginners start on demo.") : step === 3 ? "Confirm your email and I'll approve you straight into the free signals chat." : "Watch this once and you'll know how to place your first trade."}</p>
         </div>
 
         <span className="flag">STEP {step} OF 4</span>
@@ -170,7 +170,7 @@ export default function JoinPage() {
                 <a className="store" href="https://apps.apple.com/us/app/tradelocker/id6447196449" target="_blank" rel="noopener noreferrer"><Apple /> App Store</a>
                 <a className="store" href="https://play.google.com/store/apps/details?id=com.tradelocker.mobile" target="_blank" rel="noopener noreferrer"><Play /> Google Play</a>
               </div>
-              <div className="srv"><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
+              
             </div>
 
             <div className={"card" + (done[1] ? " done" : "")}>
@@ -201,12 +201,9 @@ export default function JoinPage() {
           <div className="gstep">
             {!acctType && (
               <>
-                <span className="qtag">QUICK QUESTION</span>
-                <h2 className="q">Do you want to start on a demo or a live account?</h2>
-                <p className="qsub">You can switch anytime — most beginners start on demo.</p>
                 <div className="choice" role="button" tabIndex={0} onClick={() => setAcctType("demo")}>
                   <div className="cic">📈</div>
-                  <div className="ctx"><div className="ch"><b>Demo account</b><span className="rec">RECOMMENDED</span></div><p>Practice with fake money — zero risk. Perfect if you&apos;re brand new.</p></div>
+                  <div className="ctx"><div className="ch"><b>Demo account</b></div><p>Practice with fake money — zero risk. Perfect if you&apos;re brand new.</p></div>
                   <span className="cgo">›</span>
                 </div>
                 <div className="choice" role="button" tabIndex={0} onClick={() => setAcctType("live")}>
@@ -259,7 +256,8 @@ export default function JoinPage() {
               <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
             </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
-                <p className="foot">Trading involves real risk of loss. Only deposit what you can afford to lose — most beginners start on demo first.</p>
+                <a className="cta" href="https://www.livvfx.com/new-page" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, background: "rgba(255,255,255,.06)", color: "#fff", boxShadow: "none" }}>Livv&apos;s deposit guide →</a>
+                <p className="foot" style={{ marginTop: 12 }}>Trading involves real risk of loss. Only deposit what you can afford to lose — most beginners start on demo first.</p>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
               <button className="back" onClick={() => setAcctType("")}>← Change</button>
               <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
@@ -325,6 +323,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
