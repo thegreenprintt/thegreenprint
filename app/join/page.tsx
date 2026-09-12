@@ -70,6 +70,9 @@ export default function JoinPage() {
         .jp .rec{font-size:9px;font-weight:700;letter-spacing:.1em;color:#001a0e;background:var(--green);padding:3px 7px;border-radius:6px;}
         .jp .ctx p{margin:3px 0 0;font-size:12.5px;color:var(--mut);line-height:1.45;}
         .jp .cgo{color:var(--green);font-weight:700;font-size:20px;flex-shrink:0;}
+        .jp .qtag{display:inline-block;font-size:10px;letter-spacing:.24em;color:var(--green);font-weight:700;margin:2px 0 8px;}
+        .jp .q{font-size:21px;font-weight:700;line-height:1.22;letter-spacing:-.01em;margin:0 0 4px;}
+        .jp .qsub{font-size:12.5px;color:var(--mut2);margin:0 0 16px;}
         .jp{--green:#00FF85;--mut:rgba(255,255,255,.56);--mut2:rgba(255,255,255,.34);--stroke:rgba(255,255,255,.1);--card:rgba(255,255,255,.045);
           position:relative;min-height:100vh;background:#05070b;color:#fff;font-family:'Space Grotesk',-apple-system,system-ui,sans-serif;overflow-x:hidden;touch-action:pan-y;-webkit-text-size-adjust:100%;}
         .jp *{box-sizing:border-box;}
@@ -198,7 +201,9 @@ export default function JoinPage() {
           <div className="gstep">
             {!acctType && (
               <>
-                <p className="sub" style={{ margin: "0 0 16px", maxWidth: "none" }}>How do you want to start? You can switch anytime.</p>
+                <span className="qtag">QUICK QUESTION</span>
+                <h2 className="q">Do you want to start on a demo or a live account?</h2>
+                <p className="qsub">You can switch anytime — most beginners start on demo.</p>
                 <div className="choice" role="button" tabIndex={0} onClick={() => setAcctType("demo")}>
                   <div className="cic">📈</div>
                   <div className="ctx"><div className="ch"><b>Demo account</b><span className="rec">RECOMMENDED</span></div><p>Practice with fake money — zero risk. Perfect if you&apos;re brand new.</p></div>
@@ -320,6 +325,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
