@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 
 export default function JoinPage() {
   const [step, setStep] = useState(1);
+  const [acctType, setAcctType] = useState<"" | "demo" | "live">("");
   const [done, setDone] = useState([false, false, false]);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -185,14 +186,29 @@ export default function JoinPage() {
 
         {step === 2 && (
           <div className="gstep">
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>No rush — do this now or come back anytime. When you&apos;re ready, log into your broker and follow these in order:</p>
-            <div style={{ margin: "4px 0 6px" }}>
+            {!acctType && (
+              <>
+                <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>First — how do you want to start? You can switch anytime.</p>
+                <div className="card" role="button" tabIndex={0} onClick={() => setAcctType("demo")} style={{ cursor: "pointer" }}>
+                  <div className="row"><div className="it"><b>Demo account</b><span>Practice with fake money — zero risk. Best if you&apos;re brand new.</span></div><span style={{ color: "var(--green)", fontWeight: 700, fontSize: "18px" }}>→</span></div>
+                </div>
+                <div className="card" role="button" tabIndex={0} onClick={() => setAcctType("live")} style={{ cursor: "pointer" }}>
+                  <div className="row"><div className="it"><b>Live account</b><span>Fund a real account and trade with your own money.</span></div><span style={{ color: "var(--green)", fontWeight: 700, fontSize: "18px" }}>→</span></div>
+                </div>
+                <button className="back" onClick={() => setStep(1)}>← Back</button>
+              </>
+            )}
+
+            {acctType === "demo" && (
+              <>
+                <span className="flag">DEMO ACCOUNT · PRACTICE MONEY</span>
+                <div style={{ margin: "6px 0 6px" }}>
               <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Create your free LivvFX account — this is your login for everything.</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open Trading Accounts</b><span>In LivvFX, tap the menu (top-left), then &quot;Trade Accounts.&quot;</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Open a Demo Account</b><span>Tap &quot;Open Demo Account&quot; — demo is practice money, zero risk.</span></div></div>
               <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set balance &amp; leverage</b><span>Balance $1,000–$10,000, leverage 1:500, then Submit.</span></div></div>
               <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into TradeLocker</b><span>Open TradeLocker and log in with the demo account you just made — you&apos;re ready.</span></div></div>
-            </div>
+                </div>
             <div className="card" style={{ marginTop: 4 }}>
               <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Logging into TradeLocker? Type in:</b>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>the email you used on LivvFX</b></div>
@@ -201,9 +217,36 @@ export default function JoinPage() {
             </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-              <button className="back" onClick={() => setStep(1)}>← Back</button>
+              <button className="back" onClick={() => setAcctType("")}>← Change</button>
               <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
             </div>
+              </>
+            )}
+
+            {acctType === "live" && (
+              <>
+                <span className="flag">LIVE ACCOUNT · REAL MONEY</span>
+                <div style={{ margin: "6px 0 6px" }}>
+              <div className="tk"><div className="line" /><div className="dot">1</div><div className="tx"><b>Sign in to LivvFX</b><span>Create your free LivvFX account and verify your email.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">2</div><div className="tx"><b>Open Trading Accounts</b><span>In LivvFX, tap the menu (top-left), then &quot;Trade Accounts.&quot;</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">3</div><div className="tx"><b>Open a Live Account</b><span>Choose &quot;Open Live Account&quot; and set leverage to 1:500.</span></div></div>
+              <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Deposit funds</b><span>In LivvFX, go to Deposit and fund your account (card, bank or crypto).</span></div></div>
+              <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into TradeLocker</b><span>Open TradeLocker and log in with your live account — you&apos;re ready.</span></div></div>
+                </div>
+            <div className="card" style={{ marginTop: 4 }}>
+              <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Logging into TradeLocker? Type in:</b>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>the email you used on LivvFX</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0" }}><span style={{ color: "var(--mut)" }}>Password</span><b>the password you made</b></div>
+              <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
+            </div>
+            <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
+                <p className="foot">Trading involves real risk of loss. Only deposit what you can afford to lose — most beginners start on demo first.</p>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+              <button className="back" onClick={() => setAcctType("")}>← Change</button>
+              <button className="btn primary" style={{ width: "auto", padding: "13px 24px", marginTop: 0 }} onClick={() => setStep(3)}>Next →</button>
+            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -263,6 +306,7 @@ export default function JoinPage() {
     </div>
   );
 }
+
 
 
 
