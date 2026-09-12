@@ -19,7 +19,7 @@ const nextConfig = {
   },
 
   async rewrites() {
-    return [{ source: "/1house", destination: "/1House" }];
+    return [{ source: "/1house", destination: "/1House" }, { source: "/free", destination: "/join" }];
   },
 
   async headers() {
@@ -80,4 +80,5 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
 
