@@ -150,6 +150,12 @@ export default function OneHousePage() {
               <div className="tk"><div className="line" /><div className="dot">4</div><div className="tx"><b>Set balance &amp; leverage</b><span>Balance $1,000–$10,000, leverage 1:500, then Submit.</span></div></div>
               <div className="tk"><div className="dot">5</div><div className="tx"><b>Log into TradeLocker</b><span>Open TradeLocker and log in with the demo account you just made — you&apos;re ready.</span></div></div>
             </div>
+            <div className="card" style={{ marginTop: 4 }}>
+              <b style={{ display: "block", fontSize: "13.5px", marginBottom: "8px" }}>Logging into TradeLocker? Type in:</b>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0", borderBottom: ".5px solid rgba(255,255,255,.06)" }}><span style={{ color: "var(--mut)" }}>Email</span><b>the email you used on LivvFX</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "13px", padding: "6px 0" }}><span style={{ color: "var(--mut)" }}>Password</span><b>the password you made</b></div>
+              <div className="srv" style={{ marginTop: 8 }}><span className="lbl">Server</span><span className="val">LIVVFX</span><span className="cpy" onClick={copyServer}>{copied ? "Copied ✓" : "Copy"}</span></div>
+            </div>
             <a className="cta" href="https://members.livvglobal.com/client/register/6a65379bb16ad" target="_blank" rel="noopener noreferrer">Open your broker →</a>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
               <button className="back" onClick={() => setStep(1)}>← Back</button>
@@ -225,5 +231,6 @@ export default function OneHousePage() {
     </div>
   );
 }
+
 
 
