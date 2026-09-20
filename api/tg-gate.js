@@ -42,6 +42,12 @@ function instructions(name) {
 }
 
 module.exports = async function handler(req, res) {
+  // Market closed on weekends — do not post trade signals on Sat/Sun (US Eastern)
+  const __etDay = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(new Date());
+  if (__etDay === "Sat" || __etDay === "Sun") {
+    return res.status(200).json({ ok: true, skipped: "weekend-closed" });
+  }
+
   if (req.method === "GET") {
     res.status(200).send("Greenprint gate bot: OK");
     return;
@@ -186,3 +192,4 @@ module.exports = async function handler(req, res) {
     return;
   }
 };
+
