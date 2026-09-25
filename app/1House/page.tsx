@@ -201,7 +201,14 @@ export default function OneHousePage() {
 
         {step === 5 && (
           <div className="gstep">
-            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Two rooms you need to be in. Join both and turn notifications on.</p>
+            <p className="sub" style={{ margin: "0 0 14px", maxWidth: "none" }}>Three rooms you need to be in. Join all three and turn notifications on.</p>
+            <div className="card">
+              <div className="row">
+                <div className="ic" style={{ background: "linear-gradient(135deg,#8A5CFF,#5B34E0)" }}><Tg /></div>
+                <div className="it"><b>Market Bully Communication Chat</b><span>The wider Market Bully community. Announcements, updates, and where the movement connects.</span></div>
+              </div>
+              <a className="cta" href="https://t.me/+1rvPMKd6MRw3NGUx" target="_blank" rel="noopener noreferrer">Join Market Bully →</a>
+            </div>
             <div className="card">
               <div className="row">
                 <div className="ic tg"><Tg /></div>
