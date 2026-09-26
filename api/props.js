@@ -107,6 +107,51 @@ function extractRows(gl) {
   return rows;
 }
 
+// live scoreboard side (same function serves /api/props?type=scores)
+function sideOf(competitors, homeAway) {
+  const c = (competitors || []).find((x) => x && x.homeAway === homeAway) || {};
+  const team = c.team || {};
+  return {
+    abbr: team.abbreviation || '',
+    name: team.shortDisplayName || team.name || '',
+    logo: team.logo || '',
+    score: c.score != null ? Number(c.score) : null,
+    record: (c.records && c.records[0] && c.records[0].summary) || '',
+    winner: !!c.winner,
+  };
+}
+async function doScores(res, base, league) {
+  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  try {
+    const now = new Date();
+    let events = [];
+    for (let off = 0; off < 4; off++) {
+      const d = new Date(now.getTime() + off * 86400000);
+      const sb = await jget(base + '/scoreboard?dates=' + ymd(d), 3000);
+      const evs = (sb && sb.events) || [];
+      if (off === 0) events = evs;
+      if (off === 0 && evs.length) break;
+      if (off > 0 && evs.length) { events = evs; break; }
+    }
+    const games = events.map((e) => {
+      const comp = (e.competitions && e.competitions[0]) || {};
+      const st = (e.status && e.status.type) || {};
+      const cs = comp.competitors || [];
+      return {
+        id: e.id, state: st.state || '', detail: st.shortDetail || st.detail || '',
+        clock: (e.status && e.status.displayClock) || '', start: e.date || '',
+        home: sideOf(cs, 'home'), away: sideOf(cs, 'away'),
+      };
+    });
+    const rank = (s) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
+    games.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
+    return res.status(200).json({ league: league, updated: new Date().toISOString(), count: games.length, games: games });
+  } catch (e) {
+    return res.status(200).json({ league: league, games: [], error: 'feed_unavailable' });
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -116,11 +161,13 @@ module.exports = async function handler(req, res) {
   const cfg = LEAGUES[league];
   if (!cfg) {
     res.setHeader('Cache-Control', 's-maxage=60');
-    return res.status(200).json({ league: league, error: 'unsupported_league', slips: [] });
+    return res.status(200).json({ league: league, error: 'unsupported_league', slips: [], games: [] });
   }
 
   const base = 'https://site.api.espn.com/apis/site/v2/sports/' + cfg.sport + '/' + cfg.league;
   const glBase = 'https://site.api.espn.com/apis/common/v3/sports/' + cfg.sport + '/' + cfg.league;
+
+  if (String((req.query && req.query.type) || '') === 'scores') return doScores(res, base, league);
 
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
 
