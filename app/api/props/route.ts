@@ -8,8 +8,6 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-// If the site is on a Vercel plan that allows it, this lets the fan-out finish.
-export const maxDuration = 60;
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -96,7 +94,7 @@ const LEAGUES: Record<string, LeagueCfg> = {
 };
 
 // fetch JSON with a hard timeout so one slow upstream never hangs the request
-async function jget(url: string, ms = 3500): Promise<any | null> {
+async function jget(url: string, ms = 2500): Promise<any | null> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -212,7 +210,7 @@ export async function GET(req: Request) {
       t: TeamCtx;
     }[] = [];
     for (const r of rosterResults) for (const p of r.picked) athletes.push({ ...p, t: r.t });
-    const capped = athletes.slice(0, 36);
+    const capped = athletes.slice(0, 24);
 
     const extractRows = (gl: any): string[][] => {
       const rows: string[][] = [];
@@ -302,7 +300,7 @@ export async function GET(req: Request) {
       updated: new Date().toISOString(),
       count: slips.length,
       slips: slips.slice(0, 50),
-      note: "standard_lines", // lines are derived from stats, not a book's board
+      note: "standard_lines",
     });
   } catch {
     return NextResponse.json({ league, error: "feed_unavailable", slips: [] });
