@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
    THE GREENPRINT — app shell
    Sleek dark, Robinhood/Outlier energy. Tabs: Scores · Picks · Trades ·
    Community · Live. Data: ESPN free feeds. Trades + chat persist per-device.
-─────────────────────────────────────────────────────────────────────────── */
+──────────────────────────────────────────────────────────────────────────── */
 
 const GREEN = "#00FF87";
 const INK = "#05080B";
@@ -70,7 +70,7 @@ function SportBar({ sport, setSport }: { sport: string; setSport: (s: string) =>
 const Skel = ({ h }: { h: number }) => <div className="skel" style={{ height: h, borderRadius: 16, marginBottom: 12 }} />;
 const Empty = ({ t }: { t: string }) => <div style={{ color: "rgba(255,255,255,.5)", padding: "44px 6px", textAlign: "center", fontSize: 14.5 }}>{t}</div>;
 
-/* ── SCORES ──────────────────────────────────────────────────────────────── */
+/* ── SCORES ──────────────────────────────────────────────────────────── */
 function TeamRow({ s, live }: { s: Side; live: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
@@ -90,7 +90,7 @@ function ScoresTab({ sport }: { sport: string }) {
   const [st, setSt] = useState<"load" | "ok" | "empty">("load");
   useEffect(() => {
     let live = true;
-    const pull = () => fetch(`/api/scores?league=${sport}&t=${Date.now()}`).then((r) => r.json()).then((d) => {
+    const pull = () => fetch(`/api/props?type=scores&league=${sport}&t=${Date.now()}`).then((r) => r.json()).then((d) => {
       if (!live) return; const g: Game[] = d?.games || []; setGames(g); setSt(g.length ? "ok" : "empty");
     }).catch(() => live && setSt("empty"));
     setSt("load"); pull();
@@ -120,7 +120,7 @@ function ScoresTab({ sport }: { sport: string }) {
   );
 }
 
-/* ── PICKS ────────────────────────────────────────────────────────────────── */
+/* ── PICKS ───────────────────────────────────────────────────────────────── */
 function Ring({ pct }: { pct: number }) {
   const r = 20, c = 2 * Math.PI * r, off = c - (Math.max(0, Math.min(100, pct)) / 100) * c;
   const col = pct >= 80 ? GREEN : pct >= 65 ? "#67E8FF" : "#FFC24B";
@@ -261,7 +261,7 @@ function CommunityTab() {
   );
 }
 
-/* ── LIVE ────────────────────────────────────────────────────────────────── */
+/* ── LIVE ─────────────────────────────────────────────────────────────────── */
 function LiveTab() {
   return (
     <div className="up">
@@ -282,7 +282,7 @@ function LiveTab() {
   );
 }
 
-/* ── NAV ─────────────────────────────────────────────────────────────────── */
+/* ── NAV ───────────────────────────────────────────────────────────── */
 const ICONS: Record<string, string> = {
   Scores: "M4 6h16M4 12h16M4 18h10",
   Picks: "M5 13l4 4L19 7",
