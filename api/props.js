@@ -122,12 +122,23 @@ module.exports = async function handler(req, res) {
   const base = 'https://site.api.espn.com/apis/site/v2/sports/' + cfg.sport + '/' + cfg.league;
   const glBase = 'https://site.api.espn.com/apis/common/v3/sports/' + cfg.sport + '/' + cfg.league;
 
+  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+
   try {
-    const sb = await jget(base + '/scoreboard');
-    const seasonYear = Number(sb && sb.season && sb.season.year) || new Date().getFullYear();
-    const events = ((sb && sb.events) || []).filter(
-      (e) => e && e.status && e.status.type && e.status.type.state === 'pre'
-    );
+    // ESPN's scoreboard defaults to today only, so weekly sports (NFL) look
+    // empty on off-days. Look a few days ahead and collect upcoming games.
+    let seasonYear = new Date().getFullYear();
+    let events = [];
+    const now = new Date();
+    for (let off = 0; off < 4 && events.length < 6; off++) {
+      const d = new Date(now.getTime() + off * 86400000);
+      const sb = await jget(base + '/scoreboard?dates=' + ymd(d));
+      if (off === 0) seasonYear = Number(sb && sb.season && sb.season.year) || seasonYear;
+      const evs = ((sb && sb.events) || []).filter(
+        (e) => e && e.status && e.status.type && e.status.type.state === 'pre'
+      );
+      events = events.concat(evs);
+    }
     if (!events.length) {
       res.setHeader('Cache-Control', 's-maxage=300');
       return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, slips: [], note: 'no_upcoming_games' });
