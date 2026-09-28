@@ -204,19 +204,25 @@ function PicksTab({ sport }: { sport: string }) {
 // Screenshot logging: read the image in the browser with tesseract.js (loaded
 // on demand from CDN — no server, no cost), then pull the pair / side / P&L out
 // of the text and pre-fill the form so the user confirms before it's logged.
-let _tessPromise: Promise<any> | null = null;
-function loadTesseract(): Promise<any> {
-  const w = window as any;
-  if (w.Tesseract) return Promise.resolve(w.Tesseract);
-  if (_tessPromise) return _tessPromise;
-  _tessPromise = new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    s.onload = () => resolve((window as any).Tesseract);
-    s.onerror = reject;
-    document.head.appendChild(s);
+function fileToDataURL(f: File, max: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(f);
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      URL.revokeObjectURL(url);
+      if (!ctx) return reject(new Error("no_ctx"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img_load")); };
+    img.src = url;
   });
-  return _tessPromise;
 }
 function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pnl?: string } {
   const t = (raw || "").replace(/[|]/g, " ");
@@ -228,7 +234,7 @@ function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pn
   const sym = up.match(/\b(XAUUSD|XAGUSD|US30|US100|NAS100|NASDAQ100|GER40|GER30|SPX500|US500|UK100|BTCUSD|ETHUSD|[A-Z]{3}\/?[A-Z]{3}|[A-Z]{2,5}\d{2,3})\b/);
   if (sym) pair = sym[1].replace("/", "");
   let pnl: string | undefined;
-  const money = t.match(/[-+]?\$?\s?\d[\d,]*\.\d{2}/g) || t.match(/[-+]\$?\s?\d[\d,]*/g) || [];
+  const money = t.match(/[-+]?\$?\s?\d[\d,*\.\d{2}/g) || t.match(/[-+]\$?\s?\d[\d,]*/g) || [];
   if (money.length) {
     const signed = money.find((s) => /[-+]/.test(s.trim()[0]));
     const norm = (s: string) => parseFloat(s.replace(/[^0-9.\-+]/g, ""));
@@ -253,13 +259,18 @@ function TradesTab() {
     if (!f) return;
     setScan("Reading your screenshot…");
     try {
-      const T = await loadTesseract();
-      const out = await T.recognize(f, "eng");
-      const parsed = parseTradeText((out && out.data && out.data.text) || "");
+      const dataUrl = await fileToDataURL(f, 1500);
+      const r = await fetch("/api/ocr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: dataUrl }) });
+      const d = await r.json();
+      const parsed = parseTradeText(d.text || "");
       if (parsed.pair) setPair(parsed.pair);
       if (parsed.side) setSide(parsed.side);
       if (parsed.pnl) setPnl(parsed.pnl);
-      setScan(parsed.pnl || parsed.pair ? "Got it — check the values below, then tap Log." : "Couldn't read that one clearly — enter it manually.");
+      setScan(
+        parsed.pnl || parsed.pair
+          ? "Got it — check the values below, then tap Log."
+          : (d.text ? "Couldn't find the trade details — enter it manually." : "Couldn't read that one — enter it manually.")
+      );
     } catch (err) {
       setScan("Screenshot read failed — enter it manually.");
     } finally {
@@ -314,13 +325,14 @@ function TradesTab() {
   );
 }
 
-/* ── COMMUNITY (shared room via /api/chat + Redis) ───────────────────────── */
-function CommunityTab() {
+/* ── SHARED CHAT ROOM (live, via /api/chat + Redis) ──────────────────────── */
+function ChatRoom({ label }: { label?: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [handle, setHandle] = useState("");
   const [editH, setEditH] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastCount = useRef(0);
 
   useEffect(() => {
     let h = load<string>("gp_handle", "");
@@ -331,33 +343,47 @@ function CommunityTab() {
   useEffect(() => {
     let live = true;
     const pull = () => fetch("/api/chat?t=" + Date.now()).then((r) => r.json()).then((d) => {
-      if (live && Array.isArray(d.messages)) setMsgs(d.messages);
+      if (!live || !Array.isArray(d.messages)) return;
+      setMsgs((prev) => {
+        const next = d.messages as Msg[];
+        const same = next.length === prev.length && (next.length === 0 || next[next.length - 1].id === prev[prev.length - 1].id);
+        return same ? prev : next;
+      });
     }).catch(() => {});
     pull();
     const iv = setInterval(pull, 4000);
     return () => { live = false; clearInterval(iv); };
   }, []);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+  // Nudge ONLY the chat box (never the page) to the newest line — and only when
+  // a new message actually arrives while you're already near the bottom.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (msgs.length > lastCount.current) {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+      if (nearBottom || lastCount.current === 0) el.scrollTop = el.scrollHeight;
+    }
+    lastCount.current = msgs.length;
+  }, [msgs]);
 
   const send = async () => {
     const t = text.trim();
     if (!t || !handle) return;
     setText("");
-    const optimistic: Msg = { id: Date.now(), user: handle, text: t, ts: Date.now() };
-    setMsgs((m) => [...m, optimistic]);
+    setMsgs((m) => [...m, { id: Date.now(), user: handle, text: t, ts: Date.now() }]);
     try {
       await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: handle, text: t }) });
       const d = await fetch("/api/chat?t=" + Date.now()).then((r) => r.json());
       if (Array.isArray(d.messages)) setMsgs(d.messages);
     } catch (e) {}
   };
-
   const saveHandle = () => { const h = handle.trim() || "Trader"; setHandle(h); save("gp_handle", h); setEditH(false); };
 
   return (
-    <div className="up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 250px)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5, color: "rgba(255,255,255,.45)", marginBottom: 10 }}>
-        <span>Live room · everyone in the app</span>
+    <>
+      <div style={{ flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5, color: "rgba(255,255,255,.45)", marginBottom: 10 }}>
+        <span>{label || "Live room · everyone in the app"}</span>
         {editH ? (
           <input autoFocus value={handle} onChange={(e) => setHandle(e.target.value.slice(0, 24))} onBlur={saveHandle} onKeyDown={(e) => e.key === "Enter" && saveHandle()}
             style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, color: "#fff", padding: "4px 8px", fontSize: 12, outline: "none", maxWidth: 130 }} />
@@ -365,7 +391,7 @@ function CommunityTab() {
           <button className="btn" onClick={() => setEditH(true)} style={{ background: "none", border: "none", color: GREEN, fontWeight: 700, cursor: "pointer", fontSize: 11.5 }}>@{handle} · edit</button>
         )}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         {msgs.length === 0 ? <div style={{ color: "rgba(255,255,255,.4)", textAlign: "center", padding: "30px 6px", fontSize: 14 }}>No messages yet — say something.</div> : null}
         {msgs.map((m) => {
           const me = m.user === handle;
@@ -376,34 +402,42 @@ function CommunityTab() {
             </div>
           );
         })}
-        <div ref={endRef} />
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <div style={{ flex: "none", display: "flex", gap: 8, marginTop: 12 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Message the room…" style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", padding: "12px 14px", fontSize: 14, outline: "none" }} />
         <button className="btn" onClick={send} style={{ background: GREEN, color: INK, border: "none", borderRadius: 12, padding: "0 20px", fontWeight: 800, cursor: "pointer" }}>Send</button>
       </div>
+    </>
+  );
+}
+function CommunityTab() {
+  return (
+    <div className="up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
+      <ChatRoom />
     </div>
   );
 }
 
-/* ── LIVE ────────────────────────────────────────────────────────────────── */
+/* ── LIVE (fixed screen: stream on top, live chat below) ─────────────────── */
 function LiveTab() {
   return (
-    <div className="up">
-      <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", border: "1px solid rgba(0,255,135,.2)", background: "linear-gradient(135deg,#0C1319,#05080B)", aspectRatio: "16/9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 168px)" }}>
+      <div style={{ flex: "none", position: "relative", borderRadius: 18, overflow: "hidden", border: "1px solid rgba(0,255,135,.2)", background: "linear-gradient(135deg,#0C1319,#05080B)", aspectRatio: "16/9", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ position: "absolute", top: 12, left: 12, display: "flex", alignItems: "center", gap: 6, background: "rgba(0,0,0,.5)", padding: "5px 10px", borderRadius: 8 }}>
           <span className="live-dot" style={{ width: 8, height: 8, borderRadius: 999, background: "#FF4D4D" }} />
           <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".05em" }}>LIVE</span>
         </div>
         <div style={{ textAlign: "center", padding: 20 }}>
-          <div className="disp" style={{ fontSize: 22, fontWeight: 700 }}>The Greenprint Live</div>
-          <div style={{ color: "rgba(255,255,255,.55)", fontSize: 13.5, margin: "6px 0 16px" }}>Trading breakdowns, picks &amp; Q&amp;A</div>
+          <div className="disp" style={{ fontSize: 20, fontWeight: 700 }}>The Greenprint Live</div>
+          <div style={{ color: "rgba(255,255,255,.55)", fontSize: 13, margin: "5px 0 12px" }}>Trading breakdowns, picks &amp; Q&amp;A</div>
           <a href="https://1house.tv" target="_blank" rel="noreferrer" className="btn"
-            style={{ display: "inline-block", background: GREEN, color: INK, fontWeight: 800, padding: "11px 22px", borderRadius: 12, textDecoration: "none", fontSize: 14 }}>Watch on 1House.tv</a>
+            style={{ display: "inline-block", background: GREEN, color: INK, fontWeight: 800, padding: "10px 20px", borderRadius: 12, textDecoration: "none", fontSize: 13.5 }}>Watch on 1House.tv</a>
         </div>
       </div>
-      <div style={{ marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.5)" }}>In-app playback lands in the streaming phase. For now this opens the live room.</div>
+      <div style={{ flex: 1, minHeight: 0, marginTop: 12, display: "flex", flexDirection: "column" }}>
+        <ChatRoom label="Live chat · talk during the stream" />
+      </div>
     </div>
   );
 }
@@ -482,7 +516,7 @@ function BookPicker({ book, setBook }: { book: string; setBook: (b: string) => v
   );
 }
 
-/* ── ROOT ────────────────────────────────────────────────────────────────── */
+/* ── ROOT ─────────────────────────────────────────────────────────── */
 export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
