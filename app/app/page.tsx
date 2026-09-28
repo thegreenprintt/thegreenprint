@@ -41,7 +41,7 @@ type Rate = { hit: number; of: number; pct: number };
 type Slip = {
   player: string; headshot?: string; pos?: string; team: string; opp: string;
   stat: string; line: number; side: "Over" | "Under"; tier: "ELITE" | "STRONG" | "LEAN";
-  l5: Rate; l10: Rate; season: Rate;
+  l5: Rate; l10: Rate; season: Rate; spark?: { v: number; hit: boolean }[];
 };
 type Side = { abbr: string; name: string; logo: string; score: number | null; record: string; winner: boolean };
 type Game = { id: string; state: string; detail: string; clock: string; start: string; home: Side; away: Side };
@@ -129,8 +129,30 @@ function Ring({ pct }: { pct: number }) {
       <circle cx="26" cy="26" r={r} fill="none" stroke="rgba(255,255,255,.09)" strokeWidth="5" />
       <circle cx="26" cy="26" r={r} fill="none" stroke={col} strokeWidth="5" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 26 26)" style={{ transition: "stroke-dashoffset .8s ease" }} />
-      <text x="26" y="30" textAnchor="middle" fontSize="14" fontWeight="800" fill="#fff" fontFamily="Space Grotesk">{pct}</text>
+      <text x="25.5" y="29.5" textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff" fontFamily="Inter, system-ui, sans-serif" letterSpacing="-0.5">{pct}</text>
+      <text x="25.5" y="29.5" dx="12" textAnchor="middle" fontSize="8" fontWeight="700" fill="rgba(255,255,255,.5)" fontFamily="Inter, system-ui, sans-serif">%</text>
     </svg>
+  );
+}
+function Spark({ data, side }: { data?: { v: number; hit: boolean }[]; side: string }) {
+  if (!data || !data.length) return null;
+  const max = Math.max(...data.map((d) => d.v), 1);
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.4)" }}>LAST 10</span>
+        <span style={{ fontSize: 10.5, color: "rgba(255,255,255,.4)" }}>
+          <span style={{ color: GREEN, fontWeight: 800 }}>{data.filter((d) => d.hit).length}/10 hit</span> {side.toLowerCase()}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 40 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+            <div style={{ height: Math.max(14, (d.v / max) * 100) + "%", borderRadius: 3, background: d.hit ? GREEN : "rgba(255,90,90,.5)", transition: "height .5s ease" }} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 function SlipCard({ s, i }: { s: Slip; i: number }) {
@@ -159,6 +181,7 @@ function SlipCard({ s, i }: { s: Slip; i: number }) {
           </div>
         </div>
       </div>
+      <Spark data={s.spark} side={s.side} />
     </div>
   );
 }
@@ -310,26 +333,46 @@ function BottomNav({ tab, setTab }: { tab: string; setTab: (t: string) => void }
 
 /* ── BOOK PICKER (top-right) ─────────────────────────────────────────────── */
 const BOOKS = [
-  { key: "underdog", label: "UD", color: "#F4C430" },
-  { key: "prizepicks", label: "PP", color: "#8A5CFF" },
-  { key: "fanduel", label: "FD", color: "#1493FF" },
-  { key: "draftkings", label: "DK", color: "#53D337" },
-  { key: "sleeper", label: "SL", color: "#FF7A59" },
+  { key: "underdog", label: "UD", color: "#F4C430", domain: "underdogfantasy.com" },
+  { key: "prizepicks", label: "PP", color: "#8A5CFF", domain: "prizepicks.com" },
+  { key: "fanduel", label: "FD", color: "#1493FF", domain: "fanduel.com" },
+  { key: "draftkings", label: "DK", color: "#53D337", domain: "draftkings.com" },
+  { key: "sleeper", label: "SL", color: "#FF7A59", domain: "sleeper.com" },
 ];
+function BookIcon({ b, on }: { b: (typeof BOOKS)[number]; on: boolean }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <span style={{ fontSize: 10.5, fontWeight: 900, color: on ? INK : b.color }}>{b.label}</span>
+    );
+  }
+  return (
+    <img
+      src={`https://icons.duckduckgo.com/ip3/${b.domain}.ico`}
+      alt={b.key}
+      width={20}
+      height={20}
+      onError={() => setErr(true)}
+      style={{ width: 20, height: 20, borderRadius: 6, objectFit: "cover", display: "block" }}
+    />
+  );
+}
 function BookPicker({ book, setBook }: { book: string; setBook: (b: string) => void }) {
   return (
-    <div style={{ display: "flex", gap: 6 }}>
+    <div style={{ display: "flex", gap: 7 }}>
       {BOOKS.map((b) => {
         const on = book === b.key;
         return (
           <button key={b.key} className="btn" onClick={() => setBook(b.key)} title={b.key}
             style={{
-              width: 30, height: 30, borderRadius: 999, cursor: "pointer", fontSize: 10.5, fontWeight: 900,
-              color: on ? INK : b.color, background: on ? b.color : "rgba(255,255,255,.06)",
+              width: 32, height: 32, borderRadius: 999, cursor: "pointer", padding: 0,
+              background: on ? "#fff" : "rgba(255,255,255,.06)",
               border: on ? "none" : "1px solid rgba(255,255,255,.14)",
               display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto",
-              boxShadow: on ? "0 0 0 2px rgba(0,255,133,.55)" : "none",
-            }}>{b.label}</button>
+              opacity: on ? 1 : 0.62,
+              boxShadow: on ? "0 0 0 2px rgba(0,255,133,.8)" : "none",
+              transition: "opacity .15s, box-shadow .15s",
+            }}><BookIcon b={b} on={on} /></button>
         );
       })}
     </div>
