@@ -201,7 +201,7 @@ module.exports = async function handler(req, res) {
     }
 
     const teams = [];
-    for (const e of events.slice(0, 6)) {
+    for (const e of events.slice(0, 8)) {
       const comp = e.competitions && e.competitions[0];
       const cs = (comp && comp.competitors) || [];
       const start = e.date || '';
@@ -234,7 +234,7 @@ module.exports = async function handler(req, res) {
 
     const athletes = [];
     for (const r of rosterResults) for (const p of r.picked) athletes.push(Object.assign({}, p, { t: r.t }));
-    const capped = athletes.slice(0, 18);
+    const capped = athletes.slice(0, 26);
 
     const slips = [];
     await pool(capped, 12, async (a) => {
@@ -261,28 +261,45 @@ module.exports = async function handler(req, res) {
 
         const l10 = vals.slice(0, 10);
         const l5 = vals.slice(0, 5);
+        const med = median(vals);
+        if (med <= 0) continue;
 
-        // "standard line" = the player's season-long median (full sample).
-        const base = median(vals);
-        if (base <= 0) continue;
-        let line = roundHalf(base);
-        if (line < 0.5) line = 0.5;
+        // Real prop platforms grade a player against a fixed line. We don't have
+        // sportsbook lines for free, so we derive two honest, meaningful lines
+        // from the player's own last-10 distribution:
+        //   • an OVER "floor" line they usually clear
+        //   • an UNDER "ceiling" line they rarely exceed
+        // then take whichever side is the more consistent play. A steady player
+        // who beats a real floor 9-10 times reads as ELITE (90-100%); a volatile
+        // one falls to LEAN or off the board.
+        const sorted = l10.slice().sort((a, b) => a - b);
+        const q = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.round((arr.length - 1) * p)))];
 
-        // Which way is recent form leaning vs that baseline? That direction is
-        // the pick, and how consistently they've done it is the real edge — so
-        // hot players surface at 70-90% and flat ones fall out.
-        const recentMed = median(l10);
-        const over = recentMed >= line;
+        let overLine = roundHalf(q(sorted, 0.15) - 0.25);
+        const floorMin = roundHalf(med * 0.45);
+        if (overLine < floorMin) overLine = floorMin;
+        if (overLine < 0.5) overLine = 0.5;
+        const overHit = countHits(l10, overLine, true);
+        const overPct = overHit / l10.length;
 
-        const l10hit = countHits(l10, line, over);
+        let underLine = roundHalf(q(sorted, 0.85) + 0.25);
+        const ceilMax = roundHalf(med * 1.7);
+        if (underLine > ceilMax) underLine = ceilMax;
+        if (underLine <= overLine) underLine = overLine + 0.5;
+        const underHit = countHits(l10, underLine, false);
+        const underPct = underHit / l10.length;
+
+        const over = overPct >= underPct;
+        const line = over ? overLine : underLine;
+        const l10hit = over ? overHit : underHit;
         const l5hit = countHits(l5, line, over);
         const seasonHit = countHits(vals, line, over);
         const l10pct = l10hit / l10.length;
         const l5pct = l5hit / l5.length;
-        if (l10pct < 0.55) continue; // only genuine recent trends make the board
+        if (l10pct < 0.6) continue; // only genuine high-confidence trends
 
-        const score = 0.6 * l10pct + 0.4 * l5pct;
-        const tier = l10pct >= 0.8 && l5pct >= 0.8 ? 'ELITE' : l10pct >= 0.7 ? 'STRONG' : 'LEAN';
+        const score = 0.7 * l10pct + 0.3 * l5pct;
+        const tier = l10pct >= 0.9 ? 'ELITE' : l10pct >= 0.8 ? 'STRONG' : 'LEAN';
 
         // last 10, oldest -> newest, for the hit/miss story strip
         const spark = l10.slice().reverse().map((v) => ({
