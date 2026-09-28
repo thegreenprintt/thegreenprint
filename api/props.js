@@ -273,10 +273,13 @@ module.exports = async function handler(req, res) {
         const seasonHit = countHits(vals, line, over);
         const l10pct = l10hit / l10.length;
         const l5pct = l5hit / l5.length;
-        if (l10pct < 0.6) continue;
+        // Rank everything by consistency and surface the best available plays.
+        // On a light slate (one game) a hard 60% gate can zero out the board,
+        // so we keep all qualifying trends and let the tier + sort do the work.
+        if (l10pct < 0.5) continue;
 
         const score = 0.6 * l10pct + 0.4 * l5pct;
-        const tier = l10pct >= 0.8 && l5pct >= 0.8 ? 'ELITE' : l10pct >= 0.7 ? 'STRONG' : 'LEAN';
+        const tier = l10pct >= 0.8 && l5pct >= 0.8 ? 'ELITE' : l10pct >= 0.65 ? 'STRONG' : 'LEAN';
 
         slips.push({
           player: a.name, headshot: a.headshot, pos: a.pos,
