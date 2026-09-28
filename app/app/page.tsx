@@ -70,7 +70,7 @@ function SportBar({ sport, setSport }: { sport: string; setSport: (s: string) =>
 const Skel = ({ h }: { h: number }) => <div className="skel" style={{ height: h, borderRadius: 16, marginBottom: 12 }} />;
 const Empty = ({ t }: { t: string }) => <div style={{ color: "rgba(255,255,255,.5)", padding: "44px 6px", textAlign: "center", fontSize: 14.5 }}>{t}</div>;
 
-/* ── SCORES ──────────────────────────────────────────────────────────── */
+/* ── SCORES ──────────────────────────────────────────────────────────────── */
 function TeamRow({ s, live }: { s: Side; live: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
@@ -261,7 +261,7 @@ function CommunityTab() {
   );
 }
 
-/* ── LIVE ─────────────────────────────────────────────────────────────────── */
+/* ── LIVE ────────────────────────────────────────────────────────────────── */
 function LiveTab() {
   return (
     <div className="up">
@@ -282,7 +282,7 @@ function LiveTab() {
   );
 }
 
-/* ── NAV ───────────────────────────────────────────────────────────── */
+/* ── NAV ─────────────────────────────────────────────────────────────────── */
 const ICONS: Record<string, string> = {
   Scores: "M4 6h16M4 12h16M4 18h10",
   Picks: "M5 13l4 4L19 7",
@@ -308,29 +308,61 @@ function BottomNav({ tab, setTab }: { tab: string; setTab: (t: string) => void }
   );
 }
 
+/* ── BOOK PICKER (top-right) ─────────────────────────────────────────────── */
+const BOOKS = [
+  { key: "underdog", label: "UD", color: "#F4C430" },
+  { key: "prizepicks", label: "PP", color: "#8A5CFF" },
+  { key: "fanduel", label: "FD", color: "#1493FF" },
+  { key: "draftkings", label: "DK", color: "#53D337" },
+  { key: "sleeper", label: "SL", color: "#FF7A59" },
+];
+function BookPicker({ book, setBook }: { book: string; setBook: (b: string) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      {BOOKS.map((b) => {
+        const on = book === b.key;
+        return (
+          <button key={b.key} className="btn" onClick={() => setBook(b.key)} title={b.key}
+            style={{
+              width: 30, height: 30, borderRadius: 999, cursor: "pointer", fontSize: 10.5, fontWeight: 900,
+              color: on ? INK : b.color, background: on ? b.color : "rgba(255,255,255,.06)",
+              border: on ? "none" : "1px solid rgba(255,255,255,.14)",
+              display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto",
+              boxShadow: on ? "0 0 0 2px rgba(0,255,133,.55)" : "none",
+            }}>{b.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── ROOT ────────────────────────────────────────────────────────────────── */
 export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
+  const [book, setBook] = useState("underdog");
   const showSport = tab === "Scores" || tab === "Picks";
+  const outerScroll = tab === "Scores" || tab === "Picks" || tab === "Trades";
   return (
-    <div className="gp" style={{ minHeight: "100vh", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
+    <div className="gp" style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       {/* header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "14px 18px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div className="disp" style={{ fontWeight: 700, fontSize: 18, letterSpacing: ".02em" }}>THE <span style={{ color: GREEN }}>GREENPRINT</span></div>
-          <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{tab}</div>
+      <div style={{ flex: "none", zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "12px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth: 620, margin: "0 auto" }}>
+          <div className="disp" style={{ fontWeight: 700, fontSize: 17, letterSpacing: ".02em", whiteSpace: "nowrap" }}>THE <span style={{ color: GREEN }}>GREENPRINT</span></div>
+          <BookPicker book={book} setBook={setBook} />
         </div>
       </div>
 
-      <div style={{ maxWidth: 620, margin: "0 auto", padding: "16px 16px 96px" }}>
-        {showSport ? <div style={{ marginBottom: 14 }}><SportBar sport={sport} setSport={setSport} /></div> : null}
-        {tab === "Scores" && <ScoresTab sport={sport} />}
-        {tab === "Picks" && <PicksTab sport={sport} />}
-        {tab === "Trades" && <TradesTab />}
-        {tab === "Community" && <CommunityTab />}
-        {tab === "Live" && <LiveTab />}
+      <div style={{ flex: 1, overflowY: outerScroll ? "auto" : "hidden", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ maxWidth: 620, margin: "0 auto", padding: "14px 16px 92px" }}>
+          {showSport ? <div style={{ marginBottom: 14 }}><SportBar sport={sport} setSport={setSport} /></div> : null}
+          {tab === "Scores" && <ScoresTab sport={sport} />}
+          {tab === "Picks" && <PicksTab sport={sport} />}
+          {tab === "Trades" && <TradesTab />}
+          {tab === "Community" && <CommunityTab />}
+          {tab === "Live" && <LiveTab />}
+        </div>
       </div>
 
       <BottomNav tab={tab} setTab={setTab} />
