@@ -65,7 +65,7 @@ const LEAGUES = {
 
 async function jget(url, ms) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms || 2200);
+  const t = setTimeout(() => ctrl.abort(), ms || 5000);
   try {
     const r = await fetch(url, { headers: HDRS, signal: ctrl.signal });
     if (!r.ok) return null;
@@ -127,7 +127,7 @@ async function doScores(res, base, league) {
     let events = [];
     for (let off = 0; off < 4; off++) {
       const d = new Date(now.getTime() + off * 86400000);
-      const sb = await jget(base + '/scoreboard?dates=' + ymd(d), 3000);
+      const sb = await jget(base + '/scoreboard?dates=' + ymd(d), 6000);
       const evs = (sb && sb.events) || [];
       if (off === 0) events = evs;
       if (off === 0 && evs.length) break;
