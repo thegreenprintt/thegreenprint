@@ -249,43 +249,53 @@ module.exports = async function handler(req, res) {
         if (prev) rows = rows.concat(extractRows(prev));
       }
       if (rows.length < 3) return;
-      const recent = rows.slice(0, 12);
+      // wider window so the baseline line is a real body-of-work number,
+      // not the same 10 games we then grade against (which forces 50%).
+      const recent = rows.slice(0, 20);
 
       for (const sd of cfg.stats) {
         const idx = names.indexOf(sd.name);
         if (idx < 0) continue;
         const vals = recent.map((r) => parseFloat(r[idx])).filter((v) => !isNaN(v));
-        if (vals.length < 5) continue;
+        if (vals.length < 6) continue;
 
         const l10 = vals.slice(0, 10);
         const l5 = vals.slice(0, 5);
-        const med = median(l10);
-        if (med <= 0) continue;
 
-        let line = roundHalf(med);
+        // "standard line" = the player's season-long median (full sample).
+        const base = median(vals);
+        if (base <= 0) continue;
+        let line = roundHalf(base);
         if (line < 0.5) line = 0.5;
 
-        const overRate = countHits(l10, line, true) / l10.length;
-        const over = overRate >= 0.5;
+        // Which way is recent form leaning vs that baseline? That direction is
+        // the pick, and how consistently they've done it is the real edge — so
+        // hot players surface at 70-90% and flat ones fall out.
+        const recentMed = median(l10);
+        const over = recentMed >= line;
 
         const l10hit = countHits(l10, line, over);
         const l5hit = countHits(l5, line, over);
         const seasonHit = countHits(vals, line, over);
         const l10pct = l10hit / l10.length;
         const l5pct = l5hit / l5.length;
-        // Rank everything by consistency and surface the best available plays.
-        // On a light slate (one game) a hard 60% gate can zero out the board,
-        // so we keep all qualifying trends and let the tier + sort do the work.
-        if (l10pct < 0.5) continue;
+        if (l10pct < 0.55) continue; // only genuine recent trends make the board
 
         const score = 0.6 * l10pct + 0.4 * l5pct;
-        const tier = l10pct >= 0.8 && l5pct >= 0.8 ? 'ELITE' : l10pct >= 0.65 ? 'STRONG' : 'LEAN';
+        const tier = l10pct >= 0.8 && l5pct >= 0.8 ? 'ELITE' : l10pct >= 0.7 ? 'STRONG' : 'LEAN';
+
+        // last 10, oldest -> newest, for the hit/miss story strip
+        const spark = l10.slice().reverse().map((v) => ({
+          v: v,
+          hit: over ? v > line : v < line,
+        }));
 
         slips.push({
           player: a.name, headshot: a.headshot, pos: a.pos,
           team: a.t.abbr, opp: a.t.oppAbbr, start: a.t.start,
           league: league, stat: sd.label, line: line,
           side: over ? 'Over' : 'Under', tier: tier, score: score,
+          spark: spark,
           l5: { hit: l5hit, of: l5.length, pct: Math.round(l5pct * 100) },
           l10: { hit: l10hit, of: l10.length, pct: Math.round(l10pct * 100) },
           season: { hit: seasonHit, of: vals.length, pct: Math.round((seasonHit / vals.length) * 100) },
