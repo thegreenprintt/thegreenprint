@@ -201,12 +201,71 @@ function PicksTab({ sport }: { sport: string }) {
 }
 
 /* ── TRADES ──────────────────────────────────────────────────────────────── */
+// Screenshot logging: read the image in the browser with tesseract.js (loaded
+// on demand from CDN — no server, no cost), then pull the pair / side / P&L out
+// of the text and pre-fill the form so the user confirms before it's logged.
+let _tessPromise: Promise<any> | null = null;
+function loadTesseract(): Promise<any> {
+  const w = window as any;
+  if (w.Tesseract) return Promise.resolve(w.Tesseract);
+  if (_tessPromise) return _tessPromise;
+  _tessPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => resolve((window as any).Tesseract);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _tessPromise;
+}
+function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pnl?: string } {
+  const t = (raw || "").replace(/[|]/g, " ");
+  const up = t.toUpperCase();
+  let side: "BUY" | "SELL" | undefined;
+  if (/\bSELL\b|\bSHORT\b/.test(up)) side = "SELL";
+  else if (/\bBUY\b|\bLONG\b/.test(up)) side = "BUY";
+  let pair: string | undefined;
+  const sym = up.match(/\b(XAUUSD|XAGUSD|US30|US100|NAS100|NASDAQ100|GER40|GER30|SPX500|US500|UK100|BTCUSD|ETHUSD|[A-Z]{3}\/?[A-Z]{3}|[A-Z]{2,5}\d{2,3})\b/);
+  if (sym) pair = sym[1].replace("/", "");
+  let pnl: string | undefined;
+  const money = t.match(/[-+]?\$?\s?\d[\d,]*\.\d{2}/g) || t.match(/[-+]\$?\s?\d[\d,]*/g) || [];
+  if (money.length) {
+    const signed = money.find((s) => /[-+]/.test(s.trim()[0]));
+    const norm = (s: string) => parseFloat(s.replace(/[^0-9.\-+]/g, ""));
+    if (signed) pnl = String(norm(signed));
+    else {
+      const nums = money.map(norm).filter((n) => !isNaN(n));
+      if (nums.length) pnl = String(nums.sort((a, b) => Math.abs(b) - Math.abs(a))[0]);
+    }
+  }
+  return { pair, side, pnl };
+}
 function TradesTab() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [pair, setPair] = useState("");
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [pnl, setPnl] = useState("");
+  const [scan, setScan] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => { setTrades(load<Trade[]>("gp_trades", [])); }, []);
+  const onFile = async (e: { target: HTMLInputElement }) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    setScan("Reading your screenshot…");
+    try {
+      const T = await loadTesseract();
+      const out = await T.recognize(f, "eng");
+      const parsed = parseTradeText((out && out.data && out.data.text) || "");
+      if (parsed.pair) setPair(parsed.pair);
+      if (parsed.side) setSide(parsed.side);
+      if (parsed.pnl) setPnl(parsed.pnl);
+      setScan(parsed.pnl || parsed.pair ? "Got it — check the values below, then tap Log." : "Couldn't read that one clearly — enter it manually.");
+    } catch (err) {
+      setScan("Screenshot read failed — enter it manually.");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
   const add = () => {
     if (!pair.trim() || pnl === "") return;
     const t: Trade = { id: Date.now(), pair: pair.toUpperCase(), side, pnl: parseFloat(pnl) || 0, note: "", ts: Date.now() };
@@ -236,6 +295,13 @@ function TradesTab() {
           <input style={{ ...inp, flex: 1 }} type="number" placeholder="P&L (+/-)" value={pnl} onChange={(e) => setPnl(e.target.value)} />
           <button className="btn" onClick={add} style={{ background: GREEN, color: INK, border: "none", borderRadius: 10, padding: "0 22px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>Log</button>
         </div>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+        <button className="btn" onClick={() => fileRef.current && fileRef.current.click()}
+          style={{ marginTop: 10, width: "100%", background: "rgba(0,255,135,.08)", color: GREEN, border: "1px dashed rgba(0,255,135,.4)", borderRadius: 10, padding: "11px 12px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+          Log from a screenshot
+        </button>
+        {scan ? <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", marginTop: 8, textAlign: "center" }}>{scan}</div> : null}
       </div>
       {trades.length === 0 ? <Empty t="No trades logged yet. Add your first above." /> : trades.map((t) => (
         <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 12, marginBottom: 8 }}>
@@ -248,24 +314,61 @@ function TradesTab() {
   );
 }
 
-/* ── COMMUNITY (per-device v1) ───────────────────────────────────────────── */
+/* ── COMMUNITY (shared room via /api/chat + Redis) ───────────────────────── */
 function CommunityTab() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
+  const [handle, setHandle] = useState("");
+  const [editH, setEditH] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { setMsgs(load<Msg[]>("gp_chat", [{ id: 1, user: "GP", text: "Welcome to the chat. Drop your plays 👇", ts: Date.now() }])); }, []);
+
+  useEffect(() => {
+    let h = load<string>("gp_handle", "");
+    if (!h) { h = "Trader" + Math.floor(100 + Math.random() * 900); save("gp_handle", h); }
+    setHandle(h);
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    const pull = () => fetch("/api/chat?t=" + Date.now()).then((r) => r.json()).then((d) => {
+      if (live && Array.isArray(d.messages)) setMsgs(d.messages);
+    }).catch(() => {});
+    pull();
+    const iv = setInterval(pull, 4000);
+    return () => { live = false; clearInterval(iv); };
+  }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
-  const send = () => {
-    if (!text.trim()) return;
-    const next = [...msgs, { id: Date.now(), user: "You", text: text.trim(), ts: Date.now() }];
-    setMsgs(next); save("gp_chat", next); setText("");
+
+  const send = async () => {
+    const t = text.trim();
+    if (!t || !handle) return;
+    setText("");
+    const optimistic: Msg = { id: Date.now(), user: handle, text: t, ts: Date.now() };
+    setMsgs((m) => [...m, optimistic]);
+    try {
+      await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: handle, text: t }) });
+      const d = await fetch("/api/chat?t=" + Date.now()).then((r) => r.json());
+      if (Array.isArray(d.messages)) setMsgs(d.messages);
+    } catch (e) {}
   };
+
+  const saveHandle = () => { const h = handle.trim() || "Trader"; setHandle(h); save("gp_handle", h); setEditH(false); };
+
   return (
     <div className="up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 250px)" }}>
-      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginBottom: 10 }}>Local chat preview. Live cross-member rooms come with the backend phase.</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5, color: "rgba(255,255,255,.45)", marginBottom: 10 }}>
+        <span>Live room · everyone in the app</span>
+        {editH ? (
+          <input autoFocus value={handle} onChange={(e) => setHandle(e.target.value.slice(0, 24))} onBlur={saveHandle} onKeyDown={(e) => e.key === "Enter" && saveHandle()}
+            style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, color: "#fff", padding: "4px 8px", fontSize: 12, outline: "none", maxWidth: 130 }} />
+        ) : (
+          <button className="btn" onClick={() => setEditH(true)} style={{ background: "none", border: "none", color: GREEN, fontWeight: 700, cursor: "pointer", fontSize: 11.5 }}>@{handle} · edit</button>
+        )}
+      </div>
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+        {msgs.length === 0 ? <div style={{ color: "rgba(255,255,255,.4)", textAlign: "center", padding: "30px 6px", fontSize: 14 }}>No messages yet — say something.</div> : null}
         {msgs.map((m) => {
-          const me = m.user === "You";
+          const me = m.user === handle;
           return (
             <div key={m.id} className="pop" style={{ alignSelf: me ? "flex-end" : "flex-start", maxWidth: "78%" }}>
               {!me ? <div style={{ fontSize: 11, color: GREEN, fontWeight: 700, marginBottom: 3 }}>{m.user}</div> : null}
@@ -277,7 +380,7 @@ function CommunityTab() {
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message the chat…" style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", padding: "12px 14px", fontSize: 14, outline: "none" }} />
+          placeholder="Message the room…" style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", padding: "12px 14px", fontSize: 14, outline: "none" }} />
         <button className="btn" onClick={send} style={{ background: GREEN, color: INK, border: "none", borderRadius: 12, padding: "0 20px", fontWeight: 800, cursor: "pointer" }}>Send</button>
       </div>
     </div>
