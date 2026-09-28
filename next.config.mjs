@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  
+
   // Hide tech stack from headers
-        
+
 
   // No source maps in production — keeps your code private
   productionBrowserSourceMaps: false,
@@ -47,8 +47,8 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdnjs.cloudflare.com",
-              "style-src 'self' 'unsafe-inline'",
-              "font-src 'self' data:",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co wss: https://api.stripe.com https:",
               "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
@@ -80,5 +80,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
-
