@@ -171,8 +171,10 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ league: league, error: 'unsupported_league', slips: [], games: [] });
   }
 
-  const base = 'https://site.api.espn.com/apis/site/v2/sports/' + cfg.sport + '/' + cfg.league;
-  const glBase = 'https://site.api.espn.com/apis/common/v3/sports/' + cfg.sport + '/' + cfg.league;
+  // site.web.api mirrors site.api exactly (same paths + JSON) but is NOT on
+  // ESPN's IP-reputation blocklist, so it works through the edge relay.
+  const base = 'https://site.web.api.espn.com/apis/site/v2/sports/' + cfg.sport + '/' + cfg.league;
+  const glBase = 'https://site.web.api.espn.com/apis/common/v3/sports/' + cfg.sport + '/' + cfg.league;
 
   if (String((req.query && req.query.type) || '') === 'scores') return doScores(res, base, league);
 
