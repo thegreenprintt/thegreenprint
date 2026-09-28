@@ -63,11 +63,18 @@ const LEAGUES = {
   },
 };
 
+// ESPN blocks datacenter IPs (Vercel runs on AWS), so all ESPN calls are
+// routed through a lightweight relay when ESPN_PROXY is set in the Vercel
+// env. The relay takes ?url=<encoded espn url> and echoes JSON with CORS.
+// With no proxy set, we call ESPN directly (works locally, blocked on Vercel).
+const PROXY = process.env.ESPN_PROXY || '';
+const viaProxy = (u) => (PROXY ? PROXY + encodeURIComponent(u) : u);
+
 async function jget(url, ms) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms || 5000);
   try {
-    const r = await fetch(url, { headers: HDRS, signal: ctrl.signal });
+    const r = await fetch(viaProxy(url), { headers: HDRS, signal: ctrl.signal });
     if (!r.ok) return null;
     return await r.json();
   } catch (e) {
