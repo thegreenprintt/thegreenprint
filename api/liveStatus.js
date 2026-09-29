@@ -31,3 +31,17 @@ export function subscribeLiveStatus(cb) {
   const id = setInterval(poll, 10_000);
   return () => { cancelled = true; clearInterval(id); };
 }
+
+// Vercel compiles every file under /api into a serverless function, so this
+// helper module must also expose a request handler or the deploy step fails
+// after the build. Returning the current live status keeps it useful.
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    const status = await fetchLiveStatus();
+    return res.status(200).json(status);
+  } catch (_) {
+    return res.status(200).json({ isLive: false, title: '' });
+  }
+}
