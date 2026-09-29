@@ -302,6 +302,76 @@ function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pn
   }
   return { pair, side, pnl };
 }
+function TradeStats({ trades }: { trades: Trade[] }) {
+  if (trades.length < 2) return null;
+  const chron = [...trades].reverse();
+  let cum = 0; const pts = chron.map((t) => (cum += t.pnl));
+  const wins = trades.filter((t) => t.pnl > 0);
+  const losses = trades.filter((t) => t.pnl < 0);
+  const grossWin = wins.reduce((a, t) => a + t.pnl, 0);
+  const grossLoss = Math.abs(losses.reduce((a, t) => a + t.pnl, 0));
+  const pf = grossLoss ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0);
+  const expectancy = trades.reduce((a, t) => a + t.pnl, 0) / trades.length;
+  const avgWin = wins.length ? grossWin / wins.length : 0;
+  const avgLoss = losses.length ? grossLoss / losses.length : 0;
+  const best = Math.max(...trades.map((t) => t.pnl));
+  const worst = Math.min(...trades.map((t) => t.pnl));
+  let curW = 0, curL = 0, maxW = 0, maxL = 0;
+  for (const t of chron) { if (t.pnl > 0) { curW++; curL = 0; if (curW > maxW) maxW = curW; } else if (t.pnl < 0) { curL++; curW = 0; if (curL > maxL) maxL = curL; } }
+  const byPair: Record<string, { n: number; w: number; net: number }> = {};
+  for (const t of trades) { const k = t.pair || "—"; if (!byPair[k]) byPair[k] = { n: 0, w: 0, net: 0 }; byPair[k].n++; if (t.pnl > 0) byPair[k].w++; byPair[k].net += t.pnl; }
+  const pairs = Object.keys(byPair).map((k) => [k, byPair[k]] as [string, { n: number; w: number; net: number }]).sort((a, b) => b[1].net - a[1].net);
+  const W = 300, H = 70, min = Math.min(0, ...pts), max = Math.max(0, ...pts), rng = (max - min) || 1;
+  const xs = (i: number) => (pts.length > 1 ? (i / (pts.length - 1)) * W : 0);
+  const ys = (v: number) => H - ((v - min) / rng) * H;
+  const line = pts.map((v, i) => `${i ? "L" : "M"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
+  const area = line + ` L${W},${H} L0,${H} Z`;
+  const up = pts[pts.length - 1] >= 0;
+  const grid = [
+    ["Profit factor", isFinite(pf) ? pf.toFixed(2) : "∞", pf >= 1 ? GREEN : "#FF7C7C"],
+    ["Avg / trade", (expectancy >= 0 ? "+" : "") + expectancy.toFixed(2), expectancy >= 0 ? GREEN : "#FF7C7C"],
+    ["Avg win", "+" + avgWin.toFixed(2), GREEN],
+    ["Avg loss", "-" + avgLoss.toFixed(2), "#FF7C7C"],
+    ["Best", "+" + best.toFixed(2), GREEN],
+    ["Worst", worst.toFixed(2), "#FF7C7C"],
+  ];
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: 14, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.45)" }}>EQUITY CURVE</span>
+          <span className="disp" style={{ fontSize: 13, fontWeight: 800, color: up ? GREEN : "#FF7C7C" }}>{up ? "+" : ""}{pts[pts.length - 1].toFixed(2)}</span>
+        </div>
+        <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+          <defs><linearGradient id="eqg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={up ? "rgba(0,255,135,.35)" : "rgba(255,124,124,.35)"} /><stop offset="100%" stopColor="rgba(0,0,0,0)" /></linearGradient></defs>
+          <path d={area} fill="url(#eqg)" />
+          <path d={line} fill="none" stroke={up ? GREEN : "#FF7C7C"} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+        {grid.map(([l, v, c]) => (
+          <div key={l as string} style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 12, padding: "10px 11px" }}>
+            <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.45)", fontWeight: 600 }}>{l}</div>
+            <div className="disp" style={{ fontSize: 15.5, fontWeight: 800, color: c as string, marginTop: 3 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", margin: "0 2px 14px" }}>Longest streak: <span style={{ color: GREEN, fontWeight: 700 }}>{maxW}W</span> · <span style={{ color: "#FF7C7C", fontWeight: 700 }}>{maxL}L</span></div>
+      {pairs.length ? (
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.4)", margin: "0 2px 8px" }}>BY PAIR</div>
+          {pairs.slice(0, 5).map(([k, d]) => (
+            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>{k}</span>
+              <span style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)" }}>{Math.round((d.w / d.n) * 100)}% · {d.n}</span>
+              <span className="disp" style={{ fontWeight: 800, fontSize: 13.5, color: d.net >= 0 ? GREEN : "#FF7C7C", minWidth: 64, textAlign: "right" }}>{d.net >= 0 ? "+" : ""}{d.net.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 function TradesTab() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [pair, setPair] = useState("");
@@ -352,6 +422,7 @@ function TradesTab() {
           </div>
         ))}
       </div>
+      <TradeStats trades={trades} />
       <div style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(0,255,135,.14)", borderRadius: 16, padding: 14, marginBottom: 18 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <input style={{ ...inp, flex: 1 }} placeholder="Pair (e.g. NAS100)" value={pair} onChange={(e) => setPair(e.target.value)} />
