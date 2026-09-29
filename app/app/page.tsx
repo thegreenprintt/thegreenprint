@@ -516,7 +516,7 @@ function BookPicker({ book, setBook }: { book: string; setBook: (b: string) => v
   );
 }
 
-/* ── ROOT ─────────────────────────────────────────────────────────── */
+/* ── ROOT ────────────────────────────────────────────────────────────────── */
 export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
