@@ -234,7 +234,7 @@ function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pn
   const sym = up.match(/\b(XAUUSD|XAGUSD|US30|US100|NAS100|NASDAQ100|GER40|GER30|SPX500|US500|UK100|BTCUSD|ETHUSD|[A-Z]{3}\/?[A-Z]{3}|[A-Z]{2,5}\d{2,3})\b/);
   if (sym) pair = sym[1].replace("/", "");
   let pnl: string | undefined;
-  const money = t.match(/[-+]?\$?\s?\d[\d,*\.\d{2}/g) || t.match(/[-+]\$?\s?\d[\d,]*/g) || [];
+  const money = t.match(/[-+]?\$?\s?\d[\d,]*\.\d{2}/g) || t.match(/[-+]\$?\s?\d[\d,]*/g) || [];
   if (money.length) {
     const signed = money.find((s) => /[-+]/.test(s.trim()[0]));
     const norm = (s: string) => parseFloat(s.replace(/[^0-9.\-+]/g, ""));
