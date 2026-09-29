@@ -131,29 +131,61 @@ async function doScores(res, base, league) {
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
   try {
     const now = new Date();
-    let events = [];
-    for (let off = 0; off < 4; off++) {
+    // Fetch yesterday → +2 days (UTC) and MERGE. A US night game (e.g. Monday
+    // Night Football) starts after midnight UTC, so it lives under the NEXT UTC
+    // day — querying only "today" in UTC silently drops the game in progress.
+    // Merging a window around now guarantees live games are always included.
+    const byId = {};
+    for (const off of [-1, 0, 1, 2]) {
       const d = new Date(now.getTime() + off * 86400000);
-      const sb = await jget(base + '/scoreboard?dates=' + ymd(d), 6000);
+      let sb;
+      try { sb = await jget(base + '/scoreboard?dates=' + ymd(d), 6000); } catch (e) { continue; }
       const evs = (sb && sb.events) || [];
-      if (off === 0) events = evs;
-      if (off === 0 && evs.length) break;
-      if (off > 0 && evs.length) { events = evs; break; }
+      for (const e of evs) if (e && e.id && !byId[e.id]) byId[e.id] = e;
     }
+    const events = Object.keys(byId).map((k) => byId[k]);
     const games = events.map((e) => {
       const comp = (e.competitions && e.competitions[0]) || {};
-      const st = (e.status && e.status.type) || {};
+      const stt = (e.status && e.status.type) || {};
       const cs = comp.competitors || [];
+      const state = stt.state || '';
+      // Live situation: who has the ball + down & distance + last play.
+      let situation = null;
+      if (state === 'in') {
+        const sit = comp.situation || {};
+        let possAbbr = '';
+        if (sit.possession) {
+          const pc = cs.find((x) => x && x.team && String(x.team.id) === String(sit.possession));
+          possAbbr = (pc && pc.team && pc.team.abbreviation) || '';
+        }
+        situation = {
+          poss: possAbbr,
+          dd: sit.shortDownDistanceText || sit.downDistanceText || '',
+          last: (sit.lastPlay && sit.lastPlay.text) || '',
+        };
+      }
       return {
-        id: e.id, state: st.state || '', detail: st.shortDetail || st.detail || '',
-        clock: (e.status && e.status.displayClock) || '', start: e.date || '',
+        id: e.id, state: state,
+        detail: stt.shortDetail || stt.detail || '',
+        clock: (e.status && e.status.displayClock) || '',
+        period: (e.status && e.status.period) || 0,
+        start: e.date || '',
+        situation: situation,
         home: sideOf(cs, 'home'), away: sideOf(cs, 'away'),
       };
     });
+    // Keep every live + upcoming game; keep finals only from the last ~28h so the
+    // board doesn't pile up days of old scores.
+    const cutoff = now.getTime() - 28 * 3600000;
+    const kept = games.filter((g) => {
+      if (g.state === 'in' || g.state === 'pre') return true;
+      const t = Date.parse(g.start || '') || 0;
+      return t >= cutoff;
+    });
     const rank = (s) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
-    games.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
-    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
-    return res.status(200).json({ league: league, updated: new Date().toISOString(), count: games.length, games: games });
+    kept.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+    return res.status(200).json({ league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) });
   } catch (e) {
     return res.status(200).json({ league: league, games: [], error: 'feed_unavailable' });
   }
