@@ -44,7 +44,8 @@ type Slip = {
   l5: Rate; l10: Rate; season: Rate; spark?: { v: number; hit: boolean }[];
 };
 type Side = { abbr: string; name: string; logo: string; score: number | null; record: string; winner: boolean };
-type Game = { id: string; state: string; detail: string; clock: string; start: string; home: Side; away: Side };
+type Situation = { poss: string; dd: string; last: string };
+type Game = { id: string; state: string; detail: string; clock: string; period?: number; start: string; situation?: Situation | null; home: Side; away: Side };
 type Trade = { id: number; pair: string; side: "BUY" | "SELL"; pnl: number; note: string; ts: number };
 type Msg = { id: number; user: string; text: string; ts: number };
 
@@ -71,13 +72,16 @@ const Skel = ({ h }: { h: number }) => <div className="skel" style={{ height: h,
 const Empty = ({ t }: { t: string }) => <div style={{ color: "rgba(255,255,255,.5)", padding: "44px 6px", textAlign: "center", fontSize: 14.5 }}>{t}</div>;
 
 /* ── SCORES ──────────────────────────────────────────────────────────────── */
-function TeamRow({ s, live }: { s: Side; live: boolean }) {
+function TeamRow({ s, live, poss }: { s: Side; live: boolean; poss?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
       <div style={{ width: 26, height: 26, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {s.logo ? <img src={s.logo} alt="" width={26} height={26} /> : null}
       </div>
-      <div style={{ flex: 1, fontWeight: 700, fontSize: 15 }}>{s.abbr || s.name}</div>
+      <div style={{ flex: 1, fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 6 }}>
+        <span>{s.abbr || s.name}</span>
+        {poss ? <span title="has possession" style={{ fontSize: 11, lineHeight: 1 }}>🏈</span> : null}
+      </div>
       {s.record ? <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", marginRight: 8 }}>{s.record}</div> : null}
       <div className="disp" style={{ fontSize: 20, fontWeight: 700, color: s.winner ? GREEN : "#fff", minWidth: 30, textAlign: "right" }}>
         {s.score != null ? s.score : "–"}
@@ -94,25 +98,43 @@ function ScoresTab({ sport }: { sport: string }) {
       if (!live) return; const g: Game[] = d?.games || []; setGames(g); setSt(g.length ? "ok" : "empty");
     }).catch(() => live && setSt("empty"));
     setSt("load"); pull();
-    const iv = setInterval(pull, 15000);
+    const iv = setInterval(pull, 12000);
     return () => { live = false; clearInterval(iv); };
   }, [sport]);
   if (st === "load") return <div>{[0, 1, 2].map((i) => <Skel key={i} h={96} />)}</div>;
   if (st === "empty") return <Empty t={`No ${sport} games on the board right now.`} />;
+  const anyLive = games.some((g) => g.state === "in");
   return (
     <div>
+      {anyLive ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12, fontSize: 11.5, fontWeight: 700, letterSpacing: ".04em", color: "rgba(255,255,255,.5)" }}>
+          <span className="live-dot" style={{ width: 7, height: 7, borderRadius: 999, background: GREEN, display: "inline-block" }} />
+          UPDATING LIVE · REFRESHES EVERY 12s
+        </div>
+      ) : null}
       {games.map((g, i) => {
         const isLive = g.state === "in";
+        const sit = isLive ? g.situation : null;
+        const awayPoss = !!(sit && sit.poss && g.away.abbr && sit.poss === g.away.abbr);
+        const homePoss = !!(sit && sit.poss && g.home.abbr && sit.poss === g.home.abbr);
         return (
-          <div key={g.id} className="card up" style={{ animationDelay: `${i * 40}ms`, background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
+          <div key={g.id} className="card up" style={{ animationDelay: `${i * 40}ms`, background: "linear-gradient(180deg,#0C1319,#080D11)", border: isLive ? "1px solid rgba(0,255,135,.28)" : "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".04em", color: isLive ? GREEN : "rgba(255,255,255,.45)", display: "flex", alignItems: "center", gap: 6 }}>
                 {isLive ? <span className="live-dot" style={{ width: 7, height: 7, borderRadius: 999, background: GREEN, display: "inline-block" }} /> : null}
                 {g.detail || (g.state === "pre" ? "Upcoming" : "Final")}
               </span>
+              {isLive && g.clock ? <span className="disp" style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>{g.clock}</span> : null}
             </div>
-            <TeamRow s={g.away} live={isLive} />
-            <TeamRow s={g.home} live={isLive} />
+            <TeamRow s={g.away} live={isLive} poss={awayPoss} />
+            <TeamRow s={g.home} live={isLive} poss={homePoss} />
+            {sit && (sit.dd || sit.last) ? (
+              <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,.06)", fontSize: 12, color: "rgba(255,255,255,.6)", lineHeight: 1.45 }}>
+                {sit.dd ? <span style={{ color: GREEN, fontWeight: 700 }}>{sit.dd}</span> : null}
+                {sit.dd && sit.last ? " · " : ""}
+                {sit.last || ""}
+              </div>
+            ) : null}
           </div>
         );
       })}
