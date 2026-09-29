@@ -207,6 +207,34 @@ function SlipCard({ s, i }: { s: Slip; i: number }) {
     </div>
   );
 }
+function LockCard({ s }: { s: Slip }) {
+  return (
+    <div className="card up" style={{ background: "linear-gradient(135deg,rgba(0,255,135,.16),rgba(12,19,25,.92))", border: "1px solid rgba(0,255,135,.5)", borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: "0 12px 40px rgba(0,255,135,.14)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: ".08em", color: GREEN }}>🔒 LOCK OF THE DAY</span>
+        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".06em", color: INK, background: GREEN, padding: "3px 8px", borderRadius: 999 }}>{s.tier}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 14, overflow: "hidden", background: "rgba(255,255,255,.06)", flex: "0 0 auto" }}>
+          {s.headshot ? <img src={s.headshot} alt="" width={52} height={52} style={{ objectFit: "cover" }} /> : null}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>{s.player}</div>
+          <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.55)", marginTop: 2 }}>{s.pos ? s.pos + " · " : ""}{s.team} vs {s.opp}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 6 }}>
+            <span className="disp" style={{ fontSize: 16, fontWeight: 800, color: s.side === "Over" ? GREEN : "#FF7C7C" }}>{s.side}</span>
+            <span className="disp" style={{ fontSize: 24, fontWeight: 800 }}>{s.line}</span>
+            <span style={{ fontSize: 13.5, color: "rgba(255,255,255,.65)", fontWeight: 600 }}>{s.stat}</span>
+          </div>
+        </div>
+        <Ring pct={s.l10.pct} />
+      </div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(0,255,135,.18)" }}>
+        Hit <span style={{ color: GREEN, fontWeight: 800 }}>{s.l10.hit}/{s.l10.of}</span> of the last 10 · L5 {s.l5.hit}/{s.l5.of} · Season {s.season.pct}%
+      </div>
+    </div>
+  );
+}
 function PicksTab({ sport }: { sport: string }) {
   const [slips, setSlips] = useState<Slip[]>([]);
   const [st, setSt] = useState<"load" | "ok" | "empty">("load");
@@ -219,7 +247,13 @@ function PicksTab({ sport }: { sport: string }) {
   }, [sport]);
   if (st === "load") return <div>{[0, 1, 2].map((i) => <Skel key={i} h={118} />)}</div>;
   if (st === "empty") return <Empty t={`No ${sport} slate to grade yet — check back on a game day.`} />;
-  return <div>{slips.map((s, i) => <SlipCard key={i} s={s} i={i} />)}</div>;
+  return (
+    <div>
+      {slips.length ? <LockCard s={slips[0]} /> : null}
+      {slips.length > 1 ? <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.4)", margin: "4px 2px 12px" }}>MORE TOP PICKS</div> : null}
+      {slips.slice(1).map((s, i) => <SlipCard key={i} s={s} i={i} />)}
+    </div>
+  );
 }
 
 /* ── TRADES ──────────────────────────────────────────────────────────────── */
