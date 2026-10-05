@@ -42,7 +42,9 @@ type Slip = {
   player: string; headshot?: string; pos?: string; team: string; opp: string;
   stat: string; line: number; side: "Over" | "Under"; tier: "ELITE" | "STRONG" | "LEAN";
   l5: Rate; l10: Rate; season: Rate; spark?: { v: number; hit: boolean }[];
+  pid?: string; eid?: string; sk?: string;
 };
+type BoxMap = Record<string, { state: string; detail: string; players: Record<string, Record<string, number>> }>;
 type Side = { abbr: string; name: string; logo: string; score: number | null; record: string; winner: boolean };
 type Situation = { poss: string; dd: string; last: string };
 type Game = { id: string; state: string; detail: string; clock: string; period?: number; start: string; situation?: Situation | null; home: Side; away: Side };
@@ -185,7 +187,30 @@ function Spark({ data, side }: { data?: { v: number; hit: boolean }[]; side: str
     </div>
   );
 }
-function SlipCard({ s, i }: { s: Slip; i: number }) {
+function PickProgress({ s, box }: { s: Slip; box: BoxMap }) {
+  const tk = s.eid && box[s.eid] ? box[s.eid] : null;
+  if (!tk) return null;
+  const cur = s.pid && tk.players && tk.players[s.pid] ? tk.players[s.pid][s.sk || ""] : undefined;
+  if (cur == null || isNaN(cur as number)) return null;
+  const isLive = tk.state === "in";
+  const isFinal = tk.state === "post";
+  if (!isLive && !isFinal) return null;
+  const hit = s.side === "Over" ? cur > s.line : cur < s.line;
+  let right;
+  if (isFinal) right = <span style={{ fontWeight: 900, color: hit ? GREEN : "#FF7C7C" }}>{hit ? "✅ HIT" : "❌ MISS"}</span>;
+  else if (s.side === "Over") right = hit ? <span style={{ fontWeight: 800, color: GREEN }}>on pace ✅</span> : <span style={{ color: "rgba(255,255,255,.55)" }}>needs {(s.line - cur).toFixed(1)}</span>;
+  else right = hit ? <span style={{ fontWeight: 800, color: GREEN }}>under ✅</span> : <span style={{ fontWeight: 800, color: "#FF7C7C" }}>❌ over</span>;
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5 }}>
+      <span style={{ color: "rgba(255,255,255,.6)" }}>
+        {isLive ? <span className="live-dot" style={{ color: GREEN, fontWeight: 800 }}>● LIVE </span> : null}
+        <span className="disp" style={{ fontWeight: 800, color: "#fff" }}>{cur}</span> / {s.line} {s.stat}
+      </span>
+      {right}
+    </div>
+  );
+}
+function SlipCard({ s, i, box }: { s: Slip; i: number; box: BoxMap }) {
   return (
     <div className="card up" style={{ animationDelay: `${i * 45}ms`, background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(0,255,135,.14)", borderRadius: 18, padding: 16, marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -212,10 +237,11 @@ function SlipCard({ s, i }: { s: Slip; i: number }) {
         </div>
       </div>
       <Spark data={s.spark} side={s.side} />
+      <PickProgress s={s} box={box} />
     </div>
   );
 }
-function LockCard({ s }: { s: Slip }) {
+function LockCard({ s, box }: { s: Slip; box: BoxMap }) {
   return (
     <div className="card up" style={{ background: "linear-gradient(135deg,rgba(0,255,135,.16),rgba(12,19,25,.92))", border: "1px solid rgba(0,255,135,.5)", borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: "0 12px 40px rgba(0,255,135,.14)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -240,12 +266,14 @@ function LockCard({ s }: { s: Slip }) {
       <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(0,255,135,.18)" }}>
         Hit <span style={{ color: GREEN, fontWeight: 800 }}>{s.l10.hit}/{s.l10.of}</span> of the last 10 · L5 {s.l5.hit}/{s.l5.of} · Season {s.season.pct}%
       </div>
+      <PickProgress s={s} box={box} />
     </div>
   );
 }
 function PicksTab({ sport }: { sport: string }) {
   const [slips, setSlips] = useState<Slip[]>([]);
   const [st, setSt] = useState<"load" | "ok" | "empty">("load");
+  const [box, setBox] = useState<BoxMap>({});
   useEffect(() => {
     let live = true; setSt("load");
     fetch(`/api/props?league=${sport}&t=${Date.now()}`).then((r) => r.json()).then((d) => {
@@ -253,13 +281,30 @@ function PicksTab({ sport }: { sport: string }) {
     }).catch(() => live && setSt("empty"));
     return () => { live = false; };
   }, [sport]);
+  useEffect(() => {
+    if (!slips.length) return;
+    const eids: string[] = [];
+    for (const s of slips) if (s.eid && eids.indexOf(s.eid) === -1) eids.push(s.eid);
+    if (!eids.length) return;
+    let live = true;
+    const pull = async () => {
+      const m: BoxMap = {};
+      await Promise.all(eids.map(async (eid) => {
+        try { const d = await fetch(`/api/props?type=box&league=${sport}&event=${eid}&t=${Date.now()}`).then((r) => r.json()); if (d && d.players) m[eid] = d; } catch (e) {}
+      }));
+      if (live) setBox(m);
+    };
+    pull();
+    const iv = setInterval(pull, 20000);
+    return () => { live = false; clearInterval(iv); };
+  }, [slips, sport]);
   if (st === "load") return <div>{[0, 1, 2].map((i) => <Skel key={i} h={118} />)}</div>;
   if (st === "empty") return <Empty t={`No ${sport} slate to grade yet — check back on a game day.`} />;
   return (
     <div>
-      {slips.length ? <LockCard s={slips[0]} /> : null}
+      {slips.length ? <LockCard s={slips[0]} box={box} /> : null}
       {slips.length > 1 ? <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.4)", margin: "4px 2px 12px" }}>MORE TOP PICKS</div> : null}
-      {slips.slice(1).map((s, i) => <SlipCard key={i} s={s} i={i} />)}
+      {slips.slice(1).map((s, i) => <SlipCard key={i} s={s} i={i} box={box} />)}
     </div>
   );
 }
