@@ -220,6 +220,24 @@ async function doBox(res, base, cfg, eid) {
       }
     }
   } catch (e) {}
+  // Derived stats the box score doesn't list as their own column. Only set when
+  // the inputs are present, so a pick is never graded against a faked number.
+  const _num = (x) => { const n = parseFloat(String(x).split('-')[0].replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; };
+  for (const id in raw) {
+    const d = raw[id];
+    // NHL: points = goals + assists (ESPN's skater box lists the two separately).
+    if (cfg.league === 'nhl' && d.points == null) {
+      const g = _num(d.goals), a = _num(d.assists);
+      if (g != null && a != null) d.points = g + a;
+    }
+    // MLB: total bases = 1B + 2·2B + 3·3B + 4·HR, from the batting breakdown.
+    if (cfg.league === 'mlb' && d.totalbases == null) {
+      const h = _num(d.hits), db = _num(d.doubles), tr = _num(d.triples), hr = _num(d.homeruns);
+      if (h != null && db != null && tr != null && hr != null) {
+        d.totalbases = (h - db - tr - hr) + 2 * db + 3 * tr + 4 * hr;
+      }
+    }
+  }
   const players = {};
   for (const id in raw) {
     const d = raw[id]; const r = {};
