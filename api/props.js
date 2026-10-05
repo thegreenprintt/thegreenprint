@@ -191,6 +191,56 @@ async function doScores(res, base, league) {
   }
 }
 
+// Live box score for one game → { players: { athleteId: { statName: value } } }.
+// Lets the app show each pick's live progress vs its line and grade it when the
+// game ends. Maps our gamelog stat names to the summary box-score keys.
+const BOXMAP = {
+  passingYards: ['passingyards'], rushingYards: ['rushingyards'], receivingYards: ['receivingyards'], receptions: ['receptions'],
+  points: ['points'], rebounds: ['rebounds', 'totalrebounds'], assists: ['assists'],
+  threePointFieldGoalsMade: ['threepointfieldgoalsmade-threepointfieldgoalsattempted', 'threepointfieldgoalsmade', '3pt'],
+  hits: ['hits'], totalBases: ['totalbases'], RBIs: ['rbis', 'rbi'], runs: ['runs'],
+  shots: ['shotstotal', 'shots', 'sog'], goals: ['goals'],
+};
+async function doBox(res, base, cfg, eid) {
+  if (!eid) { res.setHeader('Cache-Control', 'no-store'); return res.status(200).json({ error: 'no_event', players: {} }); }
+  const sum = await jget(base + '/summary?event=' + encodeURIComponent(eid), 6000);
+  const raw = {};
+  try {
+    const tms = (sum && sum.boxscore && sum.boxscore.players) || [];
+    for (const tm of tms) {
+      for (const grp of (tm.statistics || [])) {
+        const keys = (grp.keys && grp.keys.length ? grp.keys : (grp.names || [])).map((k) => String(k).toLowerCase());
+        for (const a of (grp.athletes || [])) {
+          const id = String((a.athlete && a.athlete.id) || '');
+          if (!id) continue;
+          const vals = a.stats || [];
+          const d = raw[id] || (raw[id] = {});
+          for (let i = 0; i < keys.length; i++) if (vals[i] != null) d[keys[i]] = vals[i];
+        }
+      }
+    }
+  } catch (e) {}
+  const players = {};
+  for (const id in raw) {
+    const d = raw[id]; const r = {};
+    for (const sd of cfg.stats) {
+      const cands = BOXMAP[sd.name] || [String(sd.name).toLowerCase()];
+      for (const c of cands) {
+        if (d[c] != null) {
+          const num = parseFloat(String(d[c]).split('-')[0].replace(/[^0-9.\-]/g, ''));
+          if (!isNaN(num)) { r[sd.name] = num; }
+          break;
+        }
+      }
+    }
+    if (Object.keys(r).length) players[id] = r;
+  }
+  const comp = (sum && sum.header && sum.header.competitions && sum.header.competitions[0]) || {};
+  const stt = (comp.status && comp.status.type) || {};
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({ eid: eid, state: stt.state || '', detail: stt.shortDetail || '', players: players });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -209,6 +259,7 @@ module.exports = async function handler(req, res) {
   const glBase = 'https://site.web.api.espn.com/apis/common/v3/sports/' + cfg.sport + '/' + cfg.league;
 
   if (String((req.query && req.query.type) || '') === 'scores') return doScores(res, base, league);
+  if (String((req.query && req.query.type) || '') === 'box') return doBox(res, base, cfg, String((req.query && req.query.event) || ''));
 
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
 
@@ -239,8 +290,8 @@ module.exports = async function handler(req, res) {
       const start = e.date || '';
       if (cs.length === 2) {
         const a = cs[0], b = cs[1];
-        teams.push({ teamId: String(a.team && a.team.id), abbr: (a.team && a.team.abbreviation) || '', oppAbbr: (b.team && b.team.abbreviation) || '', start: start });
-        teams.push({ teamId: String(b.team && b.team.id), abbr: (b.team && b.team.abbreviation) || '', oppAbbr: (a.team && a.team.abbreviation) || '', start: start });
+        teams.push({ teamId: String(a.team && a.team.id), abbr: (a.team && a.team.abbreviation) || '', oppAbbr: (b.team && b.team.abbreviation) || '', start: start, eid: String(e.id) });
+        teams.push({ teamId: String(b.team && b.team.id), abbr: (b.team && b.team.abbreviation) || '', oppAbbr: (a.team && a.team.abbreviation) || '', start: start, eid: String(e.id) });
       }
     }
 
@@ -342,6 +393,7 @@ module.exports = async function handler(req, res) {
         slips.push({
           player: a.name, headshot: a.headshot, pos: a.pos,
           team: a.t.abbr, opp: a.t.oppAbbr, start: a.t.start,
+          pid: String(a.id), eid: a.t.eid, sk: sd.name,
           league: league, stat: sd.label, line: line,
           side: over ? 'Over' : 'Under', tier: tier, score: score,
           spark: spark,
