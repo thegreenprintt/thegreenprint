@@ -48,10 +48,18 @@ type Situation = { poss: string; dd: string; last: string };
 type Game = { id: string; state: string; detail: string; clock: string; period?: number; start: string; situation?: Situation | null; home: Side; away: Side };
 type Trade = { id: number; pair: string; side: "BUY" | "SELL"; pnl: number; note: string; ts: number };
 type Msg = { id: number; user: string; text: string; ts: number };
+type Sig = { id: number; pair: string; dir: string; note: string; ts: number };
 
 const tierColor = (t: string) => (t === "ELITE" ? GREEN : t === "STRONG" ? "#67E8FF" : "#FFC24B");
 const load = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const timeAgo = (ts: number) => {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + "s ago";
+  const m = Math.floor(s / 60); if (m < 60) return m + "m ago";
+  const h = Math.floor(m / 60); if (h < 24) return h + "h ago";
+  return Math.floor(h / 24) + "d ago";
+};
 
 /* ── shared bits ─────────────────────────────────────────────────────────── */
 function SportBar({ sport, setSport }: { sport: string; setSport: (s: string) => void }) {
@@ -302,6 +310,66 @@ function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pn
   }
   return { pair, side, pnl };
 }
+function SignalsFeed() {
+  const [sigs, setSigs] = useState<Sig[]>([]);
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState("");
+  const [pair, setPair] = useState("");
+  const [dir, setDir] = useState<"LONG" | "SHORT">("LONG");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
+  const pull = () => fetch("/api/chat?kind=signals&t=" + Date.now()).then((r) => r.json()).then((d) => { if (Array.isArray(d.signals)) setSigs(d.signals); }).catch(() => {});
+  useEffect(() => {
+    setKey(load<string>("gp_adminkey", ""));
+    let live = true;
+    const go = () => { if (live) pull(); };
+    go(); const iv = setInterval(go, 10000);
+    return () => { live = false; clearInterval(iv); };
+  }, []);
+  const post = async () => {
+    if (!pair.trim()) { setMsg("Enter a pair."); return; }
+    save("gp_adminkey", key);
+    try {
+      const r = await fetch("/api/chat?kind=signals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, pair, dir, note }) });
+      if (r.ok) { setMsg(""); setPair(""); setNote(""); setOpen(false); pull(); }
+      else if (r.status === 403) setMsg("Admin key wrong — only the host can post.");
+      else setMsg("Couldn't post that one.");
+    } catch (e) { setMsg("Network error."); }
+  };
+  const inp = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "#fff", padding: "10px 12px", fontSize: 14, outline: "none" } as const;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 10px" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".06em", color: GREEN }}>📡 GREENPRINT SIGNALS</span>
+        <button className="btn" onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "rgba(255,255,255,.5)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{open ? "close" : "+ post"}</button>
+      </div>
+      {open ? (
+        <div style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(0,255,135,.14)", borderRadius: 14, padding: 12, marginBottom: 12 }}>
+          <input style={{ ...inp, width: "100%", marginBottom: 8 }} placeholder="Admin key" value={key} onChange={(e) => setKey(e.target.value)} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input style={{ ...inp, flex: 1 }} placeholder="Pair (e.g. NAS100)" value={pair} onChange={(e) => setPair(e.target.value)} />
+            <button className="btn" onClick={() => setDir(dir === "LONG" ? "SHORT" : "LONG")} style={{ ...inp, cursor: "pointer", fontWeight: 800, color: dir === "LONG" ? GREEN : "#FF7C7C", minWidth: 84 }}>{dir}</button>
+          </div>
+          <input style={{ ...inp, width: "100%", marginBottom: 8 }} placeholder="Note (entry, SL/TP, reasoning…)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button className="btn" onClick={post} style={{ width: "100%", background: GREEN, color: INK, border: "none", borderRadius: 10, padding: "11px 12px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>Post signal</button>
+          {msg ? <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", marginTop: 8, textAlign: "center" }}>{msg}</div> : null}
+        </div>
+      ) : null}
+      {sigs.length === 0 ? (
+        <div style={{ color: "rgba(255,255,255,.4)", fontSize: 13, padding: "10px 2px" }}>No signals yet — your calls will show up here.</div>
+      ) : sigs.map((s) => (
+        <div key={s.id} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(0,255,135,.12)", borderRadius: 12, padding: "11px 13px", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: ".06em", color: INK, background: s.dir === "SHORT" ? "#FF7C7C" : GREEN, padding: "3px 8px", borderRadius: 6 }}>{s.dir}</span>
+            <span style={{ fontWeight: 800, fontSize: 14, flex: 1 }}>{s.pair}</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>{timeAgo(s.ts)}</span>
+          </div>
+          {s.note ? <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", marginTop: 7, lineHeight: 1.45 }}>{s.note}</div> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
 function TradeStats({ trades }: { trades: Trade[] }) {
   if (trades.length < 2) return null;
   const chron = [...trades].reverse();
@@ -414,6 +482,7 @@ function TradesTab() {
   const inp = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "#fff", padding: "11px 12px", fontSize: 14, outline: "none" } as const;
   return (
     <div className="up">
+      <SignalsFeed />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
         {[["Record", `${wins}-${losses}`, "#fff"], ["Win rate", trades.length ? Math.round((wins / (wins + losses || 1)) * 100) + "%" : "–", GREEN], ["Net P&L", (total >= 0 ? "+" : "") + total.toFixed(2), total >= 0 ? GREEN : "#FF7C7C"]].map(([l, v, c]) => (
           <div key={l as string} style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, padding: "14px 12px" }}>
