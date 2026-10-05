@@ -35,7 +35,8 @@ async function postToTelegram(text: string) {
   return r.json();
 }
 
-// Mirror the same call into the app's Signals feed (Redis list the app reads).
+// Post the same call into the COMMUNITY CHAT as a message from The Greenprint,
+// so it reads like Jay dropping a trade idea in the room (not a separate feed).
 let _redis: Redis | null = null;
 function redis() {
   if (!_redis) {
@@ -44,13 +45,14 @@ function redis() {
   }
   return _redis;
 }
-const SKEY = "gp:signals:v1";
-async function postToApp(pair: string, dir: string, note: string) {
+const CHAT_KEY = "gp:chat:v1";
+const SIGNAL_AUTHOR = "The Greenprint";
+async function postToChat(text: string) {
   try {
     const r = redis();
-    const sig = { id: Date.now() + Math.floor(Math.random() * 999), pair, dir, note, ts: Date.now() };
-    await r.rpush(SKEY, JSON.stringify(sig));
-    await r.ltrim(SKEY, -80, -1);
+    const msg = { id: Date.now() + Math.floor(Math.random() * 999), user: SIGNAL_AUTHOR, text, ts: Date.now() };
+    await r.rpush(CHAT_KEY, JSON.stringify(msg));
+    await r.ltrim(CHAT_KEY, -300, -1);
   } catch { /* never let a store hiccup break the Telegram post */ }
 }
 
@@ -131,6 +133,6 @@ export async function POST(req: NextRequest) {
   }
 
   const tg = await postToTelegram(text);
-  await postToApp(symbol || "—", dirWord, text);
-  return NextResponse.json({ ok: true, telegram: tg?.ok ?? false, app: true });
+  await postToChat(text);
+  return NextResponse.json({ ok: true, telegram: tg?.ok ?? false, chat: true });
 }
