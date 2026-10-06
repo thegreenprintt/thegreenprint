@@ -131,8 +131,10 @@ module.exports = async function handler(req, res) {
       const chatText = stripTags(text);
       await postChat(r, chatText);
       // 2. Push everyone.
-      const firstLine = (chatText.split('\n')[0] || 'New call').slice(0, 120);
-      const pushed = await sendPush(r, '🟢 The Greenprint', firstLine, '/app');
+      const lines = chatText.split('\n');
+      const pTitle = (lines[0] || 'New call').slice(0, 80);
+      const pBody = (lines.slice(1).join(' · ') || 'Tap to view the call').slice(0, 150);
+      const pushed = await sendPush(r, pTitle, pBody, '/app?tab=Community');
       // 3. Optional Telegram forward (OFF by default so your direct alert stays the source).
       let tg = false;
       const fwd = String((req.query && req.query.fwd) || '') === '1';
@@ -158,7 +160,7 @@ module.exports = async function handler(req, res) {
       const line = best.player + ' — ' + best.side + ' ' + best.line + ' ' + best.stat;
       const hit = best.l10 ? (' · hit ' + best.l10.hit + '/' + best.l10.of + ' of last 10') : '';
       await postChat(r, '🔒 LOCK OF THE DAY\n' + line + '\n' + best.team + ' vs ' + best.opp + hit);
-      const pushed = await sendPush(r, '🔒 Lock of the Day', line, '/app');
+      const pushed = await sendPush(r, '🔒 Lock of the Day', line, '/app?tab=Picks');
       return res.status(200).json({ ok: true, lock: best.player, pushed: pushed });
     }
 
