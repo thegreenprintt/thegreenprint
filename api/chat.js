@@ -122,7 +122,7 @@ module.exports = async function handler(req, res) {
     // alert already did). Add &fwd=1 only if you ever want the app to forward to
     // Telegram instead of a direct alert (needs TELEGRAM_BOT_TOKEN set).
     if (kind === 'tv') {
-      const wk = process.env.TV_WEBHOOK_KEY || '';
+      const wk = process.env.GP_TV_KEY || '';
       if (!wk || qkey !== wk) return res.status(401).json({ error: 'unauthorized' });
       const text = String((body && body.text) || '');
       const chatId = String((body && body.chat_id) || '');
