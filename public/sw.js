@@ -20,10 +20,16 @@ self.addEventListener("push", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
   var url = (event.notification.data && event.notification.data.url) || "/app";
+  var tab = "";
+  try { tab = new URL(url, self.location.origin).searchParams.get("tab") || ""; } catch (e) {}
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
       for (var i = 0; i < list.length; i++) {
-        if (list[i].url.indexOf(url) !== -1 && "focus" in list[i]) return list[i].focus();
+        var c = list[i];
+        if (c.url.indexOf("/app") !== -1 && "focus" in c) {
+          if (tab) { try { c.postMessage({ gpTab: tab }); } catch (e) {} }
+          return c.focus();
+        }
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);
     })
