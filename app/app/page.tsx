@@ -42,7 +42,7 @@ type Slip = {
   player: string; headshot?: string; pos?: string; team: string; opp: string;
   stat: string; line: number; side: "Over" | "Under"; tier: "ELITE" | "STRONG" | "LEAN";
   l5: Rate; l10: Rate; season: Rate; spark?: { v: number; hit: boolean }[];
-  pid?: string; eid?: string; sk?: string;
+  pid?: string; eid?: string; sk?: string; league: string;
 };
 type BoxMap = Record<string, { state: string; detail: string; players: Record<string, Record<string, number>> }>;
 type Side = { abbr: string; name: string; logo: string; score: number | null; record: string; winner: boolean };
