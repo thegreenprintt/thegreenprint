@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import Redis from "ioredis";
 
-// ── TradingView alert webhook → Telegram broadcast (Telegram ONLY) ──
-// Calls are posted to the Telegram channel and are NOT displayed on the
-// website or stored anywhere.
+export const runtime = "nodejs";
+
+// ── TradingView alert webhook → Telegram + in-app Community chat ──
+// This is the route the scanner actually points at (/api/tv-webhook).
+// Calls are sent to the Telegram channel as PLAIN TEXT (no HTML/markdown, so
+// they never render as a monospace/code box) AND mirrored into the app's
+// Community chat as a message from The Greenprint — like dropping a trade idea
+// straight into the room.
 //
 // TradingView setup: ONE alert per chart (Gold, NAS100, US30), condition
 // "The Greenprint v12.9" → "Any alert() function call", webhook URL:
 //   https://thegreenprint.trade/api/tv-webhook?key=<TV_WEBHOOK_KEY>
 //
-// Events sent by the script (v12.9):
-//   {"event":"early","side":"buy","symbol":"US100","price":29455.1}
-//   {"event":"signal","side":"buy","symbol":"US100","price":29455.1,"sl":...,"tp1":...,...,"score":67}
-//   {"event":"tp","level":2,"side":"buy","symbol":"US100","price":29601.3}
-//   {"event":"sl","side":"buy","symbol":"US100","price":29431.2}
-//
 // Env vars required:
 //   TV_WEBHOOK_KEY            — shared secret in the URL, rejects anything else
 //   TELEGRAM_BOT_TOKEN        — bot token from @BotFather
 //   TELEGRAM_SIGNALS_CHAT_ID  — chat ID of the channel the bot posts into
+//   REDIS_URL                 — already set (used by the app's chat/signals)
 
 const TP_NAMES: Record<number, string> = {
   1: "Layup", 2: "Free Throw", 3: "3Pointer", 4: "Half Court", 5: "Full Court",
@@ -30,9 +31,30 @@ async function postToTelegram(text: string) {
   const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    // plain text — no parse_mode, so it never renders as a code/monospace box
+    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
   });
   return r.json();
+}
+
+// Mirror the same call into the COMMUNITY CHAT as a message from The Greenprint.
+let _redis: Redis | null = null;
+function redis() {
+  if (!_redis) {
+    _redis = new Redis(process.env.REDIS_URL || "", { maxRetriesPerRequest: 2, connectTimeout: 4000, lazyConnect: false });
+    _redis.on("error", () => {});
+  }
+  return _redis;
+}
+const CHAT_KEY = "gp:chat:v1";
+const SIGNAL_AUTHOR = "The Greenprint";
+async function postToChat(text: string) {
+  try {
+    const r = redis();
+    const msg = { id: Date.now() + Math.floor(Math.random() * 999), user: SIGNAL_AUTHOR, text, ts: Date.now() };
+    await r.rpush(CHAT_KEY, JSON.stringify(msg));
+    await r.ltrim(CHAT_KEY, -300, -1);
+  } catch { /* never let a store hiccup break the Telegram post */ }
 }
 
 export async function POST(req: NextRequest) {
@@ -72,45 +94,46 @@ export async function POST(req: NextRequest) {
   const dirWord = isLong ? "LONG" : "SHORT";
   const dirIcon = isLong ? "🟢" : "🔴";
 
-  // 4. Build the Telegram message per event type
+  // 4. Build the message per event type — PLAIN TEXT (no HTML tags).
   let text: string;
 
   if (event === "early") {
     text =
-      `⚡ <b>EARLY HEADS-UP — ${symbol}</b>\n` +
-      `Possible <b>${dirWord}</b> forming @ ${price}\n` +
-      `Waiting on candle-close confirmation — <i>not a confirmed call yet.</i>\n` +
+      `⚡ EARLY HEADS-UP — ${symbol}\n` +
+      `Possible ${dirWord} forming @ ${price}\n` +
+      `Waiting on candle-close confirmation — not a confirmed call yet.\n` +
       `Get to your charts. 👀`;
   } else if (event === "signal") {
     text =
-      `${dirIcon} <b>GREENPRINT CALL — ${dirWord} ${symbol}</b>\n\n` +
-      `🎯 Entry: <b>${j.price}</b>\n` +
-      `🛑 SL: <b>${j.sl}</b>\n` +
-      `1️⃣ TP1 Layup: <b>${j.tp1}</b>\n` +
-      `2️⃣ TP2 Free Throw: <b>${j.tp2}</b>\n` +
-      `3️⃣ TP3 3Pointer: <b>${j.tp3}</b>\n` +
-      `4️⃣ TP4 Half Court: <b>${j.tp4}</b>\n` +
-      `5️⃣ TP5 Full Court: <b>${j.tp5}</b>\n` +
-      `📊 Confluence: <b>${j.score}/100</b>\n\n` +
+      `${dirIcon} GREENPRINT CALL — ${dirWord} ${symbol}\n\n` +
+      `🎯 Entry: ${j.price}\n` +
+      `🛑 SL: ${j.sl}\n` +
+      `1️⃣ TP1 Layup: ${j.tp1}\n` +
+      `2️⃣ TP2 Free Throw: ${j.tp2}\n` +
+      `3️⃣ TP3 3Pointer: ${j.tp3}\n` +
+      `4️⃣ TP4 Half Court: ${j.tp4}\n` +
+      `5️⃣ TP5 Full Court: ${j.tp5}\n` +
+      `📊 Confluence: ${j.score}/100\n\n` +
       `⚠️ Educational only — not financial advice. Manage your risk.`;
   } else if (event === "tp") {
     const lvl = Number(j.level) || 0;
     const name = TP_NAMES[lvl] || "";
     text = lvl >= 5
-      ? `🏆 <b>TP5 FULL COURT HIT — ${symbol} ${dirWord}</b> @ ${price}\nFULL SEND COMPLETE. 5R banked. 💰`
-      : `✅ <b>TP${lvl} ${name} HIT — ${symbol} ${dirWord}</b> @ ${price}`;
+      ? `🏆 TP5 FULL COURT HIT — ${symbol} ${dirWord} @ ${price}\nFULL SEND COMPLETE. 5R banked. 💰`
+      : `✅ TP${lvl} ${name} HIT — ${symbol} ${dirWord} @ ${price}`;
   } else if (event === "sl") {
     text =
-      `🛑 <b>STOP HIT — ${symbol} ${dirWord}</b> @ ${price}\n` +
+      `🛑 STOP HIT — ${symbol} ${dirWord} @ ${price}\n` +
       `Risk managed. On to the next one.`;
   } else {
     // Legacy alertcondition payloads (no "event" field)
     const isEarly = comment.includes("EARLY") || comment.includes("UNCONFIRMED");
     text = isEarly
-      ? `⚡ <b>EARLY HEADS-UP — ${symbol}</b>\nPossible <b>${dirWord}</b> forming @ ${price}\n<i>Not a confirmed call yet.</i>`
-      : `${dirIcon} <b>GREENPRINT CALL — ${dirWord} ${symbol}</b>\nEntry zone: <b>${price}</b>\nSL + TPs on the chart.\n⚠️ Educational only — not financial advice.`;
+      ? `⚡ EARLY HEADS-UP — ${symbol}\nPossible ${dirWord} forming @ ${price}\nNot a confirmed call yet.`
+      : `${dirIcon} GREENPRINT CALL — ${dirWord} ${symbol}\nEntry zone: ${price}\nSL + TPs on the chart.\n⚠️ Educational only — not financial advice.`;
   }
 
   const tg = await postToTelegram(text);
-  return NextResponse.json({ ok: true, telegram: tg?.ok ?? false });
+  await postToChat(text);
+  return NextResponse.json({ ok: true, telegram: tg?.ok ?? false, chat: true });
 }
