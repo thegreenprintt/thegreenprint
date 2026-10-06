@@ -806,6 +806,48 @@ function BookPicker({ book, setBook }: { book: string; setBook: (b: string) => v
 }
 
 /* ── ROOT ────────────────────────────────────────────────────────────────── */
+function urlB64ToUint8(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function NotifyBell() {
+  const [state, setState] = useState<"idle" | "on" | "busy" | "denied" | "no">("idle");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setState("no"); return; }
+    if (Notification.permission === "granted") setState("on");
+    else if (Notification.permission === "denied") setState("denied");
+  }, []);
+  const enable = async () => {
+    if (state === "on" || state === "busy") return;
+    setState("busy");
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setState(perm === "denied" ? "denied" : "idle"); return; }
+      const d = await fetch("/api/chat?kind=push").then((r) => r.json());
+      if (!d || !d.key) { setState("idle"); return; }
+      await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(d.key) });
+      await fetch("/api/chat?kind=push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", subscription: sub }) });
+      setState("on");
+    } catch (e) { setState("idle"); }
+  };
+  if (state === "no") return null;
+  return (
+    <button className="btn" onClick={enable} title="Notifications" aria-label="Notifications"
+      style={{ width: 36, height: 36, borderRadius: 999, flex: "0 0 auto", border: "1px solid " + (state === "on" ? GREEN : "rgba(255,255,255,.16)"), background: state === "on" ? "rgba(0,255,135,.12)" : "rgba(255,255,255,.04)", color: state === "on" ? GREEN : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: state === "on" ? "default" : "pointer" }}>
+      {state === "busy"
+        ? <span style={{ fontSize: 12, fontWeight: 800 }}>…</span>
+        : <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>}
+    </button>
+  );
+}
+
 export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
@@ -819,7 +861,7 @@ export default function AppPage() {
       <div style={{ flex: "none", zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth: 620, margin: "0 auto" }}>
           <div className="disp" style={{ fontWeight: 700, fontSize: 17, letterSpacing: ".02em", whiteSpace: "nowrap" }}>THE <span style={{ color: GREEN }}>GREENPRINT</span></div>
-          <BookPicker book={book} setBook={setBook} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}><NotifyBell /><BookPicker book={book} setBook={setBook} /></div>
         </div>
       </div>
 
