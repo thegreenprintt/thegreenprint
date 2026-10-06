@@ -256,7 +256,10 @@ async function doBox(res, base, cfg, eid) {
   const comp = (sum && sum.header && sum.header.competitions && sum.header.competitions[0]) || {};
   const stt = (comp.status && comp.status.type) || {};
   res.setHeader('Cache-Control', 'no-store');
-  return res.status(200).json({ eid: eid, state: stt.state || '', detail: stt.shortDetail || '', players: players });
+  var _st = stt.state || '';
+  // Only expose box stats once the game is live or final. Before a game (pre),
+  // ESPN returns SEASON totals in the boxscore — ignore those so picks don't show them.
+  return res.status(200).json({ eid: eid, state: _st, detail: stt.shortDetail || '', players: (_st === 'in' || _st === 'post') ? players : {} });
 }
 
 module.exports = async function handler(req, res) {
