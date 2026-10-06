@@ -133,7 +133,7 @@ module.exports = async function handler(req, res) {
       // 2. Push everyone.
       const lines = chatText.split('\n');
       const pTitle = (lines[0] || 'New call').slice(0, 80);
-      const pBody = (lines.slice(1).join(' · ') || 'Tap to view the call').slice(0, 150);
+      const pBody = (lines.slice(1).join('\n').replace(/\n{2,}/g, '\n').trim() || 'Tap to view the call').slice(0, 300);
       const pushed = await sendPush(r, pTitle, pBody, '/app?tab=Community');
       // 3. Optional Telegram forward (OFF by default so your direct alert stays the source).
       let tg = false;
