@@ -687,7 +687,7 @@ function ChatRoom({ label }: { label?: string }) {
           return (
             <div key={m.id} className="pop" style={{ alignSelf: me ? "flex-end" : "flex-start", maxWidth: "78%" }}>
               {!me ? <div style={{ fontSize: 11, color: GREEN, fontWeight: 700, marginBottom: 3 }}>{m.user}</div> : null}
-              <div style={{ background: me ? GREEN : "rgba(255,255,255,.06)", color: me ? INK : "#fff", padding: "9px 13px", borderRadius: 14, fontSize: 14, fontWeight: 500 }}>{m.text}</div>
+              <div style={{ background: me ? GREEN : "rgba(255,255,255,.06)", color: me ? INK : "#fff", padding: "9px 13px", borderRadius: 14, fontSize: 14, fontWeight: 500, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.4 }}>{m.text}</div>
             </div>
           );
         })}
