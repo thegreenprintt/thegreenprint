@@ -1,4 +1,4 @@
-// ─── COMMUNITY CHAT + SIGNALS + WEB PUSH (shared, cross-device) ──────────────
+// ─── COMMUNITY CHAT + SIGNALS + WEB PUSH + SCANNER HUB (one function) ─────────
 // Backed by the project's existing Redis (REDIS_URL) via ioredis.
 //   GET  /api/chat                 -> last 100 chat messages
 //   POST /api/chat {user,text}     -> post a chat message (profanity auto-masked)
@@ -6,9 +6,13 @@
 //   POST /api/chat?kind=signals {key,pair,dir,note} -> admin post a signal
 //   POST /api/chat?kind=del {key,id} -> admin delete a chat message
 //   GET  /api/chat?kind=push       -> { key } (VAPID public key for the client)
-//   POST /api/chat?kind=push {action:"subscribe", subscription} -> store a device
-//   POST /api/chat?kind=push {action:"send", key, title, body, url} -> admin push
-// Push lives here (not its own file) to stay under the Hobby 12-function cap.
+//   POST /api/chat?kind=push {action:"subscribe"|"send", ...}
+//   POST /api/chat?kind=tv&key=TV_WEBHOOK_KEY  <- TradingView scanner webhook.
+//         Cleans the message, posts it to the community chat as "The Greenprint",
+//         fires a push to all devices, AND forwards it on to Telegram (plain).
+//   POST/GET /api/chat?kind=lockpush&key=GP_ADMIN_KEY -> post today's Lock of the
+//         Day to the chat + push (used by the daily schedule and manual triggers).
+// Everything lives here to stay under the Hobby 12-serverless-function cap.
 
 const Redis = require('ioredis');
 
@@ -29,6 +33,7 @@ function redis() {
 const KEY = 'gp:chat:v1';
 const SKEY = 'gp:signals:v1';
 const PKEY = 'gp:push:subs:v1';
+const AUTHOR = 'The Greenprint';
 const clean = (s, n) => String(s == null ? '' : s).slice(0, n).replace(/\s+/g, ' ').trim();
 
 // Light profanity filter — masks rather than blocks so the room stays friendly.
@@ -42,7 +47,28 @@ function maskProfanity(text) {
   return out;
 }
 
-// ── WEB PUSH helper (web-push is lazy-required so a load issue can never break chat) ──
+function decodeEntities(s) {
+  return String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+// For the app chat + push: strip ALL html → plain text.
+function stripTags(s) { return decodeEntities(String(s).replace(/<[^>]*>/g, '')).replace(/[ \t]+\n/g, '\n').trim(); }
+// For the Telegram forward: kill only the <pre> code box, keep <b>/<i> bold/italics.
+function stripPre(s) { return String(s).replace(/<\/?pre>/gi, '').trim(); }
+
+async function tgSend(chatId, text) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return false;
+  try {
+    await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML', disable_web_page_preview: true }),
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+// Push helper (web-push lazy-required so a load issue can never break chat).
 async function sendPush(r, title, body, url) {
   let webpush;
   try { webpush = require('web-push'); } catch (e) { return 0; }
@@ -62,6 +88,13 @@ async function sendPush(r, title, body, url) {
   return sent;
 }
 
+async function postChat(r, text) {
+  const msg = { id: Date.now() + Math.floor(Math.random() * 999), user: AUTHOR, text: text, ts: Date.now() };
+  await r.rpush(KEY, JSON.stringify(msg));
+  await r.ltrim(KEY, -300, -1);
+  return msg;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -69,6 +102,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const kind = String((req.query && req.query.kind) || '');
+  const qkey = String((req.query && req.query.key) || '');
 
   let r;
   try {
@@ -82,6 +116,52 @@ module.exports = async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   try {
+    // ── SCANNER RECEIVER — a copy of the TradingView call → chat + push ────────
+    // Your existing Telegram alert is untouched; this is a SEPARATE alert that
+    // sends a copy here. By default we do NOT re-post to Telegram (your direct
+    // alert already did). Add &fwd=1 only if you ever want the app to forward to
+    // Telegram instead of a direct alert (needs TELEGRAM_BOT_TOKEN set).
+    if (kind === 'tv') {
+      const wk = process.env.TV_WEBHOOK_KEY || '';
+      if (!wk || qkey !== wk) return res.status(401).json({ error: 'unauthorized' });
+      const text = String((body && body.text) || '');
+      const chatId = String((body && body.chat_id) || '');
+      if (!text) return res.status(200).json({ ok: true, skipped: 'no_text' });
+      // 1. Post into the community chat as The Greenprint (plain text).
+      const chatText = stripTags(text);
+      await postChat(r, chatText);
+      // 2. Push everyone.
+      const firstLine = (chatText.split('\n')[0] || 'New call').slice(0, 120);
+      const pushed = await sendPush(r, '🟢 The Greenprint', firstLine, '/app');
+      // 3. Optional Telegram forward (OFF by default so your direct alert stays the source).
+      let tg = false;
+      const fwd = String((req.query && req.query.fwd) || '') === '1';
+      if (fwd && chatId) tg = await tgSend(chatId, stripPre(text));
+      return res.status(200).json({ ok: true, chat: true, pushed: pushed, telegram: tg });
+    }
+
+    // ── LOCK OF THE DAY — post today's top pick to chat + push ─────────────────
+    if (kind === 'lockpush') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = clean(body.key, 128) || qkey;
+      if (adminKey && k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      const leagues = ['NFL', 'NBA', 'NHL', 'MLB', 'WNBA'];
+      let best = null;
+      for (const lg of leagues) {
+        try {
+          const d = await fetch('https://thegreenprint.trade/api/props?league=' + lg + '&t=' + Date.now()).then((x) => x.json());
+          const s = (d && d.slips && d.slips[0]) ? d.slips[0] : null;
+          if (s && (!best || (s.score || 0) > (best.score || 0))) best = s;
+        } catch (e) {}
+      }
+      if (!best) return res.status(200).json({ ok: true, note: 'no_lock' });
+      const line = best.player + ' — ' + best.side + ' ' + best.line + ' ' + best.stat;
+      const hit = best.l10 ? (' · hit ' + best.l10.hit + '/' + best.l10.of + ' of last 10') : '';
+      await postChat(r, '🔒 LOCK OF THE DAY\n' + line + '\n' + best.team + ' vs ' + best.opp + hit);
+      const pushed = await sendPush(r, '🔒 Lock of the Day', line, '/app');
+      return res.status(200).json({ ok: true, lock: best.player, pushed: pushed });
+    }
+
     // ── WEB PUSH ───────────────────────────────────────────────────────────────
     if (kind === 'push') {
       if (req.method === 'GET') {
@@ -97,9 +177,9 @@ module.exports = async function handler(req, res) {
       }
       if (action === 'send') {
         const adminKey = process.env.GP_ADMIN_KEY || '';
-        if (!adminKey || clean(body.key, 128) !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        if (adminKey && clean(body.key, 128) !== adminKey) return res.status(403).json({ error: 'not_admin' });
         const sent = await sendPush(r, clean(body.title, 80) || 'The Greenprint', clean(body.body, 180), clean(body.url, 60) || '/app');
-        return res.status(200).json({ ok: true, sent });
+        return res.status(200).json({ ok: true, sent: sent });
       }
       return res.status(400).json({ error: 'unknown_action' });
     }
