@@ -852,6 +852,21 @@ export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
   const [book, setBook] = useState("underdog");
+  useEffect(() => {
+    const valid = ["Scores", "Picks", "Trades", "Community", "Live"];
+    try {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t && valid.indexOf(t) !== -1) setTab(t);
+    } catch (e) {}
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      const onMsg = (e: MessageEvent) => {
+        const d = e.data;
+        if (d && d.gpTab && valid.indexOf(d.gpTab) !== -1) setTab(d.gpTab);
+      };
+      navigator.serviceWorker.addEventListener("message", onMsg);
+      return () => navigator.serviceWorker.removeEventListener("message", onMsg);
+    }
+  }, []);
   const showSport = tab === "Scores" || tab === "Picks";
   const outerScroll = tab === "Scores" || tab === "Picks" || tab === "Trades";
   return (
