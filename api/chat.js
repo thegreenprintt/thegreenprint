@@ -227,6 +227,7 @@ module.exports = async function handler(req, res) {
       const msg = { id: Date.now() + Math.floor(Math.random() * 999), user, text, ts: Date.now() };
       await r.rpush(KEY, JSON.stringify(msg));
       await r.ltrim(KEY, -300, -1);
+      try { await sendPush(r, '💬 ' + user, text.slice(0, 140), '/app?tab=Community'); } catch (e) {}
       return res.status(200).json({ ok: true, msg });
     }
 
