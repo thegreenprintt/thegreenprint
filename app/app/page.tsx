@@ -50,19 +50,12 @@ type Situation = { poss: string; dd: string; last: string };
 type Game = { id: string; state: string; detail: string; clock: string; period?: number; start: string; situation?: Situation | null; home: Side; away: Side };
 type Trade = { id: number; pair: string; side: "BUY" | "SELL"; pnl: number; note: string; ts: number };
 type Msg = { id: number; user: string; text: string; ts: number };
-type Sig = { id: number; pair: string; dir: string; note: string; ts: number };
+type Leg = { player: string; headshot?: string; pos?: string; team: string; opp: string; stat: string; line: number; side: "Over" | "Under"; tier: string; pid?: string; eid?: string; sk?: string; league: string };
+type SavedSlip = { id: number; ts: number; legs: Leg[] };
 
 const tierColor = (t: string) => (t === "ELITE" ? GREEN : t === "STRONG" ? "#67E8FF" : "#FFC24B");
 const load = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const timeAgo = (ts: number) => {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return s + "s ago";
-  const m = Math.floor(s / 60); if (m < 60) return m + "m ago";
-  const h = Math.floor(m / 60); if (h < 24) return h + "h ago";
-  return Math.floor(h / 24) + "d ago";
-};
-
 /* ── shared bits ─────────────────────────────────────────────────────────── */
 function SportBar({ sport, setSport }: { sport: string; setSport: (s: string) => void }) {
   return (
@@ -210,7 +203,7 @@ function PickProgress({ s, box }: { s: Slip; box: BoxMap }) {
     </div>
   );
 }
-function SlipCard({ s, i, box }: { s: Slip; i: number; box: BoxMap }) {
+function SlipCard({ s, i, box, added, onToggle }: { s: Slip; i: number; box: BoxMap; added: boolean; onToggle: () => void }) {
   return (
     <div className="card up" style={{ animationDelay: `${i * 45}ms`, background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(0,255,135,.14)", borderRadius: 18, padding: 16, marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -238,10 +231,11 @@ function SlipCard({ s, i, box }: { s: Slip; i: number; box: BoxMap }) {
       </div>
       <Spark data={s.spark} side={s.side} />
       <PickProgress s={s} box={box} />
+      <AddButton added={added} onClick={onToggle} />
     </div>
   );
 }
-function LockCard({ s, box }: { s: Slip; box: BoxMap }) {
+function LockCard({ s, box, added, onToggle }: { s: Slip; box: BoxMap; added: boolean; onToggle: () => void }) {
   return (
     <div className="card up" style={{ background: "linear-gradient(135deg,rgba(0,255,135,.16),rgba(12,19,25,.92))", border: "1px solid rgba(0,255,135,.5)", borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: "0 12px 40px rgba(0,255,135,.14)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -267,13 +261,118 @@ function LockCard({ s, box }: { s: Slip; box: BoxMap }) {
         Hit <span style={{ color: GREEN, fontWeight: 800 }}>{s.l10.hit}/{s.l10.of}</span> of the last 10 · L5 {s.l5.hit}/{s.l5.of} · Season {s.season.pct}%
       </div>
       <PickProgress s={s} box={box} />
+      <AddButton added={added} onClick={onToggle} />
     </div>
   );
 }
+const legKey = (l: { eid?: string; pid?: string; sk?: string }) => `${l.eid || ""}|${l.pid || ""}|${l.sk || ""}`;
+function slipLeg(s: Slip): Leg {
+  return { player: s.player, headshot: s.headshot, pos: s.pos, team: s.team, opp: s.opp, stat: s.stat, line: s.line, side: s.side, tier: s.tier, pid: s.pid, eid: s.eid, sk: s.sk, league: s.league };
+}
+function AddButton({ added, onClick }: { added: boolean; onClick: () => void }) {
+  return (
+    <button className="btn" onClick={onClick}
+      style={{ marginTop: 12, width: "100%", border: "1px solid " + (added ? GREEN : "rgba(255,255,255,.16)"), background: added ? "rgba(0,255,135,.12)" : "rgba(255,255,255,.03)", color: added ? GREEN : "#fff", borderRadius: 11, padding: "10px 12px", fontWeight: 800, fontSize: 13.5, cursor: "pointer" }}>
+      {added ? "✓ On your slip — tap to remove" : "+ Add to slip"}
+    </button>
+  );
+}
+function LegRow({ l, box }: { l: Leg; box: BoxMap }) {
+  const tk = l.eid && box[l.eid] ? box[l.eid] : null;
+  const cur = tk && l.pid && tk.players && tk.players[l.pid] ? tk.players[l.pid][l.sk || ""] : undefined;
+  const has = cur != null && !isNaN(cur as number);
+  const isFinal = !!(tk && tk.state === "post");
+  const isLive = !!(tk && tk.state === "in");
+  const hit = has ? (l.side === "Over" ? (cur as number) > l.line : (cur as number) < l.line) : false;
+  let right;
+  if (isFinal && has) right = <span style={{ fontWeight: 900, color: hit ? GREEN : "#FF7C7C" }}>{hit ? "✅" : "❌"}</span>;
+  else if (isLive && has) right = <span className="live-dot" style={{ fontWeight: 800, color: hit ? GREEN : "rgba(255,255,255,.55)" }}>{hit ? "✅ on pace" : "● live"}</span>;
+  else right = <span style={{ color: "rgba(255,255,255,.4)", fontSize: 11.5 }}>upcoming</span>;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.05)" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.player}</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)" }}>{l.side} {l.line} {l.stat} · {l.team}</div>
+      </div>
+      {has ? <span className="disp" style={{ fontSize: 14, fontWeight: 800 }}>{cur as number}<span style={{ color: "rgba(255,255,255,.4)", fontWeight: 600, fontSize: 11.5 }}>/{l.line}</span></span> : null}
+      <span style={{ minWidth: 54, textAlign: "right", fontSize: 12 }}>{right}</span>
+    </div>
+  );
+}
+function MySlips({ saved, onRemove }: { saved: SavedSlip[]; onRemove: (id: number) => void }) {
+  const [box, setBox] = useState<BoxMap>({});
+  useEffect(() => {
+    const keys: string[] = [];
+    for (const s of saved) for (const l of s.legs) if (l.eid) { const k = l.league + "|" + l.eid; if (keys.indexOf(k) === -1) keys.push(k); }
+    if (!keys.length) { setBox({}); return; }
+    let live = true;
+    const pull = async () => {
+      const m: BoxMap = {};
+      await Promise.all(keys.map(async (k) => {
+        const i = k.indexOf("|"); const lg = k.slice(0, i); const eid = k.slice(i + 1);
+        try { const d = await fetch(`/api/props?type=box&league=${lg}&event=${eid}&t=${Date.now()}`).then((r) => r.json()); if (d && d.players) m[eid] = d; } catch (e) {}
+      }));
+      if (live) setBox(m);
+    };
+    pull(); const iv = setInterval(pull, 20000);
+    return () => { live = false; clearInterval(iv); };
+  }, [saved]);
+  if (!saved.length) return null;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".06em", color: GREEN, margin: "0 2px 10px" }}>🎟️ MY SLIPS</div>
+      {saved.map((s) => {
+        let fin = 0, finHit = 0, hitting = 0, started = 0;
+        for (const l of s.legs) {
+          const tk = l.eid && box[l.eid] ? box[l.eid] : null;
+          const cur = tk && l.pid && tk.players && tk.players[l.pid] ? tk.players[l.pid][l.sk || ""] : undefined;
+          const has = cur != null && !isNaN(cur as number);
+          const good = has ? (l.side === "Over" ? (cur as number) > l.line : (cur as number) < l.line) : false;
+          if (tk && (tk.state === "in" || tk.state === "post")) started++;
+          if (tk && tk.state === "post" && has) { fin++; if (good) finHit++; }
+          if (tk && tk.state === "in" && good) hitting++;
+        }
+        const allFinal = fin === s.legs.length && s.legs.length > 0;
+        const won = allFinal && finHit === s.legs.length;
+        const status = allFinal ? (won ? "WON" : "LOST") : started ? "LIVE" : "UPCOMING";
+        const stCol = allFinal ? (won ? GREEN : "#FF7C7C") : started ? GREEN : "rgba(255,255,255,.5)";
+        return (
+          <div key={s.id} className="card" style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid " + (allFinal ? (won ? "rgba(0,255,135,.5)" : "rgba(255,124,124,.4)") : "rgba(255,255,255,.08)"), borderRadius: 16, padding: 14, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 800 }}>{s.legs.length}-leg slip</span>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".05em", color: INK, background: stCol, padding: "3px 8px", borderRadius: 999 }}>{status}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,.45)" }}>{finHit + hitting}/{s.legs.length} hitting</span>
+              <button className="btn" onClick={() => onRemove(s.id)} style={{ background: "none", border: "none", color: "rgba(255,255,255,.35)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>×</button>
+            </div>
+            {s.legs.map((l, i) => <LegRow key={i} l={l} box={box} />)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+function SlipBar({ slip, onSave, onClear }: { slip: Leg[]; onSave: () => void; onClear: () => void }) {
+  if (!slip.length) return null;
+  return (
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 72, zIndex: 25, display: "flex", justifyContent: "center", padding: "0 16px", pointerEvents: "none" }}>
+      <div style={{ pointerEvents: "auto", width: "100%", maxWidth: 588, display: "flex", alignItems: "center", gap: 10, background: "rgba(10,16,20,.97)", border: "1px solid rgba(0,255,135,.4)", borderRadius: 14, padding: "10px 12px", boxShadow: "0 14px 44px rgba(0,0,0,.55)" }}>
+        <span style={{ fontWeight: 800, fontSize: 13.5 }}>{slip.length} {slip.length === 1 ? "pick" : "picks"} on slip</span>
+        <button className="btn" onClick={onClear} style={{ background: "none", border: "none", color: "rgba(255,255,255,.5)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>clear</button>
+        <span style={{ flex: 1 }} />
+        <button className="btn" onClick={onSave} style={{ background: GREEN, color: INK, border: "none", borderRadius: 10, padding: "9px 18px", fontWeight: 800, fontSize: 13.5, cursor: "pointer" }}>Save &amp; track</button>
+      </div>
+    </div>
+  );
+}
+
 function PicksTab({ sport }: { sport: string }) {
   const [slips, setSlips] = useState<Slip[]>([]);
   const [st, setSt] = useState<"load" | "ok" | "empty">("load");
   const [box, setBox] = useState<BoxMap>({});
+  const [slip, setSlip] = useState<Leg[]>([]);
+  const [saved, setSaved] = useState<SavedSlip[]>([]);
+  useEffect(() => { setSlip(load<Leg[]>("gp_slip", [])); setSaved(load<SavedSlip[]>("gp_savedslips", [])); }, []);
   useEffect(() => {
     let live = true; setSt("load");
     fetch(`/api/props?league=${sport}&t=${Date.now()}`).then((r) => r.json()).then((d) => {
@@ -298,13 +397,23 @@ function PicksTab({ sport }: { sport: string }) {
     const iv = setInterval(pull, 20000);
     return () => { live = false; clearInterval(iv); };
   }, [slips, sport]);
+  const toggle = (s: Slip) => {
+    const k = legKey(s);
+    setSlip((prev) => { const ex = prev.some((x) => legKey(x) === k); const next = ex ? prev.filter((x) => legKey(x) !== k) : [...prev, slipLeg(s)]; save("gp_slip", next); return next; });
+  };
+  const inSlip = (s: Slip) => slip.some((x) => legKey(x) === legKey(s));
+  const saveSlip = () => { if (!slip.length) return; setSaved((prev) => { const ns = [{ id: Date.now(), ts: Date.now(), legs: slip }, ...prev]; save("gp_savedslips", ns); return ns; }); setSlip([]); save("gp_slip", []); };
+  const clearSlip = () => { setSlip([]); save("gp_slip", []); };
+  const removeSaved = (id: number) => { setSaved((prev) => { const ns = prev.filter((s) => s.id !== id); save("gp_savedslips", ns); return ns; }); };
   if (st === "load") return <div>{[0, 1, 2].map((i) => <Skel key={i} h={118} />)}</div>;
-  if (st === "empty") return <Empty t={`No ${sport} slate to grade yet — check back on a game day.`} />;
+  if (st === "empty" && !saved.length) return <Empty t={`No ${sport} slate to grade yet — check back on a game day.`} />;
   return (
     <div>
-      {slips.length ? <LockCard s={slips[0]} box={box} /> : null}
+      <MySlips saved={saved} onRemove={removeSaved} />
+      {slips.length ? <LockCard s={slips[0]} box={box} added={inSlip(slips[0])} onToggle={() => toggle(slips[0])} /> : null}
       {slips.length > 1 ? <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", color: "rgba(255,255,255,.4)", margin: "4px 2px 12px" }}>MORE TOP PICKS</div> : null}
-      {slips.slice(1).map((s, i) => <SlipCard key={i} s={s} i={i} box={box} />)}
+      {slips.slice(1).map((s, i) => <SlipCard key={i} s={s} i={i} box={box} added={inSlip(s)} onToggle={() => toggle(s)} />)}
+      <SlipBar slip={slip} onSave={saveSlip} onClear={clearSlip} />
     </div>
   );
 }
@@ -354,66 +463,6 @@ function parseTradeText(raw: string): { pair?: string; side?: "BUY" | "SELL"; pn
     }
   }
   return { pair, side, pnl };
-}
-function SignalsFeed() {
-  const [sigs, setSigs] = useState<Sig[]>([]);
-  const [open, setOpen] = useState(false);
-  const [key, setKey] = useState("");
-  const [pair, setPair] = useState("");
-  const [dir, setDir] = useState<"LONG" | "SHORT">("LONG");
-  const [note, setNote] = useState("");
-  const [msg, setMsg] = useState("");
-  const pull = () => fetch("/api/chat?kind=signals&t=" + Date.now()).then((r) => r.json()).then((d) => { if (Array.isArray(d.signals)) setSigs(d.signals); }).catch(() => {});
-  useEffect(() => {
-    setKey(load<string>("gp_adminkey", ""));
-    let live = true;
-    const go = () => { if (live) pull(); };
-    go(); const iv = setInterval(go, 10000);
-    return () => { live = false; clearInterval(iv); };
-  }, []);
-  const post = async () => {
-    if (!pair.trim()) { setMsg("Enter a pair."); return; }
-    save("gp_adminkey", key);
-    try {
-      const r = await fetch("/api/chat?kind=signals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, pair, dir, note }) });
-      if (r.ok) { setMsg(""); setPair(""); setNote(""); setOpen(false); pull(); }
-      else if (r.status === 403) setMsg("Admin key wrong — only the host can post.");
-      else setMsg("Couldn't post that one.");
-    } catch (e) { setMsg("Network error."); }
-  };
-  const inp = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "#fff", padding: "10px 12px", fontSize: 14, outline: "none" } as const;
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 10px" }}>
-        <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".06em", color: GREEN }}>📡 GREENPRINT SIGNALS</span>
-        <button className="btn" onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "rgba(255,255,255,.5)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{open ? "close" : "+ post"}</button>
-      </div>
-      {open ? (
-        <div style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(0,255,135,.14)", borderRadius: 14, padding: 12, marginBottom: 12 }}>
-          <input style={{ ...inp, width: "100%", marginBottom: 8 }} placeholder="Admin key" value={key} onChange={(e) => setKey(e.target.value)} />
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input style={{ ...inp, flex: 1 }} placeholder="Pair (e.g. NAS100)" value={pair} onChange={(e) => setPair(e.target.value)} />
-            <button className="btn" onClick={() => setDir(dir === "LONG" ? "SHORT" : "LONG")} style={{ ...inp, cursor: "pointer", fontWeight: 800, color: dir === "LONG" ? GREEN : "#FF7C7C", minWidth: 84 }}>{dir}</button>
-          </div>
-          <input style={{ ...inp, width: "100%", marginBottom: 8 }} placeholder="Note (entry, SL/TP, reasoning…)" value={note} onChange={(e) => setNote(e.target.value)} />
-          <button className="btn" onClick={post} style={{ width: "100%", background: GREEN, color: INK, border: "none", borderRadius: 10, padding: "11px 12px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>Post signal</button>
-          {msg ? <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", marginTop: 8, textAlign: "center" }}>{msg}</div> : null}
-        </div>
-      ) : null}
-      {sigs.length === 0 ? (
-        <div style={{ color: "rgba(255,255,255,.4)", fontSize: 13, padding: "10px 2px" }}>No signals yet — your calls will show up here.</div>
-      ) : sigs.map((s) => (
-        <div key={s.id} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(0,255,135,.12)", borderRadius: 12, padding: "11px 13px", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: ".06em", color: INK, background: s.dir === "SHORT" ? "#FF7C7C" : GREEN, padding: "3px 8px", borderRadius: 6 }}>{s.dir}</span>
-            <span style={{ fontWeight: 800, fontSize: 14, flex: 1 }}>{s.pair}</span>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>{timeAgo(s.ts)}</span>
-          </div>
-          {s.note ? <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", marginTop: 7, lineHeight: 1.45 }}>{s.note}</div> : null}
-        </div>
-      ))}
-    </div>
-  );
 }
 function TradeStats({ trades }: { trades: Trade[] }) {
   if (trades.length < 2) return null;
@@ -527,7 +576,6 @@ function TradesTab() {
   const inp = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "#fff", padding: "11px 12px", fontSize: 14, outline: "none" } as const;
   return (
     <div className="up">
-      <SignalsFeed />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
         {[["Record", `${wins}-${losses}`, "#fff"], ["Win rate", trades.length ? Math.round((wins / (wins + losses || 1)) * 100) + "%" : "–", GREEN], ["Net P&L", (total >= 0 ? "+" : "") + total.toFixed(2), total >= 0 ? GREEN : "#FF7C7C"]].map(([l, v, c]) => (
           <div key={l as string} style={{ background: "linear-gradient(180deg,#0C1319,#080D11)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, padding: "14px 12px" }}>
