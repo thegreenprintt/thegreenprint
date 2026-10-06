@@ -1,11 +1,14 @@
-// ─── COMMUNITY CHAT + GREENPRINT SIGNALS (shared, cross-device) ──────────────
+// ─── COMMUNITY CHAT + SIGNALS + WEB PUSH (shared, cross-device) ──────────────
 // Backed by the project's existing Redis (REDIS_URL) via ioredis.
 //   GET  /api/chat                 -> last 100 chat messages
 //   POST /api/chat {user,text}     -> post a chat message (profanity auto-masked)
 //   GET  /api/chat?kind=signals    -> last 50 Greenprint signals
-//   POST /api/chat?kind=signals {key,pair,dir,note}
-//         -> post a signal; requires key === process.env.GP_ADMIN_KEY (admin only)
+//   POST /api/chat?kind=signals {key,pair,dir,note} -> admin post a signal
 //   POST /api/chat?kind=del {key,id} -> admin delete a chat message
+//   GET  /api/chat?kind=push       -> { key } (VAPID public key for the client)
+//   POST /api/chat?kind=push {action:"subscribe", subscription} -> store a device
+//   POST /api/chat?kind=push {action:"send", key, title, body, url} -> admin push
+// Push lives here (not its own file) to stay under the Hobby 12-function cap.
 
 const Redis = require('ioredis');
 
@@ -25,6 +28,7 @@ function redis() {
 
 const KEY = 'gp:chat:v1';
 const SKEY = 'gp:signals:v1';
+const PKEY = 'gp:push:subs:v1';
 const clean = (s, n) => String(s == null ? '' : s).slice(0, n).replace(/\s+/g, ' ').trim();
 
 // Light profanity filter — masks rather than blocks so the room stays friendly.
@@ -36,6 +40,26 @@ function maskProfanity(text) {
     out = out.replace(re, (m) => m[0] + '*'.repeat(Math.max(1, m.length - 1)));
   }
   return out;
+}
+
+// ── WEB PUSH helper (web-push is lazy-required so a load issue can never break chat) ──
+async function sendPush(r, title, body, url) {
+  let webpush;
+  try { webpush = require('web-push'); } catch (e) { return 0; }
+  const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
+  if (!pub || !priv) return 0;
+  try { webpush.setVapidDetails('mailto:support@thegreenprint.trade', pub, priv); } catch (e) { return 0; }
+  let all = {};
+  try { all = (await r.hgetall(PKEY)) || {}; } catch (e) { return 0; }
+  const payload = JSON.stringify({ title: title, body: body, url: url || '/app' });
+  let sent = 0;
+  await Promise.all(Object.keys(all).map(async (ep) => {
+    let sub;
+    try { sub = JSON.parse(all[ep]); } catch (e) { return; }
+    try { await webpush.sendNotification(sub, payload); sent++; }
+    catch (err) { if (err && (err.statusCode === 404 || err.statusCode === 410)) { try { await r.hdel(PKEY, ep); } catch (e) {} } }
+  }));
+  return sent;
 }
 
 module.exports = async function handler(req, res) {
@@ -58,6 +82,28 @@ module.exports = async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   try {
+    // ── WEB PUSH ───────────────────────────────────────────────────────────────
+    if (kind === 'push') {
+      if (req.method === 'GET') {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ key: process.env.VAPID_PUBLIC_KEY || '' });
+      }
+      const action = String(body.action || '');
+      if (action === 'subscribe') {
+        const sub = body.subscription;
+        if (!sub || !sub.endpoint) return res.status(400).json({ error: 'bad_sub' });
+        try { await r.hset(PKEY, sub.endpoint, JSON.stringify(sub)); } catch (e) {}
+        return res.status(200).json({ ok: true });
+      }
+      if (action === 'send') {
+        const adminKey = process.env.GP_ADMIN_KEY || '';
+        if (!adminKey || clean(body.key, 128) !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        const sent = await sendPush(r, clean(body.title, 80) || 'The Greenprint', clean(body.body, 180), clean(body.url, 60) || '/app');
+        return res.status(200).json({ ok: true, sent });
+      }
+      return res.status(400).json({ error: 'unknown_action' });
+    }
+
     // ── SIGNALS ──────────────────────────────────────────────────────────────
     if (kind === 'signals') {
       if (req.method === 'POST') {
