@@ -702,7 +702,7 @@ function ChatRoom({ label }: { label?: string }) {
 }
 function CommunityTab() {
   return (
-    <div className="up" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
+    <div className="up" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <ChatRoom />
     </div>
   );
@@ -875,6 +875,7 @@ export default function AppPage() {
   }, []);
   const showSport = tab === "Scores" || tab === "Picks";
   const outerScroll = tab === "Scores" || tab === "Picks" || tab === "Trades";
+  const chatMode = tab === "Community";
   return (
     <div className="gp" style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
@@ -886,8 +887,8 @@ export default function AppPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: outerScroll ? "auto" : "hidden", WebkitOverflowScrolling: "touch" }}>
-        <div style={{ maxWidth: 620, margin: "0 auto", padding: "14px 16px 92px" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: outerScroll ? "auto" : "hidden", WebkitOverflowScrolling: "touch", display: chatMode ? "flex" : "block", flexDirection: "column" }}>
+        <div style={{ maxWidth: 620, width: "100%", margin: "0 auto", padding: chatMode ? "12px 16px 74px" : "14px 16px 92px", flex: chatMode ? 1 : undefined, minHeight: chatMode ? 0 : undefined, display: chatMode ? "flex" : "block", flexDirection: "column" }}>
           {showSport ? <div style={{ marginBottom: 14 }}><SportBar sport={sport} setSport={setSport} /></div> : null}
           {tab === "Scores" && <ScoresTab sport={sport} />}
           {tab === "Picks" && <PicksTab sport={sport} />}
