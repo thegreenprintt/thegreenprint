@@ -35,6 +35,17 @@ const SKEY = 'gp:signals:v1';
 const PKEY = 'gp:push:subs:v1';
 const AUTHOR = 'The Greenprint';
 const clean = (s, n) => String(s == null ? '' : s).slice(0, n).replace(/\s+/g, ' ').trim();
+const crypto = require('crypto');
+const RESERVED = ['the greenprint', 'greenprint', 'admin', 'mod', 'moderator', 'gp', 'jay', 'owner', 'staff'];
+function hashPw(pw, salt) { return crypto.scryptSync(String(pw), salt, 32).toString('hex'); }
+function newToken() { return crypto.randomBytes(24).toString('hex'); }
+async function sessionName(r, token) {
+  if (!token) return null;
+  let email;
+  try { email = await r.get('gp:sess:' + token); } catch (e) { return null; }
+  if (!email) return null;
+  try { const u = JSON.parse((await r.hget('gp:users', email)) || '{}'); return u.name || null; } catch (e) { return null; }
+}
 
 // Light profanity filter — masks rather than blocks so the room stays friendly.
 const BANNED = ['fuck', 'shit', 'bitch', 'cunt', 'nigger', 'nigga', 'faggot', 'retard', 'asshole', 'dick', 'pussy', 'whore', 'slut'];
@@ -116,6 +127,45 @@ module.exports = async function handler(req, res) {
   if (!body || typeof body !== 'object') body = {};
 
   try {
+    // ACCOUNTS - signup / login / session
+    if (kind === 'auth') {
+      const action = String(body.action || '');
+      if (action === 'signup') {
+        const email = clean(body.email, 120).toLowerCase();
+        const name = clean(body.name, 24);
+        const pw = String(body.password || '');
+        const at = email.indexOf('@');
+        if (at < 1 || email.indexOf('.', at) < at + 2) return res.status(400).json({ error: 'bad_email' });
+        if (name.length < 3) return res.status(400).json({ error: 'name_short' });
+        if (RESERVED.indexOf(name.toLowerCase()) !== -1) return res.status(400).json({ error: 'name_reserved' });
+        if (pw.length < 6) return res.status(400).json({ error: 'pw_short' });
+        if (await r.hget('gp:users', email)) return res.status(409).json({ error: 'email_taken' });
+        if (await r.hget('gp:names', name.toLowerCase())) return res.status(409).json({ error: 'name_taken' });
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = hashPw(pw, salt);
+        await r.hset('gp:users', email, JSON.stringify({ email: email, name: name, salt: salt, hash: hash, ts: Date.now() }));
+        await r.hset('gp:names', name.toLowerCase(), email);
+        const token = newToken();
+        await r.set('gp:sess:' + token, email, 'EX', 5184000);
+        return res.status(200).json({ ok: true, token: token, name: name });
+      }
+      if (action === 'login') {
+        const email = clean(body.email, 120).toLowerCase();
+        const pw = String(body.password || '');
+        let user = null;
+        try { user = JSON.parse((await r.hget('gp:users', email)) || 'null'); } catch (e) { user = null; }
+        if (!user) return res.status(401).json({ error: 'no_user' });
+        if (hashPw(pw, user.salt) !== user.hash) return res.status(401).json({ error: 'bad_pw' });
+        const token = newToken();
+        await r.set('gp:sess:' + token, email, 'EX', 5184000);
+        return res.status(200).json({ ok: true, token: token, name: user.name });
+      }
+      if (action === 'me') {
+        const nm = await sessionName(r, clean(body.token, 64));
+        return res.status(200).json({ ok: !!nm, name: nm || '' });
+      }
+      return res.status(400).json({ error: 'unknown_action' });
+    }
     // ── SCANNER RECEIVER — a copy of the TradingView call → chat + push ────────
     // Your existing Telegram alert is untouched; this is a SEPARATE alert that
     // sends a copy here. By default we do NOT re-post to Telegram (your direct
