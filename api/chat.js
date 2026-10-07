@@ -164,6 +164,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, lock: best.player, pushed: pushed });
     }
 
+    // ── DAILY RESET — wipe the community chat, post a fresh welcome ──
+    if (kind === 'clearchat') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = clean(body.key, 128) || qkey;
+      if (adminKey && k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      try { await r.del(KEY); } catch (e) {}
+      await postChat(r, '🌅 Fresh day. Drop your plays and let\'s get it. 💚');
+      return res.status(200).json({ ok: true, cleared: true });
+    }
+
     // ── WEB PUSH ───────────────────────────────────────────────────────────────
     if (kind === 'push') {
       if (req.method === 'GET') {
