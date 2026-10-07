@@ -694,7 +694,7 @@ function ChatRoom({ label }: { label?: string }) {
       </div>
       <div style={{ flex: "none", display: "flex", gap: 8, marginTop: 12 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message the room…" style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", padding: "12px 14px", fontSize: 14, outline: "none" }} />
+          placeholder="Message the room…" style={{ flex: 1, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, color: "#fff", padding: "12px 14px", fontSize: 16, outline: "none" }} />
         <button className="btn" onClick={send} style={{ background: GREEN, color: INK, border: "none", borderRadius: 12, padding: "0 20px", fontWeight: 800, cursor: "pointer" }}>Send</button>
       </div>
     </>
@@ -852,6 +852,12 @@ export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
   const [book, setBook] = useState("underdog");
+  useEffect(() => {
+    const vp = document.querySelector('meta[name="viewport"]');
+    const prev = vp ? vp.getAttribute("content") : null;
+    if (vp) vp.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+    return () => { if (vp && prev) vp.setAttribute("content", prev); };
+  }, []);
   useEffect(() => {
     const valid = ["Scores", "Picks", "Trades", "Community", "Live"];
     try {
