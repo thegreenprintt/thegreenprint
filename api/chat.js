@@ -280,7 +280,7 @@ module.exports = async function handler(req, res) {
 
     // ── CHAT ───────────────────────────────────────────────────────────────────
     if (req.method === 'POST') {
-      const user = clean(body.user, 24) || 'Trader';
+      const user = (await sessionName(r, clean(body.token, 64))) || clean(body.user, 24) || 'Trader';
       let text = clean(body.text, 500);
       if (!text) return res.status(400).json({ error: 'empty' });
       text = maskProfanity(text);
