@@ -855,6 +855,8 @@ function AuthGate({ onAuth }: { onAuth: (a: { token: string; name: string }) => 
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setShown(true), 40); return () => clearTimeout(id); }, []);
   const ERR: { [k: string]: string } = {
     bad_email: "That email doesn't look right.",
     name_short: "Name needs at least 3 characters.",
@@ -881,26 +883,44 @@ function AuthGate({ onAuth }: { onAuth: (a: { token: string; name: string }) => 
     } catch (e) { setErr("Network error. Try again."); }
     setBusy(false);
   };
-  const inp: any = { width: "100%", boxSizing: "border-box", padding: "13px 14px", marginTop: 10, borderRadius: 12, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#fff", fontSize: 16, outline: "none" };
+  const inp: any = { width: "100%", boxSizing: "border-box", padding: "15px 16px", marginTop: 11, borderRadius: 14, border: "1px solid rgba(255,255,255,.10)", background: "rgba(255,255,255,.035)", color: "#fff", fontSize: 16, outline: "none", fontWeight: 500, transition: "border-color .2s, box-shadow .2s, background .2s" };
+  const onFoc = (e: any) => { e.target.style.borderColor = "rgba(0,255,135,.55)"; e.target.style.boxShadow = "0 0 0 3px rgba(0,255,135,.12)"; e.target.style.background = "rgba(255,255,255,.055)"; };
+  const onBlur = (e: any) => { e.target.style.borderColor = "rgba(255,255,255,.10)"; e.target.style.boxShadow = "none"; e.target.style.background = "rgba(255,255,255,.035)"; };
+  const KF = "@keyframes gpAur1{0%{transform:translate(-10%,-6%) scale(1)}50%{transform:translate(12%,8%) scale(1.25)}100%{transform:translate(-10%,-6%) scale(1)}}@keyframes gpAur2{0%{transform:translate(10%,6%) scale(1.1)}50%{transform:translate(-12%,-10%) scale(1.3)}100%{transform:translate(10%,6%) scale(1.1)}}@keyframes gpRing{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes gpPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}@keyframes gpRise{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}@keyframes gpPop{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}@keyframes gpShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}";
+  const rise = (d: number): any => ({ opacity: shown ? 1 : 0, transform: shown ? "translateY(0)" : "translateY(16px)", transition: "opacity .7s cubic-bezier(.2,.8,.2,1) " + d + "ms, transform .7s cubic-bezier(.2,.8,.2,1) " + d + "ms" });
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", background: "#0a0e0d" }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.5, color: GREEN }}>The Greenprint</div>
-          <div style={{ color: "rgba(255,255,255,.55)", fontSize: 13, marginTop: 6 }}>Picks. Trades. Community.</div>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", background: INK, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <style dangerouslySetInnerHTML={{ __html: KF }} />
+      <div style={{ position: "absolute", width: 520, height: 520, top: "-16%", left: "-24%", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,255,135,.30), transparent 62%)", filter: "blur(34px)", animation: "gpAur1 14s ease-in-out infinite", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", width: 560, height: 560, bottom: "-22%", right: "-26%", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,180,255,.16), transparent 62%)", filter: "blur(40px)", animation: "gpAur2 18s ease-in-out infinite", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(130% 80% at 50% 0%, transparent 40%, rgba(0,0,0,.55))", pointerEvents: "none" }} />
+      <div style={{ position: "relative", width: "100%", maxWidth: 390 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 26 }}>
+          <div style={{ position: "relative", width: 76, height: 76, marginBottom: 16, ...( { animation: "gpPop .9s cubic-bezier(.2,.8,.2,1) both" } as any) }}>
+            <div style={{ position: "absolute", inset: -6, borderRadius: "50%", background: "conic-gradient(from 0deg, transparent, rgba(0,255,135,.9), transparent 55%)", animation: "gpRing 4.5s linear infinite", filter: "blur(2px)" }} />
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 50% 35%, #0c241b, #05080b)", border: "1px solid rgba(0,255,135,.35)", boxShadow: "0 0 30px rgba(0,255,135,.35), inset 0 0 20px rgba(0,255,135,.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 34, fontWeight: 700, color: GREEN, textShadow: "0 0 18px rgba(0,255,135,.7)" }}>G</span>
+            </div>
+            <div style={{ position: "absolute", inset: -14, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,255,135,.22), transparent 70%)", animation: "gpPulse 3s ease-in-out infinite", pointerEvents: "none" }} />
+          </div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: -0.5, background: "linear-gradient(90deg,#fff,#9affce,#fff)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", animation: "gpShine 6s linear infinite", ...rise(120) }}>The Greenprint</div>
+          <div style={{ color: "rgba(255,255,255,.5)", fontSize: 13, marginTop: 7, letterSpacing: 0.3, ...rise(200) }}>Picks &nbsp;·&nbsp; Trades &nbsp;·&nbsp; Community</div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-          <button onClick={() => { setMode("signup"); setErr(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 14, background: mode === "signup" ? GREEN : "rgba(255,255,255,.06)", color: mode === "signup" ? "#07110d" : "#fff" }}>Sign up</button>
-          <button onClick={() => { setMode("login"); setErr(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 14, background: mode === "login" ? GREEN : "rgba(255,255,255,.06)", color: mode === "login" ? "#07110d" : "#fff" }}>Log in</button>
+        <div style={{ borderRadius: 22, padding: 20, background: "rgba(255,255,255,.045)", border: "1px solid rgba(255,255,255,.09)", boxShadow: "0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", ...rise(300) }}>
+          <div style={{ position: "relative", display: "flex", padding: 4, borderRadius: 13, background: "rgba(0,0,0,.28)", marginBottom: 6 }}>
+            <div style={{ position: "absolute", top: 4, bottom: 4, left: mode === "signup" ? 4 : "50%", width: "calc(50% - 4px)", borderRadius: 10, background: "linear-gradient(135deg,#00ff87,#00c86a)", boxShadow: "0 4px 16px rgba(0,255,135,.35)", transition: "left .32s cubic-bezier(.4,1.3,.5,1)" }} />
+            <button onClick={() => { setMode("signup"); setErr(""); }} style={{ position: "relative", flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", fontWeight: 800, fontSize: 14, color: mode === "signup" ? "#07110d" : "rgba(255,255,255,.7)", transition: "color .3s", zIndex: 1 }}>Sign up</button>
+            <button onClick={() => { setMode("login"); setErr(""); }} style={{ position: "relative", flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", fontWeight: 800, fontSize: 14, color: mode === "login" ? "#07110d" : "rgba(255,255,255,.7)", transition: "color .3s", zIndex: 1 }}>Log in</button>
+          </div>
+          <input style={inp} type="email" placeholder="Email" value={email} autoCapitalize="off" autoCorrect="off" onFocus={onFoc} onBlur={onBlur} onChange={(e) => setEmail(e.target.value)} />
+          {mode === "signup" && (
+            <input style={inp} placeholder="Display name" value={name} maxLength={24} onFocus={onFoc} onBlur={onBlur} onChange={(e) => setName(e.target.value)} />
+          )}
+          <input style={inp} type="password" placeholder="Password" value={pw} onFocus={onFoc} onBlur={onBlur} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
+          {err ? <div style={{ color: "#ff7a7a", fontSize: 13, marginTop: 11, display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 14 }}>⚠</span>{err}</div> : null}
+          <button onClick={submit} disabled={busy} style={{ width: "100%", marginTop: 16, padding: "15px 0", borderRadius: 14, border: "none", cursor: busy ? "default" : "pointer", fontWeight: 900, fontSize: 15.5, letterSpacing: 0.2, color: "#07110d", background: "linear-gradient(135deg,#00ff87,#00d774)", boxShadow: "0 10px 30px rgba(0,255,135,.32)", opacity: busy ? 0.65 : 1, transition: "transform .15s, box-shadow .2s, opacity .2s" }} onMouseDown={(e) => { (e.currentTarget as any).style.transform = "scale(.98)"; }} onMouseUp={(e) => { (e.currentTarget as any).style.transform = "scale(1)"; }}>{busy ? "Just a sec…" : mode === "signup" ? "Create my account" : "Log in"}</button>
         </div>
-        <input style={inp} type="email" placeholder="Email" value={email} autoCapitalize="off" autoCorrect="off" onChange={(e) => setEmail(e.target.value)} />
-        {mode === "signup" && (
-          <input style={inp} placeholder="Display name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
-        )}
-        <input style={inp} type="password" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
-        {err ? <div style={{ color: "#ff6b6b", fontSize: 13, marginTop: 10 }}>{err}</div> : null}
-        <button onClick={submit} disabled={busy} style={{ width: "100%", marginTop: 14, padding: "14px 0", borderRadius: 12, border: "none", cursor: busy ? "default" : "pointer", fontWeight: 900, fontSize: 15, background: GREEN, color: "#07110d", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : mode === "signup" ? "Create account" : "Log in"}</button>
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,.4)", fontSize: 11, marginTop: 16, lineHeight: 1.5 }}>Free to join. No payment required.</div>
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,.38)", fontSize: 11.5, marginTop: 18, lineHeight: 1.6, ...rise(420) }}>Free to join · No card required<br />Built for winners. Welcome in.</div>
       </div>
     </div>
   );
@@ -948,8 +968,9 @@ export default function AppPage() {
   if (!authReady) return (<div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0e0d", color: GREEN, fontWeight: 900, fontSize: 20 }}>The Greenprint</div>);
   if (!acct) return (<AuthGate onAuth={(a) => { save("gp_token", a.token); save("gp_name", a.name); save("gp_handle", a.name); setAcct(a); }} />);
   return (
-    <div className="gp" style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
+    <div className="gp" style={{ height: "100dvh", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", display: "flex", flexDirection: "column", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: "html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;}" }} />
       {/* header */}
       <div style={{ flex: "none", zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth: 620, margin: "0 auto" }}>
@@ -959,7 +980,7 @@ export default function AppPage() {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: outerScroll ? "auto" : "hidden", WebkitOverflowScrolling: "touch", display: chatMode ? "flex" : "block", flexDirection: "column" }}>
-        <div style={{ maxWidth: 620, width: "100%", margin: "0 auto", padding: chatMode ? "12px 16px 74px" : "14px 16px 92px", flex: chatMode ? 1 : undefined, minHeight: chatMode ? 0 : undefined, display: chatMode ? "flex" : "block", flexDirection: "column" }}>
+        <div style={{ maxWidth: 620, width: "100%", margin: "0 auto", padding: chatMode ? "12px 16px calc(78px + env(safe-area-inset-bottom))" : "14px 16px 92px", flex: chatMode ? 1 : undefined, minHeight: chatMode ? 0 : undefined, display: chatMode ? "flex" : "block", flexDirection: "column" }}>
           {showSport ? <div style={{ marginBottom: 14 }}><SportBar sport={sport} setSport={setSport} /></div> : null}
           {tab === "Scores" && <ScoresTab sport={sport} />}
           {tab === "Picks" && <PicksTab sport={sport} />}
