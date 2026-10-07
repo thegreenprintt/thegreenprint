@@ -662,7 +662,7 @@ function ChatRoom({ label }: { label?: string }) {
     setText("");
     setMsgs((m) => [...m, { id: Date.now(), user: handle, text: t, ts: Date.now() }]);
     try {
-      await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: handle, text: t }) });
+      await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: handle, text: t, token: load<string>("gp_token", "") }) });
       const d = await fetch("/api/chat?t=" + Date.now()).then((r) => r.json());
       if (Array.isArray(d.messages)) setMsgs(d.messages);
     } catch (e) {}
@@ -848,10 +848,79 @@ function NotifyBell() {
   );
 }
 
+function AuthGate({ onAuth }: { onAuth: (a: { token: string; name: string }) => void }) {
+  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const ERR: { [k: string]: string } = {
+    bad_email: "That email doesn't look right.",
+    name_short: "Name needs at least 3 characters.",
+    name_reserved: "That name is reserved. Pick another.",
+    name_taken: "That name is taken. Pick another one.",
+    email_taken: "An account with that email already exists. Try logging in.",
+    pw_short: "Password needs at least 6 characters.",
+    no_user: "No account with that email. Try signing up.",
+    bad_pw: "Wrong password. Try again.",
+  };
+  const submit = async () => {
+    if (busy) return;
+    setErr("");
+    const payload: any =
+      mode === "signup"
+        ? { action: "signup", email: email.trim(), name: name.trim(), password: pw }
+        : { action: "login", email: email.trim(), password: pw };
+    setBusy(true);
+    try {
+      const r = await fetch("/api/chat?kind=auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await r.json();
+      if (r.ok && d && d.ok) { onAuth({ token: d.token, name: d.name }); return; }
+      setErr(ERR[(d && d.error) || ""] || "Something went wrong. Try again.");
+    } catch (e) { setErr("Network error. Try again."); }
+    setBusy(false);
+  };
+  const inp: any = { width: "100%", boxSizing: "border-box", padding: "13px 14px", marginTop: 10, borderRadius: 12, border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#fff", fontSize: 16, outline: "none" };
+  return (
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", background: "#0a0e0d" }}>
+      <div style={{ width: "100%", maxWidth: 380 }}>
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.5, color: GREEN }}>The Greenprint</div>
+          <div style={{ color: "rgba(255,255,255,.55)", fontSize: 13, marginTop: 6 }}>Picks. Trades. Community.</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+          <button onClick={() => { setMode("signup"); setErr(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 14, background: mode === "signup" ? GREEN : "rgba(255,255,255,.06)", color: mode === "signup" ? "#07110d" : "#fff" }}>Sign up</button>
+          <button onClick={() => { setMode("login"); setErr(""); }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 800, fontSize: 14, background: mode === "login" ? GREEN : "rgba(255,255,255,.06)", color: mode === "login" ? "#07110d" : "#fff" }}>Log in</button>
+        </div>
+        <input style={inp} type="email" placeholder="Email" value={email} autoCapitalize="off" autoCorrect="off" onChange={(e) => setEmail(e.target.value)} />
+        {mode === "signup" && (
+          <input style={inp} placeholder="Display name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
+        )}
+        <input style={inp} type="password" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
+        {err ? <div style={{ color: "#ff6b6b", fontSize: 13, marginTop: 10 }}>{err}</div> : null}
+        <button onClick={submit} disabled={busy} style={{ width: "100%", marginTop: 14, padding: "14px 0", borderRadius: 12, border: "none", cursor: busy ? "default" : "pointer", fontWeight: 900, fontSize: 15, background: GREEN, color: "#07110d", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : mode === "signup" ? "Create account" : "Log in"}</button>
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,.4)", fontSize: 11, marginTop: 16, lineHeight: 1.5 }}>Free to join. No payment required.</div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppPage() {
   const [tab, setTab] = useState("Scores");
   const [sport, setSport] = useState("NFL");
   const [book, setBook] = useState("underdog");
+  const [acct, setAcct] = useState<{ token: string; name: string } | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  useEffect(() => {
+    const tok = load<string>("gp_token", "");
+    if (!tok) { setAuthReady(true); return; }
+    fetch("/api/chat?kind=auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "me", token: tok }) })
+      .then((r) => r.json())
+      .then((d) => { if (d && d.ok) setAcct({ token: tok, name: d.name }); else save("gp_token", ""); })
+      .catch(() => {})
+      .finally(() => setAuthReady(true));
+  }, []);
   useEffect(() => {
     const vp = document.querySelector('meta[name="viewport"]');
     const prev = vp ? vp.getAttribute("content") : null;
@@ -876,6 +945,8 @@ export default function AppPage() {
   const showSport = tab === "Scores" || tab === "Picks";
   const outerScroll = tab === "Scores" || tab === "Picks" || tab === "Trades";
   const chatMode = tab === "Community";
+  if (!authReady) return (<div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0e0d", color: GREEN, fontWeight: 900, fontSize: 20 }}>The Greenprint</div>);
+  if (!acct) return (<AuthGate onAuth={(a) => { save("gp_token", a.token); save("gp_name", a.name); save("gp_handle", a.name); setAcct(a); }} />);
   return (
     <div className="gp" style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: `radial-gradient(120% 60% at 50% -8%, rgba(0,255,135,.10), transparent 55%), ${INK}` }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
