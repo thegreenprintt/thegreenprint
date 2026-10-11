@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
   const name = String(q.name || '');
   // SECURITY: a host token (publish rights over the whole stream) now requires the
   // broadcast password — previously anyone could mint one with ?isHost=1.
-  const HOST_HASH = 'f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1';
+  const HOST_HASH = 'bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94';
   let isHost = false;
   if (String(q.isHost || '') === '1') {
     try {
@@ -57,7 +57,7 @@ module.exports = async function handler(req, res) {
       try {
         const crypto = require('crypto');
         isMeetingHost = crypto.createHash('sha256').update(String(q.hostkey)).digest('hex')
-          === 'f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1';
+          === 'bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94';
       } catch (e) {}
     }
     // Waiting room + lock (host-controlled). Host and admitted names bypass both.
