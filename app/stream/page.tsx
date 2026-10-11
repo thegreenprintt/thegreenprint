@@ -492,8 +492,7 @@ export default function StreamPage() {
           /* phone: give the landscape stream a true 16:9 block instead of a tall black void,
              and hand the reclaimed space to chat */
           .vidwrap{flex:0 0 auto!important;aspect-ratio:16/9;max-height:56vh}
-          .cp{flex:1 1 auto!important;max-height:none!important}
-          .cp{width:100%!important;height:auto!important;max-height:260px!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}
+          .cp{width:100%!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;border-left:none!important;border-top:1px solid rgba(255,255,255,.08)!important}
           .rbar{padding:6px 14px 16px!important;gap:4px!important}
           .pip-wrap{width:100px!important;height:56px!important;bottom:50px!important;right:8px!important}
         }
