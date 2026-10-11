@@ -10,7 +10,7 @@ const GP_REACTIONS = [
   { id:"chart",   send:"📈", label:"UP"    },
   { id:"diamond", send:"💎", label:"DIAM"  },
   { id:"rocket",  send:"🚀", label:"MOON"  },
-  { id:"leaf",    send:"🌿", label:"GP"    },
+  { id:"leaf",    send:"💚", label:"GP"    },
   { id:"fire",    send:"🔥", label:"FIRE"  },
   { id:"money",   send:"💰", label:"$$$"   },
 ];
@@ -142,6 +142,16 @@ function StreamCanvas() {
 
 export default function StreamPage() {
   const [isLive, setIsLive] = useState(false);
+  useEffect(() => {
+    let vp = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name","viewport"); document.head.appendChild(vp); }
+    const prev = vp.getAttribute("content");
+    vp.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+    const st = document.createElement("style");
+    st.textContent = "html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;}";
+    document.head.appendChild(st);
+    return () => { if (prev) vp!.setAttribute("content", prev); st.remove(); };
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");  const [joined, setJoined] = useState(false);
   const [isHost, setIsHost] = useState(false);
@@ -525,7 +535,7 @@ export default function StreamPage() {
       {!joined ? (
         <div style={{minHeight:"100dvh",background:"linear-gradient(135deg,#050505,#0a0f0a)",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px)",fontFamily:"system-ui,-apple-system,sans-serif"}}>
           <div style={{marginBottom:40,textAlign:"center"}}>
-            <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:36}}>🌿</div>
+            <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:36}}><span style={{fontWeight:900,color:"#05080b",letterSpacing:"-0.5px"}}>GP</span></div>
             <h1 style={{fontSize:34,fontWeight:900,letterSpacing:"-1px",margin:"0 0 8px"}}>The Greenprint</h1>
             <p style={{color:"rgba(255,255,255,.4)",margin:0,fontSize:14,letterSpacing:"2px",textTransform:"uppercase"}}>Live Stream</p>
           </div>
@@ -568,7 +578,7 @@ export default function StreamPage() {
           <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(0,255,135,.12)",boxShadow:"0 1px 20px rgba(0,255,135,.06)",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,boxShadow:"0 0 14px rgba(0,255,135,.5)"}}>🌿</div>
+                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,boxShadow:"0 0 14px rgba(0,255,135,.5)"}}><span style={{fontWeight:900,color:"#05080b",letterSpacing:"-0.5px"}}>GP</span></div>
                 <div><div style={{fontWeight:900,fontSize:13}}>The Greenprint</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>Live Trading Session</div></div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
