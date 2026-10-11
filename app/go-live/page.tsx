@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalVideoTrack } from "livekit-client";
 
-const HASH = "f7bbb300691e55f6eaad18327a462a30ff3bf38a4a36a24e9458fdfc508d4ab1";
+const HASH = "bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94";
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -88,7 +88,7 @@ export default function GoLive() {
     const faqs = [
       { id: "0dte", re: /0\s*dte/i, a: "0DTE = zero days to expiration — options that expire today. Fast moves, high risk, small size. 📚" },
       { id: "rmult", re: /r[- ]multiple|what does \+?\d(\.\d)?r mean|mean by \+?\d(\.\d)?r/i, a: "R = risk unit. +2R means the trade made 2x what was risked. It keeps wins and losses comparable." },
-      { id: "join", re: /how (do i|to|can i) (join|sign ?up)|how much (is|does)|what('| i)?s the price/i, a: "Tap 'Join The Greenprint' below the chat for full access — alerts, signals & the community. 🌿" },
+      { id: "join", re: /how (do i|to|can i) (join|sign ?up)|how much (is|does)|what('| i)?s the price/i, a: "Tap 'Join The Greenprint' below the chat for full access — alerts, signals & the community. 💚" },
       { id: "sched", re: /when (are you|is he|do you).{0,15}(live|stream)|stream schedule/i, a: "We go live around market opens — join the free Telegram (link on the homepage) to get notified." },
       { id: "broker", re: /(what|which) broker/i, a: "The community uses LivvFX + TradeLocker — full setup steps at thegreenprint.trade/onboard." },
       { id: "demo", re: /paper trad|demo account|practice account/i, a: "Start on a TradeLocker demo account — onboarding walks you through it. Practice before real money. 💪" },
@@ -96,7 +96,7 @@ export default function GoLive() {
       { id: "callput", re: /what('| i)?s a (call|put)/i, a: "Calls profit when price rises, puts when it falls. The free Academy on the app page covers the basics." },
       { id: "leverage", re: /leverage/i, a: "Leverage lets you control a bigger position with less capital — 1:500 means $1 controls $500. It amplifies wins AND losses, so risk management is everything." },
       { id: "margin", re: /margin/i, a: "Margin is the collateral your broker holds to keep leveraged trades open. If losses eat it up, positions get closed — that's a margin call." },
-      { id: "start", re: /how (do i|to|can i) (start|get started|begin)|where (do|should) i start|i('| a)?m new/i, a: "Start at thegreenprint.trade/onboard — it sets up your apps, broker demo, and the foundations. Then watch the live sessions. 🌿" },
+      { id: "start", re: /how (do i|to|can i) (start|get started|begin)|where (do|should) i start|i('| a)?m new/i, a: "Start at thegreenprint.trade/onboard — it sets up your apps, broker demo, and the foundations. Then watch the live sessions. 💚" },
       { id: "pip", re: /what('| i)?s a pip|how much is a pip/i, a: "A pip is the smallest standard price move in forex — it's how gains and losses get measured per position size." },
       { id: "lot", re: /what('| i)?s a lot\b|lot size/i, a: "A lot is your position size in forex — 1 standard lot = 100k units. Smaller lots (mini/micro) = smaller risk. Size according to your plan." },
       { id: "stoploss", re: /stop ?loss/i, a: "A stop loss auto-closes your trade at a set price so one bad trade can't wreck the account. Every trade here has one — non-negotiable." },
@@ -335,6 +335,17 @@ export default function GoLive() {
     await push("live/reactions",{emoji,x,ts});
   };
 
+  useEffect(() => {
+    let vp = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name","viewport"); document.head.appendChild(vp); }
+    const prev = vp.getAttribute("content");
+    vp.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+    const st = document.createElement("style");
+    st.textContent = "html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;}";
+    document.head.appendChild(st);
+    return () => { if (prev) vp!.setAttribute("content", prev); st.remove(); };
+  }, []);
+
   const auth = async () => {
     if (await sha256(pw)===HASH) {
       setAuthed(true); localStorage.setItem('gp_host','true');
@@ -427,7 +438,7 @@ export default function GoLive() {
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌿</div>
+          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}><span style={{fontWeight:900,color:"#05080b",letterSpacing:"-0.5px"}}>GP</span></div>
           <div><div style={{fontWeight:900,fontSize:15}}>The Greenprint</div><div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>Broadcast Studio</div></div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
