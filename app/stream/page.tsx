@@ -145,12 +145,19 @@ export default function StreamPage() {
   useEffect(() => {
     let vp = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
     if (!vp) { vp = document.createElement("meta"); vp.setAttribute("name","viewport"); document.head.appendChild(vp); }
-    const prev = vp.getAttribute("content");
-    vp.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
+    const prevVp = vp.getAttribute("content");
+    vp.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content");
     const st = document.createElement("style");
-    st.textContent = "html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;}";
+    st.textContent = "html,body{margin:0 !important;height:100% !important;width:100% !important;overflow:hidden !important;overscroll-behavior:none !important;position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;} *{-webkit-tap-highlight-color:transparent;}";
     document.head.appendChild(st);
-    return () => { if (prev) vp!.setAttribute("content", prev); st.remove(); };
+    const setVH = () => { const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight); document.documentElement.style.setProperty("--gpvh", h + "px"); };
+    const pin = () => { if (window.pageYOffset || document.documentElement.scrollTop) window.scrollTo(0, 0); };
+    setVH(); pin();
+    window.addEventListener("resize", setVH);
+    window.addEventListener("scroll", pin, { passive: true });
+    const vv = window.visualViewport;
+    if (vv) { vv.addEventListener("resize", () => { setVH(); pin(); }); vv.addEventListener("scroll", pin); }
+    return () => { if (prevVp) vp!.setAttribute("content", prevVp); st.remove(); window.removeEventListener("resize", setVH); window.removeEventListener("scroll", pin); };
   }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");  const [joined, setJoined] = useState(false);
@@ -496,7 +503,18 @@ export default function StreamPage() {
           .rbar{padding:6px 14px 16px!important;gap:4px!important}
           .pip-wrap{width:100px!important;height:56px!important;bottom:50px!important;right:8px!important}
         }
-      `}</style>
+      
+        /* premium viewer upgrade */
+        .ci{font-size:16px !important;background:rgba(255,255,255,.07) !important;border:1px solid rgba(255,255,255,.12) !important;border-radius:14px !important;padding:11px 15px !important;transition:border-color .18s, box-shadow .18s, background .18s !important;}
+        .ci:focus{border-color:rgba(0,255,135,.6) !important;box-shadow:0 0 0 3px rgba(0,255,135,.14) !important;background:rgba(255,255,255,.1) !important;}
+        .cp{background:linear-gradient(180deg, rgba(9,11,10,.97), rgba(5,6,5,.97)) !important;}
+        .msg-row{animation:msgIn .26s cubic-bezier(.2,.9,.3,1) both !important;border-radius:11px !important;}
+        .send-btn:active{transform:scale(.92) !important;}
+        .eb{transition:transform .13s cubic-bezier(.34,1.56,.5,1), background .15s, border-color .15s !important;}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(0,255,135,.28) !important;border-radius:4px}
+        *{scrollbar-width:thin;scrollbar-color:rgba(0,255,135,.28) transparent;}
+        @media(max-width:768px){ .ci{font-size:16px !important;} }
+`}</style>
       {/* ── HOST-ONLY LEADS BUTTON ── */}
       {isHost && (
         <a href="/leads" target="_blank" style={{
@@ -573,7 +591,7 @@ export default function StreamPage() {
           )}
         </div>
       ) : (
-        <div style={{height:"100dvh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
+        <div style={{height:"var(--gpvh, 100dvh)",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
           <div style={{paddingTop:"env(safe-area-inset-top,0px)",background:"rgba(0,0,0,.6)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(0,255,135,.12)",boxShadow:"0 1px 20px rgba(0,255,135,.06)",flexShrink:0}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
