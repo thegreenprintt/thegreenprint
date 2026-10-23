@@ -22,6 +22,7 @@ interface Member {
   status: Status; amount: number; nextDue: string | null; referred: number;
 }
 interface Lead { _key: string; name?: string; email?: string; phone?: string; status?: string; path?: string; lastSeen?: string; firstSeen?: string; why?: string; }
+interface TreeNode { id: number; sp: number | null; name: string; email: string; active: number; subs: number; lvl: number; paid?: number; lastEnroll?: string | null; }
 const LEADS_URL = "https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads.json";
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
@@ -640,6 +641,7 @@ export default function TrackPage() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [tree, setTree] = useState<TreeNode[]>([]);
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -648,6 +650,7 @@ export default function TrackPage() {
       if (res.status === 403) { setErr("Wrong passcode."); setAuthed(false); setLoading(false); return; }
       const j = await res.json(); setSnap(j.snapshot || null); setAuthed(true);
       if (j.marks && typeof j.marks === "object") setMarks((prev) => ({ ...prev, ...j.marks }));
+      if (Array.isArray(j.tree)) setTree(j.tree);
       try { localStorage.setItem(LS_KEY, key); } catch {}
     } catch { setErr("Could not reach the server."); }
     setLoading(false);
@@ -1108,7 +1111,7 @@ export default function TrackPage() {
           )}
 
           {/* COMMUNITY VIEW */}
-          {snap && view === "community" && <CommunityView members={members} />}
+          {snap && view === "community" && <CommunityView members={members} tree={tree} />}
 
           {/* PLAYBOOK VIEW */}
           {view === "playbook" && <Playbook />}
@@ -1316,8 +1319,73 @@ function LeadCard({ lead }: { lead: Lead }) {
   );
 }
 
+/* ── Org tree: expandable sponsor → downline, from the 1House genealogy ───── */
+function CommunityTree({ tree, memberByEmail }: { tree: TreeNode[]; memberByEmail: Map<string, Member> }) {
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [q, setQ] = useState("");
+  const idSet = useMemo(() => new Set(tree.map((n) => n.id)), [tree]);
+  const children = useMemo(() => {
+    const m = new Map<number, TreeNode[]>();
+    for (const n of tree) { if (n.sp != null && idSet.has(n.sp)) { const a = m.get(n.sp) || []; a.push(n); m.set(n.sp, a); } }
+    for (const a of m.values()) a.sort((x, y) => y.subs - x.subs || x.name.localeCompare(y.name));
+    return m;
+  }, [tree, idSet]);
+  const roots = useMemo(() => tree.filter((n) => n.sp == null || !idSet.has(n.sp)).sort((a, b) => b.subs - a.subs || a.name.localeCompare(b.name)), [tree, idSet]);
+  const descCount = useMemo(() => {
+    const memo = new Map<number, number>();
+    const count = (id: number): number => { if (memo.has(id)) return memo.get(id)!; const ch = children.get(id) || []; let c = ch.length; for (const k of ch) c += count(k.id); memo.set(id, c); return c; };
+    return count;
+  }, [children]);
+  const statusOf = (n: TreeNode): Status => { const m = memberByEmail.get((n.email || "").toLowerCase()); if (m) return m.status; return n.paid ? "active" : "inactive"; };
+  const phoneOf = (n: TreeNode): string => { const m = memberByEmail.get((n.email || "").toLowerCase()); return m ? m.phone : ""; };
+  const toggle = (id: number) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
+  const matches = q.trim() ? tree.filter((n) => (n.name + " " + n.email).toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => b.subs - a.subs).slice(0, 50) : null;
+
+  const Node = ({ n, depth }: { n: TreeNode; depth: number }) => {
+    const kids = children.get(n.id) || [];
+    const isOpen = !!expanded[n.id];
+    const st = statusOf(n); const phone = phoneOf(n); const team = descCount(n.id);
+    const dot = st === "active" ? "#00FF85" : st === "lapsed" ? "#FF4444" : "#3a3a3a";
+    return (
+      <div>
+        <div className="flex items-center gap-2 py-2.5 border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" style={{ paddingLeft: 6 + depth * 20 }}>
+          <button onClick={() => kids.length && toggle(n.id)} className={`w-5 h-5 shrink-0 grid place-items-center rounded text-xs ${kids.length ? "text-muted hover:text-accent" : "opacity-0 pointer-events-none"}`}>{isOpen ? "▾" : "▸"}</button>
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: dot }} />
+          <span className="gp-display text-sm font-medium text-text truncate flex-1 min-w-0">{properName(n.name) || "(no name)"}</span>
+          {n.subs > 0 && <span className="text-[10px] font-mono font-bold text-gold shrink-0">{n.subs} enrolled</span>}
+          {team > 0 && <span className="text-[10px] font-mono text-muted shrink-0 hidden sm:inline">{team} in team</span>}
+          <span className="text-[9px] font-mono text-muted/60 shrink-0">L{n.lvl}</span>
+          {phone && <a href={telHref(phone)} title="Call" className="text-accent shrink-0 px-1.5">☎</a>}
+        </div>
+        {isOpen && kids.map((k) => <Node key={k.id} n={k} depth={depth + 1} />)}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your org…" className="flex-1 min-w-[180px] bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-base font-mono outline-none focus:border-accent" />
+        <div className="flex gap-2">
+          <button onClick={() => { const e: Record<number, boolean> = {}; roots.forEach((r) => (e[r.id] = true)); setExpanded(e); }} className="px-3 py-2 rounded-xl border border-white/10 text-[11px] font-mono text-muted hover:text-accent hover:border-accent transition-colors">expand L1</button>
+          <button onClick={() => setExpanded({})} className="px-3 py-2 rounded-xl border border-white/10 text-[11px] font-mono text-muted hover:text-text transition-colors">collapse</button>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-1.5 max-h-[70vh] overflow-y-auto">
+        {matches ? (matches.length ? matches.map((n) => <Node key={n.id} n={n} depth={0} />) : <div className="px-4 py-8 text-center text-muted text-sm">No one matches.</div>) : roots.map((n) => <Node key={n.id} n={n} depth={0} />)}
+      </div>
+      <div className="flex items-center gap-4 mt-2 text-[10px] font-mono text-muted">
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "#00FF85" }} /> active</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "#FF4444" }} /> past due</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "#3a3a3a" }} /> inactive</span>
+      </div>
+    </div>
+  );
+}
+
 /* ── Community: your builders / leaders at a glance (desktop) ─────────────── */
-function CommunityView({ members }: { members: Member[] }) {
+function CommunityView({ members, tree }: { members: Member[]; tree: TreeNode[] }) {
+  const memberByEmail = useMemo(() => { const m = new Map<string, Member>(); for (const x of members) if (x.email) m.set(x.email.toLowerCase(), x); return m; }, [members]);
   const builders = useMemo(() => members.filter((m) => (m.referred || 0) >= 1).sort((a, b) => (b.referred || 0) - (a.referred || 0) || (a.name || "").localeCompare(b.name || "")), [members]);
   const totalRefs = useMemo(() => members.reduce((s, m) => s + (m.referred || 0), 0), [members]);
   const atRisk = useMemo(() => builders.filter((b) => { const du = daysUntil(b.nextDue); return b.status !== "active" || (du !== null && du <= 7); }), [builders]);
@@ -1365,6 +1433,16 @@ function CommunityView({ members }: { members: Member[] }) {
         <StatTile label="Total Referrals" value={totalRefs} tone="#C9A84C" delay={0.12} />
         <StatTile label="Leaders At Risk" value={atRisk.length} tone="#FF4444" delay={0.17} />
       </div>
+
+      {tree.length > 0 ? (
+        <div>
+          <h2 className="gp-display text-lg font-bold mb-1">Your org tree</h2>
+          <p className="text-muted text-xs font-mono mb-3">Tap a name to open their downline. The dot shows if they're active, past due, or inactive. "Enrolled" is how many they personally brought in.</p>
+          <CommunityTree tree={tree} memberByEmail={memberByEmail} />
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-sm text-text/70">The org tree loads once your One House genealogy has been pulled. Below is what I can show from referral counts in the meantime.</div>
+      )}
 
       {atRisk.length > 0 && (
         <div>

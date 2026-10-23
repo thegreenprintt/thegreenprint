@@ -284,8 +284,28 @@ module.exports = async function handler(req, res) {
       try { rec = JSON.parse((await r.get(TKEY)) || 'null'); } catch (e) { rec = null; }
       let marks = {};
       try { marks = JSON.parse((await r.get('gp:track:marks')) || '{}') || {}; } catch (e) { marks = {}; }
+      let tree = [];
+      try { tree = JSON.parse((await r.get('gp:track:tree')) || '[]') || []; } catch (e) { tree = []; }
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ ok: true, snapshot: rec, marks: marks });
+      return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree });
+    }
+
+    // ── ORG TREE — store/read the One House genealogy (sponsor links) ─────────
+    //   POST ?kind=track-tree {key:GP_ADMIN_KEY, tree:[{id,sp,name,email,active,subs,lvl,...}]}
+    if (kind === 'track-tree') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      if (req.method === 'POST') {
+        const tree = body.tree;
+        if (!Array.isArray(tree) || tree.length === 0) return res.status(400).json({ error: 'bad_tree' });
+        try { await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, stored: tree.length });
+      }
+      let tree = [];
+      try { tree = JSON.parse((await r.get('gp:track:tree')) || '[]') || []; } catch (e) { tree = []; }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, tree: tree });
     }
 
     // ── PIPELINE MARKS — persist per-member outreach stage / notes ────────────
