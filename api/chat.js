@@ -253,11 +253,22 @@ module.exports = async function handler(req, res) {
         catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
         return res.status(200).json({ ok: true, stored: record.members.length, updatedAt: record.updatedAt });
       }
-      // GET — read, gated by the admin key or a dedicated view key
-      const k = qkey || clean(body.key, 128);
-      if ((!adminKey && !trackKey) || (k !== adminKey && k !== trackKey)) {
-        return res.status(403).json({ error: 'not_admin' });
+      // SET the viewer passcode (admin only). Stored in Redis, never in source.
+      //   POST ?kind=track&action=setpass {key:GP_ADMIN_KEY, pass}
+      if (req.method === 'POST' && String(body.action || '') === 'setpass') {
+        const k2 = clean(body.key, 128) || qkey;
+        if (!adminKey || k2 !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        const p = clean(body.pass, 128);
+        if (!p || p.length < 3) return res.status(400).json({ error: 'bad_pass' });
+        try { await r.set('gp:track:pass', p); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, set: true });
       }
+      // GET — read, gated by the admin key, the env view key, or the stored passcode
+      const k = qkey || clean(body.key, 128);
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
       let rec = null;
       try { rec = JSON.parse((await r.get(TKEY)) || 'null'); } catch (e) { rec = null; }
       res.setHeader('Cache-Control', 'no-store');
@@ -269,8 +280,12 @@ module.exports = async function handler(req, res) {
     //   If html is omitted, a default reactivation email (Jay's voice) is sent.
     if (kind === 'track-email') {
       const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
       const k = clean(body.key, 128) || qkey;
-      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
       const to = clean(body.to, 160);
       if (!to || to.indexOf('@') < 1) return res.status(400).json({ error: 'bad_to' });
       const name = clean(body.name, 60) || 'there';

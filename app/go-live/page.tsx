@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalVideoTrack } from "livekit-client";
 
-const HASH = "bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94";
+const HASH = "eb2f9ff29cc1016e2588694f8d9b0aa6703e334811a992f0ec550221081651d0";
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
