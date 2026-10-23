@@ -330,25 +330,6 @@ module.exports = async function handler(req, res) {
       const pass = rawPass.trim();
       if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
       const B = 'https://backend.1houseglobal.dev';
-      // Safe one-time diagnostic (?debug=1, admin only): reports LENGTHS and whitespace flags
-      // plus a live login attempt. Never returns the actual email or password characters.
-      if (isAdmin && String((req.query && req.query.debug) || '') === '1') {
-        let pstatus = 0, pmsg = null, bodyKeys = [], dataKeys = [], userKeys = [], resultKeys = [];
-        try {
-          const probe = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
-          const pj = await probe.json().catch(() => null);
-          pstatus = probe.status;
-          pmsg = (pj && (pj.message || pj.error)) || null;
-          if (pj && typeof pj === 'object') {
-            bodyKeys = Object.keys(pj);
-            if (pj.data && typeof pj.data === 'object') dataKeys = Object.keys(pj.data);
-            if (pj.user && typeof pj.user === 'object') userKeys = Object.keys(pj.user);
-            if (pj.result && typeof pj.result === 'object') resultKeys = Object.keys(pj.result);
-          }
-        } catch (e) { pmsg = 'probe_error:' + String((e && e.message) || e); }
-        // Field NAMES only, never values. Lets me find which key holds the token.
-        return res.status(200).json({ ok: true, debug: true, emailLen: email.length, passLen: pass.length, loginStatus: pstatus, loginMsg: pmsg, bodyKeys: bodyKeys, dataKeys: dataKeys, userKeys: userKeys, resultKeys: resultKeys });
-      }
       // 1) login
       let token = '';
       try {
