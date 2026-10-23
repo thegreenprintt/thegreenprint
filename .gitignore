@@ -1,0 +1,14 @@
+# dependencies
+/node_modules
+# build output
+/.next
+/out
+# typescript build info
+*.tsbuildinfo
+# local lockfile (Vercel installs fresh from package.json)
+package-lock.json
+# env
+.env
+.env*.local
+# os
+.DS_Store
