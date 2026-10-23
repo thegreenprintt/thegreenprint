@@ -800,7 +800,7 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main className="min-h-screen bg-bg text-text relative overflow-x-hidden">
+    <main className="min-h-screen bg-bg text-text relative overflow-x-clip">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <div className="gp-vignette" />
@@ -856,11 +856,15 @@ export default function TrackPage() {
           </div>
           <div className="lg:hidden mb-5"><NotifyBell /></div>
 
-          {snap && showHero && <GoalPanel goal={snap.goal} />}
-          {snap && showHero && <SprintStrip goal={snap.goal} inactiveCount={counts.inactive + counts.lapsed} dueCount={counts.due} closedToday={pipe.closedToday} />}
+          {snap && showHero && (
+            <div className={view === "today" ? "" : "hidden lg:block"}>
+              <GoalPanel goal={snap.goal} />
+              <SprintStrip goal={snap.goal} inactiveCount={counts.inactive + counts.lapsed} dueCount={counts.due} closedToday={pipe.closedToday} />
+            </div>
+          )}
 
           {snap && showTiles && (
-            <div className="flex gap-3 flex-wrap mb-6">
+            <div className="hidden lg:flex gap-3 flex-wrap mb-6">
               <StatTile label="Inactive" value={counts.inactive + counts.lapsed} tone="#8a8a8a" delay={0.02} />
               <StatTile label="Due ≤ 7 Days" value={counts.due} tone="#FF4444" delay={0.07} />
               <StatTile label="Active" value={counts.active} tone="#00FF85" delay={0.12} />
@@ -926,7 +930,7 @@ export default function TrackPage() {
           {!snap && <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center"><div className="text-text font-semibold mb-1">No snapshot yet</div><div className="text-muted text-sm">The next refresh will fill this in.</div></div>}
 
           {snap && showTiles && (
-            <div className="mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+            <div className={`mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5 ${view === "today" || view === "focus" ? "" : "hidden lg:block"}`}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted">Email tone <span className="text-text/30">· texts pick their own voice</span></div>
                 <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-white/[0.06]">
