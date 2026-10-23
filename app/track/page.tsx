@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ function StatTile({ label, value, tone, delay, prefix, suffix }: { label: string
       <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
       <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: tone }} />
       <div className="relative text-[10px] font-mono uppercase tracking-[0.18em] text-muted mb-2">{label}</div>
-      <div className="relative text-[32px] leading-none font-mono font-bold tabular-nums" style={{ color: tone }}>{prefix || ""}{n.toLocaleString()}{suffix || ""}</div>
+      <div className="gp-display relative text-[32px] leading-none font-bold tabular-nums" style={{ color: tone }}>{prefix || ""}{n.toLocaleString()}{suffix || ""}</div>
     </motion.div>
   );
 }
@@ -245,7 +246,7 @@ function RapidTextQueue({ items, markFor, voiceFor, onClose, onContacted, onVoic
         {!m ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
             <div className="text-5xl mb-4">🔥</div>
-            <div className="text-2xl font-bold mb-1">List cleared.</div>
+            <div className="gp-display text-2xl font-bold mb-1">List cleared.</div>
             <div className="text-muted text-sm mb-6">You texted everyone in the queue. That's how you hit $10K.</div>
             <button onClick={onClose} className="px-6 py-3 rounded-xl bg-accent text-bg font-bold text-sm">Done</button>
           </motion.div>
@@ -255,7 +256,7 @@ function RapidTextQueue({ items, markFor, voiceFor, onClose, onContacted, onVoic
               <div className="text-center text-[11px] font-mono text-muted mb-4">{idx + 1} of {total}</div>
               <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-transparent p-6 text-center">
                 <div className="flex justify-center mb-3"><Avatar name={m.name} status={m.status} size={16} /></div>
-                <div className="text-xl font-bold">{m.name || "(no name)"}</div>
+                <div className="gp-display text-2xl font-bold">{m.name || "(no name)"}</div>
                 <div className="font-mono text-sm text-accent mt-0.5">{m.phone}</div>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
                   {VOICES.map((v) => (
@@ -290,35 +291,36 @@ function TextBtn({ m }: { m: Member }) {
   const phone = m.phone;
   if (!phone) return null;
   const first = (m.name || "").split(" ")[0];
+  const sheet = open && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
+      <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 w-full sm:max-w-md max-h-[82vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-white/10 bg-surface2 shadow-2xl shadow-black/80 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 bg-surface2/95 backdrop-blur px-5 pt-4 pb-3 border-b border-white/[0.06] flex items-center justify-between">
+          <span className="gp-display font-semibold text-text">Text {first || m.name}</span>
+          <button onClick={() => setOpen(false)} className="h-8 w-8 grid place-items-center rounded-full border border-white/10 text-muted hover:text-text">✕</button>
+        </div>
+        {VOICES.map((v) => {
+          const line = pickVoiceMsg(v.key, m.email, first);
+          return (
+            <a key={v.key} href={smsHref(phone, line)} onClick={() => setOpen(false)}
+              className="block px-5 py-4 hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors border-b border-white/[0.05] last:border-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[12px] font-mono font-bold text-accent">{v.label}</span>
+                <span className="text-[10px] font-mono text-muted">{v.hint}</span>
+              </div>
+              <div className="text-[13px] text-text/85 leading-relaxed">{line}</div>
+            </a>
+          );
+        })}
+      </motion.div>
+    </div>, document.body) : null;
   return (
-    <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
+    <>
+      <button onClick={() => setOpen(true)} aria-expanded={open}
         className={`inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border text-[11px] font-mono font-semibold transition-all ${open ? "border-accent text-accent" : "border-white/10 text-muted hover:border-accent hover:text-accent"}`}>💬 text</button>
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <motion.div initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.98 }} transition={{ duration: 0.15 }}
-              className="absolute right-0 bottom-full mb-2 z-50 w-64 rounded-2xl border border-white/10 bg-surface2 shadow-2xl shadow-black/70 overflow-hidden">
-              <div className="px-3.5 py-2.5 text-[9px] font-mono uppercase tracking-[0.18em] text-muted border-b border-white/[0.06]">Pick a voice to text {first || ""}</div>
-              {VOICES.map((v) => {
-                const line = pickVoiceMsg(v.key, m.email, first);
-                return (
-                  <a key={v.key} href={smsHref(phone, line)} onClick={() => setOpen(false)}
-                    className="block px-3.5 py-3 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-mono font-bold text-accent">{v.label}</span>
-                      <span className="text-[9px] font-mono text-muted">{v.hint}</span>
-                    </div>
-                    <div className="text-[11px] text-text/65 leading-snug">{line}</div>
-                  </a>
-                );
-              })}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
+      {sheet}
+    </>
   );
 }
 
@@ -365,7 +367,7 @@ function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTou
         <Avatar name={m.name} status={m.status} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-text truncate">{m.name || "(no name)"}</span>
+            <span className="gp-display font-semibold text-text truncate">{m.name || "(no name)"}</span>
             <StatusPill status={m.status} />
           </div>
           <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -409,7 +411,7 @@ function MemberRow({ m, i, emailState, onEmail, mark, onStage, onTouch }: { m: M
         <Avatar name={m.name} status={m.status} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-text truncate">{m.name || "(no name)"}</span>
+            <span className="gp-display font-semibold text-text truncate">{m.name || "(no name)"}</span>
             <StatusPill status={m.status} />
             <span className="text-[10px] font-mono text-muted">L{m.level}</span>
             {m.amount > 0 && <span className="text-[10px] font-mono text-gold">${m.amount}</span>}
@@ -463,7 +465,7 @@ function GoalPanel({ goal }: { goal?: Goal }) {
         <div className="flex items-end gap-4 flex-wrap">
           {subsToGo != null ? (
             <div>
-              <div className="text-[64px] sm:text-[80px] leading-none font-mono font-black text-gold tabular-nums">{subsN}</div>
+              <div className="gp-display text-[64px] sm:text-[80px] leading-none font-black text-gold tabular-nums">{subsN}</div>
               <div className="text-sm text-text/70 font-mono -mt-1">subscribers to ${(target / 1000)}K</div>
             </div>
           ) : (
@@ -529,16 +531,16 @@ function SprintStrip({ goal, inactiveCount, dueCount, closedToday }: { goal?: Go
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-1">Subs to $10K</div>
-          <div className="text-4xl font-mono font-black text-gold tabular-nums">{subsToGo ?? "—"}</div>
+          <div className="gp-display text-4xl font-black text-gold tabular-nums">{subsToGo ?? "—"}</div>
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-1">Close per day</div>
-          <div className="text-4xl font-mono font-black text-accent tabular-nums">{dailyTarget ?? "—"}</div>
+          <div className="gp-display text-4xl font-black text-accent tabular-nums">{dailyTarget ?? "—"}</div>
           <div className="text-[10px] font-mono text-muted mt-0.5">{closedToday} closed today</div>
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-1">On the table</div>
-          <div className="text-3xl font-mono font-black text-text tabular-nums">${tableN.toLocaleString()}</div>
+          <div className="gp-display text-3xl font-black text-text tabular-nums">${tableN.toLocaleString()}</div>
           <div className="text-[10px] font-mono text-muted mt-0.5">{inactiveCount} inactive × ${perSub} · {dueCount} due soon</div>
         </div>
       </div>
@@ -776,7 +778,7 @@ export default function TrackPage() {
           {/* Header */}
           <div className="pt-8 pb-5 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="font-mono text-[22px] sm:text-[34px] font-bold tracking-[-0.01em] bg-gradient-to-r from-white via-white to-accent/70 bg-clip-text text-transparent">{nav.find((n) => n.id === view)?.label}</h1>
+              <h1 className="gp-display text-[28px] sm:text-[40px] font-bold tracking-[-0.025em] bg-gradient-to-r from-white via-white to-accent/70 bg-clip-text text-transparent">{nav.find((n) => n.id === view)?.label}</h1>
               <p className="text-muted text-xs font-mono mt-1.5">
                 {view === "today" ? "Your daily method of operation. Work this list top to bottom." :
                   view === "focus" ? "Your ranked lock-in list, work top to bottom." :
@@ -1032,17 +1034,17 @@ function Playbook() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       <section>
-        <h2 className="text-lg font-bold mb-1">Scripts</h2>
+        <h2 className="gp-display text-lg font-bold mb-1">Scripts</h2>
         <p className="text-muted text-xs font-mono mb-4">Say it like you. Copy, tweak the name, send.</p>
         <div className="grid md:grid-cols-2 gap-3">{scripts.map((s) => <CopyCard key={s.title} {...s} />)}</div>
       </section>
       <section>
-        <h2 className="text-lg font-bold mb-1">Objection handlers</h2>
+        <h2 className="gp-display text-lg font-bold mb-1">Objection handlers</h2>
         <p className="text-muted text-xs font-mono mb-4">The five you'll hear most, and how to clear them.</p>
         <div className="grid md:grid-cols-2 gap-3">{objections.map((s) => <CopyCard key={s.title} {...s} />)}</div>
       </section>
       <section>
-        <h2 className="text-lg font-bold mb-1">10-day follow-up cadence</h2>
+        <h2 className="gp-display text-lg font-bold mb-1">10-day follow-up cadence</h2>
         <p className="text-muted text-xs font-mono mb-4">Run this on everyone you reach out to. Consistency closes.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {cadence.map((c, i) => (
@@ -1056,7 +1058,7 @@ function Playbook() {
         </div>
       </section>
       <section>
-        <h2 className="text-lg font-bold mb-1">Sales principles</h2>
+        <h2 className="gp-display text-lg font-bold mb-1">Sales principles</h2>
         <p className="text-muted text-xs font-mono mb-4">The timeless network-marketing fundamentals. Tape them to your wall.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {principles.map(([t, b], i) => (
@@ -1095,7 +1097,7 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full blur-3xl" style={{ background: "rgba(0,255,133,0.10)" }} />
         <div className="relative">
           <div className="text-accent font-mono text-[11px] tracking-[0.25em] uppercase mb-2">The Daily Method of Operation</div>
-          <h2 className="text-2xl font-bold mb-1">Run this every day and the business runs itself.</h2>
+          <h2 className="gp-display text-2xl font-bold mb-1">Run this every day and the business runs itself.</h2>
           <p className="text-text/70 text-sm">Close <span className="text-accent font-bold">{dailyTarget}/day</span> and you hit $10K before Nov 1. Here's the exact loop.</p>
         </div>
       </section>
@@ -1146,6 +1148,8 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
 }
 
 const auroraCss = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+.gp-display{font-family:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,sans-serif;font-feature-settings:'tnum' 1}
 .gp-aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .gp-aurora::before,.gp-aurora::after{content:"";position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.14}
 .gp-aurora::before{background:radial-gradient(circle,#00FF85,transparent 60%);top:-20vmax;left:-10vmax;animation:gpDrift1 22s ease-in-out infinite}
