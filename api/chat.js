@@ -282,8 +282,41 @@ module.exports = async function handler(req, res) {
       if (!okKey) return res.status(403).json({ error: 'not_admin' });
       let rec = null;
       try { rec = JSON.parse((await r.get(TKEY)) || 'null'); } catch (e) { rec = null; }
+      let marks = {};
+      try { marks = JSON.parse((await r.get('gp:track:marks')) || '{}') || {}; } catch (e) { marks = {}; }
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ ok: true, snapshot: rec });
+      return res.status(200).json({ ok: true, snapshot: rec, marks: marks });
+    }
+
+    // ── PIPELINE MARKS — persist per-member outreach stage / notes ────────────
+    //   POST ?kind=track-mark {key, email, stage?, note?, touch?}  → upsert one
+    //   GET  ?kind=track-mark&key=...                              → all marks
+    if (kind === 'track-mark') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
+      const MKEY = 'gp:track:marks';
+      let marks = {};
+      try { marks = JSON.parse((await r.get(MKEY)) || '{}') || {}; } catch (e) { marks = {}; }
+      if (req.method === 'POST') {
+        const email = clean(body.email, 160).toLowerCase();
+        if (!email || email.indexOf('@') < 1) return res.status(400).json({ error: 'bad_email' });
+        const STAGES = ['new', 'contacted', 'talking', 'committed', 'closed', 'skip'];
+        const prev = marks[email] || {};
+        const next = { stage: prev.stage || 'new', note: prev.note || '', touchedAt: prev.touchedAt || 0, closedAt: prev.closedAt || 0 };
+        if (body.stage !== undefined) { const st = clean(body.stage, 16); if (STAGES.indexOf(st) >= 0) { next.stage = st; if (st === 'closed') next.closedAt = Date.now(); } }
+        if (body.note !== undefined) next.note = clean(body.note, 400);
+        if (body.touch) next.touchedAt = Date.now();
+        marks[email] = next;
+        try { await r.set(MKEY, JSON.stringify(marks)); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, email: email, mark: next });
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, marks: marks });
     }
 
     // ── TRACKER EMAIL — reactivation email to a member, or Jay's daily alert ──
