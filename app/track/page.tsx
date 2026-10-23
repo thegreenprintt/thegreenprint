@@ -87,9 +87,10 @@ function StatusPill({ status }: { status: Status }) {
 }
 
 type EmailState = "idle" | "confirm" | "sending" | "sent" | "error";
+type MsgStyle = "checkin" | "nudge" | "invite";
 
 function EmailBtn({ m, state, onEmail }: { m: Member; state: EmailState; onEmail: (m: Member) => void }) {
-  if (m.status === "active" || !m.email) return null;
+  if (!m.email) return null;
   return (
     <button onClick={() => onEmail(m)} disabled={state === "sending" || state === "sent"}
       className={`inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-mono font-semibold transition-all border ${
@@ -102,17 +103,23 @@ function CallBtn({ phone }: { phone: string }) {
   if (!phone) return <span className="text-[10px] font-mono text-muted/70 pr-1">no number</span>;
   return <a href={telHref(phone)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-xs font-mono font-semibold hover:bg-accent hover:text-bg transition-all hover:shadow-[0_0_20px_rgba(0,255,133,0.35)]"><span className="text-sm">☎</span> {phone}</a>;
 }
-function smsHref(phone: string, first: string): string {
+function smsHref(phone: string, first: string, style: MsgStyle): string {
   const num = (phone || "").replace(/[^\d+]/g, "");
-  const msg = `Yo ${first || ""}, it's Jay. You fell off One House, come get back in the room: https://subscribe.1houseglobal.com/jay`;
+  const SUB = "https://subscribe.1houseglobal.com/jay";
+  const hi = first ? `Hey ${first}` : "Hey";
+  const msg = style === "invite"
+    ? `${hi}, it's Jay! I've missed having you with us in One House and I'd love to get you back in the room: ${SUB} . How have you been?`
+    : style === "nudge"
+    ? `${hi}, it's Jay! Been thinking about you — the energy in the room lately has been incredible. How have you been?`
+    : `${hi}, it's Jay! It's been a minute and you've been on my mind, so I just wanted to check in. How are you doing?`;
   return `sms:${num}?&body=${encodeURIComponent(msg)}`;
 }
-function TextBtn({ m }: { m: Member }) {
+function TextBtn({ m, style }: { m: Member; style: MsgStyle }) {
   if (!m.phone) return null;
-  return <a href={smsHref(m.phone, (m.name || "").split(" ")[0])} className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-white/10 text-muted text-[11px] font-mono font-semibold hover:border-accent hover:text-accent transition-all">💬 text</a>;
+  return <a href={smsHref(m.phone, (m.name || "").split(" ")[0], style)} className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-white/10 text-muted text-[11px] font-mono font-semibold hover:border-accent hover:text-accent transition-all">💬 text</a>;
 }
 
-function FocusCard({ m, rank, reasons, emailState, onEmail }: { m: Member; rank: number; reasons: string[]; emailState: EmailState; onEmail: (m: Member) => void }) {
+function FocusCard({ m, rank, reasons, emailState, onEmail, style }: { m: Member; rank: number; reasons: string[]; emailState: EmailState; onEmail: (m: Member) => void; style: MsgStyle }) {
   return (
     <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: Math.min(rank * 0.05, 0.5), duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-white/[0.02] to-transparent p-4 hover:border-gold/40 transition-colors">
@@ -135,14 +142,14 @@ function FocusCard({ m, rank, reasons, emailState, onEmail }: { m: Member; rank:
       </div>
       <div className="relative mt-3 flex items-center gap-2 justify-end flex-wrap">
         <EmailBtn m={m} state={emailState} onEmail={onEmail} />
-        <TextBtn m={m} />
+        <TextBtn m={m} style={style} />
         <CallBtn phone={m.phone} />
       </div>
     </motion.div>
   );
 }
 
-function MemberRow({ m, i, emailState, onEmail }: { m: Member; i: number; emailState: EmailState; onEmail: (m: Member) => void }) {
+function MemberRow({ m, i, emailState, onEmail, style }: { m: Member; i: number; emailState: EmailState; onEmail: (m: Member) => void; style: MsgStyle }) {
   const du = daysUntil(m.nextDue); const dueSoon = du !== null && du <= 7; const badge = builderBadge(m.referred);
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.01, 0.3), duration: 0.3 }}
@@ -162,7 +169,7 @@ function MemberRow({ m, i, emailState, onEmail }: { m: Member; i: number; emailS
       </div>
       <div className="shrink-0 flex items-center gap-2">
         <EmailBtn m={m} state={emailState} onEmail={onEmail} />
-        <TextBtn m={m} />
+        <TextBtn m={m} style={style} />
         <CallBtn phone={m.phone} />
       </div>
     </motion.div>
@@ -234,6 +241,7 @@ export default function TrackPage() {
   const [loading, setLoading] = useState(false); const [err, setErr] = useState(""); const [authed, setAuthed] = useState(false);
   const [q, setQ] = useState(""); const [view, setView] = useState<View>("focus"); const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [emailStates, setEmailStates] = useState<Record<string, EmailState>>({});
+  const [msgStyle, setMsgStyle] = useState<MsgStyle>("checkin");
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -252,10 +260,10 @@ export default function TrackPage() {
     if (cur !== "confirm") { setEmailStates((s) => ({ ...s, [key]: "confirm" })); setTimeout(() => setEmailStates((s) => (s[key] === "confirm" ? { ...s, [key]: "idle" } : s)), 4000); return; }
     setEmailStates((s) => ({ ...s, [key]: "sending" }));
     try {
-      const res = await fetch(`/api/chat?kind=track-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: pass, to: m.email, name: (m.name || "").split(" ")[0] }) });
+      const res = await fetch(`/api/chat?kind=track-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: pass, to: m.email, name: (m.name || "").split(" ")[0], style: msgStyle }) });
       const j = await res.json(); setEmailStates((s) => ({ ...s, [key]: j.ok ? "sent" : "error" }));
     } catch { setEmailStates((s) => ({ ...s, [key]: "error" })); }
-  }, [emailStates, pass]);
+  }, [emailStates, pass, msgStyle]);
 
   const members = snap?.members || [];
   const counts = useMemo(() => {
@@ -374,6 +382,28 @@ export default function TrackPage() {
 
           {!snap && <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center"><div className="text-text font-semibold mb-1">No snapshot yet</div><div className="text-muted text-sm">The nightly refresh will fill this in.</div></div>}
 
+          {snap && (
+            <div className="mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-0.5">Outreach tone</div>
+                  <div className="text-[11px] text-text/70">
+                    {msgStyle === "checkin" ? "Pure check-in — no pitch, just \"how are you.\"" : msgStyle === "nudge" ? "Warm check-in that mentions the room's momentum." : "Invite them back with your sign-up link."}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-white/[0.06]">
+                  {([["checkin", "Check in"], ["nudge", "Nudge"], ["invite", "Invite back"]] as [MsgStyle, string][]).map(([id, label]) => (
+                    <button key={id} onClick={() => setMsgStyle(id)}
+                      className={`relative px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${msgStyle === id ? "text-bg" : "text-muted hover:text-text"}`}>
+                      {msgStyle === id && <motion.span layoutId="stylechip" className="absolute inset-0 rounded-lg bg-accent" transition={{ type: "spring", stiffness: 450, damping: 35 }} />}
+                      <span className="relative z-10">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* FOCUS VIEW */}
           {snap && view === "focus" && (
             <AnimatePresence mode="wait">
@@ -383,7 +413,7 @@ export default function TrackPage() {
                   <div className="text-sm text-text/90">These {focus.length} are your highest-impact calls this week: past-due first, then people billing soon, then builders whose downline you reactivate with them. Lock them in.</div>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {focus.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} />)}
+                  {focus.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} style={msgStyle} />)}
                 </div>
                 {focus.length === 0 && <div className="text-center text-muted text-sm py-10">Nothing urgent this week. Everyone's current.</div>}
               </motion.div>
@@ -402,7 +432,7 @@ export default function TrackPage() {
               <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.025] to-transparent overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div key={view + String(levelFilter) + q} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-                    {list.length === 0 ? <div className="px-4 py-12 text-center text-muted text-sm">Nobody here right now.</div> : list.map((m, i) => <MemberRow key={(m.email || m.name) + i} m={m} i={i} emailState={emailStates[m.email] || "idle"} onEmail={onEmail} />)}
+                    {list.length === 0 ? <div className="px-4 py-12 text-center text-muted text-sm">Nobody here right now.</div> : list.map((m, i) => <MemberRow key={(m.email || m.name) + i} m={m} i={i} emailState={emailStates[m.email] || "idle"} onEmail={onEmail} style={msgStyle} />)}
                   </motion.div>
                 </AnimatePresence>
               </div>

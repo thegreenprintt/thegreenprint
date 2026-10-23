@@ -299,21 +299,30 @@ module.exports = async function handler(req, res) {
       if (!okKey) return res.status(403).json({ error: 'not_admin' });
       const to = clean(body.to, 160);
       if (!to || to.indexOf('@') < 1) return res.status(400).json({ error: 'bad_to' });
-      const name = clean(body.name, 60) || 'stranger';
-      const subject = clean(body.subject, 200) || (name + ', you really left me on read? 👀');
+      const name = clean(body.name, 60) || 'there';
+      const style = clean(body.style, 20) || 'checkin';
       const SUB = 'https://subscribe.1houseglobal.com/jay';
-      const defaultHtml =
+      const P = (s) => '<p style="font-size:16px;line-height:1.6">' + s + '</p>';
+      const BTN = '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:8px;display:inline-block">Come back to the room</a></p>';
+      const wrap = (inner) =>
         '<div style="font-family:Inter,Arial,sans-serif;background:#080808;color:#f5f5f5;padding:28px;border-radius:12px;max-width:560px">' +
         '<div style="color:#00FF85;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px">The Greenprint</div>' +
-        '<p style="font-size:16px;line-height:1.6">Yo ' + name + ',</p>' +
-        '<p style="font-size:16px;line-height:1.6">Not gonna lie, I looked up and you wasn\'t in the room no more. Left me on read like that. 😅</p>' +
-        '<p style="font-size:16px;line-height:1.6">Real talk though, One House has been different lately. We trading live every single day, breaking down the charts, and people are actually eating. You started this for a reason. Don\'t let it die in the group chat.</p>' +
-        '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:8px;display:inline-block">Come back to the room</a></p>' +
-        '<p style="font-size:15px;line-height:1.6">You in? Just reply and I got you. And if you really done, no hard feelings, tell me straight. But deep down, I think you miss us. 💚</p>' +
-        '<p style="font-size:15px;line-height:1.6;font-weight:700">Jay</p>' +
-        '<p style="font-size:12px;line-height:1.5;color:#777;margin-top:18px">The Greenprint · educational only, not financial advice. Reply STOP and I will not hit you again.</p>' +
+        inner +
+        '<p style="font-size:15px;line-height:1.6;font-weight:700">— Jay</p>' +
+        '<p style="font-size:12px;line-height:1.5;color:#777;margin-top:18px">The Greenprint · educational only, not financial advice. Reply STOP and I will not reach out again.</p>' +
         '</div>';
-      const html = String(body.html || '') || defaultHtml;
+      let subject, inner;
+      if (style === 'nudge') {
+        subject = clean(body.subject, 200) || (name + ', thinking about you');
+        inner = P('Hey ' + name + ',') + P('It\'s Jay. It\'s been a little while and you came to mind. The energy in the room lately has honestly been incredible, and I found myself wondering how you\'re doing.') + P('No pressure at all, I just wanted to reach out. How have you been?');
+      } else if (style === 'invite') {
+        subject = clean(body.subject, 200) || (name + ', I\'d love to catch up');
+        inner = P('Hey ' + name + ',') + P('It\'s Jay. I\'ve genuinely missed having you with us in One House. We\'re live every single day now and the room has grown into something special. You joined for a reason, and I\'d love to help you pick that back up whenever you\'re ready.') + BTN + P('Either way, I\'d love to hear how you\'re doing. Just reply and I\'ll personally get you squared away.');
+      } else { // checkin (default) — pure, no pitch
+        subject = clean(body.subject, 200) || (name + ', just checking in');
+        inner = P('Hey ' + name + ',') + P('It\'s Jay. It\'s been a minute and you\'ve been on my mind, so I just wanted to check in. No agenda at all.') + P('How are you doing? I\'d love to hear from you whenever you get a sec.');
+      }
+      const html = String(body.html || '') || wrap(inner);
       let Resend;
       try { Resend = require('resend').Resend; } catch (e) { return res.status(200).json({ ok: false, error: 'resend_unavailable' }); }
       let rkey = process.env.RESEND_API_KEY || '';
