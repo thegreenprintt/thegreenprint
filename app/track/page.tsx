@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { stateFromPhone, stateName } from "./areacodes";
 
 /* ───────────────────────────────────────────────────────────────────────────
    /track — The Greenprint Business Command Center (private)
@@ -1395,8 +1396,60 @@ function CommunityTree({ tree, memberByEmail }: { tree: TreeNode[]; memberByEmai
   );
 }
 
+/* ── By-state grouping for tour planning ─────────────────────────────────── */
+function CommunityStates({ members, tree }: { members: Member[]; tree: TreeNode[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const byId = useMemo(() => { const m = new Map<number, TreeNode>(); tree.forEach((n) => m.set(n.id, n)); return m; }, [tree]);
+  const byEmail = useMemo(() => { const m = new Map<string, TreeNode>(); tree.forEach((n) => { if (n.email) m.set(n.email.toLowerCase(), n); }); return m; }, [tree]);
+  const invitedBy = (m: Member): string | null => { const n = byEmail.get((m.email || "").toLowerCase()); if (!n || n.sp == null) return null; const s = byId.get(n.sp); return s ? properName(s.name) : null; };
+  const groups = useMemo(() => {
+    const g = new Map<string, Member[]>();
+    for (const m of members) { const st = m.phone ? stateFromPhone(m.phone) : null; const key = st || "??"; const a = g.get(key) || []; a.push(m); g.set(key, a); }
+    const arr = [...g.entries()].map(([k, v]) => ({ st: k, list: v.sort((a, b) => (a.name || "").localeCompare(b.name || "")) }));
+    arr.sort((a, b) => { if (a.st === "??") return 1; if (b.st === "??") return -1; return b.list.length - a.list.length; });
+    return arr;
+  }, [members]);
+  return (
+    <div className="space-y-2">
+      <p className="text-muted text-xs font-mono mb-1">Grouped by phone area code. Great for planning Bag Day Tour stops. Tap a state to see who's there and who invited them.</p>
+      {groups.map((g) => {
+        const isOpen = !!open[g.st];
+        const label = g.st === "??" ? "No number yet" : stateName(g.st);
+        const active = g.list.filter((m) => m.status === "active").length;
+        return (
+          <div key={g.st} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+            <button onClick={() => setOpen((o) => ({ ...o, [g.st]: !o[g.st] }))} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.025] transition-colors">
+              <span className="gp-display font-semibold text-text">{isOpen ? "▾" : "▸"} {label}</span>
+              <span className="text-[11px] font-mono text-muted">{g.list.length} ppl · <span className="text-accent">{active} active</span></span>
+            </button>
+            {isOpen && (
+              <div className="border-t border-white/[0.06]">
+                {g.list.map((m) => {
+                  const inv = invitedBy(m);
+                  return (
+                    <div key={m.email || m.name} className="flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.04] last:border-0">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: m.status === "active" ? "#00FF85" : m.status === "lapsed" ? "#FF4444" : "#3a3a3a" }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="gp-display text-sm text-text truncate">{properName(m.name) || "(no name)"}</div>
+                        <div className="text-[10px] font-mono text-muted truncate">{m.phone || m.email || ""}{inv ? ` · invited by ${inv}` : ""}</div>
+                      </div>
+                      {m.phone && <TextBtn m={m} />}
+                      {m.phone && <a href={telHref(m.phone)} className="px-2.5 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-[11px] font-mono shrink-0">☎</a>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── Community: your builders / leaders at a glance (desktop) ─────────────── */
 function CommunityView({ members, tree }: { members: Member[]; tree: TreeNode[] }) {
+  const [tab, setTab] = useState<"tree" | "state">("tree");
   const memberByEmail = useMemo(() => { const m = new Map<string, Member>(); for (const x of members) if (x.email) m.set(x.email.toLowerCase(), x); return m; }, [members]);
   const builders = useMemo(() => members.filter((m) => (m.referred || 0) >= 1).sort((a, b) => (b.referred || 0) - (a.referred || 0) || (a.name || "").localeCompare(b.name || "")), [members]);
   const totalRefs = useMemo(() => members.reduce((s, m) => s + (m.referred || 0), 0), [members]);
@@ -1448,9 +1501,19 @@ function CommunityView({ members, tree }: { members: Member[]; tree: TreeNode[] 
 
       {tree.length > 0 ? (
         <div>
-          <h2 className="gp-display text-lg font-bold mb-1">Your org tree</h2>
-          <p className="text-muted text-xs font-mono mb-3">Tap a name to open their downline. The dot shows if they're active, past due, or inactive. "Enrolled" is how many they personally brought in.</p>
-          <CommunityTree tree={tree} memberByEmail={memberByEmail} />
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-white/[0.06] w-fit mb-3">
+            {([["tree", "Org tree"], ["state", "By state"]] as [typeof tab, string][]).map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} className={`gp-display px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition-colors ${tab === id ? "bg-accent text-bg" : "text-muted hover:text-text"}`}>{label}</button>
+            ))}
+          </div>
+          {tab === "tree" ? (
+            <>
+              <p className="text-muted text-xs font-mono mb-3">Tap a name to open their downline. The dot shows active, past due, or inactive. "Enrolled" is who they personally brought in, "under" is their whole team.</p>
+              <CommunityTree tree={tree} memberByEmail={memberByEmail} />
+            </>
+          ) : (
+            <CommunityStates members={members} tree={tree} />
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 text-sm text-text/70">The org tree loads once your One House genealogy has been pulled. Below is what I can show from referral counts in the meantime.</div>
