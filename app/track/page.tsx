@@ -31,11 +31,11 @@ type Marks = Record<string, Mark>;
 const DEFAULT_MARK: Mark = { stage: "new", note: "", touchedAt: 0, closedAt: 0, voice: "default", birthday: "" };
 const STAGES: Stage[] = ["new", "contacted", "talking", "committed", "closed"];
 const STAGE_META: Record<Stage, { label: string; color: string; short: string }> = {
-  new:       { label: "Not worked", color: "#8a8a8a", short: "NEW" },
-  contacted: { label: "Reached out", color: "#4a9eff", short: "SENT" },
-  talking:   { label: "In convo", color: "#C9A84C", short: "TALKING" },
-  committed: { label: "Committed", color: "#9b7bff", short: "COMMITTED" },
-  closed:    { label: "Closed", color: "#00FF85", short: "CLOSED ✓" },
+  new:       { label: "Not worked yet", color: "#8a8a8a", short: "NEW" },
+  contacted: { label: "Reached out", color: "#4a9eff", short: "REACHED" },
+  talking:   { label: "Interested", color: "#C9A84C", short: "INTERESTED" },
+  committed: { label: "Enrolling / reactivating", color: "#9b7bff", short: "ENROLLING" },
+  closed:    { label: "Active in One House", color: "#00FF85", short: "ACTIVE ✓" },
   skip:      { label: "Set aside", color: "#555", short: "SET ASIDE" },
 };
 
@@ -657,6 +657,8 @@ export default function TrackPage() {
   // live clock + silent auto-refresh every 10 min
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
+  // Jump to the top whenever the tab changes so the new view's header is visible
+  useEffect(() => { try { window.scrollTo({ top: 0, behavior: "auto" }); } catch {} }, [view]);
   // Make /track its own installable app + register the push service worker
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1017,8 +1019,8 @@ export default function TrackPage() {
                   { label: "Everyone", n: counts.total, color: "#8a8a8a" },
                   { label: "Reachable", n: pipe.reachable, color: "#4a9eff" },
                   { label: "Worked", n: pipe.worked, color: "#C9A84C" },
-                  { label: "Talking", n: pipe.talking, color: "#9b7bff" },
-                  { label: "Closed", n: pipe.closed, color: "#00FF85" },
+                  { label: "Interested", n: pipe.talking, color: "#9b7bff" },
+                  { label: "Active", n: pipe.closed, color: "#00FF85" },
                 ]} /></div>
                 <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4">
                   {STAGES.map((st) => {
@@ -1057,7 +1059,7 @@ export default function TrackPage() {
                     );
                   })}
                 </div>
-                <div className="text-center text-[11px] font-mono text-muted mt-4">Tap a member's stage dots anywhere to move them. Closing someone pops the confetti.</div>
+                <div className="text-center text-[11px] font-mono text-muted mt-4">Move members from first touch to Active in One House. Marking someone Active pops the confetti.</div>
               </motion.div>
             </AnimatePresence>
           )}
