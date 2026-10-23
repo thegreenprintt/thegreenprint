@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   robots: { index: true, follow: true },
+  appleWebApp: { capable: true, title: "Greenprint", statusBarStyle: "black-translucent" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

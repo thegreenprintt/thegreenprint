@@ -150,6 +150,81 @@ function smsHref(phone: string, msg: string): string {
   const num = (phone || "").replace(/[^\d+]/g, "");
   return `sms:${num}?&body=${encodeURIComponent(msg)}`;
 }
+/* A pool of warm, all-audience check-ins. Each person gets a stable pick (salt reshuffles). */
+const CHECKIN_TEXTS: ((f: string) => string)[] = [
+  (f) => `Yo ${f || "fam"}! It's Jay, just checking up on you. How you been?`,
+  (f) => `Hey ${f || "there"}, it's Jay. Wanted to see how everything's going with you. How you doing?`,
+  (f) => `${f || "Hey"}! It's Jay. Been a minute, you crossed my mind so I wanted to check in. How are you?`,
+  (f) => `Hey ${f || "there"}, Jay here. No agenda, just wanted to see how you're doing. How's everything?`,
+  (f) => `Yo ${f || "fam"}, it's Jay. How's life treating you? Been meaning to reach out.`,
+  (f) => `Hey ${f || "there"}! It's Jay. Hope you're good. Just wanted to check up on you, how you been?`,
+  (f) => `${f || "Hey"}, it's Jay. Thinking about you today. How's everything going on your end?`,
+  (f) => `Yo ${f || "there"}! Jay here. Haven't talked in a bit, wanted to see how you're doing. All good?`,
+];
+function pickCheckin(email: string, first: string, salt = 0): string {
+  let h = salt >>> 0; const s = (email || "") + "";
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return CHECKIN_TEXTS[h % CHECKIN_TEXTS.length](first);
+}
+function agoShort(ms: number): string {
+  if (!ms) return "";
+  const s = Math.floor((Date.now() - ms) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); return `${d}d ago`;
+}
+function RapidTextQueue({ items, onClose, onContacted }: { items: Member[]; onClose: () => void; onContacted: (email: string) => void }) {
+  const withPhone = useMemo(() => items.filter((m) => m.phone), [items]);
+  const [idx, setIdx] = useState(0);
+  const [salt, setSalt] = useState(0);
+  const total = withPhone.length;
+  const m = withPhone[idx];
+  const first = (m?.name || "").split(" ")[0];
+  const msg = m ? pickCheckin(m.email, first, salt) : "";
+  return (
+    <div className="fixed inset-0 z-[70] bg-bg/95 backdrop-blur-xl flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" /><span className="font-mono text-[11px] tracking-[0.2em] uppercase text-accent">Rapid Text</span></div>
+        <button onClick={onClose} className="h-9 w-9 grid place-items-center rounded-full border border-white/10 text-muted hover:text-text text-lg">✕</button>
+      </div>
+      <div className="h-1 bg-white/[0.06]"><motion.div className="h-full bg-accent" animate={{ width: `${total ? (Math.min(idx, total) / total) * 100 : 0}%` }} transition={{ duration: 0.3 }} /></div>
+      <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center justify-center">
+        {!m ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div className="text-5xl mb-4">🔥</div>
+            <div className="text-2xl font-bold mb-1">List cleared.</div>
+            <div className="text-muted text-sm mb-6">You texted everyone in the queue. That's how you hit $10K.</div>
+            <button onClick={onClose} className="px-6 py-3 rounded-xl bg-accent text-bg font-bold text-sm">Done</button>
+          </motion.div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div key={idx} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }} className="w-full max-w-md">
+              <div className="text-center text-[11px] font-mono text-muted mb-4">{idx + 1} of {total}</div>
+              <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-transparent p-6 text-center">
+                <div className="flex justify-center mb-3"><Avatar name={m.name} status={m.status} size={16} /></div>
+                <div className="text-xl font-bold">{m.name || "(no name)"}</div>
+                <div className="font-mono text-sm text-accent mt-0.5">{m.phone}</div>
+                <div className="mt-5 rounded-2xl bg-black/30 border border-white/[0.06] p-4 text-left">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1.5">They'll receive</div>
+                  <div className="text-[15px] text-text/90 leading-relaxed">{msg}</div>
+                  <button onClick={() => setSalt((s) => s + 1)} className="mt-3 text-[11px] font-mono text-muted hover:text-accent transition-colors">↻ shuffle message</button>
+                </div>
+                <a href={smsHref(m.phone, msg)} onClick={() => { onContacted(m.email); setTimeout(() => setIdx((i) => i + 1), 350); }}
+                  className="mt-5 block w-full py-4 rounded-2xl bg-accent text-bg font-bold text-base hover:shadow-[0_0_28px_rgba(0,255,133,0.45)] transition-all active:scale-[0.98]">Open text in Messages →</a>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <a href={telHref(m.phone)} onClick={() => onContacted(m.email)} className="flex-1 py-3 rounded-xl border border-white/10 text-sm font-mono text-text/80 hover:border-accent hover:text-accent transition-colors text-center">☎ call instead</a>
+                  <button onClick={() => setIdx((i) => i + 1)} className="flex-1 py-3 rounded-xl border border-white/10 text-sm font-mono text-muted hover:text-text transition-colors">skip →</button>
+                </div>
+              </div>
+              <div className="text-center text-[11px] font-mono text-muted/70 mt-4">Tap send in Messages, come back, keep rolling.</div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </div>
+    </div>
+  );
+}
 function TextBtn({ m }: { m: Member }) {
   const [open, setOpen] = useState(false);
   const phone = m.phone;
@@ -243,6 +318,7 @@ function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTou
           <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-text/70 border border-white/[0.05]">{r}</span>
         ))}
       </div>
+      {mark.touchedAt > 0 && <div className="relative mt-2 text-[10px] font-mono text-muted/70">last worked {agoShort(mark.touchedAt)}</div>}
       <div className="relative mt-3 flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
         <StageDots stage={mark.stage} onSet={onStage} />
         <WorkedCheck touchedAt={mark.touchedAt} onTouch={onTouch} />
@@ -438,6 +514,7 @@ export default function TrackPage() {
   const [marks, setMarks] = useState<Marks>({});
   const [confetti, setConfetti] = useState(0);
   const [nowTs, setNowTs] = useState<number>(() => Date.now());
+  const [queueOpen, setQueueOpen] = useState(false);
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -555,7 +632,7 @@ export default function TrackPage() {
             <p className="text-muted text-sm mt-2">Private. Enter your passcode.</p>
           </div>
           <form onSubmit={(e) => { e.preventDefault(); if (input) { setPass(input); load(input); } }} className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-transparent p-5 space-y-3 backdrop-blur">
-            <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Passcode" autoFocus className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-text font-mono text-sm outline-none focus:border-accent transition-colors" />
+            <input type="password" inputMode="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Passcode" autoFocus className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-text font-mono text-base outline-none focus:border-accent transition-colors" />
             <button type="submit" disabled={loading || !input} className="w-full bg-accent text-bg font-bold rounded-xl py-3 text-sm disabled:opacity-40 hover:shadow-[0_0_24px_rgba(0,255,133,0.4)] transition-all">{loading ? "Checking…" : "Unlock"}</button>
             {err && <div className="text-red text-xs font-mono text-center">{err}</div>}
           </form>
@@ -583,10 +660,11 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main className="min-h-screen bg-bg text-text relative">
+    <main className="min-h-screen bg-bg text-text relative overflow-x-hidden">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <Confetti fire={confetti} />
+      {queueOpen && <RapidTextQueue items={(view === "today" ? hitList : focus).map((f) => f.m)} onClose={() => setQueueOpen(false)} onContacted={(email) => saveMark(email, { stage: markFor(email).stage === "new" ? "contacted" : markFor(email).stage, touchedAt: Date.now() })} />}
       <div className="relative z-10 lg:flex max-w-7xl mx-auto">
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/[0.06] min-h-screen p-5 sticky top-0 self-start">
@@ -646,9 +724,9 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* Mobile nav chips */}
+          {/* Mobile bottom tab bar (app-style) */}
           <LayoutGroup>
-            <div className="lg:hidden flex gap-1.5 mb-5 overflow-x-auto pb-1 -mx-4 px-4">
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex gap-1 overflow-x-auto border-t border-white/10 bg-bg/92 backdrop-blur-xl px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
               {nav.map((t) => (
                 <button key={t.id} onClick={() => setView(t.id)} className={`relative px-3 py-2 rounded-xl text-xs font-mono whitespace-nowrap transition-colors shrink-0 ${view === t.id ? "text-bg" : "text-muted"}`}>
                   {view === t.id && <motion.span layoutId="navchip" className="absolute inset-0 rounded-xl bg-accent" transition={{ type: "spring", stiffness: 450, damping: 35 }} />}
@@ -689,12 +767,15 @@ export default function TrackPage() {
           {snap && view === "today" && (
             <AnimatePresence mode="wait">
               <motion.div key="today" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="flex items-center gap-4 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-4 mb-5">
-                  <Ring pct={(pipe.workedToday / hitSize) * 100} size={64} stroke={6}><div className="text-center"><div className="font-mono text-base font-bold text-accent leading-none">{pipe.workedToday}</div><div className="text-[8px] font-mono text-muted">of {hitSize}</div></div></Ring>
-                  <div>
-                    <div className="text-accent font-mono text-[11px] tracking-[0.2em] uppercase mb-1">Today's Hit List</div>
-                    <div className="text-sm text-text/90">Reach out to these {hitList.length}. Close <span className="text-accent font-bold">{dailyTarget}</span> today to stay on sprint pace. Tap ◎ worked once you touch someone.</div>
+                <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-4 mb-5">
+                  <div className="flex items-center gap-4">
+                    <Ring pct={(pipe.workedToday / hitSize) * 100} size={64} stroke={6}><div className="text-center"><div className="font-mono text-base font-bold text-accent leading-none">{pipe.workedToday}</div><div className="text-[8px] font-mono text-muted">of {hitSize}</div></div></Ring>
+                    <div>
+                      <div className="text-accent font-mono text-[11px] tracking-[0.2em] uppercase mb-1">Today's Hit List</div>
+                      <div className="text-sm text-text/90">Reach out to these {hitList.length}. Close <span className="text-accent font-bold">{dailyTarget}</span> today to stay on sprint pace. Tap ◎ worked once you touch someone.</div>
+                    </div>
                   </div>
+                  <button onClick={() => setQueueOpen(true)} className="mt-3 w-full py-3 rounded-xl bg-accent text-bg font-bold text-sm hover:shadow-[0_0_24px_rgba(0,255,133,0.4)] transition-all active:scale-[0.99]">⚡ Rapid-text this list</button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {hitList.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} />)}
@@ -711,6 +792,7 @@ export default function TrackPage() {
                 <div className="rounded-2xl border border-gold/20 bg-gradient-to-br from-gold/[0.06] to-transparent p-4 mb-5">
                   <div className="text-gold font-mono text-[11px] tracking-[0.2em] uppercase mb-1">This Week's Mission</div>
                   <div className="text-sm text-text/90">These {focus.length} are your highest-impact calls this week: past-due first, then people billing soon, then builders whose downline you reactivate with them. Lock them in.</div>
+                  <button onClick={() => setQueueOpen(true)} className="mt-3 w-full py-3 rounded-xl bg-gold text-bg font-bold text-sm hover:shadow-[0_0_24px_rgba(201,168,76,0.4)] transition-all active:scale-[0.99]">⚡ Rapid-text the Focus list</button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {focus.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} />)}
@@ -777,8 +859,8 @@ export default function TrackPage() {
           {snap && listViews.includes(view) && (
             <>
               <div className="flex gap-2 mb-4 flex-wrap">
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, phone…" className="flex-1 min-w-[180px] bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-accent transition-colors" />
-                <select value={String(levelFilter)} onChange={(e) => setLevelFilter(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-accent text-text">
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, phone…" className="flex-1 min-w-[180px] bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-base font-mono outline-none focus:border-accent transition-colors" />
+                <select value={String(levelFilter)} onChange={(e) => setLevelFilter(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-base font-mono outline-none focus:border-accent text-text">
                   <option value="all">All levels</option>{levels.map((l) => <option key={l} value={l}>Level {l}</option>)}
                 </select>
               </div>
