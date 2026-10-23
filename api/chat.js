@@ -333,15 +333,21 @@ module.exports = async function handler(req, res) {
       // Safe one-time diagnostic (?debug=1, admin only): reports LENGTHS and whitespace flags
       // plus a live login attempt. Never returns the actual email or password characters.
       if (isAdmin && String((req.query && req.query.debug) || '') === '1') {
-        let pstatus = 0, pmsg = null, pgot = false;
+        let pstatus = 0, pmsg = null, bodyKeys = [], dataKeys = [], userKeys = [], resultKeys = [];
         try {
           const probe = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
           const pj = await probe.json().catch(() => null);
           pstatus = probe.status;
           pmsg = (pj && (pj.message || pj.error)) || null;
-          pgot = !!(pj && (pj.accessToken || pj.token || (pj.data && (pj.data.accessToken || pj.data.token))));
+          if (pj && typeof pj === 'object') {
+            bodyKeys = Object.keys(pj);
+            if (pj.data && typeof pj.data === 'object') dataKeys = Object.keys(pj.data);
+            if (pj.user && typeof pj.user === 'object') userKeys = Object.keys(pj.user);
+            if (pj.result && typeof pj.result === 'object') resultKeys = Object.keys(pj.result);
+          }
         } catch (e) { pmsg = 'probe_error:' + String((e && e.message) || e); }
-        return res.status(200).json({ ok: true, debug: true, emailLen: email.length, emailRawLen: rawEmail.length, emailHadWhitespace: rawEmail.length !== email.length, emailHasAt: email.includes('@'), emailAllLower: email === email.toLowerCase(), passLen: pass.length, passRawLen: rawPass.length, passHadWhitespace: rawPass.length !== pass.length, loginStatus: pstatus, loginMsg: pmsg, gotToken: pgot });
+        // Field NAMES only, never values. Lets me find which key holds the token.
+        return res.status(200).json({ ok: true, debug: true, emailLen: email.length, passLen: pass.length, loginStatus: pstatus, loginMsg: pmsg, bodyKeys: bodyKeys, dataKeys: dataKeys, userKeys: userKeys, resultKeys: resultKeys });
       }
       // 1) login
       let token = '';
