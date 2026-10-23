@@ -310,6 +310,85 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, geo: geo });
     }
 
+    // ── ONE HOUSE AUTO-REFRESH — logs in, pulls genealogy, rebuilds the tracker ──
+    //   GET ?kind=1h-refresh  (guarded by GP_ADMIN_KEY or a Vercel/GitHub cron)
+    //   Needs env ONE_HOUSE_EMAIL + ONE_HOUSE_PASSWORD. Runs hands-off hourly.
+    if (kind === '1h-refresh') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const ua = String((req.headers && req.headers['user-agent']) || '');
+      const isCron = /vercel-cron|github|greenprint-refresh/i.test(ua);
+      const k = qkey || clean(body.key, 128);
+      const PING = 'gp1h-cron-pull-v1'; // public trigger token, safe because the pull is rate-limited and returns no PII
+      const isAdmin = adminKey && k === adminKey;
+      if (!isCron && !isAdmin && k !== PING) return res.status(403).json({ error: 'not_authorized' });
+      // Self-rate-limit: never hit One House more than once per ~9 min, so a public trigger can't be abused.
+      const force = isAdmin && String((req.query && req.query.force) || '') === '1';
+      if (!force) { try { const p0 = JSON.parse((await r.get('gp:track:v1')) || 'null'); if (p0 && p0.source === 'auto-1h' && (Date.now() - (p0.updatedAt || 0)) < 9 * 60 * 1000) return res.status(200).json({ ok: true, skipped: true, reason: 'recent' }); } catch (e) {} }
+      const email = process.env.ONE_HOUSE_EMAIL || '';
+      const pass = process.env.ONE_HOUSE_PASSWORD || '';
+      if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
+      const B = 'https://backend.1houseglobal.dev';
+      // 1) login
+      let token = '';
+      try {
+        const lr = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
+        const lj = await lr.json().catch(() => null);
+        token = (lj && (lj.accessToken || lj.token || (lj.data && (lj.data.accessToken || lj.data.token)))) || '';
+        if (!token) return res.status(200).json({ ok: false, error: 'login_failed', detail: (lj && lj.message) || lr.status });
+      } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
+      // 2) pull genealogy (all pages)
+      const H = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
+      const nodes = [];
+      try {
+        let page = 1, last = 1;
+        do {
+          const gr = await fetch(B + '/api/user/genealogy-list?page=' + page, { headers: H });
+          const gj = await gr.json().catch(() => null);
+          const d = gj && gj.data; const arr = (d && Array.isArray(d.data)) ? d.data : [];
+          last = (d && d.last_page) || 1;
+          for (const n of arr) {
+            const u = n.user || {}; const pk = n.active_package || {};
+            nodes.push({ id: n.user_id, sp: (u.sponsor == null ? null : u.sponsor), name: String(n.fullname || u.username || '').trim(), email: String(u.email || '').toLowerCase(), paid: /yes/i.test(String(n.paid_subscription)), subs: n.subscribers_count || 0, lvl: n.level, amount: Number(pk.amount) || 0, purchase: pk.purchase_date || n.paid_subscription_date || null });
+          }
+          page++;
+        } while (page <= last && page <= 30);
+      } catch (e) { return res.status(200).json({ ok: false, error: 'genealogy_error', detail: String((e && e.message) || e) }); }
+      if (!nodes.length) return res.status(200).json({ ok: false, error: 'no_nodes' });
+      // 3) build members + tree
+      const DAY = 86400000; const now = Date.now();
+      const estDue = (basis) => { const b = Date.parse(String(basis || '').replace(' ', 'T')) || 0; if (!b) return null; let d = b; while (d < now) d += 30 * DAY; return new Date(d).toISOString().slice(0, 10); };
+      const tree = nodes.map((n) => ({ id: n.id, sp: n.sp, name: n.name, email: n.email, active: n.paid ? 1 : 0, subs: n.subs, lvl: n.lvl, paid: n.paid ? 1 : 0 }));
+      const members = nodes.map((n) => {
+        const nextDue = n.paid ? estDue(n.purchase) : null;
+        const du = nextDue ? Math.ceil((Date.parse(nextDue) - now) / DAY) : null;
+        let status = 'inactive';
+        if (n.paid) status = (du !== null && du < 0) ? 'lapsed' : 'active';
+        return { name: n.name, email: n.email, phone: '', level: n.lvl, status: status, amount: n.paid ? (n.amount || 200) : 0, nextDue: nextDue, referred: n.subs };
+      });
+      let active = 0, inactive = 0, lapsed = 0, due = 0;
+      for (const m of members) { if (m.status === 'active') active++; else if (m.status === 'lapsed') lapsed++; else inactive++; const d = m.nextDue ? Math.ceil((Date.parse(m.nextDue) - now) / DAY) : null; if (m.status === 'active' && d !== null && d <= 7) due++; }
+      // 4) preserve the existing goal (earnings) so the $10K tracker keeps its number
+      let goal = null; try { const prev = JSON.parse((await r.get('gp:track:v1')) || 'null'); goal = prev && prev.goal ? prev.goal : null; } catch (e) {}
+      const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
+      try { await r.set('gp:track:v1', JSON.stringify(record)); await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      // 5) diff vs last run and push alerts (new subscribers, newly past due)
+      try {
+        let baseN = null; try { baseN = JSON.parse((await r.get('gp:track:notify:last')) || 'null'); } catch (e) {}
+        const activeEmails = members.filter((m) => m.status === 'active').map((m) => m.email).filter(Boolean);
+        const notifs = [];
+        if (baseN && Array.isArray(baseN.activeEmails)) {
+          const prevSet = new Set(baseN.activeEmails);
+          const added = activeEmails.filter((e) => e && !prevSet.has(e));
+          if (added.length) notifs.push({ t: '🎉 ' + added.length + ' new subscriber' + (added.length > 1 ? 's' : '') + '!', b: 'Your One House business just grew. Open the tracker.' });
+          if (typeof baseN.lapsed === 'number' && lapsed > baseN.lapsed) { const dd = lapsed - baseN.lapsed; notifs.push({ t: '⚠️ ' + dd + ' went past due', b: 'Win them back before they lapse. Tap to work them.' }); }
+        }
+        for (const n of notifs) { try { await sendPush(r, n.t, n.b, '/track'); } catch (e) {} }
+        await r.set('gp:track:notify:last', JSON.stringify({ activeEmails: activeEmails, lapsed: lapsed, count: active, ts: now }));
+      } catch (e) {}
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, source: 'auto-1h', members: members.length, active: active, inactive: inactive, lapsed: lapsed });
+    }
+
     // ── ORG TREE — store/read the One House genealogy (sponsor links) ─────────
     //   POST ?kind=track-tree {key:GP_ADMIN_KEY, tree:[{id,sp,name,email,active,subs,lvl,...}]}
     if (kind === 'track-tree') {

@@ -1,0 +1,14 @@
+name: greenprint-onehouse-refresh
+# Pulls the One House genealogy hourly and rebuilds the tracker, hands-off.
+# The endpoint self-rate-limits (max once / ~9 min) and uses the One House
+# credentials stored only in Vercel env, so this public trigger is safe.
+on:
+  schedule:
+    - cron: '17 * * * *'   # every hour at :17 UTC
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger One House refresh
+        run: curl -s -m 90 "https://thegreenprint.trade/api/chat?kind=1h-refresh&key=gp1h-cron-pull-v1" || true
