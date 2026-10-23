@@ -575,6 +575,49 @@ function Funnel({ steps }: { steps: { label: string; n: number; color: string }[
   );
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64); const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+type NotifyState = "idle" | "working" | "on" | "blocked" | "unsupported";
+function NotifyBell() {
+  const [st, setSt] = useState<NotifyState>("idle");
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) { setSt("unsupported"); return; }
+      if (Notification.permission === "denied") { setSt("blocked"); return; }
+      if (Notification.permission === "granted") setSt("on");
+    } catch { setSt("unsupported"); }
+  }, []);
+  const enable = useCallback(async () => {
+    try {
+      setSt("working");
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setSt(perm === "denied" ? "blocked" : "idle"); return; }
+      const kr = await fetch("/api/chat?kind=push").then((r) => r.json()).catch(() => null);
+      const vapid = kr && kr.key;
+      if (!vapid) { setSt("idle"); return; }
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapid) as unknown as BufferSource });
+      await fetch("/api/chat?kind=push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", subscription: sub }) });
+      setSt("on");
+      try { reg.showNotification("Notifications on ✅", { body: "I'll ping you about new subscribers, due dates, and your morning brief.", icon: "/icon-192.png", badge: "/icon-192.png" }); } catch {}
+    } catch { setSt("idle"); }
+  }, []);
+  const label = st === "on" ? "🔔 Notifications on" : st === "working" ? "enabling…" : st === "blocked" ? "🔕 Turn on in Settings" : st === "unsupported" ? "📲 Add to Home Screen first" : "🔔 Enable notifications";
+  const done = st === "on" || st === "working" || st === "blocked" || st === "unsupported";
+  return (
+    <button onClick={done ? undefined : enable} disabled={st === "working"}
+      className={`gp-display w-full px-3 py-2.5 rounded-xl text-[12px] font-semibold border transition-colors ${st === "on" ? "border-accent/40 text-accent bg-accent/10" : st === "blocked" || st === "unsupported" ? "border-white/10 text-muted" : "border-accent/30 text-accent hover:bg-accent/10"}`}>
+      {label}
+    </button>
+  );
+}
+
 type View = "today" | "focus" | "pipeline" | "due" | "inactive" | "active" | "all" | "playbook" | "system";
 
 export default function TrackPage() {
@@ -608,6 +651,15 @@ export default function TrackPage() {
   // live clock + silent auto-refresh every 10 min
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
+  // Make /track its own installable app + register the push service worker
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    try {
+      if (!document.querySelector('link[rel="manifest"][data-gp-track]')) { const l = document.createElement("link"); l.rel = "manifest"; l.href = "/track.webmanifest"; l.setAttribute("data-gp-track", "1"); document.head.appendChild(l); }
+      if (!document.querySelector('link[rel="apple-touch-icon"][data-gp-track]')) { const a = document.createElement("link"); a.rel = "apple-touch-icon"; a.href = "/apple-touch-icon.png"; a.setAttribute("data-gp-track", "1"); document.head.appendChild(a); }
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    } catch {}
+  }, []);
 
   const markFor = useCallback((email: string): Mark => marks[(email || "").toLowerCase()] || DEFAULT_MARK, [marks]);
   const saveMark = useCallback((email: string, patch: Partial<Mark>) => {
@@ -761,7 +813,7 @@ export default function TrackPage() {
                 <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-muted/60 px-3 mb-1.5">{g}</div>
                 <div className="space-y-1">
                   {nav.filter((t) => t.group === g).map((t) => (
-                    <button key={t.id} onClick={() => setView(t.id)} className={`w-full text-left px-3 py-2 rounded-xl text-sm font-mono flex items-center justify-between transition-colors ${view === t.id ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text hover:bg-white/[0.03] border border-transparent"}`}>
+                    <button key={t.id} onClick={() => setView(t.id)} className={`gp-display w-full text-left px-3 py-2 rounded-xl text-[15px] font-medium flex items-center justify-between transition-colors ${view === t.id ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text hover:bg-white/[0.03] border border-transparent"}`}>
                       <span>{t.label}</span>{t.n !== undefined && <span className="opacity-60 text-xs">{t.n}</span>}
                     </button>
                   ))}
@@ -769,9 +821,12 @@ export default function TrackPage() {
               </div>
             ))}
           </nav>
-          <div className="mt-auto pt-6 text-[10px] font-mono text-muted leading-relaxed">
-            <div className="flex items-center gap-1.5 mb-1"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" /> live · auto-refresh</div>
-            {agoMin != null ? `updated ${agoMin === 0 ? "just now" : agoMin + "m ago"}` : "no data yet"}
+          <div className="mt-auto pt-6 space-y-3">
+            <NotifyBell />
+            <div className="text-[10px] font-mono text-muted leading-relaxed">
+              <div className="flex items-center gap-1.5 mb-1"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" /> live · auto-refresh</div>
+              {agoMin != null ? `updated ${agoMin === 0 ? "just now" : agoMin + "m ago"}` : "no data yet"}
+            </div>
           </div>
         </aside>
 
@@ -793,6 +848,7 @@ export default function TrackPage() {
             </div>
             <button onClick={() => load(pass)} disabled={loading} className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-mono hover:border-accent hover:text-accent transition-colors disabled:opacity-50 flex items-center gap-2"><span className={loading ? "inline-block animate-spin" : "inline-block"}>↻</span>{loading ? "Refreshing" : "Refresh"}</button>
           </div>
+          <div className="lg:hidden mb-5"><NotifyBell /></div>
 
           {snap && showHero && <GoalPanel goal={snap.goal} />}
           {snap && showHero && <SprintStrip goal={snap.goal} inactiveCount={counts.inactive + counts.lapsed} dueCount={counts.due} closedToday={pipe.closedToday} />}
@@ -811,7 +867,7 @@ export default function TrackPage() {
           <LayoutGroup>
             <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex gap-1 overflow-x-auto border-t border-white/10 bg-bg/92 backdrop-blur-xl px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
               {nav.map((t) => (
-                <button key={t.id} onClick={() => setView(t.id)} className={`relative px-3 py-2 rounded-xl text-xs font-mono whitespace-nowrap transition-colors shrink-0 ${view === t.id ? "text-bg" : "text-muted"}`}>
+                <button key={t.id} onClick={() => setView(t.id)} className={`gp-display relative px-3 py-2 rounded-xl text-[13px] whitespace-nowrap transition-colors shrink-0 ${view === t.id ? "text-bg" : "text-muted"}`}>
                   {view === t.id && <motion.span layoutId="navchip" className="absolute inset-0 rounded-xl bg-accent" transition={{ type: "spring", stiffness: 450, damping: 35 }} />}
                   <span className="relative z-10 font-semibold">{t.label}{t.n !== undefined ? <span className="opacity-70"> ({t.n})</span> : null}</span>
                 </button>

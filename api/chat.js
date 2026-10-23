@@ -387,6 +387,51 @@ module.exports = async function handler(req, res) {
       } catch (e) { return res.status(200).json({ ok: false, error: String((e && e.message) || e) }); }
     }
 
+    // ── TRACKER NOTIFY — morning brief + change alerts, pushed to Jay ─────────
+    //   Fires from Vercel cron (user-agent vercel-cron) or admin key.
+    //   ?kind=track-notify&mode=daily|brief|watch
+    if (kind === 'track-notify') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const ua = String((req.headers && req.headers['user-agent']) || '');
+      const isCron = /vercel-cron/i.test(ua);
+      const k = qkey || clean(body.key, 128);
+      if (!isCron && !(adminKey && k === adminKey)) return res.status(403).json({ error: 'not_admin' });
+      const mode = clean((req.query && req.query.mode) || body.mode || 'daily', 12);
+      let rec = null;
+      try { rec = JSON.parse((await r.get('gp:track:v1')) || 'null'); } catch (e) {}
+      if (!rec || !Array.isArray(rec.members)) return res.status(200).json({ ok: true, note: 'no_snapshot', sent: 0 });
+      const members = rec.members;
+      const goal = rec.goal || {};
+      const target = Number(goal.target) || 10000, perSub = Number(goal.perSub) || 100;
+      const earn = (typeof goal.earnings === 'number') ? goal.earnings : null;
+      const subsToGo = earn != null ? Math.max(0, Math.ceil((target - earn) / perSub)) : null;
+      const DAY = 86400000;
+      const du = (iso) => { if (!iso) return null; const t = new Date(iso).getTime(); return isNaN(t) ? null : Math.ceil((t - Date.now()) / DAY); };
+      let active = 0, due = 0, lapsed = 0; const activeEmails = [];
+      for (const m of members) {
+        if (m.status === 'active') { active++; if (m.email) activeEmails.push(String(m.email).toLowerCase()); }
+        if (m.status === 'lapsed') lapsed++;
+        const d = du(m.nextDue); if (m.status === 'active' && d != null && d <= 3) due++;
+      }
+      let base = null; try { base = JSON.parse((await r.get('gp:track:notify:last')) || 'null'); } catch (e) {}
+      const notifs = [];
+      const kDollar = '$' + Math.round(target / 1000) + 'K';
+      if (base && Array.isArray(base.activeEmails)) {
+        const prev = new Set(base.activeEmails);
+        const added = activeEmails.filter((e) => e && !prev.has(e));
+        if (added.length) notifs.push({ title: '🎉 ' + added.length + ' new subscriber' + (added.length > 1 ? 's' : '') + '!', body: subsToGo != null ? "You're " + subsToGo + ' away from ' + kDollar + '. Keep going.' : 'Momentum is building. Keep going.', url: '/track' });
+        if (typeof base.lapsed === 'number' && lapsed > base.lapsed) { const d = lapsed - base.lapsed; notifs.push({ title: '⚠️ ' + d + ' ' + (d > 1 ? 'members' : 'member') + ' just went past due', body: 'Open your tracker and win them back before they lapse.', url: '/track' }); }
+      }
+      if (mode === 'daily' || mode === 'brief') {
+        notifs.push({ title: '☀️ Good morning, Jay', body: (subsToGo != null ? "You're " + subsToGo + ' from ' + kDollar + '. ' : '') + due + ' due this week, ' + lapsed + ' past due. Tap to work your list.', url: '/track' });
+      }
+      let sent = 0;
+      for (const n of notifs) { try { sent += await sendPush(r, n.title, n.body, n.url); } catch (e) {} }
+      try { await r.set('gp:track:notify:last', JSON.stringify({ activeEmails: activeEmails, lapsed: lapsed, count: active, ts: Date.now() })); } catch (e) {}
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, sent: sent, notifs: notifs.length, subsToGo: subsToGo });
+    }
+
     // ── WEB PUSH ───────────────────────────────────────────────────────────────
     if (kind === 'push') {
       if (req.method === 'GET') {

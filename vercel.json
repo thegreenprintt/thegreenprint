@@ -8,6 +8,7 @@
     "NODE_ENV": "production"
   },
   "crons": [
-    { "path": "/api/greenprint-schedule", "schedule": "0 11 * * *" }
+    { "path": "/api/greenprint-schedule", "schedule": "0 11 * * *" },
+    { "path": "/api/chat?kind=track-notify&mode=daily", "schedule": "30 13 * * *" }
   ]
 }
