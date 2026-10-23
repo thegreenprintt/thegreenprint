@@ -311,7 +311,6 @@ module.exports = async function handler(req, res) {
         '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:8px;display:inline-block">Come back to the room</a></p>' +
         '<p style="font-size:15px;line-height:1.6">You in? Just reply and I got you. And if you really done, no hard feelings, tell me straight. But deep down, I think you miss us. 💚</p>' +
         '<p style="font-size:15px;line-height:1.6;font-weight:700">Jay</p>' +
-        '<p style="font-size:12px;line-height:1.5;color:#777;margin-top:18px">The Greenprint · educational only, not financial advice. Reply STOP and I will not hit you again.</p>' +
         '</div>';
       const html = String(body.html || '') || defaultHtml;
       let Resend;

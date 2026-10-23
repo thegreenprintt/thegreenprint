@@ -102,6 +102,15 @@ function CallBtn({ phone }: { phone: string }) {
   if (!phone) return <span className="text-[10px] font-mono text-muted/70 pr-1">no number</span>;
   return <a href={telHref(phone)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-xs font-mono font-semibold hover:bg-accent hover:text-bg transition-all hover:shadow-[0_0_20px_rgba(0,255,133,0.35)]"><span className="text-sm">☎</span> {phone}</a>;
 }
+function smsHref(phone: string, first: string): string {
+  const num = (phone || "").replace(/[^\d+]/g, "");
+  const msg = `Yo ${first || ""}, it's Jay. You fell off One House, come get back in the room: https://subscribe.1houseglobal.com/jay`;
+  return `sms:${num}?&body=${encodeURIComponent(msg)}`;
+}
+function TextBtn({ m }: { m: Member }) {
+  if (!m.phone) return null;
+  return <a href={smsHref(m.phone, (m.name || "").split(" ")[0])} className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-white/10 text-muted text-[11px] font-mono font-semibold hover:border-accent hover:text-accent transition-all">💬 text</a>;
+}
 
 function FocusCard({ m, rank, reasons, emailState, onEmail }: { m: Member; rank: number; reasons: string[]; emailState: EmailState; onEmail: (m: Member) => void }) {
   return (
@@ -124,8 +133,9 @@ function FocusCard({ m, rank, reasons, emailState, onEmail }: { m: Member; rank:
           </div>
         </div>
       </div>
-      <div className="relative mt-3 flex items-center gap-2 justify-end">
+      <div className="relative mt-3 flex items-center gap-2 justify-end flex-wrap">
         <EmailBtn m={m} state={emailState} onEmail={onEmail} />
+        <TextBtn m={m} />
         <CallBtn phone={m.phone} />
       </div>
     </motion.div>
@@ -152,6 +162,7 @@ function MemberRow({ m, i, emailState, onEmail }: { m: Member; i: number; emailS
       </div>
       <div className="shrink-0 flex items-center gap-2">
         <EmailBtn m={m} state={emailState} onEmail={onEmail} />
+        <TextBtn m={m} />
         <CallBtn phone={m.phone} />
       </div>
     </motion.div>
