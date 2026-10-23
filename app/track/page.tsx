@@ -25,9 +25,9 @@ interface Snapshot { updatedAt: number; source: string; counts: Record<string, n
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
 type VoiceKey = "default" | "auntie" | "og" | "homie";
-interface Mark { stage: Stage; note: string; touchedAt: number; closedAt: number; voice: VoiceKey; }
+interface Mark { stage: Stage; note: string; touchedAt: number; closedAt: number; voice: VoiceKey; birthday: string; }
 type Marks = Record<string, Mark>;
-const DEFAULT_MARK: Mark = { stage: "new", note: "", touchedAt: 0, closedAt: 0, voice: "default" };
+const DEFAULT_MARK: Mark = { stage: "new", note: "", touchedAt: 0, closedAt: 0, voice: "default", birthday: "" };
 const STAGES: Stage[] = ["new", "contacted", "talking", "committed", "closed"];
 const STAGE_META: Record<Stage, { label: string; color: string; short: string }> = {
   new:       { label: "Not worked", color: "#8a8a8a", short: "NEW" },
@@ -189,15 +189,51 @@ function agoShort(ms: number): string {
   const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24); return `${d}d ago`;
 }
-function RapidTextQueue({ items, voiceFor, onClose, onContacted, onVoice }: { items: Member[]; voiceFor: (email: string) => VoiceKey; onClose: () => void; onContacted: (email: string) => void; onVoice: (email: string, v: VoiceKey) => void }) {
+function birthdayMsg(voice: string, first: string): string {
+  const f = first || "";
+  if (voice === "auntie") return `Happy Birthday auntie${f ? " " + f : ""}!! 🎉❤️ It's Jay. Hope your day is everything you deserve and more. Enjoy it 🙏`;
+  if (voice === "og") return `Happy Birthday OG!! 🎉 It's Jay. Hope you have a blessed day fam, you earned it.`;
+  if (voice === "homie") return `HBD ${f || "bro"}!! 🎉🙌 It's Jay. Enjoy your day to the fullest fam, let's get it.`;
+  return `Happy Birthday ${f || "fam"}!! 🎉 It's Jay. Hope you have an amazing day, enjoy every bit of it 🙏`;
+}
+function bdValid(bd: string): boolean { return /^\d{2}-\d{2}$/.test(bd || ""); }
+function bdToday(bd: string): boolean { if (!bdValid(bd)) return false; const n = new Date(); const mm = String(n.getMonth() + 1).padStart(2, "0"); const dd = String(n.getDate()).padStart(2, "0"); return bd === `${mm}-${dd}`; }
+function bdDaysUntil(bd: string): number | null { if (!bdValid(bd)) return null; const [m, d] = bd.split("-").map(Number); const n = new Date(); const today = new Date(n.getFullYear(), n.getMonth(), n.getDate()); let t = new Date(n.getFullYear(), m - 1, d); if (t < today) t = new Date(n.getFullYear() + 1, m - 1, d); return Math.round((t.getTime() - today.getTime()) / DAY); }
+function NoteField({ mark, onSave }: { mark: Mark; onSave: (patch: Partial<Mark>) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(mark.note || "");
+  const [bd, setBd] = useState(mark.birthday || "");
+  useEffect(() => { setVal(mark.note || ""); setBd(mark.birthday || ""); }, [mark.note, mark.birthday]);
+  if (!editing) {
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="block text-left w-full">
+        {mark.note ? <div className="text-[12px] text-text/75 leading-snug">📝 {mark.note}</div> : <div className="text-[10px] font-mono text-muted/60 hover:text-accent transition-colors">＋ note / birthday</div>}
+        {mark.birthday && <div className="text-[10px] font-mono text-gold mt-0.5">🎂 {mark.birthday.replace("-", "/")}</div>}
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+      <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="Note e.g. said call back Friday" className="w-full bg-black/30 border border-white/10 rounded-lg px-2.5 py-2 text-base outline-none focus:border-accent" />
+      <div className="flex items-center gap-2">
+        <input value={bd} onChange={(e) => setBd(e.target.value)} placeholder="Birthday MM-DD" className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-2.5 py-2 text-base font-mono outline-none focus:border-accent" />
+        <button onClick={() => { onSave({ note: val.trim(), birthday: bdValid(bd) ? bd : "" }); setEditing(false); }} className="shrink-0 px-3 py-2 rounded-lg bg-accent text-bg text-[12px] font-bold">save</button>
+        <button onClick={() => setEditing(false)} className="shrink-0 px-2 py-2 rounded-lg border border-white/10 text-[12px] text-muted">✕</button>
+      </div>
+    </div>
+  );
+}
+function RapidTextQueue({ items, markFor, voiceFor, onClose, onContacted, onVoice, onSave }: { items: Member[]; markFor: (email: string) => Mark; voiceFor: (email: string) => VoiceKey; onClose: () => void; onContacted: (email: string) => void; onVoice: (email: string, v: VoiceKey) => void; onSave: (email: string, patch: Partial<Mark>) => void }) {
   const withPhone = useMemo(() => items.filter((m) => m.phone), [items]);
   const [idx, setIdx] = useState(0);
   const [salt, setSalt] = useState(0);
   const total = withPhone.length;
   const m = withPhone[idx];
   const first = (m?.name || "").split(" ")[0];
+  const mk = m ? markFor(m.email) : DEFAULT_MARK;
   const voice = m ? voiceFor(m.email) : "default";
-  const msg = m ? pickVoiceMsg(voice, m.email, first, salt) : "";
+  const isBd = m ? bdToday(mk.birthday) : false;
+  const msg = m ? (isBd ? birthdayMsg(voice, first) : pickVoiceMsg(voice, m.email, first, salt)) : "";
   return (
     <div className="fixed inset-0 z-[70] bg-bg/95 backdrop-blur-xl flex flex-col">
       <div className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 border-b border-white/[0.06]">
@@ -230,8 +266,10 @@ function RapidTextQueue({ items, voiceFor, onClose, onContacted, onVoice }: { it
                 <div className="mt-3 rounded-2xl bg-black/30 border border-white/[0.06] p-4 text-left">
                   <div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1.5">They'll receive · {VOICE_MAP[voice]?.hint}</div>
                   <div className="text-[15px] text-text/90 leading-relaxed">{msg}</div>
-                  <button onClick={() => setSalt((s) => s + 1)} className="mt-3 text-[11px] font-mono text-muted hover:text-accent transition-colors">↻ shuffle message</button>
+                  {!isBd && <button onClick={() => setSalt((s) => s + 1)} className="mt-3 text-[11px] font-mono text-muted hover:text-accent transition-colors">↻ shuffle message</button>}
+                  {isBd && <div className="mt-2 text-[11px] font-mono text-gold">🎂 birthday message</div>}
                 </div>
+                <div className="mt-3 text-left rounded-2xl bg-black/20 border border-white/[0.05] p-3"><NoteField mark={mk} onSave={(patch) => onSave(m.email, patch)} /></div>
                 <a href={smsHref(m.phone, msg)} onClick={() => { onContacted(m.email); setTimeout(() => setIdx((i) => i + 1), 350); }}
                   className="mt-5 block w-full py-4 rounded-2xl bg-accent text-bg font-bold text-base hover:shadow-[0_0_28px_rgba(0,255,133,0.45)] transition-all active:scale-[0.98]">Open text in Messages →</a>
                 <div className="mt-2.5 flex items-center gap-2">
@@ -316,7 +354,7 @@ function WorkedCheck({ touchedAt, onTouch }: { touchedAt: number; onTouch: () =>
   );
 }
 
-function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTouch }: { m: Member; rank: number; reasons: string[]; emailState: EmailState; onEmail: (m: Member) => void; mark: Mark; onStage: (s: Stage) => void; onTouch: () => void }) {
+function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTouch, onSave }: { m: Member; rank: number; reasons: string[]; emailState: EmailState; onEmail: (m: Member) => void; mark: Mark; onStage: (s: Stage) => void; onTouch: () => void; onSave: (patch: Partial<Mark>) => void }) {
   const du = daysUntil(m.nextDue); const badge = builderBadge(m.referred);
   const closed = mark.stage === "closed";
   return (
@@ -336,13 +374,17 @@ function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTou
             {badge && <span title="People brought in, not earnings" className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold rounded tracking-wider" style={{ color: badge.color, border: `1px solid ${badge.color}55` }}>{badge.label}</span>}
             {du !== null && du <= 7 && <span className="text-[10px] font-mono font-bold text-red">{du <= 0 ? "DUE NOW" : `DUE ${du}D`}</span>}
           </div>
+          <div className={`text-[11px] font-mono truncate mt-1 ${m.phone || m.email ? "text-muted/80" : "text-red/70"}`}>{m.phone || m.email || "no contact on file"}</div>
         </div>
       </div>
       <div className="relative mt-3 flex flex-wrap gap-1.5">
         {reasons.slice(0, 3).map((r, i) => (
           <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/[0.04] text-text/70 border border-white/[0.05]">{r}</span>
         ))}
+        {bdToday(mark.birthday) && <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-gold/15 text-gold border border-gold/30">🎂 birthday today</span>}
       </div>
+      <div className="relative mt-3 pt-3 border-t border-white/[0.06]"><NoteField mark={mark} onSave={onSave} /></div>
+      {m.phone && bdToday(mark.birthday) && <a href={smsHref(m.phone, birthdayMsg(mark.voice, (m.name || "").split(" ")[0]))} onClick={() => onTouch()} className="relative mt-2 block w-full text-center py-2 rounded-xl bg-gold/15 border border-gold/30 text-gold text-[12px] font-mono font-semibold hover:bg-gold hover:text-bg transition-all">🎂 Send birthday text</a>}
       {mark.touchedAt > 0 && <div className="relative mt-2 text-[10px] font-mono text-muted/70">last worked {agoShort(mark.touchedAt)}</div>}
       <div className="relative mt-3 flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
         <StageDots stage={mark.stage} onSet={onStage} />
@@ -374,6 +416,8 @@ function MemberRow({ m, i, emailState, onEmail, mark, onStage, onTouch }: { m: M
             {badge && <span title="People brought in, not earnings" className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold rounded tracking-wider" style={{ color: badge.color, border: `1px solid ${badge.color}55` }}>{badge.label}</span>}
             {dueSoon && <span className="text-[10px] font-mono font-bold text-red">{du! <= 0 ? "DUE NOW" : `DUE ${du}D`}</span>}
           </div>
+          <div className={`text-xs truncate font-mono mt-0.5 ${m.email || m.phone ? "text-muted" : "text-red/70"}`}>{m.email || m.phone || "no contact on file"}</div>
+          {mark.note && <div className="text-[11px] text-text/60 truncate mt-0.5">📝 {mark.note}</div>}
           <div className="mt-1.5"><StageDots stage={mark.stage} onSet={onStage} /></div>
         </div>
       </div>
@@ -571,6 +615,7 @@ export default function TrackPage() {
       if (patch.note !== undefined) next.note = patch.note;
       if (patch.touchedAt !== undefined) next.touchedAt = patch.touchedAt;
       if (patch.voice) next.voice = patch.voice;
+      if (patch.birthday !== undefined) next.birthday = patch.birthday;
       const all = { ...prev, [key]: next };
       try { localStorage.setItem(MARKS_LS, JSON.stringify(all)); } catch {}
       return all;
@@ -579,6 +624,7 @@ export default function TrackPage() {
     if (patch.stage) payload.stage = patch.stage;
     if (patch.note !== undefined) payload.note = patch.note;
     if (patch.voice) payload.voice = patch.voice;
+    if (patch.birthday !== undefined) payload.birthday = patch.birthday;
     if (patch.touchedAt !== undefined) payload.touch = 1;
     fetch(`/api/chat?kind=track-mark`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
   }, [pass]);
@@ -631,6 +677,11 @@ export default function TrackPage() {
   }, [snap]);
   const hitSize = Math.min(14, Math.max(6, dailyTarget * 5));
   const hitList = useMemo(() => scored.filter((x) => { const mk = marks[(x.m.email || "").toLowerCase()]; return !mk || (mk.stage !== "closed" && mk.stage !== "skip"); }).slice(0, hitSize), [scored, marks, hitSize]);
+  const birthdays = useMemo(() => {
+    const out: { m: Member; days: number }[] = [];
+    for (const mm of members) { const bd = marks[(mm.email || "").toLowerCase()]?.birthday; const du = bd ? bdDaysUntil(bd) : null; if (du !== null && du <= 7) out.push({ m: mm, days: du }); }
+    return out.sort((a, b) => a.days - b.days);
+  }, [members, marks]);
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -690,8 +741,9 @@ export default function TrackPage() {
     <main className="min-h-screen bg-bg text-text relative overflow-x-hidden">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
+      <div className="gp-vignette" />
       <Confetti fire={confetti} />
-      {queueOpen && <RapidTextQueue items={(view === "today" ? hitList : focus).map((f) => f.m)} voiceFor={(email) => markFor(email).voice} onVoice={(email, v) => saveMark(email, { voice: v })} onClose={() => setQueueOpen(false)} onContacted={(email) => saveMark(email, { stage: markFor(email).stage === "new" ? "contacted" : markFor(email).stage, touchedAt: Date.now() })} />}
+      {queueOpen && <RapidTextQueue items={(view === "today" ? hitList : focus).map((f) => f.m)} markFor={markFor} voiceFor={(email) => markFor(email).voice} onVoice={(email, v) => saveMark(email, { voice: v })} onSave={(email, patch) => saveMark(email, patch)} onClose={() => setQueueOpen(false)} onContacted={(email) => saveMark(email, { stage: markFor(email).stage === "new" ? "contacted" : markFor(email).stage, touchedAt: Date.now() })} />}
       <div className="relative z-10 lg:flex max-w-7xl mx-auto">
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/[0.06] min-h-screen p-5 sticky top-0 self-start">
@@ -724,7 +776,7 @@ export default function TrackPage() {
           {/* Header */}
           <div className="pt-8 pb-5 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-[26px] sm:text-4xl font-bold tracking-tight">{nav.find((n) => n.id === view)?.label}</h1>
+              <h1 className="font-mono text-[22px] sm:text-[34px] font-bold tracking-[-0.01em] bg-gradient-to-r from-white via-white to-accent/70 bg-clip-text text-transparent">{nav.find((n) => n.id === view)?.label}</h1>
               <p className="text-muted text-xs font-mono mt-1.5">
                 {view === "today" ? "Your daily method of operation. Work this list top to bottom." :
                   view === "focus" ? "Your ranked lock-in list, work top to bottom." :
@@ -794,6 +846,20 @@ export default function TrackPage() {
           {snap && view === "today" && (
             <AnimatePresence mode="wait">
               <motion.div key="today" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {birthdays.length > 0 && (
+                  <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4 mb-5">
+                    <div className="text-gold font-mono text-[11px] tracking-[0.2em] uppercase mb-2">🎂 Birthdays this week</div>
+                    <div className="flex flex-wrap gap-2">
+                      {birthdays.map(({ m, days }) => (
+                        <div key={m.email || m.name} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                          <span className="text-sm text-text">{m.name || "(no name)"}</span>
+                          <span className="text-[10px] font-mono text-gold">{days === 0 ? "today" : `${days}d`}</span>
+                          {m.phone && days === 0 && <a href={smsHref(m.phone, birthdayMsg(markFor(m.email).voice, (m.name || "").split(" ")[0]))} onClick={() => onTouch(m.email)} className="text-[10px] font-mono text-gold underline hover:no-underline">text 🎂</a>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-4 mb-5">
                   <div className="flex items-center gap-4">
                     <Ring pct={(pipe.workedToday / hitSize) * 100} size={64} stroke={6}><div className="text-center"><div className="font-mono text-base font-bold text-accent leading-none">{pipe.workedToday}</div><div className="text-[8px] font-mono text-muted">of {hitSize}</div></div></Ring>
@@ -805,7 +871,7 @@ export default function TrackPage() {
                   <button onClick={() => setQueueOpen(true)} className="mt-3 w-full py-3 rounded-xl bg-accent text-bg font-bold text-sm hover:shadow-[0_0_24px_rgba(0,255,133,0.4)] transition-all active:scale-[0.99]">⚡ Rapid-text this list</button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {hitList.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} />)}
+                  {hitList.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} onSave={(patch) => saveMark(f.m.email, patch)} />)}
                 </div>
                 {hitList.length === 0 && <div className="text-center text-muted text-sm py-10">Everyone's closed or set aside. Incredible.</div>}
               </motion.div>
@@ -822,7 +888,7 @@ export default function TrackPage() {
                   <button onClick={() => setQueueOpen(true)} className="mt-3 w-full py-3 rounded-xl bg-gold text-bg font-bold text-sm hover:shadow-[0_0_24px_rgba(201,168,76,0.4)] transition-all active:scale-[0.99]">⚡ Rapid-text the Focus list</button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {focus.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} />)}
+                  {focus.map((f, i) => <FocusCard key={f.m.email || i} m={f.m} rank={i + 1} reasons={f.reasons} emailState={emailStates[f.m.email] || "idle"} onEmail={onEmail} mark={markFor(f.m.email)} onStage={(s) => onStage(f.m.email, s)} onTouch={() => onTouch(f.m.email)} onSave={(patch) => saveMark(f.m.email, patch)} />)}
                 </div>
                 {focus.length === 0 && <div className="text-center text-muted text-sm py-10">Nothing urgent this week. Everyone's current.</div>}
               </motion.div>
@@ -1087,5 +1153,6 @@ const auroraCss = `
 @keyframes gpDrift1{0%,100%{transform:translate(0,0)}50%{transform:translate(12vmax,8vmax)}}
 @keyframes gpDrift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-10vmax,-6vmax)}}
 .gp-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%)}
+.gp-vignette{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(130% 85% at 50% -12%, rgba(0,255,133,.07), transparent 52%)}
 @media(prefers-reduced-motion:reduce){.gp-aurora::before,.gp-aurora::after{animation:none}}
 `;
