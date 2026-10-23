@@ -17,7 +17,8 @@ interface Member {
   name: string; email: string; phone: string; level: number;
   status: Status; amount: number; nextDue: string | null; referred: number;
 }
-interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; }
+interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
+interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 
 const LS_KEY = "gp_track_key";
 const DAY = 86400000;
@@ -157,6 +158,63 @@ function MemberRow({ m, i, emailState, onEmail }: { m: Member; i: number; emailS
   );
 }
 
+function GoalPanel({ goal }: { goal?: Goal }) {
+  const target = goal?.target ?? 10000;
+  const perSub = goal?.perSub ?? 100;
+  const deadline = goal?.deadline ?? "2026-11-01";
+  const earnings = goal?.earnings ?? null;
+  const remaining = earnings != null ? Math.max(0, target - earnings) : null;
+  const subsToGo = remaining != null ? Math.ceil(remaining / perSub) : null;
+  const pct = earnings != null ? Math.min(100, (earnings / target) * 100) : 0;
+  const daysLeft = Math.max(0, Math.ceil((new Date(deadline + "T23:59:59").getTime() - Date.now()) / DAY));
+  const subsN = useCountUp(subsToGo ?? 0);
+  const earnN = useCountUp(earnings ?? 0);
+  const [barW, setBarW] = useState(0);
+  useEffect(() => { const t = setTimeout(() => setBarW(pct), 150); return () => clearTimeout(t); }, [pct]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="relative overflow-hidden rounded-3xl border border-gold/25 bg-gradient-to-br from-gold/[0.10] via-white/[0.02] to-transparent p-5 sm:p-6 mb-6">
+      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full blur-3xl" style={{ background: "rgba(201,168,76,0.18)" }} />
+      <div className="relative">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-gold animate-pulse" />
+            <span className="text-gold font-mono text-[11px] tracking-[0.25em] uppercase">Double Pay Goal</span>
+          </div>
+          <div className="font-mono text-[11px] text-text/80">
+            <span className="text-gold font-bold">{daysLeft}</span> days left · ${perSub}/sub ends {new Date(deadline + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </div>
+        </div>
+
+        <div className="flex items-end gap-4 flex-wrap">
+          {subsToGo != null ? (
+            <div>
+              <div className="text-[64px] sm:text-[80px] leading-none font-mono font-black text-gold tabular-nums">{subsN}</div>
+              <div className="text-sm text-text/70 font-mono -mt-1">subscribers to ${ (target/1000) }K</div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-3xl font-bold text-text">Goal: ${(target / 1000)}K</div>
+              <div className="text-sm text-muted font-mono mt-1">Earnings sync on tonight's refresh</div>
+            </div>
+          )}
+          <div className="flex-1 min-w-[180px]">
+            <div className="flex justify-between text-[11px] font-mono text-muted mb-1.5">
+              <span>{earnings != null ? `$${earnN.toLocaleString()}` : "—"}</span>
+              <span>${target.toLocaleString()}</span>
+            </div>
+            <div className="h-3 rounded-full bg-white/[0.06] overflow-hidden border border-white/[0.06]">
+              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg,#00FF85,#C9A84C)" }} animate={{ width: `${barW}%` }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
+            </div>
+            <div className="text-[11px] font-mono text-muted mt-1.5">{earnings != null ? `${pct.toFixed(0)}% there · each $${perSub} sub before ${new Date(deadline + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} pays you $${perSub}` : `Goal $${target.toLocaleString()}`}</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 type View = "focus" | "due" | "inactive" | "active" | "all";
 
 export default function TrackPage() {
@@ -278,6 +336,9 @@ export default function TrackPage() {
             </div>
             <button onClick={() => load(pass)} disabled={loading} className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-mono hover:border-accent hover:text-accent transition-colors disabled:opacity-50 flex items-center gap-2"><span className={loading ? "inline-block animate-spin" : "inline-block"}>↻</span>{loading ? "Refreshing" : "Refresh"}</button>
           </div>
+
+          {/* Goal tracker */}
+          {snap && <GoalPanel goal={snap.goal} />}
 
           {/* Stat tiles */}
           <div className="flex gap-3 flex-wrap mb-6">
