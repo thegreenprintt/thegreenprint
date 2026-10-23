@@ -264,6 +264,40 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, snapshot: rec });
     }
 
+    // ── TRACKER EMAIL — reactivation email to a member, or Jay's daily alert ──
+    //   POST ?kind=track-email {key:GP_ADMIN_KEY, to, name?, subject?, html?}
+    //   If html is omitted, a default reactivation email (Jay's voice) is sent.
+    if (kind === 'track-email') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = clean(body.key, 128) || qkey;
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      const to = clean(body.to, 160);
+      if (!to || to.indexOf('@') < 1) return res.status(400).json({ error: 'bad_to' });
+      const name = clean(body.name, 60) || 'there';
+      const subject = clean(body.subject, 200) || ('Come back to One House, ' + name);
+      const SUB = 'https://subscribe.1houseglobal.com/jay';
+      const defaultHtml =
+        '<div style="font-family:Inter,Arial,sans-serif;background:#080808;color:#f5f5f5;padding:28px;border-radius:12px;max-width:560px">' +
+        '<div style="color:#00FF85;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px">The Greenprint</div>' +
+        '<p style="font-size:16px;line-height:1.6">Hey ' + name + ',</p>' +
+        '<p style="font-size:16px;line-height:1.6">I noticed you stepped away from One House. The room is live every single day, real trading, the breakdowns, the community that is actually putting money on the board.</p>' +
+        '<p style="font-size:16px;line-height:1.6">If you are ready to get back in, I would love to have you. Lock back in here:</p>' +
+        '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:8px;display:inline-block">Get Back In</a></p>' +
+        '<p style="font-size:14px;line-height:1.6;color:#999">You in? Reply to this email and I will get you set up. If you would rather not hear from me, just reply and say so.</p>' +
+        '<p style="font-size:14px;line-height:1.6">Jay</p>' +
+        '</div>';
+      const html = String(body.html || '') || defaultHtml;
+      let Resend;
+      try { Resend = require('resend').Resend; } catch (e) { return res.status(200).json({ ok: false, error: 'resend_unavailable' }); }
+      const rkey = process.env.RESEND_API_KEY;
+      if (!rkey) return res.status(200).json({ ok: false, error: 'no_resend_key' });
+      try {
+        const resend = new Resend(rkey);
+        const out = await resend.emails.send({ from: 'Jay @ The Greenprint <noreply@thegreenprint.trade>', to: to, subject: subject, html: html });
+        return res.status(200).json({ ok: true, id: out && out.data ? out.data.id : null });
+      } catch (e) { return res.status(200).json({ ok: false, error: String((e && e.message) || e) }); }
+    }
+
     // ── WEB PUSH ───────────────────────────────────────────────────────────────
     if (kind === 'push') {
       if (req.method === 'GET') {
