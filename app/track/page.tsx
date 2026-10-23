@@ -623,7 +623,7 @@ function NotifyBell() {
   );
 }
 
-type View = "today" | "focus" | "pipeline" | "due" | "inactive" | "active" | "all" | "playbook" | "system";
+type View = "today" | "focus" | "pipeline" | "community" | "due" | "inactive" | "active" | "all" | "playbook" | "system";
 
 export default function TrackPage() {
   const [pass, setPass] = useState(""); const [input, setInput] = useState("");
@@ -727,6 +727,7 @@ export default function TrackPage() {
   }, [members, marks]);
 
   const scored = useMemo(() => members.map((m) => ({ m, ...score(m) })).sort((a, b) => b.s - a.s), [members]);
+  const builders = useMemo(() => members.filter((m) => (m.referred || 0) >= 1).sort((a, b) => (b.referred || 0) - (a.referred || 0) || (a.name || "").localeCompare(b.name || "")), [members]);
   const focus = useMemo(() => scored.filter((x) => x.m.status !== "active" || (daysUntil(x.m.nextDue) !== null && daysUntil(x.m.nextDue)! <= 7)).slice(0, 15), [scored]);
 
   // Today's hit list: highest-impact, not already closed/skipped, sized to the sprint
@@ -786,6 +787,7 @@ export default function TrackPage() {
     { id: "today", label: "Today", n: hitList.length, group: "Work" },
     { id: "focus", label: "Focus This Week", n: focus.length, group: "Work" },
     { id: "pipeline", label: "Pipeline", n: pipe.worked, group: "Work" },
+    { id: "community", label: "Community", n: builders.length, group: "Work" },
     { id: "due", label: "Due This Week", n: counts.due, group: "Book" },
     { id: "inactive", label: "Inactive", n: counts.inactive + counts.lapsed, group: "Book" },
     { id: "active", label: "Active", n: counts.active, group: "Book" },
@@ -796,7 +798,7 @@ export default function TrackPage() {
   const groups = ["Work", "Book", "Win"];
   const listViews: View[] = ["due", "inactive", "active", "all"];
   const showHero = view === "today" || view === "focus" || view === "pipeline";
-  const showTiles = view !== "playbook" && view !== "system";
+  const showTiles = view !== "playbook" && view !== "system" && view !== "community";
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
@@ -1080,6 +1082,9 @@ export default function TrackPage() {
             </>
           )}
 
+          {/* COMMUNITY VIEW */}
+          {snap && view === "community" && <CommunityView members={members} />}
+
           {/* PLAYBOOK VIEW */}
           {view === "playbook" && <Playbook />}
 
@@ -1253,6 +1258,102 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
           <p><span className="text-gold font-bold">Day 10:</span> Last push + duplication. Final door-open touch, then ask every new yes who they know. End the sprint at $10K.</p>
         </div>
       </section>
+    </motion.div>
+  );
+}
+
+/* ── Community: your builders / leaders at a glance (desktop) ─────────────── */
+function CommunityView({ members }: { members: Member[] }) {
+  const builders = useMemo(() => members.filter((m) => (m.referred || 0) >= 1).sort((a, b) => (b.referred || 0) - (a.referred || 0) || (a.name || "").localeCompare(b.name || "")), [members]);
+  const totalRefs = useMemo(() => members.reduce((s, m) => s + (m.referred || 0), 0), [members]);
+  const atRisk = useMemo(() => builders.filter((b) => { const du = daysUntil(b.nextDue); return b.status !== "active" || (du !== null && du <= 7); }), [builders]);
+  const levels = useMemo(() => {
+    const map = new Map<number, { active: number; inactive: number; total: number }>();
+    for (const m of members) { const e = map.get(m.level) || { active: 0, inactive: 0, total: 0 }; e.total++; if (m.status === "active") e.active++; else e.inactive++; map.set(m.level, e); }
+    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([level, v]) => ({ level, ...v }));
+  }, [members]);
+  const maxRef = builders.length ? (builders[0].referred || 1) : 1;
+  const Row = ({ m, rank }: { m: Member; rank?: number }) => {
+    const du = daysUntil(m.nextDue); const dueSoon = du !== null && du <= 7; const badge = builderBadge(m.referred);
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.025] transition-colors">
+        {rank !== undefined && <span className="gp-display w-6 shrink-0 text-center text-sm font-bold text-white/25">{rank}</span>}
+        <Avatar name={m.name} status={m.status} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="gp-display font-semibold text-text truncate">{properName(m.name) || "(no name)"}</span>
+            <StatusPill status={m.status} />
+            <span className="text-[10px] font-mono text-muted">L{m.level}</span>
+            {badge && <span title="People brought in" className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold rounded tracking-wider" style={{ color: badge.color, border: `1px solid ${badge.color}55` }}>{badge.label}</span>}
+            {dueSoon && <span className="text-[10px] font-mono font-bold text-red">{du! <= 0 ? "DUE NOW" : `DUE ${du}D`}</span>}
+          </div>
+          <div className="mt-1 h-1.5 rounded-full bg-white/[0.05] overflow-hidden max-w-[220px]">
+            <div className="h-full rounded-full" style={{ width: `${Math.max(8, ((m.referred || 0) / maxRef) * 100)}%`, background: "linear-gradient(90deg,#00FF85,#C9A84C)" }} />
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="gp-display text-xl font-bold text-gold tabular-nums leading-none">{m.referred}</div>
+          <div className="text-[9px] font-mono text-muted uppercase tracking-wider">refs</div>
+        </div>
+        <div className="shrink-0 flex items-center gap-2"><TextBtn m={m} />{m.phone ? <a href={telHref(m.phone)} className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-xs font-mono hover:bg-accent hover:text-bg transition-all">☎</a> : null}</div>
+      </div>
+    );
+  };
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-4">
+        <div className="text-accent font-mono text-[11px] tracking-[0.2em] uppercase mb-1">Your Organization</div>
+        <div className="text-sm text-text/90">Track your builders and leaders in one view. Reactivate a leader and their whole team often comes back with them, so the people at risk here are your highest-leverage calls.</div>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <StatTile label="Org Size" value={members.length} tone="#F5F5F5" delay={0.02} />
+        <StatTile label="Builders" value={builders.length} tone="#00FF85" delay={0.07} />
+        <StatTile label="Total Referrals" value={totalRefs} tone="#C9A84C" delay={0.12} />
+        <StatTile label="Leaders At Risk" value={atRisk.length} tone="#FF4444" delay={0.17} />
+      </div>
+
+      {atRisk.length > 0 && (
+        <div>
+          <h2 className="gp-display text-lg font-bold mb-1">⚠️ Leaders to watch</h2>
+          <p className="text-muted text-xs font-mono mb-3">Builders who are past due, inactive, or billing soon. Save these first, you save their downline too.</p>
+          <div className="rounded-2xl border border-red/20 bg-gradient-to-b from-red/[0.04] to-transparent overflow-hidden">
+            {atRisk.map((m) => <Row key={m.email || m.name} m={m} />)}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h2 className="gp-display text-lg font-bold mb-1">Builder leaderboard</h2>
+        <p className="text-muted text-xs font-mono mb-3">Everyone in your org who has brought at least one person in, ranked by referrals.</p>
+        <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.025] to-transparent overflow-hidden">
+          {builders.length === 0 ? <div className="px-4 py-12 text-center text-muted text-sm">No referrals recorded in your current data.</div> : builders.slice(0, 100).map((m, i) => <Row key={m.email || m.name} m={m} rank={i + 1} />)}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="gp-display text-lg font-bold mb-1">Organization by level</h2>
+        <p className="text-muted text-xs font-mono mb-3">Where your business is healthy and where it's leaking. Active vs inactive at each level.</p>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+          {levels.map((l) => {
+            const pct = l.total ? (l.active / l.total) * 100 : 0;
+            return (
+              <div key={l.level} className="flex items-center gap-3">
+                <div className="gp-display w-16 shrink-0 text-sm font-semibold text-text/80">Level {l.level}</div>
+                <div className="flex-1 h-6 rounded-lg bg-red/15 overflow-hidden relative">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} className="h-full bg-accent/30" />
+                  <div className="absolute inset-0 flex items-center justify-between px-2.5 text-[11px] font-mono">
+                    <span className="text-accent font-bold">{l.active} active</span>
+                    <span className="text-red/80">{l.inactive} inactive</span>
+                  </div>
+                </div>
+                <div className="w-10 shrink-0 text-right text-[11px] font-mono text-muted">{Math.round(pct)}%</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="text-center text-[11px] font-mono text-muted/70">Tip: a true sponsor-by-sponsor downline tree needs the referrer link captured in the data pull. Say the word and I'll add it so this can show exactly whose personal team is slipping.</p>
     </motion.div>
   );
 }
