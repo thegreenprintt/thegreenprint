@@ -335,7 +335,8 @@ module.exports = async function handler(req, res) {
       if (!okKey) return res.status(403).json({ error: 'not_admin' });
       const to = clean(body.to, 160);
       if (!to || to.indexOf('@') < 1) return res.status(400).json({ error: 'bad_to' });
-      const name = clean(body.name, 60) || 'there';
+      const capName = (s) => { s = (s || '').trim(); return s ? s.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : s; };
+      const name = capName(clean(body.name, 60)) || 'there';
       const style = clean(body.style, 20) || 'checkin';
       const SUB = 'https://subscribe.1houseglobal.com/jay';
       const P = (s) => '<p style="font-size:16px;line-height:1.6">' + s + '</p>';
@@ -359,6 +360,10 @@ module.exports = async function handler(req, res) {
         inner = P('Hey ' + name + ',') + P('It\'s Jay. It\'s been a minute and you\'ve been on my mind, so I just wanted to check in. No agenda at all.') + P('How are you doing? I\'d love to hear from you whenever you get a sec.');
       }
       const html = String(body.html || '') || wrap(inner);
+      // A plain-text alternative is a major deliverability signal (HTML-only reads as spam).
+      const stripText = (h) => h.replace(/<\/p>/gi, '\n\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\n{3,}/g, '\n\n').trim();
+      let textBody = stripText(inner) + '\n\n— Jay\n\nThe Greenprint. Educational only, not financial advice. Reply STOP and I will not reach out again.';
+      if (style === 'invite') textBody += '\n\nCome back to the room: ' + SUB;
       let Resend;
       try { Resend = require('resend').Resend; } catch (e) { return res.status(200).json({ ok: false, error: 'resend_unavailable' }); }
       let rkey = process.env.RESEND_API_KEY || '';
@@ -366,7 +371,18 @@ module.exports = async function handler(req, res) {
       if (!rkey) return res.status(200).json({ ok: false, error: 'no_resend_key' });
       try {
         const resend = new Resend(rkey);
-        const out = await resend.emails.send({ from: 'Jay @ The Greenprint <noreply@thegreenprint.trade>', to: to, subject: subject, html: html });
+        const out = await resend.emails.send({
+          from: 'Jay from The Greenprint <jay@thegreenprint.trade>',
+          to: to,
+          replyTo: 'jay@thegreenprint.trade',
+          subject: subject,
+          html: html,
+          text: textBody,
+          headers: {
+            'List-Unsubscribe': '<mailto:unsubscribe@thegreenprint.trade?subject=unsubscribe>',
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          },
+        });
         return res.status(200).json({ ok: true, id: out && out.data ? out.data.id : null });
       } catch (e) { return res.status(200).json({ ok: false, error: String((e && e.message) || e) }); }
     }

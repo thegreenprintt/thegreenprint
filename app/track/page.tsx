@@ -49,6 +49,8 @@ const telHref = (p: string) => "tel:" + (p || "").replace(/[^\d+]/g, "");
 function daysUntil(iso: string | null): number | null { if (!iso) return null; const t = new Date(iso).getTime(); return isNaN(t) ? null : Math.ceil((t - Date.now()) / DAY); }
 function isToday(ms: number): boolean { if (!ms) return false; const d = new Date(ms), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); }
 function initials(n: string) { const p = (n || "?").trim().split(/\s+/); return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "?"; }
+function properName(n: string): string { return (n || "").trim().split(/\s+/).map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w)).join(" "); }
+function firstName(n: string): string { return properName(n).split(" ")[0] || ""; }
 function builderBadge(r: number): { label: string; color: string } | null {
   if (r >= 10) return { label: "TOP BUILDER", color: "#C9A84C" };
   if (r >= 5) return { label: "BUILDER", color: "#00FF85" };
@@ -230,7 +232,7 @@ function RapidTextQueue({ items, markFor, voiceFor, onClose, onContacted, onVoic
   const [salt, setSalt] = useState(0);
   const total = withPhone.length;
   const m = withPhone[idx];
-  const first = (m?.name || "").split(" ")[0];
+  const first = firstName(m?.name || "");
   const mk = m ? markFor(m.email) : DEFAULT_MARK;
   const voice = m ? voiceFor(m.email) : "default";
   const isBd = m ? bdToday(mk.birthday) : false;
@@ -256,7 +258,7 @@ function RapidTextQueue({ items, markFor, voiceFor, onClose, onContacted, onVoic
               <div className="text-center text-[11px] font-mono text-muted mb-4">{idx + 1} of {total}</div>
               <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-transparent p-6 text-center">
                 <div className="flex justify-center mb-3"><Avatar name={m.name} status={m.status} size={16} /></div>
-                <div className="gp-display text-2xl font-bold">{m.name || "(no name)"}</div>
+                <div className="gp-display text-2xl font-bold">{properName(m.name) || "(no name)"}</div>
                 <div className="font-mono text-sm text-accent mt-0.5">{m.phone}</div>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
                   {VOICES.map((v) => (
@@ -290,7 +292,7 @@ function TextBtn({ m }: { m: Member }) {
   const [open, setOpen] = useState(false);
   const phone = m.phone;
   if (!phone) return null;
-  const first = (m.name || "").split(" ")[0];
+  const first = firstName(m.name);
   const sheet = open && typeof document !== "undefined" ? createPortal(
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
@@ -367,7 +369,7 @@ function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTou
         <Avatar name={m.name} status={m.status} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="gp-display font-semibold text-text truncate">{m.name || "(no name)"}</span>
+            <span className="gp-display font-semibold text-text truncate">{properName(m.name) || "(no name)"}</span>
             <StatusPill status={m.status} />
           </div>
           <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -386,7 +388,7 @@ function FocusCard({ m, rank, reasons, emailState, onEmail, mark, onStage, onTou
         {bdToday(mark.birthday) && <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-gold/15 text-gold border border-gold/30">🎂 birthday today</span>}
       </div>
       <div className="relative mt-3 pt-3 border-t border-white/[0.06]"><NoteField mark={mark} onSave={onSave} /></div>
-      {m.phone && bdToday(mark.birthday) && <a href={smsHref(m.phone, birthdayMsg(mark.voice, (m.name || "").split(" ")[0]))} onClick={() => onTouch()} className="relative mt-2 block w-full text-center py-2 rounded-xl bg-gold/15 border border-gold/30 text-gold text-[12px] font-mono font-semibold hover:bg-gold hover:text-bg transition-all">🎂 Send birthday text</a>}
+      {m.phone && bdToday(mark.birthday) && <a href={smsHref(m.phone, birthdayMsg(mark.voice, firstName(m.name)))} onClick={() => onTouch()} className="relative mt-2 block w-full text-center py-2 rounded-xl bg-gold/15 border border-gold/30 text-gold text-[12px] font-mono font-semibold hover:bg-gold hover:text-bg transition-all">🎂 Send birthday text</a>}
       {mark.touchedAt > 0 && <div className="relative mt-2 text-[10px] font-mono text-muted/70">last worked {agoShort(mark.touchedAt)}</div>}
       <div className="relative mt-3 flex items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
         <StageDots stage={mark.stage} onSet={onStage} />
@@ -411,7 +413,7 @@ function MemberRow({ m, i, emailState, onEmail, mark, onStage, onTouch }: { m: M
         <Avatar name={m.name} status={m.status} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="gp-display font-semibold text-text truncate">{m.name || "(no name)"}</span>
+            <span className="gp-display font-semibold text-text truncate">{properName(m.name) || "(no name)"}</span>
             <StatusPill status={m.status} />
             <span className="text-[10px] font-mono text-muted">L{m.level}</span>
             {m.amount > 0 && <span className="text-[10px] font-mono text-gold">${m.amount}</span>}
@@ -638,7 +640,7 @@ export default function TrackPage() {
     if (cur !== "confirm") { setEmailStates((s) => ({ ...s, [key]: "confirm" })); setTimeout(() => setEmailStates((s) => (s[key] === "confirm" ? { ...s, [key]: "idle" } : s)), 4000); return; }
     setEmailStates((s) => ({ ...s, [key]: "sending" }));
     try {
-      const res = await fetch(`/api/chat?kind=track-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: pass, to: m.email, name: (m.name || "").split(" ")[0], style: msgStyle }) });
+      const res = await fetch(`/api/chat?kind=track-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: pass, to: m.email, name: firstName(m.name), style: msgStyle }) });
       const j = await res.json(); setEmailStates((s) => ({ ...s, [key]: j.ok ? "sent" : "error" }));
       if (j.ok) saveMark(m.email, { stage: markFor(m.email).stage === "new" ? "contacted" : markFor(m.email).stage, touchedAt: Date.now() });
     } catch { setEmailStates((s) => ({ ...s, [key]: "error" })); }
@@ -854,9 +856,9 @@ export default function TrackPage() {
                     <div className="flex flex-wrap gap-2">
                       {birthdays.map(({ m, days }) => (
                         <div key={m.email || m.name} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5">
-                          <span className="text-sm text-text">{m.name || "(no name)"}</span>
+                          <span className="text-sm text-text">{properName(m.name) || "(no name)"}</span>
                           <span className="text-[10px] font-mono text-gold">{days === 0 ? "today" : `${days}d`}</span>
-                          {m.phone && days === 0 && <a href={smsHref(m.phone, birthdayMsg(markFor(m.email).voice, (m.name || "").split(" ")[0]))} onClick={() => onTouch(m.email)} className="text-[10px] font-mono text-gold underline hover:no-underline">text 🎂</a>}
+                          {m.phone && days === 0 && <a href={smsHref(m.phone, birthdayMsg(markFor(m.email).voice, firstName(m.name)))} onClick={() => onTouch(m.email)} className="text-[10px] font-mono text-gold underline hover:no-underline">text 🎂</a>}
                         </div>
                       ))}
                     </div>
@@ -927,7 +929,7 @@ export default function TrackPage() {
                                 <div className="flex items-center gap-2">
                                   <Avatar name={m.name} status={m.status} size={8} />
                                   <div className="min-w-0 flex-1">
-                                    <div className="text-xs font-medium text-text truncate">{m.name || "(no name)"}</div>
+                                    <div className="text-xs font-medium text-text truncate">{properName(m.name) || "(no name)"}</div>
                                     <div className="text-[10px] font-mono text-muted truncate">{m.phone || m.email || "no contact"}</div>
                                   </div>
                                 </div>
