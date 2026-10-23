@@ -306,10 +306,12 @@ module.exports = async function handler(req, res) {
         const email = clean(body.email, 160).toLowerCase();
         if (!email || email.indexOf('@') < 1) return res.status(400).json({ error: 'bad_email' });
         const STAGES = ['new', 'contacted', 'talking', 'committed', 'closed', 'skip'];
+        const VOICES = ['default', 'auntie', 'og', 'homie'];
         const prev = marks[email] || {};
-        const next = { stage: prev.stage || 'new', note: prev.note || '', touchedAt: prev.touchedAt || 0, closedAt: prev.closedAt || 0 };
+        const next = { stage: prev.stage || 'new', note: prev.note || '', touchedAt: prev.touchedAt || 0, closedAt: prev.closedAt || 0, voice: prev.voice || 'default' };
         if (body.stage !== undefined) { const st = clean(body.stage, 16); if (STAGES.indexOf(st) >= 0) { next.stage = st; if (st === 'closed') next.closedAt = Date.now(); } }
         if (body.note !== undefined) next.note = clean(body.note, 400);
+        if (body.voice !== undefined) { const v = clean(body.voice, 16); if (VOICES.indexOf(v) >= 0) next.voice = v; }
         if (body.touch) next.touchedAt = Date.now();
         marks[email] = next;
         try { await r.set(MKEY, JSON.stringify(marks)); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }

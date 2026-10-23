@@ -24,9 +24,10 @@ interface Goal { earnings: number | null; target: number; perSub: number; deadli
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
-interface Mark { stage: Stage; note: string; touchedAt: number; closedAt: number; }
+type VoiceKey = "default" | "auntie" | "og" | "homie";
+interface Mark { stage: Stage; note: string; touchedAt: number; closedAt: number; voice: VoiceKey; }
 type Marks = Record<string, Mark>;
-const DEFAULT_MARK: Mark = { stage: "new", note: "", touchedAt: 0, closedAt: 0 };
+const DEFAULT_MARK: Mark = { stage: "new", note: "", touchedAt: 0, closedAt: 0, voice: "default" };
 const STAGES: Stage[] = ["new", "contacted", "talking", "committed", "closed"];
 const STAGE_META: Record<Stage, { label: string; color: string; short: string }> = {
   new:       { label: "Not worked", color: "#8a8a8a", short: "NEW" },
@@ -141,30 +142,44 @@ function CallBtn({ phone }: { phone: string }) {
   if (!phone) return <span className="text-[10px] font-mono text-muted/70 pr-1">no number</span>;
   return <a href={telHref(phone)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-xs font-mono font-semibold hover:bg-accent hover:text-bg transition-all hover:shadow-[0_0_20px_rgba(0,255,133,0.35)]"><span className="text-sm">☎</span> {phone}</a>;
 }
-const TEXT_VOICES: { key: string; label: string; hint: string; build: (f: string) => string }[] = [
-  { key: "young", label: "Younger", hint: "high energy", build: (f) => `Yo ${f || "bro"}! It's Jay. How you feeling? Been a minute fr, just wanted to check on you 🙌` },
-  { key: "classic", label: "Classic", hint: "warm & respectful", build: (f) => `Hi ${f || "there"}, it's Jay. How are you doing? It's been a little while and I wanted to check in on you.` },
-  { key: "casual", label: "Casual", hint: "easy & neutral", build: (f) => `Hey ${f || "there"}, what's up? It's Jay. How you been? Been meaning to reach out and see how you're doing.` },
-];
 function smsHref(phone: string, msg: string): string {
   const num = (phone || "").replace(/[^\d+]/g, "");
   return `sms:${num}?&body=${encodeURIComponent(msg)}`;
 }
-/* A pool of warm, all-audience check-ins. Each person gets a stable pick (salt reshuffles). */
-const CHECKIN_TEXTS: ((f: string) => string)[] = [
-  (f) => `Yo ${f || "fam"}! It's Jay, just checking up on you. How you been?`,
-  (f) => `Hey ${f || "there"}, it's Jay. Wanted to see how everything's going with you. How you doing?`,
-  (f) => `${f || "Hey"}! It's Jay. Been a minute, you crossed my mind so I wanted to check in. How are you?`,
-  (f) => `Hey ${f || "there"}, Jay here. No agenda, just wanted to see how you're doing. How's everything?`,
-  (f) => `Yo ${f || "fam"}, it's Jay. How's life treating you? Been meaning to reach out.`,
-  (f) => `Hey ${f || "there"}! It's Jay. Hope you're good. Just wanted to check up on you, how you been?`,
-  (f) => `${f || "Hey"}, it's Jay. Thinking about you today. How's everything going on your end?`,
-  (f) => `Yo ${f || "there"}! Jay here. Haven't talked in a bit, wanted to see how you're doing. All good?`,
+/* Jay's own voice, in rotations. Each person gets a stable pick per voice (salt reshuffles). */
+const VOICES: { key: VoiceKey; label: string; hint: string; lines: ((f: string) => string)[] }[] = [
+  { key: "default", label: "Like me", hint: "everyday check-in", lines: [
+    (f) => `Yo ${f || "fam"}! How you feeling? Wanted to check in with you fr.`,
+    (f) => `Yo ${f || "fam"}, it's Jay. Just checking in on you, how you been?`,
+    (f) => `What's good ${f || "fam"}? Wanted to see how you're doing. How you feeling?`,
+    (f) => `Yo ${f || "fam"}! Been thinking about you, how's everything going on your end?`,
+    (f) => `${f || "Yo"}! It's Jay. Checking in on you fam, how you been lately?`,
+  ] },
+  { key: "auntie", label: "Auntie", hint: "respectful & warm", lines: [
+    (f) => `Hey auntie${f ? " " + f : ""}! It's Jay. How you feeling? Been thinking about you 🙏`,
+    (f) => `What's up auntie! How you doing? Just wanted to check in on you.`,
+    (f) => `Hi auntie${f ? " " + f : ""}, it's Jay. How you been? Hope everything good with you ❤️`,
+    (f) => `Heyy auntie! Just checking in on you, how you feeling today?`,
+  ] },
+  { key: "og", label: "OG / Unc", hint: "elder respect", lines: [
+    (f) => `What's up OG! It's Jay. How you feeling? Been meaning to check on you.`,
+    (f) => `Yo unc${f ? " " + f : ""}! How you doing? Wanted to check in with you.`,
+    (f) => `Hey OG, it's Jay. How you been? Hope all is well fr.`,
+    (f) => `What's good unc! Checking in on you, how's everything going?`,
+  ] },
+  { key: "homie", label: "Homie", hint: "high energy", lines: [
+    (f) => `Yo ${f || "bro"}! How you feeling bro? Been a minute, checking on you 🙌`,
+    (f) => `${f || "Bro"}!! It's Jay. How you been fam? Lmk you good.`,
+    (f) => `Yooo ${f || "bro"}, what's good? Checking on you, how everything been?`,
+    (f) => `Ayy ${f || "bro"}! How you feeling? Been thinking bout you, hit me back.`,
+  ] },
 ];
-function pickCheckin(email: string, first: string, salt = 0): string {
+const VOICE_MAP: Record<string, typeof VOICES[number]> = VOICES.reduce((o, v) => { o[v.key] = v; return o; }, {} as Record<string, typeof VOICES[number]>);
+function pickVoiceMsg(voice: string, email: string, first: string, salt = 0): string {
+  const v = VOICE_MAP[voice] || VOICES[0];
   let h = salt >>> 0; const s = (email || "") + "";
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return CHECKIN_TEXTS[h % CHECKIN_TEXTS.length](first);
+  return v.lines[h % v.lines.length](first);
 }
 function agoShort(ms: number): string {
   if (!ms) return "";
@@ -174,14 +189,15 @@ function agoShort(ms: number): string {
   const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24); return `${d}d ago`;
 }
-function RapidTextQueue({ items, onClose, onContacted }: { items: Member[]; onClose: () => void; onContacted: (email: string) => void }) {
+function RapidTextQueue({ items, voiceFor, onClose, onContacted, onVoice }: { items: Member[]; voiceFor: (email: string) => VoiceKey; onClose: () => void; onContacted: (email: string) => void; onVoice: (email: string, v: VoiceKey) => void }) {
   const withPhone = useMemo(() => items.filter((m) => m.phone), [items]);
   const [idx, setIdx] = useState(0);
   const [salt, setSalt] = useState(0);
   const total = withPhone.length;
   const m = withPhone[idx];
   const first = (m?.name || "").split(" ")[0];
-  const msg = m ? pickCheckin(m.email, first, salt) : "";
+  const voice = m ? voiceFor(m.email) : "default";
+  const msg = m ? pickVoiceMsg(voice, m.email, first, salt) : "";
   return (
     <div className="fixed inset-0 z-[70] bg-bg/95 backdrop-blur-xl flex flex-col">
       <div className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3 border-b border-white/[0.06]">
@@ -205,8 +221,14 @@ function RapidTextQueue({ items, onClose, onContacted }: { items: Member[]; onCl
                 <div className="flex justify-center mb-3"><Avatar name={m.name} status={m.status} size={16} /></div>
                 <div className="text-xl font-bold">{m.name || "(no name)"}</div>
                 <div className="font-mono text-sm text-accent mt-0.5">{m.phone}</div>
-                <div className="mt-5 rounded-2xl bg-black/30 border border-white/[0.06] p-4 text-left">
-                  <div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1.5">They'll receive</div>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                  {VOICES.map((v) => (
+                    <button key={v.key} onClick={() => onVoice(m.email, v.key)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-semibold border transition-all ${voice === v.key ? "bg-accent text-bg border-accent" : "border-white/10 text-muted hover:text-text hover:border-white/25"}`}>{v.label}</button>
+                  ))}
+                </div>
+                <div className="mt-3 rounded-2xl bg-black/30 border border-white/[0.06] p-4 text-left">
+                  <div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1.5">They'll receive · {VOICE_MAP[voice]?.hint}</div>
                   <div className="text-[15px] text-text/90 leading-relaxed">{msg}</div>
                   <button onClick={() => setSalt((s) => s + 1)} className="mt-3 text-[11px] font-mono text-muted hover:text-accent transition-colors">↻ shuffle message</button>
                 </div>
@@ -241,16 +263,19 @@ function TextBtn({ m }: { m: Member }) {
             <motion.div initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.98 }} transition={{ duration: 0.15 }}
               className="absolute right-0 bottom-full mb-2 z-50 w-64 rounded-2xl border border-white/10 bg-surface2 shadow-2xl shadow-black/70 overflow-hidden">
               <div className="px-3.5 py-2.5 text-[9px] font-mono uppercase tracking-[0.18em] text-muted border-b border-white/[0.06]">Pick a voice to text {first || ""}</div>
-              {TEXT_VOICES.map((v) => (
-                <a key={v.key} href={smsHref(phone, v.build(first))} onClick={() => setOpen(false)}
-                  className="block px-3.5 py-3 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono font-bold text-accent">{v.label}</span>
-                    <span className="text-[9px] font-mono text-muted">{v.hint}</span>
-                  </div>
-                  <div className="text-[11px] text-text/65 leading-snug">{v.build(first)}</div>
-                </a>
-              ))}
+              {VOICES.map((v) => {
+                const line = pickVoiceMsg(v.key, m.email, first);
+                return (
+                  <a key={v.key} href={smsHref(phone, line)} onClick={() => setOpen(false)}
+                    className="block px-3.5 py-3 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-mono font-bold text-accent">{v.label}</span>
+                      <span className="text-[9px] font-mono text-muted">{v.hint}</span>
+                    </div>
+                    <div className="text-[11px] text-text/65 leading-snug">{line}</div>
+                  </a>
+                );
+              })}
             </motion.div>
           </>
         )}
@@ -545,6 +570,7 @@ export default function TrackPage() {
       if (patch.stage) { next.stage = patch.stage; if (patch.stage === "closed" && cur.stage !== "closed") { next.closedAt = Date.now(); setConfetti(Date.now()); } }
       if (patch.note !== undefined) next.note = patch.note;
       if (patch.touchedAt !== undefined) next.touchedAt = patch.touchedAt;
+      if (patch.voice) next.voice = patch.voice;
       const all = { ...prev, [key]: next };
       try { localStorage.setItem(MARKS_LS, JSON.stringify(all)); } catch {}
       return all;
@@ -552,6 +578,7 @@ export default function TrackPage() {
     const payload: Record<string, unknown> = { key: pass, email: key };
     if (patch.stage) payload.stage = patch.stage;
     if (patch.note !== undefined) payload.note = patch.note;
+    if (patch.voice) payload.voice = patch.voice;
     if (patch.touchedAt !== undefined) payload.touch = 1;
     fetch(`/api/chat?kind=track-mark`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(() => {});
   }, [pass]);
@@ -664,7 +691,7 @@ export default function TrackPage() {
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <Confetti fire={confetti} />
-      {queueOpen && <RapidTextQueue items={(view === "today" ? hitList : focus).map((f) => f.m)} onClose={() => setQueueOpen(false)} onContacted={(email) => saveMark(email, { stage: markFor(email).stage === "new" ? "contacted" : markFor(email).stage, touchedAt: Date.now() })} />}
+      {queueOpen && <RapidTextQueue items={(view === "today" ? hitList : focus).map((f) => f.m)} voiceFor={(email) => markFor(email).voice} onVoice={(email, v) => saveMark(email, { voice: v })} onClose={() => setQueueOpen(false)} onContacted={(email) => saveMark(email, { stage: markFor(email).stage === "new" ? "contacted" : markFor(email).stage, touchedAt: Date.now() })} />}
       <div className="relative z-10 lg:flex max-w-7xl mx-auto">
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/[0.06] min-h-screen p-5 sticky top-0 self-start">

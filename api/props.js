@@ -63,25 +63,39 @@ const LEAGUES = {
   },
 };
 
-// ESPN blocks datacenter IPs (Vercel runs on AWS), so all ESPN calls are
-// routed through a lightweight relay when ESPN_PROXY is set in the Vercel
-// env. The relay takes ?url=<encoded espn url> and echoes JSON with CORS.
-// With no proxy set, we call ESPN directly (works locally, blocked on Vercel).
+// ESPN blocks datacenter IPs (Vercel runs on AWS), so direct calls fail in
+// production. We try, in order: a dedicated relay if ESPN_PROXY is set, then
+// the direct URL, then public CORS relays. Each relay takes the ESPN url and
+// echoes its JSON. This keeps picks working even with no Vercel env set.
 const PROXY = process.env.ESPN_PROXY || '';
-const viaProxy = (u) => (PROXY ? PROXY + encodeURIComponent(u) : u);
-
+const RELAYS = [
+  (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  (u) => 'https://thingproxy.freeboard.io/fetch/' + u,
+];
+function attemptsFor(url) {
+  // On Vercel, direct ESPN hangs until timeout, so relays go FIRST (they work
+  // immediately) and direct is only a last resort. A dedicated ESPN_PROXY, if
+  // set, is tried before everything.
+  const a = [];
+  if (PROXY) a.push(PROXY + encodeURIComponent(url));
+  for (const r of RELAYS) a.push(r(url));
+  a.push(url); // direct last (works only where ESPN isn't IP-blocked)
+  return a;
+}
 async function jget(url, ms) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms || 5000);
-  try {
-    const r = await fetch(viaProxy(url), { headers: HDRS, signal: ctrl.signal });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (e) {
-    return null;
-  } finally {
-    clearTimeout(t);
+  for (const target of attemptsFor(url)) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms || 5000);
+    try {
+      const r = await fetch(target, { headers: HDRS, signal: ctrl.signal });
+      if (r.ok) {
+        const j = await r.json().catch(() => null);
+        if (j && typeof j === 'object') { clearTimeout(t); return j; }
+      }
+    } catch (e) { /* try next relay */ } finally { clearTimeout(t); }
   }
+  return null;
 }
 
 async function pool(items, n, fn) {
