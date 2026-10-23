@@ -21,6 +21,8 @@ interface Member {
   name: string; email: string; phone: string; level: number;
   status: Status; amount: number; nextDue: string | null; referred: number;
 }
+interface Lead { _key: string; name?: string; email?: string; phone?: string; status?: string; path?: string; lastSeen?: string; firstSeen?: string; why?: string; }
+const LEADS_URL = "https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads.json";
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 
@@ -637,6 +639,7 @@ export default function TrackPage() {
   const [nowTs, setNowTs] = useState<number>(() => Date.now());
   const [queueOpen, setQueueOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -659,6 +662,12 @@ export default function TrackPage() {
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
   // Jump to the top whenever the tab changes so the new view's header is visible
   useEffect(() => { try { window.scrollTo({ top: 0, behavior: "auto" }); } catch {} }, [view]);
+  // Pull interested leads from the /start funnel store (read-only; Telegram/Viato untouched)
+  useEffect(() => {
+    if (!authed) return; let stop = false;
+    const pull = async () => { try { const d = await fetch(LEADS_URL, { cache: "no-store" }).then((r) => r.json()); if (stop || !d) return; const list: Lead[] = Object.entries(d).map(([k, v]) => ({ ...(v as object), _key: k } as Lead)); setLeads(list); } catch {} };
+    pull(); const t = setInterval(pull, 60000); return () => { stop = true; clearInterval(t); };
+  }, [authed]);
   // Make /track its own installable app + register the push service worker
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -730,6 +739,11 @@ export default function TrackPage() {
 
   const scored = useMemo(() => members.map((m) => ({ m, ...score(m) })).sort((a, b) => b.s - a.s), [members]);
   const builders = useMemo(() => members.filter((m) => (m.referred || 0) >= 1).sort((a, b) => (b.referred || 0) - (a.referred || 0) || (a.name || "").localeCompare(b.name || "")), [members]);
+  const openLeads = useMemo(() => {
+    const skip = new Set(["Signed up", "Not now"]);
+    return leads.filter((l) => !skip.has(l.status || "") && (l.phone || l.email))
+      .sort((a, b) => { const hot = (l: Lead) => ((l.path || "").startsWith("🔥") ? 0 : 1); if (hot(a) !== hot(b)) return hot(a) - hot(b); return new Date(b.lastSeen || b.firstSeen || 0).getTime() - new Date(a.lastSeen || a.firstSeen || 0).getTime(); });
+  }, [leads]);
   const focus = useMemo(() => scored.filter((x) => x.m.status !== "active" || (daysUntil(x.m.nextDue) !== null && daysUntil(x.m.nextDue)! <= 7)).slice(0, 15), [scored]);
 
   // Today's hit list: highest-impact, not already closed/skipped, sized to the sprint
@@ -1015,6 +1029,15 @@ export default function TrackPage() {
           {snap && view === "pipeline" && (
             <AnimatePresence mode="wait">
               <motion.div key="pipeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {openLeads.length > 0 && (
+                  <div className="mb-5">
+                    <h2 className="gp-display text-lg font-bold mb-1">🔥 Interested leads from your funnel <span className="text-gold">({openLeads.length})</span></h2>
+                    <p className="text-muted text-xs font-mono mb-3">New people from your /start page. Reach out right here, no need to open Telegram. (Your Telegram + CRM funnel still runs as always.)</p>
+                    <div className="rounded-2xl border border-gold/20 bg-gradient-to-b from-gold/[0.05] to-transparent overflow-hidden">
+                      {openLeads.slice(0, 40).map((l) => <LeadCard key={l._key} lead={l} />)}
+                    </div>
+                  </div>
+                )}
                 <div className="mb-5"><Funnel steps={[
                   { label: "Everyone", n: counts.total, color: "#8a8a8a" },
                   { label: "Reachable", n: pipe.reachable, color: "#4a9eff" },
@@ -1261,6 +1284,35 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
         </div>
       </section>
     </motion.div>
+  );
+}
+
+function leadSms(phone: string, first: string): string {
+  const num = (phone || "").replace(/[^\d+]/g, "");
+  const msg = `Hey ${first || "there"}! It's Jay from The Greenprint. Saw you were interested in getting started, so I wanted to reach out personally. What's got you looking to jump in?`;
+  return `sms:${num}?&body=${encodeURIComponent(msg)}`;
+}
+function leadMailto(email: string, first: string): string {
+  const subj = encodeURIComponent("Jay from The Greenprint");
+  const body = encodeURIComponent(`Hey ${first || "there"},\n\nIt's Jay from The Greenprint. Saw you were interested in getting started and wanted to reach out personally. What's got you looking to jump in? Happy to answer anything.\n\n— Jay`);
+  return `mailto:${email}?subject=${subj}&body=${body}`;
+}
+function LeadCard({ lead }: { lead: Lead }) {
+  const first = firstName(lead.name || "");
+  const hot = (lead.path || "").startsWith("🔥");
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.025] transition-colors">
+      <div className="h-9 w-9 shrink-0 rounded-full grid place-items-center bg-surface2 border border-white/10 text-sm">{hot ? "🔥" : "🙋"}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2"><span className="gp-display font-semibold text-text truncate">{properName(lead.name || "") || "(lead)"}</span>{hot && <span className="text-[9px] font-mono font-bold text-gold border border-gold/40 rounded px-1">HOT</span>}{lead.status && <span className="text-[9px] font-mono text-muted">{lead.status}</span>}</div>
+        <div className="text-[11px] font-mono text-muted truncate">{lead.phone || lead.email || "no contact"}{lead.why ? ` · ${lead.why}` : ""}</div>
+      </div>
+      <div className="shrink-0 flex items-center gap-1.5">
+        {lead.phone && <a href={leadSms(lead.phone, first)} className="px-2.5 py-2 rounded-xl border border-white/10 text-muted text-[11px] font-mono hover:border-accent hover:text-accent transition-all">💬</a>}
+        {lead.email && <a href={leadMailto(lead.email, first)} className="px-2.5 py-2 rounded-xl border border-white/10 text-muted text-[11px] font-mono hover:border-gold hover:text-gold transition-all">✉</a>}
+        {lead.phone && <a href={telHref(lead.phone)} className="px-2.5 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-[11px] font-mono hover:bg-accent hover:text-bg transition-all">☎</a>}
+      </div>
+    </div>
   );
 }
 
