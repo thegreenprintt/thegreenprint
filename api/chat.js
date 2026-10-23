@@ -324,10 +324,25 @@ module.exports = async function handler(req, res) {
       // Self-rate-limit: never hit One House more than once per ~9 min, so a public trigger can't be abused.
       const force = isAdmin && String((req.query && req.query.force) || '') === '1';
       if (!force) { try { const p0 = JSON.parse((await r.get('gp:track:v1')) || 'null'); if (p0 && p0.source === 'auto-1h' && (Date.now() - (p0.updatedAt || 0)) < 9 * 60 * 1000) return res.status(200).json({ ok: true, skipped: true, reason: 'recent' }); } catch (e) {} }
-      const email = process.env.ONE_HOUSE_EMAIL || '';
-      const pass = process.env.ONE_HOUSE_PASSWORD || '';
+      const rawEmail = process.env.ONE_HOUSE_EMAIL || '';
+      const rawPass = process.env.ONE_HOUSE_PASSWORD || '';
+      const email = rawEmail.trim();
+      const pass = rawPass.trim();
       if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
       const B = 'https://backend.1houseglobal.dev';
+      // Safe one-time diagnostic (?debug=1, admin only): reports LENGTHS and whitespace flags
+      // plus a live login attempt. Never returns the actual email or password characters.
+      if (isAdmin && String((req.query && req.query.debug) || '') === '1') {
+        let pstatus = 0, pmsg = null, pgot = false;
+        try {
+          const probe = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
+          const pj = await probe.json().catch(() => null);
+          pstatus = probe.status;
+          pmsg = (pj && (pj.message || pj.error)) || null;
+          pgot = !!(pj && (pj.accessToken || pj.token || (pj.data && (pj.data.accessToken || pj.data.token))));
+        } catch (e) { pmsg = 'probe_error:' + String((e && e.message) || e); }
+        return res.status(200).json({ ok: true, debug: true, emailLen: email.length, emailRawLen: rawEmail.length, emailHadWhitespace: rawEmail.length !== email.length, emailHasAt: email.includes('@'), emailAllLower: email === email.toLowerCase(), passLen: pass.length, passRawLen: rawPass.length, passHadWhitespace: rawPass.length !== pass.length, loginStatus: pstatus, loginMsg: pmsg, gotToken: pgot });
+      }
       // 1) login
       let token = '';
       try {
