@@ -83,6 +83,17 @@ function attemptsFor(url) {
   a.push(url); // direct last (works only where ESPN isn't IP-blocked)
   return a;
 }
+// Lazy Redis (shared project REDIS_URL) used to cache computed slips so a cold
+// 20s+ ESPN compute happens at most once every ~25 min per league, not per user.
+let _redis = null;
+function redis() {
+  if (_redis === null) {
+    try { const Redis = require('ioredis'); _redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 2, connectTimeout: 4000, lazyConnect: false }); _redis.on('error', () => {}); }
+    catch (e) { _redis = false; }
+  }
+  return _redis || null;
+}
+
 async function jget(url, ms) {
   for (const target of attemptsFor(url)) {
     const ctrl = new AbortController();
@@ -296,6 +307,13 @@ module.exports = async function handler(req, res) {
   if (String((req.query && req.query.type) || '') === 'scores') return doScores(res, base, league);
   if (String((req.query && req.query.type) || '') === 'box') return doBox(res, base, cfg, String((req.query && req.query.event) || ''));
 
+  // Serve recent computed slips from Redis instantly (the compute is slow via relay).
+  const SLIP_KEY = 'gp:props:slips:' + league;
+  const rc = redis();
+  if (rc) {
+    try { const raw = await rc.get(SLIP_KEY); if (raw) { const c = JSON.parse(raw); if (c && c.payload && (Date.now() - c.ts) < 25 * 60 * 1000) { res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200'); return res.status(200).json(Object.assign({}, c.payload, { cached: true })); } } } catch (e) {}
+  }
+
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
 
   try {
@@ -314,8 +332,10 @@ module.exports = async function handler(req, res) {
       events = events.concat(evs);
     }
     if (!events.length) {
+      const empty = { league: league, updated: new Date().toISOString(), count: 0, slips: [], note: 'no_upcoming_games' };
+      if (rc) { try { await rc.set(SLIP_KEY, JSON.stringify({ payload: empty, ts: Date.now() }), 'EX', 3600); } catch (e) {} }
       res.setHeader('Cache-Control', 's-maxage=300');
-      return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, slips: [], note: 'no_upcoming_games' });
+      return res.status(200).json(empty);
     }
 
     const teams = [];
@@ -440,8 +460,10 @@ module.exports = async function handler(req, res) {
     });
 
     slips.sort((x, y) => y.score - x.score);
+    const payload = { league: league, updated: new Date().toISOString(), count: slips.length, slips: slips.slice(0, 50), note: 'standard_lines' };
+    if (rc) { try { await rc.set(SLIP_KEY, JSON.stringify({ payload: payload, ts: Date.now() }), 'EX', 10800); } catch (e) {} }
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');
-    return res.status(200).json({ league: league, updated: new Date().toISOString(), count: slips.length, slips: slips.slice(0, 50), note: 'standard_lines' });
+    return res.status(200).json(payload);
   } catch (e) {
     return res.status(200).json({ league: league, error: 'feed_unavailable', slips: [] });
   }
