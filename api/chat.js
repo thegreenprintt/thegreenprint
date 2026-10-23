@@ -286,8 +286,28 @@ module.exports = async function handler(req, res) {
       try { marks = JSON.parse((await r.get('gp:track:marks')) || '{}') || {}; } catch (e) { marks = {}; }
       let tree = [];
       try { tree = JSON.parse((await r.get('gp:track:tree')) || '[]') || []; } catch (e) { tree = []; }
+      let geo = {};
+      try { geo = JSON.parse((await r.get('gp:track:geo')) || '{}') || {}; } catch (e) { geo = {}; }
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree });
+      return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo });
+    }
+
+    // ── GEO — Viato phone/location enrichment keyed by email (and name:) ──────
+    //   POST ?kind=track-geo {key:GP_ADMIN_KEY, geo:{ email: {p,c,s} }}
+    if (kind === 'track-geo') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      if (req.method === 'POST') {
+        const geo = body.geo;
+        if (!geo || typeof geo !== 'object' || Array.isArray(geo)) return res.status(400).json({ error: 'bad_geo' });
+        try { await r.set('gp:track:geo', JSON.stringify(geo)); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, stored: Object.keys(geo).length });
+      }
+      let geo = {};
+      try { geo = JSON.parse((await r.get('gp:track:geo')) || '{}') || {}; } catch (e) { geo = {}; }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, geo: geo });
     }
 
     // ── ORG TREE — store/read the One House genealogy (sponsor links) ─────────

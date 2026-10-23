@@ -643,6 +643,7 @@ export default function TrackPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tree, setTree] = useState<TreeNode[]>([]);
+  const [geo, setGeo] = useState<Record<string, { p?: string; c?: string; s?: string }>>({});
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -652,6 +653,7 @@ export default function TrackPage() {
       const j = await res.json(); setSnap(j.snapshot || null); setAuthed(true);
       if (j.marks && typeof j.marks === "object") setMarks((prev) => ({ ...prev, ...j.marks }));
       if (Array.isArray(j.tree)) setTree(j.tree);
+      if (j.geo && typeof j.geo === "object") setGeo(j.geo);
       try { localStorage.setItem(LS_KEY, key); } catch {}
     } catch { setErr("Could not reach the server."); }
     setLoading(false);
@@ -719,7 +721,15 @@ export default function TrackPage() {
     } catch { setEmailStates((s) => ({ ...s, [key]: "error" })); }
   }, [emailStates, pass, msgStyle, saveMark, markFor]);
 
-  const members = useMemo(() => snap?.members || [], [snap]);
+  const members = useMemo(() => {
+    const base = snap?.members || [];
+    if (!base.length || !Object.keys(geo).length) return base;
+    return base.map((m) => {
+      if (m.phone) return m;
+      const g = geo[(m.email || "").toLowerCase()] || geo["name:" + (m.name || "").toLowerCase().replace(/\s+/g, " ").trim()];
+      return g && g.p ? { ...m, phone: g.p } : m;
+    });
+  }, [snap, geo]);
   const counts = useMemo(() => {
     let active = 0, inactive = 0, lapsed = 0, due = 0, withPhone = 0;
     for (const m of members) { if (m.status === "active") active++; else if (m.status === "lapsed") lapsed++; else inactive++; const du = daysUntil(m.nextDue); if (m.status === "active" && du !== null && du <= 7) due++; if (m.phone) withPhone++; }
