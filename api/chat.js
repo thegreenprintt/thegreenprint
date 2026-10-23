@@ -354,7 +354,7 @@ module.exports = async function handler(req, res) {
       try {
         const lr = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
         const lj = await lr.json().catch(() => null);
-        token = (lj && (lj.accessToken || lj.token || (lj.data && (lj.data.accessToken || lj.data.token)))) || '';
+        token = (lj && (lj.access_token || lj.accessToken || lj.token || (lj.data && (lj.data.access_token || lj.data.accessToken || lj.data.token)))) || '';
         if (!token) return res.status(200).json({ ok: false, error: 'login_failed', detail: (lj && lj.message) || lr.status });
       } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
       // 2) pull genealogy (all pages)
