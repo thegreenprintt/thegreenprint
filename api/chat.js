@@ -236,7 +236,7 @@ module.exports = async function handler(req, res) {
       const adminKey = process.env.GP_ADMIN_KEY || '';
       const trackKey = process.env.GP_TRACK_KEY || '';
       const TKEY = 'gp:track:v1';
-      if (req.method === 'POST') {
+      if (req.method === 'POST' && String(body.action || '') !== 'setpass') {
         const k = clean(body.key, 128) || qkey;
         if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
         const snap = body.snapshot;
