@@ -247,6 +247,7 @@ module.exports = async function handler(req, res) {
           updatedAt: Date.now(),
           source: clean(body.source, 24) || 'manual',
           counts: (snap.counts && typeof snap.counts === 'object') ? snap.counts : {},
+          goal: (snap.goal && typeof snap.goal === 'object') ? snap.goal : null,
           members: snap.members.slice(0, 2000),
         };
         try { await r.set(TKEY, JSON.stringify(record)); }
