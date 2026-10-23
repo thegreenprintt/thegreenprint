@@ -224,6 +224,46 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, cleared: true });
     }
 
+    // ── BUSINESS TRACKER — private snapshot of the One House book of business ──
+    //   POST ?kind=track {key:GP_ADMIN_KEY, source, snapshot:{counts, members[]}}
+    //         -> store the latest snapshot (used by the nightly refresh task).
+    //   GET  ?kind=track&key=<GP_ADMIN_KEY or GP_TRACK_KEY>
+    //         -> return the stored snapshot (the private /track page reads this).
+    // A missing/empty snapshot is rejected so a failed refresh never wipes the
+    // last good data — the page keeps showing the previous night until a real
+    // refresh succeeds.
+    if (kind === 'track') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
+      const TKEY = 'gp:track:v1';
+      if (req.method === 'POST') {
+        const k = clean(body.key, 128) || qkey;
+        if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        const snap = body.snapshot;
+        if (!snap || typeof snap !== 'object' || !Array.isArray(snap.members) || snap.members.length === 0) {
+          return res.status(400).json({ error: 'bad_snapshot' });
+        }
+        const record = {
+          updatedAt: Date.now(),
+          source: clean(body.source, 24) || 'manual',
+          counts: (snap.counts && typeof snap.counts === 'object') ? snap.counts : {},
+          members: snap.members.slice(0, 2000),
+        };
+        try { await r.set(TKEY, JSON.stringify(record)); }
+        catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, stored: record.members.length, updatedAt: record.updatedAt });
+      }
+      // GET — read, gated by the admin key or a dedicated view key
+      const k = qkey || clean(body.key, 128);
+      if ((!adminKey && !trackKey) || (k !== adminKey && k !== trackKey)) {
+        return res.status(403).json({ error: 'not_admin' });
+      }
+      let rec = null;
+      try { rec = JSON.parse((await r.get(TKEY)) || 'null'); } catch (e) { rec = null; }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, snapshot: rec });
+    }
+
     // ── WEB PUSH ───────────────────────────────────────────────────────────────
     if (kind === 'push') {
       if (req.method === 'GET') {
