@@ -903,6 +903,7 @@ export default function TrackPage() {
               { id: "all", label: "Roster", icon: "👥" },
             ];
             const moreViews: { id: View; label: string; icon: string }[] = [
+              { id: "community", label: "Community", icon: "🌳" },
               { id: "due", label: "Due This Week", icon: "⏰" },
               { id: "inactive", label: "Inactive", icon: "💤" },
               { id: "active", label: "Active", icon: "✅" },
@@ -1032,15 +1033,6 @@ export default function TrackPage() {
           {snap && view === "pipeline" && (
             <AnimatePresence mode="wait">
               <motion.div key="pipeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                {openLeads.length > 0 && (
-                  <div className="mb-5">
-                    <h2 className="gp-display text-lg font-bold mb-1">🔥 Interested leads from your funnel <span className="text-gold">({openLeads.length})</span></h2>
-                    <p className="text-muted text-xs font-mono mb-3">New people from your /start page. Reach out right here, no need to open Telegram. (Your Telegram + CRM funnel still runs as always.)</p>
-                    <div className="rounded-2xl border border-gold/20 bg-gradient-to-b from-gold/[0.05] to-transparent overflow-hidden">
-                      {openLeads.slice(0, 40).map((l) => <LeadCard key={l._key} lead={l} />)}
-                    </div>
-                  </div>
-                )}
                 <div className="mb-5"><Funnel steps={[
                   { label: "Everyone", n: counts.total, color: "#8a8a8a" },
                   { label: "Reachable", n: pipe.reachable, color: "#4a9eff" },
@@ -1056,10 +1048,29 @@ export default function TrackPage() {
                       <div key={st} className="shrink-0 w-[78vw] sm:w-72 rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
                         <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-white/[0.06]" style={{ background: `${meta.color}12` }}>
                           <span className="text-[11px] font-mono font-bold tracking-wider" style={{ color: meta.color }}>{meta.short}</span>
-                          <span className="text-[11px] font-mono text-muted">{col.length}</span>
+                          <span className="text-[11px] font-mono text-muted">{col.length + (st === "talking" ? openLeads.length : 0)}</span>
                         </div>
                         <div className="p-2 space-y-2 max-h-[62vh] overflow-y-auto">
-                          {col.length === 0 && <div className="text-center text-[11px] text-muted/60 py-6 font-mono">empty</div>}
+                          {st === "talking" && openLeads.slice(0, 40).map((l) => {
+                            const first = firstName(l.name || "");
+                            return (
+                              <div key={"lead-" + l._key} className="rounded-xl border border-gold/25 bg-gold/[0.06] p-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-8 w-8 shrink-0 rounded-full grid place-items-center bg-surface2 border border-gold/30 text-xs">{(l.path || "").startsWith("🔥") ? "🔥" : "🙋"}</div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-medium text-text truncate">{properName(l.name || "") || "(lead)"} <span className="text-[8px] font-mono text-gold">NEW LEAD</span></div>
+                                    <div className="text-[10px] font-mono text-muted truncate">{l.phone || l.email || "no contact"}</div>
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                                  {l.phone && <a href={telHref(l.phone)} className="px-2 py-1 rounded-lg bg-accent/10 border border-accent/25 text-accent text-[10px] font-mono">☎</a>}
+                                  {l.phone && <a href={leadSms(l.phone, first)} className="px-2 py-1 rounded-lg border border-white/10 text-[10px] font-mono text-muted hover:text-accent hover:border-accent transition-colors">💬</a>}
+                                  {l.email && <a href={leadMailto(l.email, first)} className="px-2 py-1 rounded-lg border border-white/10 text-[10px] font-mono text-muted hover:text-gold hover:border-gold transition-colors">✉</a>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {col.length === 0 && !(st === "talking" && openLeads.length) && <div className="text-center text-[11px] text-muted/60 py-6 font-mono">empty</div>}
                           {col.slice(0, 60).map((m) => {
                             const idx = STAGES.indexOf(st); const nextStage = idx < STAGES.length - 1 ? STAGES[idx + 1] : null;
                             return (
@@ -1339,6 +1350,7 @@ function CommunityTree({ tree, memberByEmail }: { tree: TreeNode[]; memberByEmai
   const statusOf = (n: TreeNode): Status => { const m = memberByEmail.get((n.email || "").toLowerCase()); if (m) return m.status; return n.paid ? "active" : "inactive"; };
   const phoneOf = (n: TreeNode): string => { const m = memberByEmail.get((n.email || "").toLowerCase()); return m ? m.phone : ""; };
   const toggle = (id: number) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
+  useEffect(() => { if (!roots.length) return; const top = roots.find((rt) => (children.get(rt.id) || []).length > 0); if (top) setExpanded((e) => (Object.keys(e).length ? e : { [top.id]: true })); }, [roots, children]);
   const matches = q.trim() ? tree.filter((n) => (n.name + " " + n.email).toLowerCase().includes(q.trim().toLowerCase())).sort((a, b) => b.subs - a.subs).slice(0, 50) : null;
 
   const Node = ({ n, depth }: { n: TreeNode; depth: number }) => {
@@ -1353,7 +1365,7 @@ function CommunityTree({ tree, memberByEmail }: { tree: TreeNode[]; memberByEmai
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: dot }} />
           <span className="gp-display text-sm font-medium text-text truncate flex-1 min-w-0">{properName(n.name) || "(no name)"}</span>
           {n.subs > 0 && <span className="text-[10px] font-mono font-bold text-gold shrink-0">{n.subs} enrolled</span>}
-          {team > 0 && <span className="text-[10px] font-mono text-muted shrink-0 hidden sm:inline">{team} in team</span>}
+          {team > 0 && <span className="text-[10px] font-mono font-bold text-accent shrink-0">{team} under</span>}
           <span className="text-[9px] font-mono text-muted/60 shrink-0">L{n.lvl}</span>
           {phone && <a href={telHref(phone)} title="Call" className="text-accent shrink-0 px-1.5">☎</a>}
         </div>
