@@ -236,7 +236,7 @@ module.exports = async function handler(req, res) {
       const adminKey = process.env.GP_ADMIN_KEY || '';
       const trackKey = process.env.GP_TRACK_KEY || '';
       const TKEY = 'gp:track:v1';
-      if (req.method === 'POST' && String(body.action || '') !== 'setpass') {
+      if (req.method === 'POST' && String(body.action || '') !== 'setpass' && String(body.action || '') !== 'setresend') {
         const k = clean(body.key, 128) || qkey;
         if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
         const snap = body.snapshot;
@@ -264,6 +264,16 @@ module.exports = async function handler(req, res) {
         try { await r.set('gp:track:pass', p); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
         return res.status(200).json({ ok: true, set: true });
       }
+      // STORE the Resend API key (admin only). Lets email send without Vercel env access.
+      //   POST ?kind=track {key:GP_ADMIN_KEY, action:'setresend', resendKey:'re_...'}
+      if (req.method === 'POST' && String(body.action || '') === 'setresend') {
+        const k3 = clean(body.key, 128) || qkey;
+        if (!adminKey || k3 !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        const rk = clean(body.resendKey, 200);
+        if (!rk || rk.indexOf('re_') !== 0) return res.status(400).json({ error: 'bad_key' });
+        try { await r.set('gp:resend:key', rk); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        return res.status(200).json({ ok: true, set: true });
+      }
       // GET — read, gated by the admin key, the env view key, or the stored passcode
       const k = qkey || clean(body.key, 128);
       let storedPass = '';
@@ -289,23 +299,25 @@ module.exports = async function handler(req, res) {
       if (!okKey) return res.status(403).json({ error: 'not_admin' });
       const to = clean(body.to, 160);
       if (!to || to.indexOf('@') < 1) return res.status(400).json({ error: 'bad_to' });
-      const name = clean(body.name, 60) || 'there';
-      const subject = clean(body.subject, 200) || ('Come back to One House, ' + name);
+      const name = clean(body.name, 60) || 'stranger';
+      const subject = clean(body.subject, 200) || (name + ', you really left me on read? 👀');
       const SUB = 'https://subscribe.1houseglobal.com/jay';
       const defaultHtml =
         '<div style="font-family:Inter,Arial,sans-serif;background:#080808;color:#f5f5f5;padding:28px;border-radius:12px;max-width:560px">' +
         '<div style="color:#00FF85;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px">The Greenprint</div>' +
-        '<p style="font-size:16px;line-height:1.6">Hey ' + name + ',</p>' +
-        '<p style="font-size:16px;line-height:1.6">I noticed you stepped away from One House. The room is live every single day, real trading, the breakdowns, the community that is actually putting money on the board.</p>' +
-        '<p style="font-size:16px;line-height:1.6">If you are ready to get back in, I would love to have you. Lock back in here:</p>' +
-        '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:8px;display:inline-block">Get Back In</a></p>' +
-        '<p style="font-size:14px;line-height:1.6;color:#999">You in? Reply to this email and I will get you set up. If you would rather not hear from me, just reply and say so.</p>' +
-        '<p style="font-size:14px;line-height:1.6">Jay</p>' +
+        '<p style="font-size:16px;line-height:1.6">Yo ' + name + ',</p>' +
+        '<p style="font-size:16px;line-height:1.6">Not gonna lie, I looked up and you wasn\'t in the room no more. Left me on read like that. 😅</p>' +
+        '<p style="font-size:16px;line-height:1.6">Real talk though, One House has been different lately. We trading live every single day, breaking down the charts, and people are actually eating. You started this for a reason. Don\'t let it die in the group chat.</p>' +
+        '<p style="margin:22px 0"><a href="' + SUB + '" style="background:#00FF85;color:#080808;font-weight:800;text-decoration:none;padding:14px 28px;border-radius:8px;display:inline-block">Come back to the room</a></p>' +
+        '<p style="font-size:15px;line-height:1.6">You in? Just reply and I got you. And if you really done, no hard feelings, tell me straight. But deep down, I think you miss us. 💚</p>' +
+        '<p style="font-size:15px;line-height:1.6;font-weight:700">Jay</p>' +
+        '<p style="font-size:12px;line-height:1.5;color:#777;margin-top:18px">The Greenprint · educational only, not financial advice. Reply STOP and I will not hit you again.</p>' +
         '</div>';
       const html = String(body.html || '') || defaultHtml;
       let Resend;
       try { Resend = require('resend').Resend; } catch (e) { return res.status(200).json({ ok: false, error: 'resend_unavailable' }); }
-      const rkey = process.env.RESEND_API_KEY;
+      let rkey = process.env.RESEND_API_KEY || '';
+      if (!rkey) { try { rkey = (await r.get('gp:resend:key')) || ''; } catch (e) {} }
       if (!rkey) return res.status(200).json({ ok: false, error: 'no_resend_key' });
       try {
         const resend = new Resend(rkey);
