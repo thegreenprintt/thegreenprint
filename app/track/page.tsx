@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 /* ───────────────────────────────────────────────────────────────────────────
    /track — The Greenprint Business Command Center (private)
@@ -584,14 +584,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 type NotifyState = "idle" | "working" | "on" | "blocked" | "unsupported";
 function NotifyBell() {
-  const [st, setSt] = useState<NotifyState>("idle");
+  const [st, setSt] = useState<NotifyState>(() => {
+    try { if (typeof window !== "undefined" && "Notification" in window) { if (Notification.permission === "granted") return "on"; if (Notification.permission === "denied") return "blocked"; } } catch {}
+    return "idle";
+  });
   useEffect(() => {
     try {
-      if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) { setSt("unsupported"); return; }
+      if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) { setSt((s) => (s === "on" ? "on" : "unsupported")); return; }
       if (Notification.permission === "denied") { setSt("blocked"); return; }
       if (Notification.permission === "granted") setSt("on");
-    } catch { setSt("unsupported"); }
+    } catch {}
   }, []);
+  // Once notifications are on, get out of the way.
+  if (st === "on") return null;
   const enable = useCallback(async () => {
     try {
       setSt("working");
@@ -608,11 +613,11 @@ function NotifyBell() {
       try { reg.showNotification("Notifications on ✅", { body: "I'll ping you about new subscribers, due dates, and your morning brief.", icon: "/icon-192.png", badge: "/icon-192.png" }); } catch {}
     } catch { setSt("idle"); }
   }, []);
-  const label = st === "on" ? "🔔 Notifications on" : st === "working" ? "enabling…" : st === "blocked" ? "🔕 Turn on in Settings" : st === "unsupported" ? "📲 Add to Home Screen first" : "🔔 Enable notifications";
-  const done = st === "on" || st === "working" || st === "blocked" || st === "unsupported";
+  const label = st === "working" ? "enabling…" : st === "blocked" ? "🔕 Turn on in Settings" : st === "unsupported" ? "📲 Add to Home Screen first" : "🔔 Enable notifications";
+  const done = st === "working" || st === "blocked" || st === "unsupported";
   return (
     <button onClick={done ? undefined : enable} disabled={st === "working"}
-      className={`gp-display w-full px-3 py-2.5 rounded-xl text-[12px] font-semibold border transition-colors ${st === "on" ? "border-accent/40 text-accent bg-accent/10" : st === "blocked" || st === "unsupported" ? "border-white/10 text-muted" : "border-accent/30 text-accent hover:bg-accent/10"}`}>
+      className={`gp-display w-full px-3 py-2.5 rounded-xl text-[12px] font-semibold border transition-colors ${st === "blocked" || st === "unsupported" ? "border-white/10 text-muted" : "border-accent/30 text-accent hover:bg-accent/10"}`}>
       {label}
     </button>
   );
@@ -631,6 +636,7 @@ export default function TrackPage() {
   const [confetti, setConfetti] = useState(0);
   const [nowTs, setNowTs] = useState<number>(() => Date.now());
   const [queueOpen, setQueueOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const load = useCallback(async (key: string) => {
     setLoading(true); setErr("");
@@ -863,17 +869,59 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* Mobile bottom tab bar (app-style) */}
-          <LayoutGroup>
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex gap-1 overflow-x-auto border-t border-white/10 bg-bg/92 backdrop-blur-xl px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] [scrollbar-width:none] [-webkit-overflow-scrolling:touch]">
-              {nav.map((t) => (
-                <button key={t.id} onClick={() => setView(t.id)} className={`gp-display relative px-3 py-2 rounded-xl text-[13px] whitespace-nowrap transition-colors shrink-0 ${view === t.id ? "text-bg" : "text-muted"}`}>
-                  {view === t.id && <motion.span layoutId="navchip" className="absolute inset-0 rounded-xl bg-accent" transition={{ type: "spring", stiffness: 450, damping: 35 }} />}
-                  <span className="relative z-10 font-semibold">{t.label}{t.n !== undefined ? <span className="opacity-70"> ({t.n})</span> : null}</span>
-                </button>
-              ))}
-            </div>
-          </LayoutGroup>
+          {/* Mobile bottom tab bar (native app-style: 5 fixed tabs + More sheet) */}
+          {(() => {
+            const primary: { id: View; label: string; icon: string }[] = [
+              { id: "today", label: "Today", icon: "🎯" },
+              { id: "focus", label: "Focus", icon: "⭐" },
+              { id: "pipeline", label: "Pipeline", icon: "🪜" },
+              { id: "all", label: "Roster", icon: "👥" },
+            ];
+            const moreViews: { id: View; label: string; icon: string }[] = [
+              { id: "due", label: "Due This Week", icon: "⏰" },
+              { id: "inactive", label: "Inactive", icon: "💤" },
+              { id: "active", label: "Active", icon: "✅" },
+              { id: "playbook", label: "Playbook", icon: "📘" },
+              { id: "system", label: "The System", icon: "🧭" },
+            ];
+            const inMore = moreViews.some((v) => v.id === view);
+            return (
+              <>
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t border-white/10 bg-bg/95 backdrop-blur-xl pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
+                  {primary.map((t) => {
+                    const on = view === t.id;
+                    return (
+                      <button key={t.id} onClick={() => { setMoreOpen(false); setView(t.id); }} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 active:scale-95 transition-transform">
+                        <span className={`text-[19px] leading-none transition-all ${on ? "" : "grayscale opacity-55"}`}>{t.icon}</span>
+                        <span className={`gp-display text-[10px] font-semibold ${on ? "text-accent" : "text-muted"}`}>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                  <button onClick={() => setMoreOpen(true)} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 active:scale-95 transition-transform">
+                    <span className={`text-[19px] leading-none transition-all ${inMore ? "" : "grayscale opacity-55"}`}>⋯</span>
+                    <span className={`gp-display text-[10px] font-semibold ${inMore ? "text-accent" : "text-muted"}`}>More</span>
+                  </button>
+                </div>
+                {moreOpen && (
+                  <div className="lg:hidden fixed inset-0 z-[75] flex items-end" >
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMoreOpen(false)} />
+                    <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      className="relative z-10 w-full rounded-t-3xl border-t border-white/10 bg-surface2 p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                      <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+                      <div className="grid grid-cols-2 gap-2">
+                        {moreViews.map((v) => (
+                          <button key={v.id} onClick={() => { setView(v.id); setMoreOpen(false); }} className={`gp-display flex items-center gap-2.5 rounded-2xl border p-3.5 text-left transition-colors ${view === v.id ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-text/80 hover:border-white/25"}`}>
+                            <span className="text-lg">{v.icon}</span>
+                            <span className="text-[13px] font-semibold">{v.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {!snap && <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center"><div className="text-text font-semibold mb-1">No snapshot yet</div><div className="text-muted text-sm">The next refresh will fill this in.</div></div>}
 
