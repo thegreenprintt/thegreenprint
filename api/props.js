@@ -152,8 +152,12 @@ function sideOf(competitors, homeAway) {
     winner: !!c.winner,
   };
 }
+const SCORE_CACHE = {};
+
 async function doScores(res, base, league) {
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  const _c = SCORE_CACHE[league];
+  if (_c && Date.now() - _c.ts < 25000) { res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30'); return res.status(200).json(_c.payload); }
   try {
     const now = new Date();
     // Fetch yesterday → +2 days (UTC) and MERGE. A US night game (e.g. Monday
@@ -161,13 +165,22 @@ async function doScores(res, base, league) {
     // day — querying only "today" in UTC silently drops the game in progress.
     // Merging a window around now guarantees live games are always included.
     const byId = {};
-    for (const off of [-1, 0, 1, 2]) {
-      const d = new Date(now.getTime() + off * 86400000);
-      let sb;
-      try { sb = await jget(base + '/scoreboard?dates=' + ymd(d), 6000); } catch (e) { continue; }
+    const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const etYmd = (dt) => String(dt.getFullYear()) + String(dt.getMonth() + 1).padStart(2, '0') + String(dt.getDate()).padStart(2, '0');
+    const [sbToday, sbYest] = await Promise.all([
+      jget(base + '/scoreboard?dates=' + etYmd(etNow), 5000).catch(() => null),
+      jget(base + '/scoreboard?dates=' + etYmd(new Date(etNow.getTime() - 86400000)), 5000).catch(() => null),
+    ]);
+    const addEvents = (sb, liveOnly) => {
       const evs = (sb && sb.events) || [];
-      for (const e of evs) if (e && e.id && !byId[e.id]) byId[e.id] = e;
-    }
+      for (const e of evs) {
+        if (!e || !e.id || byId[e.id]) continue;
+        if (liveOnly) { const st = (e.status && e.status.type && e.status.type.state) || ''; if (st !== 'in') continue; }
+        byId[e.id] = e;
+      }
+    };
+    addEvents(sbToday, false);
+    addEvents(sbYest, true);
     const events = Object.keys(byId).map((k) => byId[k]);
     const games = events.map((e) => {
       const comp = (e.competitions && e.competitions[0]) || {};
@@ -210,9 +223,9 @@ async function doScores(res, base, league) {
     const rank = (s) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
     kept.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
-    return res.status(200).json({ league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) });
+    const payload = { league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) }; SCORE_CACHE[league] = { ts: Date.now(), payload: payload }; return res.status(200).json(payload);
   } catch (e) {
-    return res.status(200).json({ league: league, games: [], error: 'feed_unavailable' });
+    if (SCORE_CACHE[league]) { res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json(Object.assign({ stale: true }, SCORE_CACHE[league].payload)); } res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, games: [], error: 'feed_unavailable' });
   }
 }
 
