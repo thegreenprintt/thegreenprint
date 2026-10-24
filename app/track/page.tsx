@@ -760,6 +760,16 @@ export default function TrackPage() {
     try { const lm = JSON.parse(localStorage.getItem(MARKS_LS) || "{}"); if (lm && typeof lm === "object") setMarks(lm); } catch {}
     if (k) { setPass(k); load(k); }
   }, [load]);
+  // Never let the browser restore a saved scroll position; open at the very top
+  useEffect(() => { try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch {} }, []);
+  // When the data first lands, pin to the top (content height jumps as it loads on mobile)
+  const didTop = useRef(false);
+  useEffect(() => {
+    if (!authed || didTop.current) return;
+    didTop.current = true;
+    const top = () => { try { if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0; window.scrollTo(0, 0); } catch {} };
+    top(); requestAnimationFrame(top); setTimeout(top, 80); setTimeout(top, 250); setTimeout(top, 600);
+  }, [authed]);
   // live clock + silent auto-refresh every 10 min
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass, true), 25000); return () => clearInterval(t); }, [authed, pass, load]);
@@ -948,7 +958,7 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main ref={mainScrollRef} style={{ overflowAnchor: "none" }} className="gp-root gp-grain h-[100dvh] overflow-y-auto overflow-x-clip overscroll-contain bg-bg text-text relative">
+    <main ref={mainScrollRef} style={{ overflowAnchor: "none", paddingTop: "env(safe-area-inset-top)" }} className="gp-root gp-grain h-[100dvh] overflow-y-auto overflow-x-clip overscroll-contain bg-bg text-text relative">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <div className="gp-vignette" />
