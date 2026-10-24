@@ -853,7 +853,7 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main ref={mainScrollRef} className="gp-root gp-grain min-h-screen bg-bg text-text relative overflow-x-clip">
+    <main ref={mainScrollRef} style={{ overflowAnchor: "none" }} className="gp-root gp-grain h-[100dvh] overflow-y-auto overflow-x-clip overscroll-contain bg-bg text-text relative">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <div className="gp-vignette" />
