@@ -400,6 +400,69 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, geo: geo });
     }
 
+    // ── ONE HOUSE GEO ENRICH — fills each member's real city/state/phone by looking
+    //   them up (by username) through the same public subscribe search the site uses.
+    //   Batched to stay within the serverless time limit; call repeatedly until done.
+    //   GET ?kind=1h-geo&key=<admin>&batch=0
+    if (kind === '1h-geo') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_authorized' });
+      const SIZE = 40;
+      const batch = Math.max(0, parseInt(String((req.query && req.query.batch) || '0'), 10) || 0);
+      // member list (username + email + name) — cached in Redis after batch 0 so later batches skip the login+genealogy pull
+      let list = null;
+      try { const c = await r.get('gp:track:gnlist'); if (c) list = JSON.parse(c); } catch (e) {}
+      if (!list || batch === 0) {
+        const email = (process.env.ONE_HOUSE_EMAIL || '').trim();
+        const pass = (process.env.ONE_HOUSE_PASSWORD || '').trim();
+        if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
+        const B = 'https://backend.1houseglobal.dev';
+        let token = '';
+        try {
+          const lr = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
+          const lj = await lr.json().catch(() => null);
+          token = (lj && (lj.access_token || lj.accessToken || lj.token)) || '';
+          if (!token) return res.status(200).json({ ok: false, error: 'login_failed' });
+        } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
+        const H = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
+        list = [];
+        try {
+          let page = 1, last = 1;
+          do {
+            const gr = await fetch(B + '/api/user/genealogy-list?page=' + page, { headers: H });
+            const gj = await gr.json().catch(() => null);
+            const d = gj && gj.data; const arr = (d && Array.isArray(d.data)) ? d.data : [];
+            last = (d && d.last_page) || 1;
+            for (const n of arr) { const u = n.user || {}; list.push({ u: String(u.username || '').trim(), e: String(u.email || '').toLowerCase().trim(), n: String(n.fullname || u.username || '').trim() }); }
+            page++;
+          } while (page <= last && page <= 30);
+        } catch (e) { return res.status(200).json({ ok: false, error: 'genealogy_error', detail: String((e && e.message) || e) }); }
+        if (!list.length) return res.status(200).json({ ok: false, error: 'no_nodes' });
+        try { await r.set('gp:track:gnlist', JSON.stringify(list), 'EX', 3600); } catch (e) {}
+      }
+      // load existing geo, process this batch
+      let geo = {}; try { geo = JSON.parse((await r.get('gp:track:geo')) || '{}') || {}; } catch (e) {}
+      const PROXY = 'https://vuefjlszkeijndgvshxv.supabase.co/functions/v1/backend-proxy';
+      const slice = list.slice(batch * SIZE, batch * SIZE + SIZE);
+      let found = 0;
+      for (const m of slice) {
+        const term = m.u || m.e; if (!term) continue;
+        try {
+          const pr = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: '/distributor/search', method: 'GET', queryParams: { search: term }, requiresAdmin: false }) });
+          const pj = await pr.json().catch(() => null);
+          const arr = (pj && pj.data && Array.isArray(pj.data.data)) ? pj.data.data : [];
+          let hit = arr.find((x) => String(x.username || '').toLowerCase() === m.u.toLowerCase());
+          if (!hit && m.e) hit = arr.find((x) => String(x.email || '').toLowerCase() === m.e);
+          if (hit && m.e) { geo[m.e] = { p: String(hit.phone || ''), c: String(hit.city || ''), s: String(hit.state || '') }; if (hit.city || hit.state || hit.phone) found++; }
+        } catch (e) {}
+      }
+      try { await r.set('gp:track:geo', JSON.stringify(geo)); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      const processedTo = batch * SIZE + slice.length;
+      const withState = Object.values(geo).filter((g) => g && g.s).length;
+      return res.status(200).json({ ok: true, batch: batch, processedThisBatch: slice.length, foundThisBatch: found, total: list.length, nextBatch: processedTo < list.length ? batch + 1 : null, done: processedTo >= list.length, geoWithState: withState });
+    }
+
     // ── ONE HOUSE PROBE (admin only, temporary) — inspect what fields One House
     //   already returns for the account's own downline, to find a state/city field.
     //   GET ?kind=1h-probe&key=<admin>[&path=/api/...]
