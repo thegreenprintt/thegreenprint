@@ -105,11 +105,11 @@ function StatTile({ label, value, tone, delay, prefix, suffix }: { label: string
   const n = useCountUp(value);
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="group relative flex-1 min-w-[104px] overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.05] to-transparent p-4 backdrop-blur transition-all hover:border-white/[0.14]">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
-      <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: tone }} />
-      <div className="relative text-[10px] font-mono uppercase tracking-[0.18em] text-muted mb-2">{label}</div>
-      <div className="gp-display relative text-[32px] leading-none font-bold tabular-nums" style={{ color: tone }}>{prefix || ""}{n.toLocaleString()}{suffix || ""}</div>
+      className="gp-card group relative flex-1 min-w-[104px] overflow-hidden rounded-2xl p-4 transition-transform hover:-translate-y-0.5">
+      <div className="absolute inset-x-0 top-0 h-px z-[1]" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-25 group-hover:opacity-60 transition-opacity" style={{ background: tone }} />
+      <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-2">{label}</div>
+      <div className="gp-display gp-num relative z-[1] text-[34px] leading-none font-bold" style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{prefix || ""}{n.toLocaleString()}{suffix || ""}</div>
     </motion.div>
   );
 }
@@ -456,8 +456,9 @@ function GoalPanel({ goal }: { goal?: Goal }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl border border-gold/25 bg-gradient-to-br from-gold/[0.10] via-white/[0.02] to-transparent p-5 sm:p-6 mb-4">
-      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full blur-3xl" style={{ background: "rgba(201,168,76,0.18)" }} />
+      className="gp-card gp-card-gold relative overflow-hidden rounded-3xl p-5 sm:p-6 mb-4">
+      <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full blur-3xl" style={{ background: "rgba(201,168,76,0.22)" }} />
+      <div className="absolute -left-10 bottom-0 h-40 w-40 rounded-full blur-3xl" style={{ background: "rgba(0,255,133,0.10)" }} />
       <div className="relative">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <div className="flex items-center gap-2">
@@ -471,7 +472,7 @@ function GoalPanel({ goal }: { goal?: Goal }) {
         <div className="flex items-end gap-4 flex-wrap">
           {subsToGo != null ? (
             <div>
-              <div className="gp-display text-[64px] sm:text-[80px] leading-none font-black text-gold tabular-nums">{subsN}</div>
+              <div className="gp-display gp-metal gp-num text-[64px] sm:text-[80px] leading-none font-black">{subsN}</div>
               <div className="text-sm text-text/70 font-mono -mt-1">subscribers to ${(target / 1000)}K</div>
             </div>
           ) : (
@@ -852,7 +853,7 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main ref={mainScrollRef} className="min-h-screen bg-bg text-text relative overflow-x-clip">
+    <main ref={mainScrollRef} className="gp-root gp-grain min-h-screen bg-bg text-text relative overflow-x-clip">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <div className="gp-vignette" />
@@ -871,7 +872,7 @@ export default function TrackPage() {
                 <div className="text-[9px] font-mono uppercase tracking-[0.22em] text-muted/60 px-3 mb-1.5">{g}</div>
                 <div className="space-y-1">
                   {nav.filter((t) => t.group === g).map((t) => (
-                    <button key={t.id} onClick={() => setView(t.id)} className={`gp-display w-full text-left px-3 py-2 rounded-xl text-[15px] font-medium flex items-center justify-between transition-colors ${view === t.id ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text hover:bg-white/[0.03] border border-transparent"}`}>
+                    <button key={t.id} onClick={() => setView(t.id)} className={`gp-display w-full text-left px-3 py-2 rounded-xl text-[15px] font-medium flex items-center justify-between transition-all duration-200 ${view === t.id ? "gp-navon text-accent" : "text-muted hover:text-text hover:bg-white/[0.03] border border-transparent"}`}>
                       <span>{t.label}</span>{t.n !== undefined && <span className="opacity-60 text-xs">{t.n}</span>}
                     </button>
                   ))}
@@ -893,7 +894,7 @@ export default function TrackPage() {
           {/* Header */}
           <div className="pt-8 pb-5 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="gp-display text-[28px] sm:text-[40px] font-bold tracking-[-0.025em] bg-gradient-to-r from-white via-white to-accent/70 bg-clip-text text-transparent">{nav.find((n) => n.id === view)?.label}</h1>
+              <h1 className="gp-display gp-title text-[30px] sm:text-[44px] font-bold leading-[0.95]">{nav.find((n) => n.id === view)?.label}</h1>
               <p className="text-muted text-xs font-mono mt-1.5">
                 {view === "today" ? "Your daily method of operation. Work this list top to bottom." :
                   view === "focus" ? "Your ranked lock-in list, work top to bottom." :
@@ -944,18 +945,20 @@ export default function TrackPage() {
             const inMore = moreViews.some((v) => v.id === view);
             return (
               <>
-                <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t border-white/10 bg-bg/95 backdrop-blur-xl pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5">
+                <div className="gp-tabbar lg:hidden fixed bottom-0 left-0 right-0 z-40 flex pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
                   {primary.map((t) => {
                     const on = view === t.id;
                     return (
-                      <button key={t.id} onClick={() => { setMoreOpen(false); setView(t.id); }} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 active:scale-95 transition-transform">
-                        <span className={`text-[19px] leading-none transition-all ${on ? "" : "grayscale opacity-55"}`}>{t.icon}</span>
+                      <button key={t.id} onClick={() => { setMoreOpen(false); setView(t.id); }} className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-1 active:scale-90 transition-transform ${on ? "gp-tabon" : ""}`}>
+                        {on && <span className="gp-tabdot" />}
+                        <span className={`text-[19px] leading-none transition-all ${on ? "drop-shadow-[0_0_8px_rgba(0,255,133,0.5)]" : "grayscale opacity-50"}`}>{t.icon}</span>
                         <span className={`gp-display text-[10px] font-semibold ${on ? "text-accent" : "text-muted"}`}>{t.label}</span>
                       </button>
                     );
                   })}
-                  <button onClick={() => setMoreOpen(true)} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 active:scale-95 transition-transform">
-                    <span className={`text-[19px] leading-none transition-all ${inMore ? "" : "grayscale opacity-55"}`}>⋯</span>
+                  <button onClick={() => setMoreOpen(true)} className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-1 active:scale-90 transition-transform ${inMore ? "gp-tabon" : ""}`}>
+                    {inMore && <span className="gp-tabdot" />}
+                    <span className={`text-[19px] leading-none transition-all ${inMore ? "drop-shadow-[0_0_8px_rgba(0,255,133,0.5)]" : "grayscale opacity-50"}`}>⋯</span>
                     <span className={`gp-display text-[10px] font-semibold ${inMore ? "text-accent" : "text-muted"}`}>More</span>
                   </button>
                 </div>
@@ -1597,16 +1600,40 @@ function CommunityView({ members, tree }: { members: Member[]; tree: TreeNode[] 
 
 const auroraCss = `
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-.gp-display{font-family:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,sans-serif;font-feature-settings:'tnum' 1}
+.gp-display{font-family:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,sans-serif;font-feature-settings:'tnum' 1,'ss01' 1}
+.gp-num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+/* Premium layered base — deep obsidian with a faint emerald/gold wash for depth */
+.gp-root{background:
+  radial-gradient(130% 78% at 50% -14%, rgba(0,255,133,.055), transparent 52%),
+  radial-gradient(90% 60% at 102% 2%, rgba(201,168,76,.05), transparent 48%),
+  radial-gradient(80% 60% at -5% 8%, rgba(0,255,133,.035), transparent 50%),
+  linear-gradient(180deg,#070B0A 0%, #06090B 55%, #04070A 100%);}
+/* film grain for a crafted, non-flat surface */
+.gp-grain::after{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.04;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* Premium glass card: top-edge highlight, hairline gradient ring, ambient depth shadow */
+.gp-card{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.014));border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 22px 44px -26px rgba(0,0,0,.85),0 2px 6px -2px rgba(0,0,0,.5);backdrop-filter:blur(14px) saturate(135%);-webkit-backdrop-filter:blur(14px) saturate(135%)}
+.gp-card::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(135deg,rgba(255,255,255,.16),transparent 38%,transparent 72%,rgba(0,255,133,.14));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.8}
+.gp-card-gold::after{background:linear-gradient(135deg,rgba(243,226,166,.3),transparent 42%,transparent 70%,rgba(201,168,76,.18))}
+/* Title: cool white with the faintest emerald fall-off */
+.gp-title{background:linear-gradient(176deg,#ffffff 0%,#eafff6 55%,rgba(0,255,133,.82) 150%);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.035em}
+/* Brushed metallic gold for money/goal numerals */
+.gp-metal{background:linear-gradient(176deg,#F7E8B0 0%,#E4C878 45%,#B8923D 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* Active nav: inner glow rail + emerald wash */
+.gp-navon{position:relative;background:linear-gradient(90deg,rgba(0,255,133,.15),rgba(0,255,133,.03));border:1px solid rgba(0,255,133,.3);box-shadow:0 0 26px -8px rgba(0,255,133,.55),inset 0 1px 0 rgba(255,255,255,.06)}
+.gp-navon::before{content:"";position:absolute;left:-1px;top:16%;bottom:16%;width:3px;border-radius:0 3px 3px 0;background:#00FF85;box-shadow:0 0 12px #00FF85}
+/* Premium mobile tab bar */
+.gp-tabbar{background:linear-gradient(180deg,rgba(11,16,15,.72),rgba(5,8,9,.95));backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border-top:1px solid rgba(255,255,255,.08);box-shadow:0 -18px 44px -22px rgba(0,0,0,.9)}
+.gp-tabon{color:#00FF85}
+.gp-tabon .gp-tabdot{position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:26px;height:3px;border-radius:3px;background:#00FF85;box-shadow:0 0 12px #00FF85}
 .gp-aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.gp-aurora::before,.gp-aurora::after{content:"";position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.14}
-.gp-aurora::before{background:radial-gradient(circle,#00FF85,transparent 60%);top:-20vmax;left:-10vmax;animation:gpDrift1 22s ease-in-out infinite}
-.gp-aurora::after{background:radial-gradient(circle,#C9A84C,transparent 60%);bottom:-25vmax;right:-15vmax;animation:gpDrift2 28s ease-in-out infinite}
+.gp-aurora::before,.gp-aurora::after{content:"";position:absolute;width:62vmax;height:62vmax;border-radius:50%;filter:blur(96px);opacity:.13}
+.gp-aurora::before{background:radial-gradient(circle,#00FF85,transparent 60%);top:-22vmax;left:-12vmax;animation:gpDrift1 24s ease-in-out infinite}
+.gp-aurora::after{background:radial-gradient(circle,#E4C878,transparent 60%);bottom:-26vmax;right:-16vmax;animation:gpDrift2 30s ease-in-out infinite}
 @keyframes gpDrift1{0%,100%{transform:translate(0,0)}50%{transform:translate(12vmax,8vmax)}}
 @keyframes gpDrift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-10vmax,-6vmax)}}
-.gp-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%)}
-.gp-vignette{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(130% 85% at 50% -12%, rgba(0,255,133,.07), transparent 52%)}
+.gp-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.03;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:46px 46px;mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 72%)}
+.gp-vignette{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(130% 85% at 50% -12%, rgba(0,255,133,.06), transparent 52%)}
 @media(prefers-reduced-motion:reduce){.gp-aurora::before,.gp-aurora::after{animation:none}}
 /* Phones: kill the constant heavy-blur repaint so taps + scrolling stay snappy */
-@media(max-width:1023px){.gp-aurora::before,.gp-aurora::after{animation:none;filter:blur(45px);opacity:.09}.gp-grid{display:none}}
+@media(max-width:1023px){.gp-aurora::before,.gp-aurora::after{animation:none;filter:blur(48px);opacity:.1}.gp-grid{display:none}.gp-grain::after{opacity:.03}}
 `;
