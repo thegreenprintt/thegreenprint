@@ -1000,7 +1000,7 @@ export default function TrackPage() {
           <div className="pt-8 pb-5 flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h1 className="gp-display gp-title text-[30px] sm:text-[44px] font-bold leading-[0.95]">{nav.find((n) => n.id === view)?.label}</h1>
-              <p className="text-muted text-xs font-mono mt-1.5">
+              <p className="text-muted/90 text-[13px] gp-display font-medium mt-2 leading-relaxed max-w-md">
                 {view === "today" ? "Your daily method of operation. Work this list top to bottom." :
                   view === "focus" ? "Your ranked lock-in list, work top to bottom." :
                   view === "pipeline" ? "Every member, from first touch to closed." :
@@ -1705,11 +1705,13 @@ function CommunityView({ members, tree }: { members: Member[]; tree: TreeNode[] 
 }
 
 const auroraCss = `
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 .gp-display{font-family:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,sans-serif;font-feature-settings:'tnum' 1,'ss01' 1}
 .gp-num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+/* Refined premium sans replaces the generic monospace across the tracker */
+.gp-root .font-mono{font-family:'Manrope',ui-sans-serif,system-ui,-apple-system,sans-serif !important;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 /* Premium layered base — deep obsidian with a faint emerald/gold wash for depth */
-.gp-root{background:
+.gp-root{font-family:'Manrope',ui-sans-serif,system-ui,-apple-system,sans-serif;background:
   radial-gradient(130% 78% at 50% -14%, rgba(0,255,133,.055), transparent 52%),
   radial-gradient(90% 60% at 102% 2%, rgba(201,168,76,.05), transparent 48%),
   radial-gradient(80% 60% at -5% 8%, rgba(0,255,133,.035), transparent 50%),
