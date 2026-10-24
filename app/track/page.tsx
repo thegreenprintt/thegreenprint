@@ -667,7 +667,7 @@ export default function TrackPage() {
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
   // Jump to the top whenever the tab changes so the new view's header is visible
-  useEffect(() => { try { window.scrollTo({ top: 0, behavior: "auto" }); } catch {} }, [view]);
+  useEffect(() => { const toTop = () => { try { window.scrollTo({ top: 0, behavior: "auto" }); if (document.documentElement) document.documentElement.scrollTop = 0; if (document.body) document.body.scrollTop = 0; } catch {} }; toTop(); const raf = requestAnimationFrame(toTop); return () => cancelAnimationFrame(raf); }, [view]);
   // Pull interested leads from the /start funnel store (read-only; Telegram/Viato untouched)
   useEffect(() => {
     if (!authed) return; let stop = false;
@@ -1055,17 +1055,17 @@ export default function TrackPage() {
                   { label: "Interested", n: pipe.talking, color: "#9b7bff" },
                   { label: "Active", n: pipe.closed, color: "#00FF85" },
                 ]} /></div>
-                <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4">
+                <div className="space-y-3 pb-3 lg:flex lg:gap-3 lg:space-y-0 lg:overflow-x-auto lg:-mx-4 lg:px-4">
                   {STAGES.map((st) => {
                     const col = members.filter((m) => (markFor(m.email).stage) === st).sort((a, b) => score(b).s - score(a).s);
                     const meta = STAGE_META[st];
                     return (
-                      <div key={st} className="shrink-0 w-[78vw] sm:w-72 rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+                      <div key={st} className="w-full lg:shrink-0 lg:w-72 rounded-2xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
                         <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-white/[0.06]" style={{ background: `${meta.color}12` }}>
                           <span className="text-[11px] font-mono font-bold tracking-wider" style={{ color: meta.color }}>{meta.short}</span>
                           <span className="text-[11px] font-mono text-muted">{col.length + (st === "talking" ? openLeads.length : 0)}</span>
                         </div>
-                        <div className="p-2 space-y-2 max-h-[62vh] overflow-y-auto">
+                        <div className="p-2 space-y-2 lg:max-h-[62vh] lg:overflow-y-auto">
                           {st === "talking" && openLeads.slice(0, 40).map((l) => {
                             const first = firstName(l.name || "");
                             return (
@@ -1591,4 +1591,6 @@ const auroraCss = `
 .gp-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.025;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%)}
 .gp-vignette{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(130% 85% at 50% -12%, rgba(0,255,133,.07), transparent 52%)}
 @media(prefers-reduced-motion:reduce){.gp-aurora::before,.gp-aurora::after{animation:none}}
+/* Phones: kill the constant heavy-blur repaint so taps + scrolling stay snappy */
+@media(max-width:1023px){.gp-aurora::before,.gp-aurora::after{animation:none;filter:blur(45px);opacity:.09}.gp-grid{display:none}}
 `;

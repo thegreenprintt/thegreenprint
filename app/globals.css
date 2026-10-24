@@ -38,8 +38,8 @@ html, body {
 /* Focus ring */
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
-/* Smooth scroll */
-html { scroll-behavior: smooth; }
+/* Smooth scroll on desktop only; on phones it fights the tab-switch reset and feels like scroll locks up */
+@media (min-width: 1024px) { html { scroll-behavior: smooth; } }
 
 /* Ticker — GPU-accelerated via transform, forced onto its own compositor layer */
 @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
