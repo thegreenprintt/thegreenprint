@@ -503,7 +503,7 @@ module.exports = async function handler(req, res) {
           last = (d && d.last_page) || 1;
           for (const n of arr) {
             const u = n.user || {}; const pk = n.active_package || {};
-            nodes.push({ id: n.user_id, sp: (u.sponsor == null ? null : u.sponsor), name: String(n.fullname || u.username || '').trim(), email: String(u.email || '').toLowerCase(), paid: /yes/i.test(String(n.paid_subscription)), subs: n.subscribers_count || 0, lvl: n.level, amount: Number(pk.amount) || 0, purchase: pk.purchase_date || n.paid_subscription_date || null });
+            nodes.push({ id: n.user_id, sp: (u.sponsor == null ? null : u.sponsor), uname: String(u.username || '').trim(), name: String(n.fullname || u.username || '').trim(), email: String(u.email || '').toLowerCase(), paid: /yes/i.test(String(n.paid_subscription)), subs: n.subscribers_count || 0, lvl: n.level, amount: Number(pk.amount) || 0, purchase: pk.purchase_date || n.paid_subscription_date || null });
           }
           page++;
         } while (page <= last && page <= 30);
@@ -526,6 +526,27 @@ module.exports = async function handler(req, res) {
       let goal = null; try { const prev = JSON.parse((await r.get('gp:track:v1')) || 'null'); goal = prev && prev.goal ? prev.goal : null; } catch (e) {}
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
       try { await r.set('gp:track:v1', JSON.stringify(record)); await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      // 4b) incremental geo — fill real city/state/phone for members that don't have it yet
+      //     (new joiners, mostly). Capped per run so the hourly stays fast & hands-off.
+      try {
+        let geo = {}; try { geo = JSON.parse((await r.get('gp:track:geo')) || '{}') || {}; } catch (e) {}
+        const needs = nodes.filter((n) => n.email && (n.uname || n.email) && !(geo[n.email] && geo[n.email].s)).slice(0, 25);
+        if (needs.length) {
+          const PROXY = 'https://vuefjlszkeijndgvshxv.supabase.co/functions/v1/backend-proxy';
+          for (const n of needs) {
+            const term = n.uname || n.email; if (!term) continue;
+            try {
+              const pr = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: '/distributor/search', method: 'GET', queryParams: { search: term }, requiresAdmin: false }) });
+              const pj = await pr.json().catch(() => null);
+              const arr = (pj && pj.data && Array.isArray(pj.data.data)) ? pj.data.data : [];
+              let hit = n.uname ? arr.find((x) => String(x.username || '').toLowerCase() === n.uname.toLowerCase()) : null;
+              if (!hit) hit = arr.find((x) => String(x.email || '').toLowerCase() === n.email);
+              if (hit) geo[n.email] = { p: String(hit.phone || ''), c: String(hit.city || ''), s: String(hit.state || '') };
+            } catch (e) {}
+          }
+          try { await r.set('gp:track:geo', JSON.stringify(geo)); } catch (e) {}
+        }
+      } catch (e) {}
       // 5) diff vs last run and push alerts (new subscribers, newly past due)
       try {
         let baseN = null; try { baseN = JSON.parse((await r.get('gp:track:notify:last')) || 'null'); } catch (e) {}
