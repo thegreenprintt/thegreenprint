@@ -420,8 +420,9 @@ module.exports = async function handler(req, res) {
       } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
       const H = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
       const probePath = clean((req.query && req.query.path) || '', 200);
-      const locRe = /state|city|country|zip|postal|region|addr|location|phone|mobile|timezone|tz/i;
-      const pickLoc = (o) => { const r2 = {}; if (o && typeof o === 'object') for (const kk of Object.keys(o)) { if (locRe.test(kk)) r2[kk] = o[kk]; } return r2; };
+      const locRe = /state|city|country|zip|postal|region|addr|location|phone|mobile|timezone|tz|province|county/i;
+      const deepLoc = (o, depth, prefix) => { const r2 = {}; if (!o || typeof o !== 'object' || depth < 0) return r2; for (const kk of Object.keys(o)) { const v = o[kk]; const label = prefix ? prefix + '.' + kk : kk; if (locRe.test(kk) && (v === null || typeof v !== 'object')) r2[label] = v; else if (v && typeof v === 'object' && depth > 0) Object.assign(r2, deepLoc(v, depth - 1, label)); } return r2; };
+      const pickLoc = (o) => deepLoc(o, 3, '');
       try {
         if (probePath) {
           const pr = await fetch(B + probePath, { headers: H });
