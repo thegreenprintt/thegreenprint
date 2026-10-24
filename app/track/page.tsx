@@ -632,6 +632,7 @@ type View = "today" | "focus" | "pipeline" | "community" | "due" | "inactive" | 
 export default function TrackPage() {
   const [pass, setPass] = useState(""); const [input, setInput] = useState("");
   const [snap, setSnap] = useState<Snapshot | null>(null);
+  const mainScrollRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(false); const [err, setErr] = useState(""); const [authed, setAuthed] = useState(false);
   const [q, setQ] = useState(""); const [view, setView] = useState<View>("today"); const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [emailStates, setEmailStates] = useState<Record<string, EmailState>>({});
@@ -667,7 +668,22 @@ export default function TrackPage() {
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
   // Jump to the top whenever the tab changes so the new view's header is visible
-  useEffect(() => { const toTop = () => { try { window.scrollTo({ top: 0, behavior: "auto" }); if (document.documentElement) document.documentElement.scrollTop = 0; if (document.body) document.body.scrollTop = 0; } catch {} }; toTop(); const raf = requestAnimationFrame(toTop); return () => cancelAnimationFrame(raf); }, [view]);
+  useEffect(() => {
+    const toTop = () => {
+      try {
+        if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: "auto" });
+        if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+      } catch {}
+    };
+    toTop();
+    const r1 = requestAnimationFrame(toTop);
+    const r2 = requestAnimationFrame(() => requestAnimationFrame(toTop));
+    const t = setTimeout(toTop, 60);
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); clearTimeout(t); };
+  }, [view]);
   // Pull interested leads from the /start funnel store (read-only; Telegram/Viato untouched)
   useEffect(() => {
     if (!authed) return; let stop = false;
@@ -836,7 +852,7 @@ export default function TrackPage() {
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
-    <main className="min-h-screen bg-bg text-text relative overflow-x-clip">
+    <main ref={mainScrollRef} className="min-h-screen bg-bg text-text relative overflow-x-clip">
       <div className="gp-aurora opacity-60" />
       <div className="gp-grid" />
       <div className="gp-vignette" />
