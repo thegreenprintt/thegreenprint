@@ -7,8 +7,11 @@ export async function POST() {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY!);
 
-    // Fetch all leads from Firebase
-    const data = await fetch(`${FB}/live/leads.json`).then(r => r.json());
+    // Fetch all leads from Firebase (server-side, using the DB secret so this
+    // works even when public reads of /live/leads are denied)
+    const secret = process.env.FIREBASE_DB_SECRET || '';
+    const leadsUrl = `${FB}/live/leads.json` + (secret ? `?auth=${encodeURIComponent(secret)}` : '');
+    const data = await fetch(leadsUrl).then(r => r.json());
     if (!data) return NextResponse.json({ sent: 0, message: 'No leads found' });
 
     // Extract valid emails

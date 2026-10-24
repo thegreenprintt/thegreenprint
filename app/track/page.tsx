@@ -24,7 +24,6 @@ interface Member {
 }
 interface Lead { _key: string; name?: string; email?: string; phone?: string; status?: string; path?: string; lastSeen?: string; firstSeen?: string; why?: string; }
 interface TreeNode { id: number; sp: number | null; name: string; email: string; active: number; subs: number; lvl: number; paid?: number; lastEnroll?: string | null; }
-const LEADS_URL = "https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads.json";
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 
@@ -671,9 +670,9 @@ export default function TrackPage() {
   // Pull interested leads from the /start funnel store (read-only; Telegram/Viato untouched)
   useEffect(() => {
     if (!authed) return; let stop = false;
-    const pull = async () => { try { const d = await fetch(LEADS_URL, { cache: "no-store" }).then((r) => r.json()); if (stop || !d) return; const list: Lead[] = Object.entries(d).map(([k, v]) => ({ ...(v as object), _key: k } as Lead)); setLeads(list); } catch {} };
+    const pull = async () => { try { const res = await fetch(`/api/chat?kind=leads&key=${encodeURIComponent(pass)}&cb=${Date.now()}`, { cache: "no-store" }); if (!res.ok) return; const j = await res.json(); const d = j && j.leads; if (stop || !d) return; const list: Lead[] = Object.entries(d).map(([k, v]) => ({ ...(v as object), _key: k } as Lead)); setLeads(list); } catch {} };
     pull(); const t = setInterval(pull, 60000); return () => { stop = true; clearInterval(t); };
-  }, [authed]);
+  }, [authed, pass]);
   // Make /track its own installable app + register the push service worker
   useEffect(() => {
     if (typeof document === "undefined") return;

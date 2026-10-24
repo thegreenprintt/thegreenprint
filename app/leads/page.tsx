@@ -6,12 +6,6 @@ import { useState, useEffect, useRef } from "react";
 // Tap to call, tap to text, set status, leave notes. Everything saves live.
 
 const DB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
-const CORRECT_HASH = "133f3d597c724b06170216e7562f77e42196a334b57f711213297aa77bac2121";
-
-async function sha256(str: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
 
 type Lead = {
   _key: string;
@@ -41,15 +35,21 @@ export default function LeadsPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function checkPassword() {
-    if (await sha256(pw) === CORRECT_HASH) { setAuthed(true); setPwError(""); localStorage.setItem("gp_leads", "1"); }
-    else setPwError("Wrong password.");
+    try {
+      const res = await fetch(`/api/chat?kind=leads&key=${encodeURIComponent(pw)}&cb=${Date.now()}`, { cache: "no-store" });
+      if (res.ok) { const j = await res.json(); if (j && j.ok) { setAuthed(true); setPwError(""); try { localStorage.setItem("gp_leads_key", pw); } catch {} return; } }
+      setPwError("Wrong password.");
+    } catch { setPwError("Couldn't verify. Try again."); }
   }
-  useEffect(() => { try { if (localStorage.getItem("gp_leads") === "1") setAuthed(true); } catch {} }, []);
+  useEffect(() => { try { const k = localStorage.getItem("gp_leads_key") || ""; if (k) { setPw(k); setAuthed(true); } } catch {} }, []);
 
   async function fetchLeads() {
     try {
-      const res = await fetch(`${DB}/live/leads.json`, { cache: "no-store" });
-      const data = await res.json();
+      const key = pw || (typeof localStorage !== "undefined" ? (localStorage.getItem("gp_leads_key") || "") : "");
+      const res = await fetch(`/api/chat?kind=leads&key=${encodeURIComponent(key)}&cb=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const j = await res.json();
+      const data = j && j.leads;
       if (!data) { setLeads([]); return; }
       const list: Lead[] = Object.entries(data).map(([k, v]: [string, any]) => ({ ...(v || {}), _key: k }));
       list.sort((a, b) => {

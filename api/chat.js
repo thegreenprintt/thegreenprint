@@ -292,6 +292,31 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo });
     }
 
+    // ── LEADS — server-side read of the Firebase leads node ──────────────────
+    //   GET ?kind=leads&key=<admin|track|stored pass>
+    // So the Firebase database can deny public reads of /live/leads (which hold
+    // emails + phones) while the admin pages still see them. Uses FIREBASE_DB_SECRET
+    // (?auth=) to read past the locked rules; falls back to an unauth read only if
+    // no secret is set yet (so nothing breaks before the rules are tightened).
+    if (kind === 'leads') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
+      const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
+      const secret = process.env.FIREBASE_DB_SECRET || '';
+      const url = FB + '/live/leads.json' + (secret ? ('?auth=' + encodeURIComponent(secret)) : '');
+      try {
+        const fr = await fetch(url, { cache: 'no-store' });
+        const data = await fr.json().catch(() => null);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ ok: true, leads: (data && typeof data === 'object') ? data : {}, secured: !!secret });
+      } catch (e) { return res.status(200).json({ ok: false, error: 'fetch_failed', detail: String((e && e.message) || e) }); }
+    }
+
     // ── GEO — Viato phone/location enrichment keyed by email (and name:) ──────
     //   POST ?kind=track-geo {key:GP_ADMIN_KEY, geo:{ email: {p,c,s} }}
     if (kind === 'track-geo') {
