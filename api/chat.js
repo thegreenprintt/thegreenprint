@@ -463,61 +463,6 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, batch: batch, processedThisBatch: slice.length, foundThisBatch: found, total: list.length, nextBatch: processedTo < list.length ? batch + 1 : null, done: processedTo >= list.length, geoWithState: withState });
     }
 
-    // ── ONE HOUSE PROBE (admin only, temporary) — inspect what fields One House
-    //   already returns for the account's own downline, to find a state/city field.
-    //   GET ?kind=1h-probe&key=<admin>[&path=/api/...]
-    if (kind === '1h-probe') {
-      const adminKey = process.env.GP_ADMIN_KEY || '';
-      const k = qkey || clean(body.key, 128);
-      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_authorized' });
-      const email = (process.env.ONE_HOUSE_EMAIL || '').trim();
-      const pass = (process.env.ONE_HOUSE_PASSWORD || '').trim();
-      if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
-      const B = 'https://backend.1houseglobal.dev';
-      let token = '';
-      try {
-        const lr = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
-        const lj = await lr.json().catch(() => null);
-        token = (lj && (lj.access_token || lj.accessToken || lj.token)) || '';
-        if (!token) return res.status(200).json({ ok: false, error: 'login_failed' });
-      } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
-      const H = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
-      const probePath = clean((req.query && req.query.path) || '', 200);
-      const locRe = /state|city|country|zip|postal|region|addr|location|phone|mobile|timezone|tz|province|county/i;
-      const deepLoc = (o, depth, prefix) => { const r2 = {}; if (!o || typeof o !== 'object' || depth < 0) return r2; for (const kk of Object.keys(o)) { const v = o[kk]; const label = prefix ? prefix + '.' + kk : kk; if (locRe.test(kk) && (v === null || typeof v !== 'object')) r2[label] = v; else if (v && typeof v === 'object' && depth > 0) Object.assign(r2, deepLoc(v, depth - 1, label)); } return r2; };
-      const pickLoc = (o) => deepLoc(o, 3, '');
-      try {
-        if (probePath) {
-          const pr = await fetch(B + probePath, { headers: H });
-          const pj = await pr.json().catch(() => null);
-          const top = pj && typeof pj === 'object' ? Object.keys(pj) : typeof pj;
-          let dataKeys = null, firstKeys = null, firstLoc = null;
-          const dd = pj && pj.data;
-          if (dd && typeof dd === 'object') { dataKeys = Object.keys(dd); const arr = Array.isArray(dd.data) ? dd.data : (Array.isArray(dd) ? dd : null); if (arr && arr[0]) { firstKeys = Object.keys(arr[0]); firstLoc = pickLoc(arr[0]); if (arr[0].user) firstLoc = Object.assign(firstLoc, pickLoc(arr[0].user)); } }
-          return res.status(200).json({ ok: true, path: probePath, status: pr.status, topKeys: top, dataKeys: dataKeys, firstItemKeys: firstKeys, firstItemLocationFields: firstLoc });
-        }
-        // default: for the first few members, try their public subscribe page and
-        // see whether it exposes a city/state we can use.
-        const gr = await fetch(B + '/api/user/genealogy-list?page=1', { headers: H });
-        const gj = await gr.json().catch(() => null);
-        const d = gj && gj.data; const arr = (d && Array.isArray(d.data)) ? d.data : [];
-        const ST = 'AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' ');
-        const scanLoc = (html) => { if (!html) return null; const m1 = html.match(/([A-Z][a-zA-Z.\- ]{1,30}),\s*(A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b/); if (m1) return m1[1].trim() + ', ' + m1[2]; return null; };
-        const out = [];
-        for (const n of arr.slice(0, 4)) {
-          const u = n.user || {}; const uname = String(u.username || '').trim(); const pk = String(u.public_key || '').trim();
-          const rec = { username: uname, public_key: pk, firstName: String(n.fullname || '').trim().split(' ')[0] };
-          for (const base of ['https://subscribe.1houseglobal.com/', 'https://1house.tv/subscribe/']) {
-            for (const slug of [uname, pk].filter(Boolean)) {
-              try { const pr = await fetch(base + slug, { redirect: 'follow' }); const txt = await pr.text(); rec[base.replace(/https:\/\//, '').slice(0, 18) + '[' + (slug === uname ? 'user' : 'key') + ']'] = { status: pr.status, len: txt.length, loc: scanLoc(txt) }; } catch (e) { rec['err'] = String((e && e.message) || e).slice(0, 60); }
-            }
-          }
-          out.push(rec);
-        }
-        return res.status(200).json({ ok: true, totalOnPage: arr.length, subscribeTest: out });
-      } catch (e) { return res.status(200).json({ ok: false, error: 'probe_error', detail: String((e && e.message) || e) }); }
-    }
-
     // ── ONE HOUSE AUTO-REFRESH — logs in, pulls genealogy, rebuilds the tracker ──
     //   GET ?kind=1h-refresh  (guarded by GP_ADMIN_KEY or a Vercel/GitHub cron)
     //   Needs env ONE_HOUSE_EMAIL + ONE_HOUSE_PASSWORD. Runs hands-off hourly.

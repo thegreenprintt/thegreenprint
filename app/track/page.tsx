@@ -21,6 +21,7 @@ type Status = "active" | "inactive" | "lapsed";
 interface Member {
   name: string; email: string; phone: string; level: number;
   status: Status; amount: number; nextDue: string | null; referred: number;
+  state?: string; city?: string;
 }
 interface Lead { _key: string; name?: string; email?: string; phone?: string; status?: string; path?: string; lastSeen?: string; firstSeen?: string; why?: string; }
 interface TreeNode { id: number; sp: number | null; name: string; email: string; active: number; subs: number; lvl: number; paid?: number; lastEnroll?: string | null; }
@@ -724,9 +725,13 @@ export default function TrackPage() {
     const base = snap?.members || [];
     if (!base.length || !Object.keys(geo).length) return base;
     return base.map((m) => {
-      if (m.phone) return m;
       const g = geo[(m.email || "").toLowerCase()] || geo["name:" + (m.name || "").toLowerCase().replace(/\s+/g, " ").trim()];
-      return g && g.p ? { ...m, phone: g.p } : m;
+      if (!g) return m;
+      const out = { ...m };
+      if (!out.phone && g.p) out.phone = g.p;
+      if (g.s) out.state = g.s;
+      if (g.c) out.city = g.c;
+      return out;
     });
   }, [snap, geo]);
   const counts = useMemo(() => {
@@ -1413,17 +1418,17 @@ function CommunityStates({ members, tree }: { members: Member[]; tree: TreeNode[
   const invitedBy = (m: Member): string | null => { const n = byEmail.get((m.email || "").toLowerCase()); if (!n || n.sp == null) return null; const s = byId.get(n.sp); return s ? properName(s.name) : null; };
   const groups = useMemo(() => {
     const g = new Map<string, Member[]>();
-    for (const m of members) { const st = m.phone ? stateFromPhone(m.phone) : null; const key = st || "??"; const a = g.get(key) || []; a.push(m); g.set(key, a); }
+    for (const m of members) { const st = (m.state && m.state.length === 2 ? m.state.toUpperCase() : null) || (m.phone ? stateFromPhone(m.phone) : null); const key = st || "??"; const a = g.get(key) || []; a.push(m); g.set(key, a); }
     const arr = [...g.entries()].map(([k, v]) => ({ st: k, list: v.sort((a, b) => (a.name || "").localeCompare(b.name || "")) }));
     arr.sort((a, b) => { if (a.st === "??") return 1; if (b.st === "??") return -1; return b.list.length - a.list.length; });
     return arr;
   }, [members]);
   return (
     <div className="space-y-2">
-      <p className="text-muted text-xs font-mono mb-1">Grouped by phone area code. Great for planning Bag Day Tour stops. Tap a state to see who's there and who invited them.</p>
+      <p className="text-muted text-xs font-mono mb-1">Grouped by each member's real city/state. Great for planning Bag Day Tour stops. Tap a state to see who's there and who invited them.</p>
       {groups.map((g) => {
         const isOpen = !!open[g.st];
-        const label = g.st === "??" ? "No number yet" : stateName(g.st);
+        const label = g.st === "??" ? "No location yet" : stateName(g.st);
         const active = g.list.filter((m) => m.status === "active").length;
         return (
           <div key={g.st} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
@@ -1440,7 +1445,7 @@ function CommunityStates({ members, tree }: { members: Member[]; tree: TreeNode[
                       <span className="h-2 w-2 rounded-full shrink-0" style={{ background: m.status === "active" ? "#00FF85" : m.status === "lapsed" ? "#FF4444" : "#3a3a3a" }} />
                       <div className="flex-1 min-w-0">
                         <div className="gp-display text-sm text-text truncate">{properName(m.name) || "(no name)"}</div>
-                        <div className="text-[10px] font-mono text-muted truncate">{m.phone || m.email || ""}{inv ? ` · invited by ${inv}` : ""}</div>
+                        <div className="text-[10px] font-mono text-muted truncate">{m.city ? m.city + " · " : ""}{m.phone || m.email || ""}{inv ? ` · invited by ${inv}` : ""}</div>
                       </div>
                       {m.phone && <TextBtn m={m} />}
                       {m.phone && <a href={telHref(m.phone)} className="px-2.5 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent text-[11px] font-mono shrink-0">☎</a>}
