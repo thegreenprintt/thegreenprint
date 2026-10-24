@@ -433,12 +433,25 @@ module.exports = async function handler(req, res) {
           if (dd && typeof dd === 'object') { dataKeys = Object.keys(dd); const arr = Array.isArray(dd.data) ? dd.data : (Array.isArray(dd) ? dd : null); if (arr && arr[0]) { firstKeys = Object.keys(arr[0]); firstLoc = pickLoc(arr[0]); if (arr[0].user) firstLoc = Object.assign(firstLoc, pickLoc(arr[0].user)); } }
           return res.status(200).json({ ok: true, path: probePath, status: pr.status, topKeys: top, dataKeys: dataKeys, firstItemKeys: firstKeys, firstItemLocationFields: firstLoc });
         }
-        // default: dump genealogy node structure + location fields for first 3 nodes
+        // default: for the first few members, try their public subscribe page and
+        // see whether it exposes a city/state we can use.
         const gr = await fetch(B + '/api/user/genealogy-list?page=1', { headers: H });
         const gj = await gr.json().catch(() => null);
         const d = gj && gj.data; const arr = (d && Array.isArray(d.data)) ? d.data : [];
-        const sample = arr.slice(0, 3).map((n) => ({ nodeKeys: Object.keys(n), userKeys: n.user ? Object.keys(n.user) : null, nodeLoc: pickLoc(n), userLoc: n.user ? pickLoc(n.user) : null, pkgKeys: n.active_package ? Object.keys(n.active_package) : null, pkgLoc: n.active_package ? pickLoc(n.active_package) : null }));
-        return res.status(200).json({ ok: true, totalOnPage: arr.length, sample: sample });
+        const ST = 'AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' ');
+        const scanLoc = (html) => { if (!html) return null; const m1 = html.match(/([A-Z][a-zA-Z.\- ]{1,30}),\s*(A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b/); if (m1) return m1[1].trim() + ', ' + m1[2]; return null; };
+        const out = [];
+        for (const n of arr.slice(0, 4)) {
+          const u = n.user || {}; const uname = String(u.username || '').trim(); const pk = String(u.public_key || '').trim();
+          const rec = { username: uname, public_key: pk, firstName: String(n.fullname || '').trim().split(' ')[0] };
+          for (const base of ['https://subscribe.1houseglobal.com/', 'https://1house.tv/subscribe/']) {
+            for (const slug of [uname, pk].filter(Boolean)) {
+              try { const pr = await fetch(base + slug, { redirect: 'follow' }); const txt = await pr.text(); rec[base.replace(/https:\/\//, '').slice(0, 18) + '[' + (slug === uname ? 'user' : 'key') + ']'] = { status: pr.status, len: txt.length, loc: scanLoc(txt) }; } catch (e) { rec['err'] = String((e && e.message) || e).slice(0, 60); }
+            }
+          }
+          out.push(rec);
+        }
+        return res.status(200).json({ ok: true, totalOnPage: arr.length, subscribeTest: out });
       } catch (e) { return res.status(200).json({ ok: false, error: 'probe_error', detail: String((e && e.message) || e) }); }
     }
 
