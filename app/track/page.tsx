@@ -639,25 +639,45 @@ function AICommand({ moves, markFor, openLeads, counts, goal, onTouch }: {
   goal?: Goal;
   onTouch: (email: string) => void;
 }) {
-  const hot = openLeads.filter((l) => (l.path || "").startsWith("🔥"));
+  const DAYMS = 86400000, now = Date.now();
+  const freshness = (l: Lead) => { const t = Date.parse(l.lastSeen || l.firstSeen || "") || 0; return t ? now - t : Infinity; };
+  const allHot = openLeads.filter((l) => (l.path || "").startsWith("🔥"));
+  const hotFresh = allHot.filter((l) => freshness(l) < 10 * DAYMS).sort((a, b) => freshness(a) - freshness(b));
+  const backlog = allHot.length - hotFresh.length;
   const builders = moves.filter((x) => x.m.referred >= 5).length;
   const interested = moves.filter((x) => { const st = markFor(x.m.email).stage; return st === "talking" || st === "committed"; }).length;
-  const top = moves[0];
   const target = goal?.target ?? 10000, perSub = goal?.perSub ?? 100, earn = goal?.earnings ?? null;
   const subsToGo = earn != null ? Math.max(0, Math.ceil((target - earn) / perSub)) : null;
 
+  // Pick the single highest-leverage play, and the one move that goes with it
   let play: string;
-  if (hot.length) play = `${hot.length} hot ${hot.length > 1 ? "leads" : "lead"} just came through your funnel. Close them first while they're warm, that's the fastest money on the board.`;
-  else if (builders) play = `${builders} ${builders > 1 ? "builders are" : "builder is"} in today's list. Each one carries a team, so winning them back tends to pull their downline with them. Start there.`;
-  else if (counts.lapsed) play = `${counts.lapsed} ${counts.lapsed > 1 ? "members are" : "member is"} just past due. A lapsed member is the easiest yes you'll get, they already know the value.`;
-  else if (counts.due) play = `${counts.due} ${counts.due > 1 ? "members" : "member"} bill this week. Lock them in now, before any slip.`;
-  else play = `Board's steady. Keep reactivating inactives and stay on your fresh leads. Momentum is the whole game.`;
+  let topLead: Lead | null = null;
+  let topMove = moves[0] || null;
+  if (hotFresh.length) {
+    play = `${hotFresh.length} hot ${hotFresh.length > 1 ? "leads" : "lead"} came in this week, people who said they're ready to buy. Work these before anything else, warm beats cold every time.`;
+    topLead = hotFresh[0]; topMove = null;
+  } else if (builders) {
+    play = `${builders} ${builders > 1 ? "builders are" : "builder is"} in today's list. Each one carries a team, so winning them back tends to pull their downline with them. Start there.`;
+  } else if (counts.lapsed) {
+    play = `${counts.lapsed} ${counts.lapsed > 1 ? "members are" : "member is"} just past due. A lapsed member is the easiest yes you'll get, they already know the value.`;
+  } else if (counts.due) {
+    play = `${counts.due} ${counts.due > 1 ? "members" : "member"} bill this week. Lock them in now, before any slip.`;
+  } else if (backlog > 0) {
+    play = `No fresh leads today, but you've got ${backlog} ready leads sitting in the backlog. Chip through a few, they already raised their hand.`;
+    topLead = allHot.sort((a, b) => freshness(a) - freshness(b))[0] || null; topMove = null;
+  } else {
+    play = `Board's steady. Keep reactivating inactives and stay close to your leads. Momentum is the whole game.`;
+  }
 
-  const topName = top ? (properName(top.m.name) || "your top contact") : null;
-  const topMsg = top && top.m.phone ? smsHref(top.m.phone, pickVoiceMsg(markFor(top.m.email).voice, top.m.email, firstName(top.m.name))) : null;
+  const topName = topLead ? (properName(topLead.name || "") || "New hot lead") : (topMove ? (properName(topMove.m.name) || "your top contact") : null);
+  const topSub = topLead ? "🔥 Ready to buy, call while warm" : (topMove ? ((topMove.reasons[0] || "Highest-leverage contact") + (topMove.m.city ? ` · ${topMove.m.city}` : "")) : "");
+  const topPhone = topLead ? topLead.phone : (topMove ? topMove.m.phone : "");
+  const topTextHref = topMove && topMove.m.phone ? smsHref(topMove.m.phone, pickVoiceMsg(markFor(topMove.m.email).voice, topMove.m.email, firstName(topMove.m.name))) : "";
+  const onTopTouch = () => { if (topMove) onTouch(topMove.m.email); };
 
   const chips = [
-    hot.length ? { label: "🔥 Hot leads", n: hot.length, c: "#E4C878" } : null,
+    hotFresh.length ? { label: "🔥 New this week", n: hotFresh.length, c: "#E4C878" } : null,
+    backlog > 5 ? { label: "Ready backlog", n: backlog, c: "#C9A84C" } : null,
     counts.lapsed ? { label: "Past due", n: counts.lapsed, c: "#FF5A5A" } : null,
     counts.due ? { label: "Bill this week", n: counts.due, c: "#4a9eff" } : null,
     interested ? { label: "Interested", n: interested, c: "#9b7bff" } : null,
@@ -675,17 +695,17 @@ function AICommand({ moves, markFor, openLeads, counts, goal, onTouch }: {
           <span className="ml-auto text-[10px] font-mono text-muted">live</span>
         </div>
         <p className="gp-display text-[15px] sm:text-base text-text/90 leading-snug">{play}</p>
-        {top && (
+        {topName && (
           <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3.5 flex items-center gap-3">
             <div className="h-10 w-10 shrink-0 rounded-xl grid place-items-center bg-accent/10 border border-accent/25 text-accent gp-display font-bold">1</div>
             <div className="min-w-0 flex-1">
               <div className="gp-display text-sm font-semibold text-text truncate">{topName}</div>
-              <div className="text-[11px] font-mono text-muted truncate">{top.reasons[0] || "Highest-leverage contact"}{top.m.city ? ` · ${top.m.city}` : ""}</div>
+              <div className="text-[11px] font-mono text-muted truncate">{topSub}</div>
             </div>
-            {topMsg ? (
-              <a href={topMsg} onClick={() => onTouch(top.m.email)} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold hover:shadow-[0_0_22px_rgba(0,255,133,0.45)] transition-all active:scale-95">Start here →</a>
-            ) : top.m.phone ? (
-              <a href={telHref(top.m.phone)} onClick={() => onTouch(top.m.email)} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold">Call →</a>
+            {topTextHref ? (
+              <a href={topTextHref} onClick={onTopTouch} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold hover:shadow-[0_0_22px_rgba(0,255,133,0.45)] transition-all active:scale-95">Start here →</a>
+            ) : topPhone ? (
+              <a href={telHref(topPhone)} onClick={onTopTouch} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold hover:shadow-[0_0_22px_rgba(0,255,133,0.45)] transition-all active:scale-95">Call →</a>
             ) : null}
           </div>
         )}
