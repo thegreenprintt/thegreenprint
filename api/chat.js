@@ -400,6 +400,47 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, geo: geo });
     }
 
+    // ── ONE HOUSE PROBE (admin only, temporary) — inspect what fields One House
+    //   already returns for the account's own downline, to find a state/city field.
+    //   GET ?kind=1h-probe&key=<admin>[&path=/api/...]
+    if (kind === '1h-probe') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_authorized' });
+      const email = (process.env.ONE_HOUSE_EMAIL || '').trim();
+      const pass = (process.env.ONE_HOUSE_PASSWORD || '').trim();
+      if (!email || !pass) return res.status(200).json({ ok: false, error: 'no_1h_credentials' });
+      const B = 'https://backend.1houseglobal.dev';
+      let token = '';
+      try {
+        const lr = await fetch(B + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ email: email, password: pass }) });
+        const lj = await lr.json().catch(() => null);
+        token = (lj && (lj.access_token || lj.accessToken || lj.token)) || '';
+        if (!token) return res.status(200).json({ ok: false, error: 'login_failed' });
+      } catch (e) { return res.status(200).json({ ok: false, error: 'login_error', detail: String((e && e.message) || e) }); }
+      const H = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
+      const probePath = clean((req.query && req.query.path) || '', 200);
+      const locRe = /state|city|country|zip|postal|region|addr|location|phone|mobile|timezone|tz/i;
+      const pickLoc = (o) => { const r2 = {}; if (o && typeof o === 'object') for (const kk of Object.keys(o)) { if (locRe.test(kk)) r2[kk] = o[kk]; } return r2; };
+      try {
+        if (probePath) {
+          const pr = await fetch(B + probePath, { headers: H });
+          const pj = await pr.json().catch(() => null);
+          const top = pj && typeof pj === 'object' ? Object.keys(pj) : typeof pj;
+          let dataKeys = null, firstKeys = null, firstLoc = null;
+          const dd = pj && pj.data;
+          if (dd && typeof dd === 'object') { dataKeys = Object.keys(dd); const arr = Array.isArray(dd.data) ? dd.data : (Array.isArray(dd) ? dd : null); if (arr && arr[0]) { firstKeys = Object.keys(arr[0]); firstLoc = pickLoc(arr[0]); if (arr[0].user) firstLoc = Object.assign(firstLoc, pickLoc(arr[0].user)); } }
+          return res.status(200).json({ ok: true, path: probePath, status: pr.status, topKeys: top, dataKeys: dataKeys, firstItemKeys: firstKeys, firstItemLocationFields: firstLoc });
+        }
+        // default: dump genealogy node structure + location fields for first 3 nodes
+        const gr = await fetch(B + '/api/user/genealogy-list?page=1', { headers: H });
+        const gj = await gr.json().catch(() => null);
+        const d = gj && gj.data; const arr = (d && Array.isArray(d.data)) ? d.data : [];
+        const sample = arr.slice(0, 3).map((n) => ({ nodeKeys: Object.keys(n), userKeys: n.user ? Object.keys(n.user) : null, nodeLoc: pickLoc(n), userLoc: n.user ? pickLoc(n.user) : null, pkgKeys: n.active_package ? Object.keys(n.active_package) : null, pkgLoc: n.active_package ? pickLoc(n.active_package) : null }));
+        return res.status(200).json({ ok: true, totalOnPage: arr.length, sample: sample });
+      } catch (e) { return res.status(200).json({ ok: false, error: 'probe_error', detail: String((e && e.message) || e) }); }
+    }
+
     // ── ONE HOUSE AUTO-REFRESH — logs in, pulls genealogy, rebuilds the tracker ──
     //   GET ?kind=1h-refresh  (guarded by GP_ADMIN_KEY or a Vercel/GitHub cron)
     //   Needs env ONE_HOUSE_EMAIL + ONE_HOUSE_PASSWORD. Runs hands-off hourly.
