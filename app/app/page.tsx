@@ -94,17 +94,25 @@ function TeamRow({ s, live, poss }: { s: Side; live: boolean; poss?: boolean }) 
 }
 function ScoresTab({ sport }: { sport: string }) {
   const [games, setGames] = useState<Game[]>([]);
-  const [st, setSt] = useState<"load" | "ok" | "empty">("load");
+  const [st, setSt] = useState<"load" | "ok" | "empty" | "error">("load");
+  const [tries, setTries] = useState(0);
   useEffect(() => {
     let live = true;
-    const pull = () => fetch(`/api/props?type=scores&league=${sport}&t=${Date.now()}`).then((r) => r.json()).then((d) => {
-      if (!live) return; const g: Game[] = d?.games || []; setGames(g); setSt(g.length ? "ok" : "empty");
-    }).catch(() => live && setSt("empty"));
+    const pull = () => {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 8000);
+      return fetch(`/api/props?type=scores&league=${sport}&t=${Date.now()}`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((d) => { if (!live) return; const g: Game[] = d?.games || []; setGames(g); setSt(g.length ? "ok" : "empty"); })
+        .catch(() => { if (live) setSt((s) => (s === "ok" ? "ok" : "error")); })
+        .finally(() => clearTimeout(to));
+    };
     setSt("load"); pull();
     const iv = setInterval(pull, 12000);
     return () => { live = false; clearInterval(iv); };
-  }, [sport]);
+  }, [sport, tries]);
   if (st === "load") return <div>{[0, 1, 2].map((i) => <Skel key={i} h={96} />)}</div>;
+  if (st === "error") return (<div style={{ textAlign: "center", padding: "44px 16px", color: "rgba(255,255,255,.65)" }}><div style={{ fontSize: 14, marginBottom: 14 }}>Couldn&apos;t load {sport} scores. Check your connection.</div><button onClick={() => setTries((t) => t + 1)} style={{ padding: "10px 22px", borderRadius: 10, border: "1px solid " + GREEN, background: "rgba(0,255,135,.12)", color: GREEN, fontWeight: 800, fontSize: 14, cursor: "pointer" }}>Retry</button></div>);
   if (st === "empty") return <Empty t={`No ${sport} games on the board right now.`} />;
   const anyLive = games.some((g) => g.state === "in");
   return (
