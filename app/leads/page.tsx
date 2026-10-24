@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 // Works the leads captured by /start (quiz) and /stream (viewers).
 // Tap to call, tap to text, set status, leave notes. Everything saves live.
 
-const DB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 
 type Lead = {
   _key: string;
@@ -71,7 +70,8 @@ export default function LeadsPage() {
 
   const save = async (key: string, patch: Partial<Lead>) => {
     setLeads(ls => ls.map(l => l._key === key ? { ...l, ...patch } : l));
-    try { await fetch(`${DB}/live/leads/${key}.json`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
+    const authKey = pw || (typeof localStorage !== "undefined" ? (localStorage.getItem("gp_leads_key") || "") : "");
+    try { await fetch(`/api/chat?kind=lead-update`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: authKey, leadKey: key, patch }) }); } catch {}
   };
 
   function exportCSV() {

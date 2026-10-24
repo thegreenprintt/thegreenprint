@@ -292,29 +292,94 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo });
     }
 
-    // ── LEADS — server-side read of the Firebase leads node ──────────────────
-    //   GET ?kind=leads&key=<admin|track|stored pass>
-    // So the Firebase database can deny public reads of /live/leads (which hold
-    // emails + phones) while the admin pages still see them. Uses FIREBASE_DB_SECRET
-    // (?auth=) to read past the locked rules; falls back to an unauth read only if
-    // no secret is set yet (so nothing breaks before the rules are tightened).
-    if (kind === 'leads') {
+    // ── LEADS — leads now live in PRIVATE Redis, never the public Firebase DB ─
+    // Capture (public, write-only), update (admin), read (admin), and a one-time
+    // migrate from the old Firebase node. This closes the hole where anyone could
+    // download /live/leads.json. Keys mirror the old email-slug keys.
+    const FB_RTDB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
+    const LEADS_H = 'gp:leads:h';
+    const leadSlug = (em) => clean(em, 160).toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 60) || 'no_email';
+    const leadGate = async () => {
       const adminKey = process.env.GP_ADMIN_KEY || '';
       const trackKey = process.env.GP_TRACK_KEY || '';
       const k = qkey || clean(body.key, 128);
       let storedPass = '';
       try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
-      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
-      if (!okKey) return res.status(403).json({ error: 'not_admin' });
-      const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
-      const secret = process.env.FIREBASE_DB_SECRET || '';
-      const url = FB + '/live/leads.json' + (secret ? ('?auth=' + encodeURIComponent(secret)) : '');
+      return (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+    };
+
+    //   POST ?kind=lead-capture {lead:{name,email,phone,src,path,...}}  (public funnel)
+    if (kind === 'lead-capture') {
+      const lead = (body && typeof body.lead === 'object' && body.lead) ? body.lead : (body || {});
+      const email = clean(lead.email, 160).toLowerCase();
+      if (!email || email.indexOf('@') < 0) return res.status(400).json({ ok: false, error: 'bad_email' });
+      const key = leadSlug(email);
+      let existing = {};
+      try { const e = await r.hget(LEADS_H, key); if (e) existing = JSON.parse(e) || {}; } catch (x) {}
+      const allow = ['name', 'email', 'phone', 'src', 'path', 'experience', 'why', 'budget', 'wantsIdeas'];
+      const incoming = {};
+      for (const f of allow) { if (lead[f] !== undefined && lead[f] !== null) incoming[f] = (typeof lead[f] === 'string') ? lead[f].slice(0, 500) : lead[f]; }
+      const now = new Date().toISOString();
+      const merged = Object.assign({}, existing, incoming, { email: email, firstSeen: existing.firstSeen || now, lastSeen: now, joinCount: (existing.joinCount || 0) + 1 });
+      try { await r.hset(LEADS_H, key, JSON.stringify(merged)); } catch (x) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      return res.status(200).json({ ok: true });
+    }
+
+    //   POST ?kind=lead-update {key, leadKey, patch:{status,note,...}}  (admin)
+    if (kind === 'lead-update') {
+      if (!(await leadGate())) return res.status(403).json({ error: 'not_admin' });
+      const key = clean(body.leadKey, 80);
+      if (!key) return res.status(400).json({ ok: false, error: 'bad_key' });
+      const patch = (body.patch && typeof body.patch === 'object') ? body.patch : {};
+      let existing = {};
+      try { const e = await r.hget(LEADS_H, key); if (e) existing = JSON.parse(e) || {}; } catch (x) {}
+      const allow = ['status', 'note', 'name', 'email', 'phone', 'path'];
+      const clean2 = {};
+      for (const f of allow) { if (patch[f] !== undefined) clean2[f] = (typeof patch[f] === 'string') ? patch[f].slice(0, 2000) : patch[f]; }
+      const merged = Object.assign({}, existing, clean2);
+      try { await r.hset(LEADS_H, key, JSON.stringify(merged)); } catch (x) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      return res.status(200).json({ ok: true });
+    }
+
+    //   GET ?kind=lead-migrate&key=<admin>  — one-time copy of the old Firebase node into Redis
+    if (kind === 'lead-migrate') {
+      if (!(await leadGate())) return res.status(403).json({ error: 'not_admin' });
+      let data = null;
+      try { data = await (await fetch(FB_RTDB + '/live/leads.json', { cache: 'no-store' })).json(); } catch (x) {}
+      if (!data || typeof data !== 'object') return res.status(200).json({ ok: true, migrated: 0, note: 'nothing_in_firebase' });
+      let n = 0;
+      for (const k of Object.keys(data)) {
+        try {
+          const v = data[k] || {};
+          let existing = {};
+          try { const e = await r.hget(LEADS_H, k); if (e) existing = JSON.parse(e) || {}; } catch (x) {}
+          // Firebase copy wins only for fields it has; keep anything newer already in Redis.
+          await r.hset(LEADS_H, k, JSON.stringify(Object.assign({}, v, existing)));
+          n++;
+        } catch (x) {}
+      }
+      return res.status(200).json({ ok: true, migrated: n });
+    }
+
+    //   GET ?kind=leads&key=<admin|track|pass>  — read from private Redis
+    if (kind === 'leads') {
+      if (!(await leadGate())) return res.status(403).json({ error: 'not_admin' });
+      const leads = {};
+      let fromRedis = 0;
       try {
-        const fr = await fetch(url, { cache: 'no-store' });
-        const data = await fr.json().catch(() => null);
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).json({ ok: true, leads: (data && typeof data === 'object') ? data : {}, secured: !!secret });
-      } catch (e) { return res.status(200).json({ ok: false, error: 'fetch_failed', detail: String((e && e.message) || e) }); }
+        const all = await r.hgetall(LEADS_H);
+        if (all) { for (const k of Object.keys(all)) { try { leads[k] = JSON.parse(all[k]); fromRedis++; } catch (x) {} } }
+      } catch (x) {}
+      // Fallback: if Redis is still empty (pre-migration), read the old Firebase node
+      // so the tracker is never blank during the transition.
+      if (fromRedis === 0) {
+        try {
+          const d = await (await fetch(FB_RTDB + '/live/leads.json', { cache: 'no-store' })).json();
+          if (d && typeof d === 'object') { for (const k of Object.keys(d)) leads[k] = d[k]; }
+        } catch (x) {}
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, leads: leads, source: fromRedis > 0 ? 'redis' : 'firebase-fallback', count: Object.keys(leads).length });
     }
 
     // ── GEO — Viato phone/location enrichment keyed by email (and name:) ──────

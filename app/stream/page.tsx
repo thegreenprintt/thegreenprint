@@ -360,19 +360,10 @@ export default function StreamPage() {
     // ─── LEAD CAPTURE (runs the same in both modes) ───────────────
     const captureLead = async () => {
       try {
-        const cleanEmail = joinEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
-        const leadRef = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + cleanEmail + '.json';
-        const existing = await fetch(leadRef).then(r=>r.json()).catch(()=>null);
-        await fetch(leadRef, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: joinName,
-            email: joinEmail,
-            src: existing?.src || 'stream',
-            firstSeen: existing?.firstSeen || new Date().toISOString(),
-            lastSeen: new Date().toISOString(),
-            joinCount: (existing?.joinCount || 0) + 1,
-          }),
+        await fetch('/api/chat?kind=lead-capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead: { name: joinName, email: joinEmail, src: 'stream' } }),
         });
         localStorage.setItem('gp_viewer', JSON.stringify({ name: joinName, email: joinEmail }));
       } catch {}
@@ -427,18 +418,10 @@ export default function StreamPage() {
       setStatusText("Connected — waiting for host video…");
       // ─── LEAD CAPTURE ─────────────────────────────────────────
       try {
-        const cleanEmail = joinEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'no_email';
-        const leadRef = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com/live/leads/' + cleanEmail + '.json';
-        const existing = await fetch(leadRef).then(r=>r.json()).catch(()=>null);
-        await fetch(leadRef, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: joinName,
-            email: joinEmail,
-            firstSeen: existing?.firstSeen || new Date().toISOString(),
-            lastSeen: new Date().toISOString(),
-            joinCount: (existing?.joinCount || 0) + 1,
-          }),
+        await fetch('/api/chat?kind=lead-capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead: { name: joinName, email: joinEmail, src: 'stream' } }),
         });
         localStorage.setItem('gp_viewer', JSON.stringify({ name: joinName, email: joinEmail }));
       } catch {}

@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
 
 export async function POST() {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY!);
 
-    // Fetch all leads from Firebase (server-side, using the DB secret so this
-    // works even when public reads of /live/leads are denied)
-    const secret = process.env.FIREBASE_DB_SECRET || '';
-    const leadsUrl = `${FB}/live/leads.json` + (secret ? `?auth=${encodeURIComponent(secret)}` : '');
-    const data = await fetch(leadsUrl).then(r => r.json());
+    // Fetch all leads from the private server store (no longer the public DB)
+    const adminKey = process.env.GP_ADMIN_KEY || '';
+    const data = await fetch(`https://thegreenprint.trade/api/chat?kind=leads&key=${encodeURIComponent(adminKey)}`, { cache: 'no-store' })
+      .then(r => r.json()).then(j => (j && j.leads) || null).catch(() => null);
     if (!data) return NextResponse.json({ sent: 0, message: 'No leads found' });
 
     // Extract valid emails

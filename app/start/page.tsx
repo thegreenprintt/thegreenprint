@@ -8,7 +8,6 @@ import Link from "next/link";
 //   not right now    → free path (broker + free signals chat)
 // Every answer is saved so Jay knows who to follow up with and how.
 
-const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const NEW_TRADERS_URL = "https://t.me/TheGreenprintt";
 const ONEHOUSE_URL = "https://subscribe.1houseglobal.com/jay";
 const CALENDLY = "https://calendly.com/waltonjacob300/one-on-one-with-jacob";
@@ -160,22 +159,21 @@ export default function StartPage() {
     setErr(""); setSaving(true);
     const ready = answers.budget === "yes";
     try {
-      const key = email.trim().toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 60);
-      await fetch(`${FB}/live/leads/${key}.json`, {
-        method: "PUT",
+      await fetch(`/api/chat?kind=lead-capture`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim(),
-          src: "start-quiz",
-          path: ready ? "🔥 CALL — ready ($100-200)" : answers.ideas === "yes" ? "WANTS TRADES (free)" : answers.ideas === "learn" ? "WANTS TO LEARN (free)" : "browsing",
-          experience: answers.experience || "",
-          why: answers.why || "",
-          budget: answers.budget || "",
-          wantsIdeas: answers.ideas || "",
-          firstSeen: new Date().toISOString(),
-          lastSeen: new Date().toISOString(),
+          lead: {
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            src: "start-quiz",
+            path: ready ? "🔥 CALL — ready ($100-200)" : answers.ideas === "yes" ? "WANTS TRADES (free)" : answers.ideas === "learn" ? "WANTS TO LEARN (free)" : "browsing",
+            experience: answers.experience || "",
+            why: answers.why || "",
+            budget: answers.budget || "",
+            wantsIdeas: answers.ideas || "",
+          },
         }),
       });
       localStorage.setItem("gp_viewer", JSON.stringify({ name: name.trim(), email: email.trim() }));
