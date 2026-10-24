@@ -630,6 +630,81 @@ function NotifyBell() {
 
 type View = "today" | "focus" | "pipeline" | "community" | "due" | "inactive" | "active" | "all" | "playbook" | "system";
 
+/* ── AI Command: a living read on the board that names your highest-leverage play ── */
+function AICommand({ moves, markFor, openLeads, counts, goal, onTouch }: {
+  moves: { m: Member; s: number; reasons: string[] }[];
+  markFor: (email: string) => Mark;
+  openLeads: Lead[];
+  counts: { active: number; inactive: number; lapsed: number; due: number };
+  goal?: Goal;
+  onTouch: (email: string) => void;
+}) {
+  const hot = openLeads.filter((l) => (l.path || "").startsWith("🔥"));
+  const builders = moves.filter((x) => x.m.referred >= 5).length;
+  const interested = moves.filter((x) => { const st = markFor(x.m.email).stage; return st === "talking" || st === "committed"; }).length;
+  const top = moves[0];
+  const target = goal?.target ?? 10000, perSub = goal?.perSub ?? 100, earn = goal?.earnings ?? null;
+  const subsToGo = earn != null ? Math.max(0, Math.ceil((target - earn) / perSub)) : null;
+
+  let play: string;
+  if (hot.length) play = `${hot.length} hot ${hot.length > 1 ? "leads" : "lead"} just came through your funnel. Close them first while they're warm, that's the fastest money on the board.`;
+  else if (builders) play = `${builders} ${builders > 1 ? "builders are" : "builder is"} in today's list. Each one carries a team, so winning them back tends to pull their downline with them. Start there.`;
+  else if (counts.lapsed) play = `${counts.lapsed} ${counts.lapsed > 1 ? "members are" : "member is"} just past due. A lapsed member is the easiest yes you'll get, they already know the value.`;
+  else if (counts.due) play = `${counts.due} ${counts.due > 1 ? "members" : "member"} bill this week. Lock them in now, before any slip.`;
+  else play = `Board's steady. Keep reactivating inactives and stay on your fresh leads. Momentum is the whole game.`;
+
+  const topName = top ? (properName(top.m.name) || "your top contact") : null;
+  const topMsg = top && top.m.phone ? smsHref(top.m.phone, pickVoiceMsg(markFor(top.m.email).voice, top.m.email, firstName(top.m.name))) : null;
+
+  const chips = [
+    hot.length ? { label: "🔥 Hot leads", n: hot.length, c: "#E4C878" } : null,
+    counts.lapsed ? { label: "Past due", n: counts.lapsed, c: "#FF5A5A" } : null,
+    counts.due ? { label: "Bill this week", n: counts.due, c: "#4a9eff" } : null,
+    interested ? { label: "Interested", n: interested, c: "#9b7bff" } : null,
+    builders ? { label: "Builders in play", n: builders, c: "#00FF85" } : null,
+  ].filter(Boolean) as { label: string; n: number; c: string }[];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+      className="gp-card relative overflow-hidden rounded-3xl p-5 mb-4">
+      <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full blur-3xl" style={{ background: "rgba(0,255,133,0.12)" }} />
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-60 animate-ping" /><span className="relative inline-flex h-2 w-2 rounded-full bg-accent" /></span>
+          <span className="gp-display text-[11px] tracking-[0.26em] uppercase text-accent font-semibold">The play right now</span>
+          <span className="ml-auto text-[10px] font-mono text-muted">live</span>
+        </div>
+        <p className="gp-display text-[15px] sm:text-base text-text/90 leading-snug">{play}</p>
+        {top && (
+          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3.5 flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl grid place-items-center bg-accent/10 border border-accent/25 text-accent gp-display font-bold">1</div>
+            <div className="min-w-0 flex-1">
+              <div className="gp-display text-sm font-semibold text-text truncate">{topName}</div>
+              <div className="text-[11px] font-mono text-muted truncate">{top.reasons[0] || "Highest-leverage contact"}{top.m.city ? ` · ${top.m.city}` : ""}</div>
+            </div>
+            {topMsg ? (
+              <a href={topMsg} onClick={() => onTouch(top.m.email)} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold hover:shadow-[0_0_22px_rgba(0,255,133,0.45)] transition-all active:scale-95">Start here →</a>
+            ) : top.m.phone ? (
+              <a href={telHref(top.m.phone)} onClick={() => onTouch(top.m.email)} className="shrink-0 px-3.5 py-2 rounded-xl bg-accent text-bg text-[12px] font-bold">Call →</a>
+            ) : null}
+          </div>
+        )}
+        {chips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {chips.map((ch) => (
+              <div key={ch.label} className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1">
+                <span className="gp-num text-[13px] font-bold" style={{ color: ch.c }}>{ch.n}</span>
+                <span className="text-[10px] font-mono text-muted">{ch.label}</span>
+              </div>
+            ))}
+            {subsToGo != null && <div className="flex items-center gap-1.5 rounded-full border border-gold/20 bg-gold/[0.05] px-3 py-1"><span className="gp-num gp-metal text-[13px] font-bold">{subsToGo}</span><span className="text-[10px] font-mono text-muted">subs to ${(target / 1000)}K</span></div>}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function TrackPage() {
   const [pass, setPass] = useState(""); const [input, setInput] = useState("");
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -647,18 +722,18 @@ export default function TrackPage() {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [geo, setGeo] = useState<Record<string, { p?: string; c?: string; s?: string }>>({});
 
-  const load = useCallback(async (key: string) => {
-    setLoading(true); setErr("");
+  const load = useCallback(async (key: string, silent = false) => {
+    if (!silent) { setLoading(true); setErr(""); }
     try {
       const res = await fetch(`/api/chat?kind=track&key=${encodeURIComponent(key)}&t=${Date.now()}`);
-      if (res.status === 403) { setErr("Wrong passcode."); setAuthed(false); setLoading(false); return; }
+      if (res.status === 403) { if (!silent) { setErr("Wrong passcode."); setAuthed(false); setLoading(false); } return; }
       const j = await res.json(); setSnap(j.snapshot || null); setAuthed(true);
       if (j.marks && typeof j.marks === "object") setMarks((prev) => ({ ...prev, ...j.marks }));
       if (Array.isArray(j.tree)) setTree(j.tree);
       if (j.geo && typeof j.geo === "object") setGeo(j.geo);
       try { localStorage.setItem(LS_KEY, key); } catch {}
-    } catch { setErr("Could not reach the server."); }
-    setLoading(false);
+    } catch { if (!silent) setErr("Could not reach the server."); }
+    if (!silent) setLoading(false);
   }, []);
   useEffect(() => {
     let k = ""; try { k = localStorage.getItem(LS_KEY) || ""; } catch {}
@@ -667,7 +742,7 @@ export default function TrackPage() {
   }, [load]);
   // live clock + silent auto-refresh every 10 min
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
-  useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass), 600000); return () => clearInterval(t); }, [authed, pass, load]);
+  useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass, true), 25000); return () => clearInterval(t); }, [authed, pass, load]);
   // Jump to the top whenever the tab changes so the new view's header is visible
   useEffect(() => {
     const toTop = () => {
@@ -689,7 +764,7 @@ export default function TrackPage() {
   useEffect(() => {
     if (!authed) return; let stop = false;
     const pull = async () => { try { const res = await fetch(`/api/chat?kind=leads&key=${encodeURIComponent(pass)}&cb=${Date.now()}`, { cache: "no-store" }); if (!res.ok) return; const j = await res.json(); const d = j && j.leads; if (stop || !d) return; const list: Lead[] = Object.entries(d).map(([k, v]) => ({ ...(v as object), _key: k } as Lead)); setLeads(list); } catch {} };
-    pull(); const t = setInterval(pull, 60000); return () => { stop = true; clearInterval(t); };
+    pull(); const t = setInterval(pull, 25000); return () => { stop = true; clearInterval(t); };
   }, [authed, pass]);
   // Make /track its own installable app + register the push service worker
   useEffect(() => {
@@ -1014,6 +1089,7 @@ export default function TrackPage() {
           {snap && view === "today" && (
             <AnimatePresence mode="wait">
               <motion.div key="today" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <AICommand moves={hitList} markFor={markFor} openLeads={openLeads} counts={counts} goal={snap.goal} onTouch={onTouch} />
                 {birthdays.length > 0 && (
                   <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4 mb-5">
                     <div className="text-gold font-mono text-[11px] tracking-[0.2em] uppercase mb-2">🎂 Birthdays this week</div>
