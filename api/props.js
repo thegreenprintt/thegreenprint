@@ -335,14 +335,18 @@ module.exports = async function handler(req, res) {
     let seasonYear = new Date().getFullYear();
     let events = [];
     const now = new Date();
-    for (let off = 0; off < 4 && events.length < 6; off++) {
-      const d = new Date(now.getTime() + off * 86400000);
-      const sb = await jget(base + '/scoreboard?dates=' + ymd(d));
-      if (off === 0) seasonYear = Number(sb && sb.season && sb.season.year) || seasonYear;
+    const _sbDays = await Promise.all(
+      [0, 1, 2, 3].map((off) =>
+        jget(base + '/scoreboard?dates=' + ymd(new Date(now.getTime() + off * 86400000))).catch(() => null)
+      )
+    );
+    seasonYear = Number(_sbDays[0] && _sbDays[0].season && _sbDays[0].season.year) || seasonYear;
+    for (const sb of _sbDays) {
       const evs = ((sb && sb.events) || []).filter(
         (e) => e && e.status && e.status.type && e.status.type.state === 'pre'
       );
       events = events.concat(evs);
+      if (events.length >= 6) break;
     }
     if (!events.length) {
       const empty = { league: league, updated: new Date().toISOString(), count: 0, slips: [], note: 'no_upcoming_games' };
