@@ -600,6 +600,29 @@ function NotifyBell() {
       if (Notification.permission === "granted") setSt("on");
     } catch {}
   }, []);
+  // If this device already granted notifications, silently (re)register it as an
+  // OWNER subscription. This moves it out of the public pool so the business
+  // tracker's alerts land only here — no tap needed on return visits.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
+        if (Notification.permission !== "granted") return;
+        let pass = ""; try { pass = localStorage.getItem(LS_KEY) || ""; } catch {}
+        if (!pass) return;
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        const kr = await fetch("/api/chat?kind=push").then((r) => r.json()).catch(() => null);
+        const vapid = kr && kr.key;
+        if (!vapid) return;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapid) as unknown as BufferSource });
+        if (cancelled) return;
+        await fetch("/api/chat?kind=push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", subscription: sub, owner: true, key: pass }) });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // Once notifications are on, get out of the way.
   if (st === "on") return null;
   const enable = useCallback(async () => {
@@ -613,7 +636,8 @@ function NotifyBell() {
       if (!vapid) { setSt("idle"); return; }
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapid) as unknown as BufferSource });
-      await fetch("/api/chat?kind=push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", subscription: sub }) });
+      let pass = ""; try { pass = localStorage.getItem(LS_KEY) || ""; } catch {}
+      await fetch("/api/chat?kind=push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe", subscription: sub, owner: true, key: pass }) });
       setSt("on");
       try { reg.showNotification("Notifications on ✅", { body: "I'll ping you about new subscribers, due dates, and your morning brief.", icon: "/icon-192.png", badge: "/icon-192.png" }); } catch {}
     } catch { setSt("idle"); }

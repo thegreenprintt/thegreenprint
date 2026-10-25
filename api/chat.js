@@ -33,6 +33,9 @@ function redis() {
 const KEY = 'gp:chat:v1';
 const SKEY = 'gp:signals:v1';
 const PKEY = 'gp:push:subs:v1';
+// Owner-only push subscriptions (Jay's devices, registered from the private
+// /track page). Business-tracker alerts go ONLY here, never to the public pool.
+const OKEY = 'gp:push:owner:v1';
 const AUTHOR = 'The Greenprint';
 const clean = (s, n) => String(s == null ? '' : s).slice(0, n).replace(/\s+/g, ' ').trim();
 const crypto = require('crypto');
@@ -80,21 +83,24 @@ async function tgSend(chatId, text) {
 }
 
 // Push helper (web-push lazy-required so a load issue can never break chat).
-async function sendPush(r, title, body, url) {
+// hashKey selects the audience: PKEY = the public subscriber pool (community
+// chat, trading calls, lock of the day), OKEY = owner-only (business tracker).
+async function sendPush(r, title, body, url, hashKey) {
   let webpush;
   try { webpush = require('web-push'); } catch (e) { return 0; }
   const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return 0;
   try { webpush.setVapidDetails('mailto:support@thegreenprint.trade', pub, priv); } catch (e) { return 0; }
+  const HK = hashKey || PKEY;
   let all = {};
-  try { all = (await r.hgetall(PKEY)) || {}; } catch (e) { return 0; }
+  try { all = (await r.hgetall(HK)) || {}; } catch (e) { return 0; }
   const payload = JSON.stringify({ title: title, body: body, url: url || '/app' });
   let sent = 0;
   await Promise.all(Object.keys(all).map(async (ep) => {
     let sub;
     try { sub = JSON.parse(all[ep]); } catch (e) { return; }
     try { await webpush.sendNotification(sub, payload); sent++; }
-    catch (err) { if (err && (err.statusCode === 404 || err.statusCode === 410)) { try { await r.hdel(PKEY, ep); } catch (e) {} } }
+    catch (err) { if (err && (err.statusCode === 404 || err.statusCode === 410)) { try { await r.hdel(HK, ep); } catch (e) {} } }
   }));
   return sent;
 }
@@ -558,7 +564,7 @@ module.exports = async function handler(req, res) {
           if (added.length) notifs.push({ t: '🎉 ' + added.length + ' new subscriber' + (added.length > 1 ? 's' : '') + '!', b: 'Your One House business just grew. Open the tracker.' });
           if (typeof baseN.lapsed === 'number' && lapsed > baseN.lapsed) { const dd = lapsed - baseN.lapsed; notifs.push({ t: '⚠️ ' + dd + ' went past due', b: 'Win them back before they lapse. Tap to work them.' }); }
         }
-        for (const n of notifs) { try { await sendPush(r, n.t, n.b, '/track'); } catch (e) {} }
+        for (const n of notifs) { try { await sendPush(r, n.t, n.b, '/track', OKEY); } catch (e) {} }
         await r.set('gp:track:notify:last', JSON.stringify({ activeEmails: activeEmails, lapsed: lapsed, count: active, ts: now }));
       } catch (e) {}
       res.setHeader('Cache-Control', 'no-store');
@@ -721,7 +727,7 @@ module.exports = async function handler(req, res) {
         notifs.push({ title: '☀️ Good morning, Jay', body: (subsToGo != null ? "You're " + subsToGo + ' from ' + kDollar + '. ' : '') + due + ' due this week, ' + lapsed + ' past due. Tap to work your list.', url: '/track' });
       }
       let sent = 0;
-      for (const n of notifs) { try { sent += await sendPush(r, n.title, n.body, n.url); } catch (e) {} }
+      for (const n of notifs) { try { sent += await sendPush(r, n.title, n.body, n.url, OKEY); } catch (e) {} }
       try { await r.set('gp:track:notify:last', JSON.stringify({ activeEmails: activeEmails, lapsed: lapsed, count: active, ts: Date.now() })); } catch (e) {}
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ ok: true, sent: sent, notifs: notifs.length, subsToGo: subsToGo });
@@ -737,6 +743,22 @@ module.exports = async function handler(req, res) {
       if (action === 'subscribe') {
         const sub = body.subscription;
         if (!sub || !sub.endpoint) return res.status(400).json({ error: 'bad_sub' });
+        // Owner subscriptions (the private /track page) land in the owner-only
+        // pool and NEVER in the public pool, so business-tracker alerts stay
+        // private. Verified against the admin key, track key, or stored passcode.
+        if (body.owner) {
+          const adminKey = process.env.GP_ADMIN_KEY || '';
+          const trackKey = process.env.GP_TRACK_KEY || '';
+          const k = clean(body.key, 128);
+          let storedPass = '';
+          try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+          const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+          if (!okKey) return res.status(403).json({ error: 'not_owner' });
+          // Move the endpoint out of the public pool if it was ever registered there.
+          try { await r.hdel(PKEY, sub.endpoint); } catch (e) {}
+          try { await r.hset(OKEY, sub.endpoint, JSON.stringify(sub)); } catch (e) {}
+          return res.status(200).json({ ok: true, owner: true });
+        }
         try { await r.hset(PKEY, sub.endpoint, JSON.stringify(sub)); } catch (e) {}
         return res.status(200).json({ ok: true });
       }
