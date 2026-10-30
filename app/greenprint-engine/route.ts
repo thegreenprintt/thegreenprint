@@ -35,6 +35,35 @@ const SYSTEM_PROMPT =
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
+// Diagnostic: GET reports whether the engine is reachable and the key is visible,
+// without ever exposing the key value. Lets us verify the route is live.
+export async function GET() {
+  const key = getKey();
+  const seen = Object.keys(process.env).filter((k) => /OPENROUTER|OPEN_ROUTER/i.test(k));
+  let liveKeyTest: unknown = "skipped (no key)";
+  if (key) {
+    try {
+      const r = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      liveKeyTest = { status: r.status, ok: r.ok, meaning: r.ok ? "KEY WORKS" : "key rejected by OpenRouter" };
+    } catch (e: any) {
+      liveKeyTest = { error: String(e?.message || e) };
+    }
+  }
+  return new Response(
+    JSON.stringify({
+      engine: "greenprint-ai",
+      alive: true,
+      keyPresent: !!key,
+      keyStartsWith: key ? key.slice(0, 7) : null,
+      openrouterVarNamesFound: seen,
+      liveKeyTest,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
 export async function POST(req: NextRequest) {
   const key = getKey();
   if (!key) {

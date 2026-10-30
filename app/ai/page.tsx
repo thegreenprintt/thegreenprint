@@ -153,7 +153,7 @@ export default function GreenprintAI() {
     abortRef.current = ac;
 
     try {
-      const res = await fetch("/ai/api/chat", {
+      const res = await fetch("/greenprint-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMsgs }),
