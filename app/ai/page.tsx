@@ -50,6 +50,32 @@ function renderMd(src: string): string {
   return s;
 }
 
+const SITE_START = "===GREENPRINT_SITE_START===";
+const SITE_END = "===GREENPRINT_SITE_END===";
+
+// Pull a generated site out of an assistant message. Returns the HTML (or "")
+// and the chat text with the site block replaced by a short placeholder.
+// Handles the still-streaming case where only the start marker has arrived.
+function extractSite(raw: string): { html: string; chat: string; building: boolean } {
+  const i = raw.indexOf(SITE_START);
+  if (i === -1) return { html: "", chat: raw, building: false };
+  const afterStart = raw.slice(i + SITE_START.length);
+  const j = afterStart.indexOf(SITE_END);
+  if (j === -1) {
+    // site still streaming in
+    const chat = (raw.slice(0, i) + "\n\n`[building website...]`").trim();
+    return { html: afterStart.trim(), chat, building: true };
+  }
+  const html = afterStart.slice(0, j).trim();
+  const tail = afterStart.slice(j + SITE_END.length);
+  const chat = (raw.slice(0, i) + "\n\n`[website ready, see the panel]`\n\n" + tail).trim();
+  return { html, chat, building: false };
+}
+function cleanSiteHtml(h: string): string {
+  // strip accidental markdown code fences around the HTML
+  return h.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/i, "").trim();
+}
+
 export default function GreenprintAI() {
   const [convos, setConvos] = useState<Convo[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -57,6 +83,9 @@ export default function GreenprintAI() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
+  const [siteHtml, setSiteHtml] = useState("");        // generated website HTML
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const [canvasTab, setCanvasTab] = useState<"preview" | "code">("preview");
   const abortRef = useRef<AbortController | null>(null);
   const riverRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -172,11 +201,20 @@ export default function GreenprintAI() {
         const reader = res.body.getReader();
         const dec = new TextDecoder();
         let acc = "";
+        let openedCanvas = false;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           acc += dec.decode(value, { stream: true });
           aiMsg.content = acc;
+          // live-detect a website build and show it as it streams
+          if (acc.includes(SITE_START)) {
+            const { html } = extractSite(acc);
+            if (html) {
+              setSiteHtml(cleanSiteHtml(html));
+              if (!openedCanvas) { setCanvasOpen(true); setCanvasTab("preview"); openedCanvas = true; }
+            }
+          }
           setMessages([...nextMsgs, { ...aiMsg }]);
           scrollDown();
         }
@@ -327,7 +365,7 @@ export default function GreenprintAI() {
                         ) : (
                           <div
                             className="gp-md text-[15px] leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: renderMd(m.content) + (streaming && i === messages.length - 1 ? '<span class="gp-cursor"></span>' : "") }}
+                            dangerouslySetInnerHTML={{ __html: renderMd(extractSite(m.content).chat) + (streaming && i === messages.length - 1 ? '<span class="gp-cursor"></span>' : "") }}
                           />
                         )}
                       </div>
@@ -369,6 +407,47 @@ export default function GreenprintAI() {
             </div>
           </div>
         </div>
+
+        {/* website build canvas */}
+        {canvasOpen && (
+          <div className="flex flex-col min-w-0 border-l border-border bg-surface w-full lg:w-[48%] lg:shrink-0 fixed lg:static inset-0 top-16 z-30 lg:z-auto">
+            <div className="shrink-0 flex items-center gap-2 border-b border-border px-3 py-2 bg-surface">
+              <div className="flex gap-1 bg-surface2 rounded-btn p-0.5">
+                <button onClick={() => setCanvasTab("preview")} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${canvasTab === "preview" ? "bg-surface text-text shadow" : "text-muted"}`}>Preview</button>
+                <button onClick={() => setCanvasTab("code")} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${canvasTab === "code" ? "bg-surface text-text shadow" : "text-muted"}`}>Code</button>
+              </div>
+              <span className="text-xs font-semibold truncate">Website</span>
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() => {
+                    try {
+                      const blob = new Blob([siteHtml], { type: "text/html" });
+                      const u = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = u; a.download = "greenprint-site.html";
+                      document.body.appendChild(a); a.click(); a.remove();
+                      URL.revokeObjectURL(u);
+                    } catch {}
+                  }}
+                  className="text-xs font-medium inline-flex items-center gap-1.5 border border-border rounded-btn px-2.5 py-1.5 text-muted hover:text-text hover:border-border/80 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7 10l5 5 5-5M5 21h14" /></svg>
+                  Download
+                </button>
+                <button onClick={() => setCanvasOpen(false)} className="w-7 h-7 grid place-items-center rounded-btn border border-border text-muted hover:text-text" aria-label="Close">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 relative bg-white">
+              {canvasTab === "preview" ? (
+                <iframe title="Website preview" srcDoc={siteHtml} className="w-full h-full border-0 bg-white" sandbox="allow-scripts allow-forms allow-popups allow-modals" />
+              ) : (
+                <pre className="absolute inset-0 overflow-auto m-0 p-4 bg-bg text-text" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{siteHtml}</pre>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* mobile sidebar trigger */}

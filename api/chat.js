@@ -147,7 +147,18 @@ module.exports = async function handler(req, res) {
       "Never guarantee or promise trading profits. Never invent live prices or market data; if asked for a live " +
       "price, say you do not have live market data. When you refer to risk control on a trade, always write " +
       "'stop loss' or 'stop losses', never 'stops'. Do not use em dashes or en dashes anywhere in your writing; " +
-      "use commas or periods instead. Keep answers useful and to the point.";
+      "use commas or periods instead. Keep answers useful and to the point.\n\n" +
+      "WEBSITE BUILDING: When the user asks you to build, make, create, or design a website, landing page, " +
+      "or any web page, you output a COMPLETE standalone HTML document and wrap it EXACTLY like this:\n" +
+      "===GREENPRINT_SITE_START===\n" +
+      "<!doctype html><html>...the entire page with inline CSS and JS, no external files...</html>\n" +
+      "===GREENPRINT_SITE_END===\n" +
+      "Rules for the HTML: one self-contained file, all CSS in a <style> tag and all JS in a <script> tag, " +
+      "no external stylesheets or scripts except Google Fonts links. Make it genuinely premium and high end, " +
+      "dark modern aesthetic unless asked otherwise, real content not lorem ipsum, responsive on mobile. " +
+      "Before the opening marker, write ONE short sentence saying what you built. After the closing marker, " +
+      "write ONE short sentence on what they can change next. Put NOTHING else outside the markers. " +
+      "For any request that is NOT a website, never use these markers, just answer normally.";
 
     if (req.method === 'GET') {
       const seen = Object.keys(process.env).filter((k) => /OPENROUTER|OPEN_ROUTER/i.test(k));
