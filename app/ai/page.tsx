@@ -63,12 +63,17 @@ function extractSite(raw: string): { html: string; chat: string; building: boole
   const j = afterStart.indexOf(SITE_END);
   if (j === -1) {
     // site still streaming in
-    const chat = (raw.slice(0, i) + "\n\n`[building website...]`").trim();
+    const intro = raw.slice(0, i).trim();
+    const chat = (intro ? intro + "\n\n" : "") + "**Building your website...** it will appear in the panel.";
     return { html: afterStart.trim(), chat, building: true };
   }
   const html = afterStart.slice(0, j).trim();
-  const tail = afterStart.slice(j + SITE_END.length);
-  const chat = (raw.slice(0, i) + "\n\n`[website ready, see the panel]`\n\n" + tail).trim();
+  const intro = raw.slice(0, i).trim();
+  const tail = afterStart.slice(j + SITE_END.length).trim();
+  const chat =
+    (intro ? intro + "\n\n" : "") +
+    "**Your website is ready.** It's in the panel on the right, preview it, check the code, or download it." +
+    (tail ? "\n\n" + tail : "");
   return { html, chat, building: false };
 }
 function cleanSiteHtml(h: string): string {
@@ -207,16 +212,22 @@ export default function GreenprintAI() {
           if (done) break;
           acc += dec.decode(value, { stream: true });
           aiMsg.content = acc;
-          // live-detect a website build and show it as it streams
-          if (acc.includes(SITE_START)) {
-            const { html } = extractSite(acc);
-            if (html) {
-              setSiteHtml(cleanSiteHtml(html));
-              if (!openedCanvas) { setCanvasOpen(true); setCanvasTab("preview"); openedCanvas = true; }
-            }
+          // As soon as a build starts, open the canvas and show a building state,
+          // but DO NOT re-render the iframe on every token (that causes flicker).
+          if (!openedCanvas && acc.includes(SITE_START)) {
+            setCanvasOpen(true);
+            setCanvasTab("preview");
+            setSiteHtml(""); // building state; filled once complete
+            openedCanvas = true;
           }
           setMessages([...nextMsgs, { ...aiMsg }]);
           scrollDown();
+        }
+        // Build finished: now render the completed site exactly once.
+        const final = extractSite(acc);
+        if (final.html && acc.includes(SITE_END)) {
+          setSiteHtml(cleanSiteHtml(final.html));
+          setCanvasOpen(true);
         }
         if (!acc) {
           aiMsg.content = "(No response. Try again.)";
@@ -440,7 +451,14 @@ export default function GreenprintAI() {
               </div>
             </div>
             <div className="flex-1 min-h-0 relative bg-white">
-              {canvasTab === "preview" ? (
+              {!siteHtml ? (
+                <div className="absolute inset-0 grid place-items-center bg-bg text-muted">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                    <span className="text-sm">Building your website...</span>
+                  </div>
+                </div>
+              ) : canvasTab === "preview" ? (
                 <iframe title="Website preview" srcDoc={siteHtml} className="w-full h-full border-0 bg-white" sandbox="allow-scripts allow-forms allow-popups allow-modals" />
               ) : (
                 <pre className="absolute inset-0 overflow-auto m-0 p-4 bg-bg text-text" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{siteHtml}</pre>
