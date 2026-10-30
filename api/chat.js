@@ -133,7 +133,13 @@ module.exports = async function handler(req, res) {
       process.env.OPEN_ROUTER_API_KEY ||
       process.env.NEXT_OPENROUTER_API_KEY ||
       '';
-    const AI_MODEL = process.env.GREENPRINT_AI_MODEL || 'deepseek/deepseek-chat-v3-0324:free';
+    const AI_MODEL = process.env.GREENPRINT_AI_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
+    // Fallback free models tried in order if the primary is rate-limited (429) or down.
+    const AI_FALLBACKS = [
+      'google/gemma-4-31b-it:free',
+      'google/gemma-4-26b-a4b-it:free',
+      'thinkingmachines/inkling:free',
+    ];
     const AI_SYSTEM =
       "You are The Greenprint AI, the in-house AI for The Greenprint, a trading-education brand " +
       "covering day trading, investing, and commercial real estate. You are direct, confident, and practical. " +
@@ -176,24 +182,33 @@ module.exports = async function handler(req, res) {
       .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
     const aiMessages = [{ role: 'system', content: AI_SYSTEM }].concat(history);
 
-    let up;
-    try {
-      up = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + aiKey,
-          'HTTP-Referer': 'https://thegreenprint.trade',
-          'X-Title': 'The Greenprint AI',
-        },
-        body: JSON.stringify({ model: aiBody.model || AI_MODEL, stream: true, messages: aiMessages }),
-      });
-    } catch (e) { return res.status(502).json({ error: 'model_unreachable' }); }
+    // Try the chosen model, then fall back through free alternatives on 429/404
+    // (free models get rate-limited or retired), so the user still gets a reply.
+    const tryModels = [aiBody.model || AI_MODEL].concat(AI_FALLBACKS.filter((m) => m !== (aiBody.model || AI_MODEL)));
+    let up = null;
+    let lastErr = '';
+    for (const mdl of tryModels) {
+      try {
+        up = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + aiKey,
+            'HTTP-Referer': 'https://thegreenprint.trade',
+            'X-Title': 'The Greenprint AI',
+          },
+          body: JSON.stringify({ model: mdl, stream: true, messages: aiMessages }),
+        });
+      } catch (e) { lastErr = 'unreachable'; up = null; continue; }
+      if (up.ok && up.body) break; // got a good stream
+      // capture the error, then try the next model
+      try { const j = await up.json(); lastErr = 'model_error_' + up.status + ((j && j.error && j.error.message) ? ': ' + j.error.message : ''); }
+      catch (e) { lastErr = 'model_error_' + up.status; }
+      up = null;
+    }
 
-    if (!up.ok || !up.body) {
-      let detail = '';
-      try { const j = await up.json(); detail = (j && j.error && j.error.message) || ''; } catch (e) {}
-      return res.status(502).json({ error: 'model_error_' + up.status + (detail ? ': ' + detail : '') });
+    if (!up || !up.body) {
+      return res.status(502).json({ error: lastErr || 'All free models are busy right now. Try again in a moment, or add a few dollars of OpenRouter credit to raise the free limits.' });
     }
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
