@@ -121,6 +121,111 @@ module.exports = async function handler(req, res) {
   const kind = String((req.query && req.query.kind) || '');
   const qkey = String((req.query && req.query.key) || '');
 
+  // ── The Greenprint AI engine (kind=ai) ─────────────────────────────────────
+  // Self-contained: does not use Redis. Keeps us under the Hobby 12-function cap
+  // by living inside this existing function instead of adding a new one.
+  //   GET  /api/chat?kind=ai              -> health/config check (no key exposed)
+  //   POST /api/chat?kind=ai {messages}   -> streams the AI reply as plain text
+  if (kind === 'ai') {
+    const aiKey =
+      process.env.OPENROUTER_API_KEY ||
+      process.env.OPENROUTER_KEY ||
+      process.env.OPEN_ROUTER_API_KEY ||
+      process.env.NEXT_OPENROUTER_API_KEY ||
+      '';
+    const AI_MODEL = process.env.GREENPRINT_AI_MODEL || 'deepseek/deepseek-chat-v3-0324:free';
+    const AI_SYSTEM =
+      "You are The Greenprint AI, the in-house AI for The Greenprint, a trading-education brand " +
+      "covering day trading, investing, and commercial real estate. You are direct, confident, and practical. " +
+      "No hype, no fake enthusiasm, no generic motivational filler. You explain markets and trading clearly. " +
+      "Never guarantee or promise trading profits. Never invent live prices or market data; if asked for a live " +
+      "price, say you do not have live market data. When you refer to risk control on a trade, always write " +
+      "'stop loss' or 'stop losses', never 'stops'. Do not use em dashes or en dashes anywhere in your writing; " +
+      "use commas or periods instead. Keep answers useful and to the point.";
+
+    if (req.method === 'GET') {
+      const seen = Object.keys(process.env).filter((k) => /OPENROUTER|OPEN_ROUTER/i.test(k));
+      let liveKeyTest = 'skipped (no key)';
+      if (aiKey) {
+        try {
+          const t = await fetch('https://openrouter.ai/api/v1/models', { headers: { Authorization: 'Bearer ' + aiKey } });
+          liveKeyTest = { status: t.status, ok: t.ok, meaning: t.ok ? 'KEY WORKS' : 'key rejected by OpenRouter' };
+        } catch (e) { liveKeyTest = { error: String((e && e.message) || e) }; }
+      }
+      return res.status(200).json({
+        engine: 'greenprint-ai', alive: true, keyPresent: !!aiKey,
+        keyStartsWith: aiKey ? aiKey.slice(0, 7) : null, openrouterVarNamesFound: seen, liveKeyTest,
+      });
+    }
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!aiKey) {
+      const seen = Object.keys(process.env).filter((k) => /OPENROUTER|OPEN_ROUTER/i.test(k));
+      return res.status(503).json({
+        error: seen.length
+          ? 'Found related variables but not a usable key: ' + seen.join(', ') + '. Name must be exactly OPENROUTER_API_KEY, enabled for Production, then redeploy.'
+          : 'No OpenRouter key set. Add OPENROUTER_API_KEY in Vercel (Production), then redeploy.',
+      });
+    }
+    let aiBody = {};
+    try { aiBody = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); }
+    catch (e) { return res.status(400).json({ error: 'bad_body' }); }
+    const incoming = Array.isArray(aiBody.messages) ? aiBody.messages : [];
+    const history = incoming
+      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+      .slice(-20)
+      .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
+    const aiMessages = [{ role: 'system', content: AI_SYSTEM }].concat(history);
+
+    let up;
+    try {
+      up = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + aiKey,
+          'HTTP-Referer': 'https://thegreenprint.trade',
+          'X-Title': 'The Greenprint AI',
+        },
+        body: JSON.stringify({ model: aiBody.model || AI_MODEL, stream: true, messages: aiMessages }),
+      });
+    } catch (e) { return res.status(502).json({ error: 'model_unreachable' }); }
+
+    if (!up.ok || !up.body) {
+      let detail = '';
+      try { const j = await up.json(); detail = (j && j.error && j.error.message) || ''; } catch (e) {}
+      return res.status(502).json({ error: 'model_error_' + up.status + (detail ? ': ' + detail : '') });
+    }
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+    const reader = up.body.getReader();
+    const dec = new TextDecoder();
+    let carry = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        carry += dec.decode(value, { stream: true });
+        const lines = carry.split('\n');
+        carry = lines.pop() || '';
+        for (const line of lines) {
+          const tl = line.trim();
+          if (tl.indexOf('data:') !== 0) continue;
+          const data = tl.slice(5).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const j = JSON.parse(data);
+            const delta = j && j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+            if (delta) res.write(delta);
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+    return res.end();
+  }
+  // ── end AI engine ──────────────────────────────────────────────────────────
+
   let r;
   try {
     r = redis();
