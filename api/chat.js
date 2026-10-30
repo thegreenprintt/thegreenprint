@@ -193,9 +193,23 @@ module.exports = async function handler(req, res) {
       .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
     const aiMessages = [{ role: 'system', content: AI_SYSTEM }].concat(history);
 
-    // Try the chosen model, then fall back through free alternatives on 429/404
-    // (free models get rate-limited or retired), so the user still gets a reply.
-    const tryModels = [aiBody.model || AI_MODEL].concat(AI_FALLBACKS.filter((m) => m !== (aiBody.model || AI_MODEL)));
+    // Detect a website-build request from the latest user message. Builds are a
+    // heavy generation that stalls on free models, so route them to a fast paid
+    // model (cheap, reliable). Plain chat stays on the free model.
+    const BUILD_MODEL = process.env.GREENPRINT_BUILD_MODEL || 'anthropic/claude-haiku-5.5';
+    const lastUser = [...history].reverse().find((m) => m.role === 'user');
+    const lastText = (lastUser && lastUser.content ? lastUser.content : '').toLowerCase();
+    const isBuild = /\b(build|make|create|design|generate|code)\b[^.?!]*\b(website|web page|webpage|site|landing page|page|homepage|html)\b/.test(lastText);
+
+    // Choose the model chain: explicit override wins; else build model for builds; else free.
+    let tryModels;
+    if (aiBody.model) {
+      tryModels = [aiBody.model].concat(AI_FALLBACKS.filter((m) => m !== aiBody.model));
+    } else if (isBuild) {
+      tryModels = [BUILD_MODEL, AI_MODEL].concat(AI_FALLBACKS);
+    } else {
+      tryModels = [AI_MODEL].concat(AI_FALLBACKS);
+    }
     let up = null;
     let lastErr = '';
     for (const mdl of tryModels) {
