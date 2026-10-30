@@ -1,15 +1,28 @@
 import { NextRequest } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /*
   The Greenprint AI engine (server-side).
   The model key lives in the OPENROUTER_API_KEY env var on Vercel, never in the browser.
   Defaults to a free open model so running it costs nothing.
-  Streams the reply back to the page as Server-Sent Events.
+  Streams the reply back to the page.
 */
 
 const DEFAULT_MODEL = process.env.GREENPRINT_AI_MODEL || "deepseek/deepseek-chat-v3-0324:free";
+
+// Read the key tolerantly: accept the main name and a couple of common variants,
+// so a small naming slip in Vercel doesn't silently break the engine.
+function getKey(): string | undefined {
+  return (
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENROUTER_KEY ||
+    process.env.OPEN_ROUTER_API_KEY ||
+    process.env.NEXT_OPENROUTER_API_KEY ||
+    undefined
+  );
+}
 
 const SYSTEM_PROMPT =
   "You are The Greenprint AI, the in-house AI for The Greenprint, a trading-education brand " +
@@ -23,12 +36,18 @@ const SYSTEM_PROMPT =
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 export async function POST(req: NextRequest) {
-  const key = process.env.OPENROUTER_API_KEY;
+  const key = getKey();
   if (!key) {
-    return new Response(
-      JSON.stringify({ error: "The AI engine is not configured yet. Add OPENROUTER_API_KEY in Vercel." }),
-      { status: 503, headers: { "Content-Type": "application/json" } }
-    );
+    // List which OpenRouter-ish env names ARE present (names only, never values),
+    // so configuration problems are obvious instead of silent.
+    const seen = Object.keys(process.env).filter((k) => /OPENROUTER|OPEN_ROUTER/i.test(k));
+    const hint = seen.length
+      ? `Found these related variables but not a usable key: ${seen.join(", ")}. The name must be exactly OPENROUTER_API_KEY and be enabled for Production.`
+      : "No OpenRouter key is set. Add an environment variable named exactly OPENROUTER_API_KEY in Vercel (Production), then redeploy.";
+    return new Response(JSON.stringify({ error: hint }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   let body: { messages?: Msg[]; model?: string };
@@ -78,9 +97,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Re-stream OpenRouter's SSE straight through to the browser.
+  // Buffer across reads so a data: line split between chunks is never dropped.
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const reader = upstream.body.getReader();
+  let carry = "";
 
   const stream = new ReadableStream({
     async pull(controller) {
@@ -90,8 +111,9 @@ export async function POST(req: NextRequest) {
           controller.close();
           return;
         }
-        let buf = decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
+        carry += decoder.decode(value, { stream: true });
+        const lines = carry.split("\n");
+        carry = lines.pop() ?? ""; // keep the last, possibly-incomplete line
         for (const line of lines) {
           const t = line.trim();
           if (!t.startsWith("data:")) continue;
@@ -102,7 +124,7 @@ export async function POST(req: NextRequest) {
             const delta = json?.choices?.[0]?.delta?.content || "";
             if (delta) controller.enqueue(encoder.encode(delta));
           } catch {
-            // partial JSON chunk, ignore; next pull completes it
+            // incomplete JSON, should not happen once lines are whole; skip
           }
         }
       } catch (e) {
