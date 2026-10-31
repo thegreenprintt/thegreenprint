@@ -91,9 +91,43 @@ export default function GreenprintAI() {
   const [siteHtml, setSiteHtml] = useState("");        // generated website HTML
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasTab, setCanvasTab] = useState<"preview" | "code">("preview");
+  const [listening, setListening] = useState(false);
+  const [voiceOk, setVoiceOk] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const riverRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const recogRef = useRef<any>(null);
+
+  // voice input (Web Speech API) — feature-detect, only enable where it works
+  useEffect(() => {
+    const SR = (typeof window !== "undefined") && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+    if (!SR) { setVoiceOk(false); return; }
+    setVoiceOk(true);
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-US";
+    let baseText = "";
+    r.onstart = () => { baseText = (taRef.current?.value || "").trim(); };
+    r.onresult = (e: any) => {
+      let heard = "";
+      for (let k = 0; k < e.results.length; k++) heard += e.results[k][0].transcript;
+      const combined = (baseText ? baseText + " " : "") + heard.trim();
+      setInput(combined);
+      requestAnimationFrame(() => { if (taRef.current) { taRef.current.style.height = "auto"; taRef.current.style.height = Math.min(taRef.current.scrollHeight, 180) + "px"; } });
+    };
+    r.onerror = () => setListening(false);
+    r.onend = () => setListening(false);
+    recogRef.current = r;
+    return () => { try { r.stop(); } catch {} };
+  }, []);
+
+  function toggleVoice() {
+    const r = recogRef.current;
+    if (!r) return;
+    if (listening) { try { r.stop(); } catch {} setListening(false); return; }
+    try { r.start(); setListening(true); taRef.current?.focus(); } catch {}
+  }
 
   // load persisted convos
   useEffect(() => {
@@ -386,6 +420,15 @@ export default function GreenprintAI() {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                     placeholder="Describe what you want to build..."
                     className="flex-1 min-w-0 bg-transparent resize-none outline-none border-0 text-[15px] leading-[1.5] py-1.5 max-h-[180px] placeholder:text-muted/55" />
+                  {voiceOk && (
+                    <button onClick={toggleVoice} title={listening ? "Stop listening" : "Talk to it"} className={`gp-mic shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all ${listening ? "gp-mic-on" : ""}`}>
+                      {listening ? (
+                        <span className="gp-mic-wave"><span /><span /><span /></span>
+                      ) : (
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" /></svg>
+                      )}
+                    </button>
+                  )}
                   <button onClick={() => (streaming ? stop() : send())} disabled={!streaming && !input.trim()} className="gp-send shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all disabled:opacity-25">
                     {streaming ? (
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
@@ -519,6 +562,14 @@ export default function GreenprintAI() {
         .gp-composer-shell:focus-within::before { opacity: 1; animation-duration: 4s; }
         .gp-send { background: linear-gradient(150deg, var(--grn), #0ad46f); color: #06110a; box-shadow: 0 0 18px -6px var(--grn); }
         .gp-send:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 0 26px -4px var(--grn); }
+        .gp-mic { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #c7cdc7; }
+        .gp-mic:hover { color: #fff; border-color: rgba(0,255,133,0.35); }
+        .gp-mic-on { background: rgba(0,255,133,0.14); border-color: rgba(0,255,133,0.5); color: var(--grn); box-shadow: 0 0 20px -6px var(--grn); animation: gp-mic-pulse 1.4s ease-in-out infinite; }
+        @keyframes gp-mic-pulse { 0%,100% { box-shadow: 0 0 16px -8px var(--grn); } 50% { box-shadow: 0 0 26px -4px var(--grn); } }
+        .gp-mic-wave { display: inline-flex; align-items: center; gap: 2.5px; height: 16px; }
+        .gp-mic-wave span { width: 2.5px; height: 6px; background: var(--grn); border-radius: 2px; animation: gp-wave 0.9s ease-in-out infinite; }
+        .gp-mic-wave span:nth-child(2) { animation-delay: 0.15s; } .gp-mic-wave span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes gp-wave { 0%,100% { height: 6px; } 50% { height: 15px; } }
 
         /* canvas */
         .gp-canvas { background: rgba(9,11,9,0.92); backdrop-filter: blur(18px); border-left: 1px solid rgba(255,255,255,0.07); }
