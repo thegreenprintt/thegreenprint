@@ -147,7 +147,8 @@ module.exports = async function handler(req, res) {
       "Never guarantee or promise trading profits. Never invent live prices or market data; if asked for a live " +
       "price, say you do not have live market data. When you refer to risk control on a trade, always write " +
       "'stop loss' or 'stop losses', never 'stops'. Do not use em dashes or en dashes anywhere in your writing; " +
-      "use commas or periods instead. Keep answers useful and to the point.\n\n" +
+      "use commas or periods instead. Keep answers useful and to the point. " +
+      "When you are given live web search results, use them to answer with current facts and briefly cite the sources.\n\n" +
       "WEBSITE BUILDING: When the user asks you to build, make, create, or design a website, landing page, " +
       "or any web page, you output a COMPLETE standalone HTML document and wrap it EXACTLY like this:\n" +
       "===GREENPRINT_SITE_START===\n" +
@@ -201,6 +202,10 @@ module.exports = async function handler(req, res) {
     const lastText = (lastUser && lastUser.content ? lastUser.content : '').toLowerCase();
     const isBuild = /\b(build|make|create|design|generate|code)\b[^.?!]*\b(website|web page|webpage|site|landing page|page|homepage|html)\b/.test(lastText);
 
+    // Detect a question that needs CURRENT / live information, so we can turn on
+    // live web search for it. Kept narrow so most chat stays search-free (and free).
+    const needsWeb = !isBuild && /\b(today|todays|tonight|right now|currently|current|latest|recent|recently|this week|this month|this year|2026|2027|news|headline|price|stock|market|crypto|bitcoin|ethereum|score|weather|forecast|who is|who won|when is|release date|just happened|breaking|update on|trending)\b/.test(lastText);
+
     // Choose the model chain: explicit override wins; else build model for builds; else free.
     let tryModels;
     if (aiBody.model) {
@@ -222,7 +227,11 @@ module.exports = async function handler(req, res) {
             'HTTP-Referer': 'https://thegreenprint.trade',
             'X-Title': 'The Greenprint AI',
           },
-          body: JSON.stringify({ model: mdl, stream: true, messages: aiMessages }),
+          body: JSON.stringify(
+            needsWeb
+              ? { model: mdl, stream: true, messages: aiMessages, plugins: [{ id: 'web', max_results: 4 }] }
+              : { model: mdl, stream: true, messages: aiMessages }
+          ),
         });
       } catch (e) { lastErr = 'unreachable'; up = null; continue; }
       if (up.ok && up.body) break; // got a good stream
