@@ -311,7 +311,7 @@ export default function GreenprintAI() {
           <div ref={riverRef} className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-5 py-8">
               {empty ? (
-                <div className="flex flex-col items-center text-center pt-[8vh]">
+                <div className="gp-hero flex flex-col items-center text-center">
                   {/* signature intelligence core */}
                   <motion.div className="gp-core" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}>
                     <span className="gp-core-ring" />
@@ -395,7 +395,6 @@ export default function GreenprintAI() {
                   </button>
                 </div>
               </div>
-              <p className="text-center text-[11px] text-muted/50 mt-3 tracking-wide">Greenprint AI can make mistakes. Not financial advice.</p>
             </div>
           </div>
         </div>
@@ -469,7 +468,8 @@ export default function GreenprintAI() {
         @keyframes gp-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* signature intelligence core */
-        .gp-core { position: relative; width: 92px; height: 92px; display: grid; place-items: center; margin-bottom: 28px; }
+        .gp-hero { min-height: calc(100dvh - 190px); justify-content: center; padding: 12px 0; }
+        .gp-core { position: relative; width: 66px; height: 66px; display: grid; place-items: center; margin-bottom: 16px; }
         .gp-core-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--grn), transparent 42%, var(--gold-bright), transparent 72%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); animation: gp-rot 6s linear infinite; }
         .gp-core-ring2 { inset: 10px; opacity: 0.5; animation: gp-rot 9s linear infinite reverse; }
         .gp-core-glow { position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,133,0.35), transparent 70%); filter: blur(10px); animation: gp-breathe 3.5s ease-in-out infinite; }
@@ -479,20 +479,20 @@ export default function GreenprintAI() {
 
         /* hero type */
         .gp-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.34em; color: var(--gold); font-weight: 700; margin-bottom: 18px; }
-        .gp-head { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: clamp(38px, 8vw, 72px); line-height: 0.95; letter-spacing: -0.035em; color: #f6f8f6; }
+        .gp-head { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: clamp(34px, 7vw, 58px); line-height: 0.96; letter-spacing: -0.035em; color: #f6f8f6; }
         .gp-head-accent { background: linear-gradient(100deg, var(--grn) 0%, var(--gold-bright) 60%, var(--grn) 100%); background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gp-sheen 6s linear infinite; }
         @keyframes gp-sheen { to { background-position: 220% center; } }
-        .gp-sub { color: #9aa29a; font-size: clamp(14px, 2.4vw, 16.5px); line-height: 1.6; margin: 20px 0 0; max-width: 33rem; }
+        .gp-sub { color: #9aa29a; font-size: clamp(13.5px, 2.2vw, 15.5px); line-height: 1.55; margin: 14px 0 0; max-width: 32rem; }
 
         /* capability marquee */
-        .gp-marquee { margin-top: 28px; width: 100%; max-width: 40rem; -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); overflow: hidden; }
+        .gp-marquee { margin-top: 18px; width: 100%; max-width: 40rem; -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); overflow: hidden; }
         .gp-marquee-track { display: inline-flex; white-space: nowrap; animation: gp-scroll 24s linear infinite; }
         @keyframes gp-scroll { to { transform: translateX(-50%); } }
         .gp-mq-item { display: inline-flex; align-items: center; gap: 9px; padding: 0 22px; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.18em; color: #c7cdc7; font-weight: 600; }
         .gp-mq-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
 
         /* premium prompt cards */
-        .gp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 40rem; margin-top: 36px; }
+        .gp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 40rem; margin-top: 22px; }
         .gp-card { position: relative; text-align: left; padding: 16px 16px 14px; border-radius: 15px; background: linear-gradient(160deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)); border: 1px solid rgba(255,255,255,0.08); overflow: hidden; transition: all 0.3s cubic-bezier(0.16,1,0.3,1); }
         .gp-card::before { content: ""; position: absolute; inset: 0; border-radius: 15px; padding: 1px; background: linear-gradient(140deg, rgba(0,255,133,0.5), transparent 40%, rgba(216,178,94,0.4)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s; }
         .gp-card:hover { transform: translateY(-3px); background: linear-gradient(160deg, rgba(0,255,133,0.06), rgba(216,178,94,0.03)); box-shadow: 0 20px 50px -20px rgba(0,255,133,0.4); }
@@ -543,7 +543,11 @@ export default function GreenprintAI() {
         .gp-cursor { display: inline-block; width: 2px; height: 16px; background: var(--grn); vertical-align: -3px; margin-left: 2px; box-shadow: 0 0 8px var(--grn); animation: gpblink 1s step-end infinite; }
         @keyframes gpblink { 50% { opacity: 0; } }
 
-        @media (max-width: 560px) { .gp-cards { grid-template-columns: 1fr; } }
+        @media (max-width: 560px) {
+          .gp-card { padding: 12px 12px 11px; }
+          .gp-card-text { font-size: 12.5px; }
+          .gp-hero { min-height: calc(100dvh - 170px); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .gp-aurora, .gp-core-ring, .gp-core-ring2, .gp-core-glow, .gp-head-accent, .gp-marquee-track, .gp-composer-shell::before, .gp-dot, .gp-cursor, .gp-build-core span { animation: none !important; }
         }
