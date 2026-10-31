@@ -108,7 +108,7 @@ export default function GreenprintAI() {
   function saveGh(t: string) { setGhToken(t); ghRef.current = t; try { localStorage.setItem("gpai_gh", t); } catch {} }
   const MODELS = [
     { id: "", label: "Auto", note: "Free, fast" },
-    { id: "anthropic/claude-opus-5.5", label: "Claude Opus 5.5", note: "Smartest" },
+    { id: "anthropic/claude-sonnet-5.5", label: "Claude 5.5", note: "Top tier" },
     { id: "openai/gpt-5.6-terra-pro", label: "GPT-5.6", note: "OpenAI" },
     { id: "google/gemini-3.8-flash", label: "Gemini 3.8", note: "Google" },
     { id: "x-ai/grok-4.7", label: "Grok 4.7", note: "xAI" },
