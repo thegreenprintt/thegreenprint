@@ -313,7 +313,7 @@ export default function GreenprintAI() {
   const CAPS = ["Websites", "The code behind them", "Go-to-market strategy", "Content that converts", "Trade breakdowns", "Your entire brand"];
 
   return (
-    <div className="gp-root min-h-screen text-text flex flex-col relative">
+    <div className="gp-root h-[100dvh] overflow-hidden text-text flex flex-col relative">
       <Nav />
 
       {/* cinematic breathing aurora */}
@@ -392,8 +392,8 @@ export default function GreenprintAI() {
         </AnimatePresence>
 
         {/* ===== main column ===== */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div ref={riverRef} className="flex-1 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div ref={riverRef} className="flex-1 min-h-0 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-5 py-8">
               {empty ? (
                 <div className="gp-hero flex flex-col items-center text-center">
@@ -616,7 +616,7 @@ export default function GreenprintAI() {
         .gp-user-bubble { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 15px; }
 
         /* composer with live gradient border */
-        .gp-composer-wrap { background: linear-gradient(to top, #060806 58%, transparent); }
+        .gp-composer-wrap { background: linear-gradient(to top, #060806 58%, transparent); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
         .gp-composer-shell { position: relative; border-radius: 17px; padding: 1.5px; overflow: hidden; }
         .gp-composer-shell::before { content: ""; position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent, rgba(0,255,133,0.55), transparent 28%, rgba(216,178,94,0.5), transparent 55%); animation: gp-rot 8s linear infinite; opacity: 0.55; }
         .gp-composer { position: relative; z-index: 1; background: #121512; border-radius: 15.5px; padding: 10px 10px 10px 16px; }
