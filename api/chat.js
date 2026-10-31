@@ -320,7 +320,7 @@ module.exports = async function handler(req, res) {
     // Choose the model chain: explicit override wins; else build model for builds; else free.
     let tryModels;
     if (aiBody.model) {
-      tryModels = [aiBody.model].concat(AI_FALLBACKS.filter((m) => m !== aiBody.model));
+      tryModels = [aiBody.model]; // user explicitly chose this model, do not silently fall back
     } else if (isBuild) {
       tryModels = [BUILD_MODEL, AI_MODEL].concat(AI_FALLBACKS);
     } else {
