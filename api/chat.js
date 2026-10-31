@@ -250,6 +250,73 @@ module.exports = async function handler(req, res) {
     // live web search for it. Kept narrow so most chat stays search-free (and free).
     const needsWeb = !isBuild && /\b(today|todays|tonight|right now|currently|current|latest|recent|recently|this week|this month|this year|2026|2027|news|headline|price|stock|market|crypto|bitcoin|ethereum|score|weather|forecast|who is|who won|when is|release date|just happened|breaking|update on|trending)\b/.test(lastText);
 
+    // ── GitHub integration (tool use) ────────────────────────────────────────
+    // When the user has connected GitHub, give the model real tools it executes
+    // server-side against the GitHub API with the user's token.
+    const ghToken = (aiBody.connections && aiBody.connections.github) ? String(aiBody.connections.github) : '';
+    const orHeaders = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + aiKey, 'HTTP-Referer': 'https://thegreenprint.trade', 'X-Title': 'The Greenprint AI' };
+    if (ghToken) {
+      const gh = (method, path, body) => fetch('https://api.github.com' + path, {
+        method, headers: { Authorization: 'Bearer ' + ghToken, Accept: 'application/vnd.github+json', 'User-Agent': 'GreenprintAI', 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      let login = '';
+      try { const u = await gh('GET', '/user'); if (u.ok) { const uj = await u.json(); login = uj.login; } } catch (e) {}
+      if (!login) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.write("I couldn't reach your GitHub. The token may be invalid or expired, re-add it under Connections.");
+        return res.end();
+      }
+      const full = (r) => (String(r).includes('/') ? String(r) : login + '/' + String(r));
+      const GH_TOOLS = [
+        { type: 'function', function: { name: 'list_repos', description: "List the user's GitHub repositories (most recently updated first).", parameters: { type: 'object', properties: {} } } },
+        { type: 'function', function: { name: 'list_files', description: 'List files/folders in a repo path. repo can be "name" or "owner/name".', parameters: { type: 'object', properties: { repo: { type: 'string' }, path: { type: 'string' } }, required: ['repo'] } } },
+        { type: 'function', function: { name: 'read_file', description: 'Read a text file from a repo.', parameters: { type: 'object', properties: { repo: { type: 'string' }, path: { type: 'string' } }, required: ['repo', 'path'] } } },
+        { type: 'function', function: { name: 'write_file', description: 'Create or update a file in a repo (makes a commit). Provide full file contents.', parameters: { type: 'object', properties: { repo: { type: 'string' }, path: { type: 'string' }, content: { type: 'string' }, message: { type: 'string' } }, required: ['repo', 'path', 'content'] } } },
+        { type: 'function', function: { name: 'search_code', description: "Search code across the user's repos.", parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
+      ];
+      const execGh = async (name, a) => {
+        try {
+          if (name === 'list_repos') { const r = await gh('GET', '/user/repos?per_page=30&sort=updated'); const j = await r.json(); return JSON.stringify((Array.isArray(j) ? j : []).map((x) => ({ repo: x.full_name, private: x.private, url: x.html_url }))); }
+          if (name === 'list_files') { const r = await gh('GET', '/repos/' + full(a.repo) + '/contents/' + (a.path || '')); const j = await r.json(); return JSON.stringify(Array.isArray(j) ? j.map((f) => ({ name: f.name, type: f.type })) : (j.message || j)); }
+          if (name === 'read_file') { const r = await gh('GET', '/repos/' + full(a.repo) + '/contents/' + a.path); const j = await r.json(); if (j && j.content) return Buffer.from(j.content, 'base64').toString('utf8').slice(0, 6000); return JSON.stringify(j.message || j); }
+          if (name === 'write_file') { let sha; try { const g = await gh('GET', '/repos/' + full(a.repo) + '/contents/' + a.path); if (g.ok) { const gj = await g.json(); sha = gj.sha; } } catch (e) {} const r = await gh('PUT', '/repos/' + full(a.repo) + '/contents/' + a.path, { message: a.message || 'Update via Greenprint AI', content: Buffer.from(String(a.content), 'utf8').toString('base64'), sha }); const j = await r.json(); return r.ok ? ('Committed ' + a.path + ' to ' + full(a.repo)) : ('Error: ' + JSON.stringify(j.message || j)); }
+          if (name === 'search_code') { const r = await gh('GET', '/search/code?q=' + encodeURIComponent((a.query || '') + ' user:' + login)); const j = await r.json(); return JSON.stringify((j.items || []).slice(0, 8).map((i) => ({ repo: i.repository && i.repository.full_name, path: i.path }))); }
+        } catch (e) { return 'Error: ' + String((e && e.message) || e); }
+        return 'Unknown tool';
+      };
+      const toolModel = aiBody.model || BUILD_MODEL;
+      const convo = [{ role: 'system', content: sysContent + "\n\nYou have live access to the user's GitHub (logged in as " + login + "). Use the GitHub tools to actually read, search, create and commit files when asked. Confirm what you did plainly." }].concat(history);
+      try {
+        for (let round = 0; round < 5; round++) {
+          const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: orHeaders, body: JSON.stringify({ model: toolModel, messages: convo, tools: GH_TOOLS, tool_choice: 'auto' }) });
+          if (!rr.ok) { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.write('GitHub assistant error (' + rr.status + '). Try again.'); return res.end(); }
+          const jj = await rr.json();
+          const msg = jj.choices && jj.choices[0] && jj.choices[0].message;
+          if (!msg) { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.write('No response. Try again.'); return res.end(); }
+          convo.push(msg);
+          if (msg.tool_calls && msg.tool_calls.length) {
+            for (const tc of msg.tool_calls) {
+              let args = {}; try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) {}
+              const out = await execGh(tc.function.name, args);
+              convo.push({ role: 'tool', tool_call_id: tc.id, content: typeof out === 'string' ? out : JSON.stringify(out) });
+            }
+            continue;
+          }
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.write(msg.content || 'Done.');
+          return res.end();
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.write('That took more steps than allowed in one go. Try asking for one thing at a time.');
+        return res.end();
+      } catch (e) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.write('Something went wrong talking to GitHub. Try again.');
+        return res.end();
+      }
+    }
+
     // Choose the model chain: explicit override wins; else build model for builds; else free.
     let tryModels;
     if (aiBody.model) {

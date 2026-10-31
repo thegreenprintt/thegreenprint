@@ -96,6 +96,23 @@ export default function GreenprintAI() {
   const [memory, setMemory] = useState<string[]>([]);
   const [memOpen, setMemOpen] = useState(false);
   const memRef = useRef<string[]>([]);
+  const [model, setModel] = useState("");               // "" = auto/free
+  const [connOpen, setConnOpen] = useState(false);
+  const [ghToken, setGhToken] = useState("");
+  const ghRef = useRef("");
+  useEffect(() => {
+    try { const m = localStorage.getItem("gpai_model"); if (m !== null) setModel(m); } catch {}
+    try { const g = localStorage.getItem("gpai_gh") || ""; setGhToken(g); ghRef.current = g; } catch {}
+  }, []);
+  function pickModel(id: string) { setModel(id); try { localStorage.setItem("gpai_model", id); } catch {} }
+  function saveGh(t: string) { setGhToken(t); ghRef.current = t; try { localStorage.setItem("gpai_gh", t); } catch {} }
+  const MODELS = [
+    { id: "", label: "Auto", note: "Free, fast" },
+    { id: "anthropic/claude-opus-5.5", label: "Claude Opus 5.5", note: "Smartest" },
+    { id: "openai/gpt-5.6-terra-pro", label: "GPT-5.6", note: "OpenAI" },
+    { id: "google/gemini-3.8-flash", label: "Gemini 3.8", note: "Google" },
+    { id: "x-ai/grok-4.7", label: "Grok 4.7", note: "xAI" },
+  ];
   useEffect(() => { try { const m = localStorage.getItem("gpai_memory"); if (m) { const a = JSON.parse(m); if (Array.isArray(a)) { setMemory(a); memRef.current = a; } } } catch {} }, []);
   function saveMemory(a: string[]) { setMemory(a); memRef.current = a; try { localStorage.setItem("gpai_memory", JSON.stringify(a)); } catch {} }
   async function updateMemory(exchange: { role: string; content: string }[]) {
@@ -237,7 +254,12 @@ export default function GreenprintAI() {
       const res = await fetch("/api/chat?kind=ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMsgs, memory: memRef.current }),
+        body: JSON.stringify({
+          messages: nextMsgs,
+          memory: memRef.current,
+          model: model || undefined,
+          connections: ghRef.current ? { github: ghRef.current } : undefined,
+        }),
         signal: ac.signal,
       });
 
@@ -351,6 +373,11 @@ export default function GreenprintAI() {
               </div>
             ))}
           </div>
+          <button onClick={() => setConnOpen(true)} className="gp-membtn mx-2.5 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-[12.5px] transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1" /></svg>
+            <span className="flex-1 text-left">Connections</span>
+            <span className="gp-membadge">{ghToken ? 1 : 0}</span>
+          </button>
           <button onClick={() => setMemOpen(true)} className="gp-membtn mx-2.5 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-[12.5px] transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0-1 7.9V17a3 3 0 0 0 6 0M12 2a5 5 0 0 1 5 5v1a4 4 0 0 1 1 7.9V17a3 3 0 0 1-6 0M12 2v18" /></svg>
             <span className="flex-1 text-left">Memory</span>
@@ -385,6 +412,36 @@ export default function GreenprintAI() {
                 <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-white/[0.07]">
                   <span className="text-[11px] text-muted">Stored on this device only.</span>
                   {memory.length > 0 && <button onClick={() => { saveMemory([]); }} className="gp-memclear text-[12px] font-semibold px-3 py-1.5 rounded-lg">Clear all</button>}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* connections */}
+        <AnimatePresence>
+          {connOpen && (
+            <motion.div className="fixed inset-0 z-[60] grid place-items-center p-5 bg-black/60 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConnOpen(false)}>
+              <motion.div className="gp-memcard w-full max-w-md" initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.25 }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <h3 className="gp-memtitle">Connections</h3>
+                  <button onClick={() => setConnOpen(false)} className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-muted hover:text-text transition-colors"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
+                </div>
+                <div className="px-5 pb-4">
+                  <div className="gp-conn-item">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z" /></svg>
+                      <span className="font-semibold text-[14px]">GitHub</span>
+                      {ghToken && <span className="gp-conn-live">Connected</span>}
+                    </div>
+                    <p className="text-muted text-[12.5px] leading-relaxed mb-2.5">Let the AI read, search, create and commit files in your repos. Paste a GitHub personal access token (it stays on this device).</p>
+                    <input type="password" value={ghToken} onChange={(e) => saveGh(e.target.value.trim())} placeholder="github_pat_... or ghp_..." className="gp-conn-input" autoComplete="off" spellCheck={false} />
+                    <div className="flex items-center justify-between mt-2">
+                      <a href="https://github.com/settings/tokens/new?description=Greenprint%20AI&scopes=repo" target="_blank" rel="noopener" className="text-[11.5px] text-accent">Create a token →</a>
+                      {ghToken && <button onClick={() => saveGh("")} className="gp-memclear text-[11.5px] font-semibold px-2.5 py-1 rounded-lg">Disconnect</button>}
+                    </div>
+                  </div>
+                  <div className="gp-conn-soon">More connections (Buffer, Canva, and others) are coming next.</div>
                 </div>
               </motion.div>
             </motion.div>
@@ -464,6 +521,11 @@ export default function GreenprintAI() {
           {/* ===== composer with live gradient border ===== */}
           <div className="shrink-0 px-5 pb-6 pt-2 gp-composer-wrap">
             <div className="max-w-3xl mx-auto">
+              <div className="gp-modelrow">
+                {MODELS.map((m) => (
+                  <button key={m.id || "auto"} onClick={() => pickModel(m.id)} className={`gp-modelchip ${model === m.id ? "gp-modelchip-on" : ""}`} title={m.note}>{m.label}</button>
+                ))}
+              </div>
               <div className="gp-composer-shell">
                 <div className="gp-composer flex items-end gap-2">
                   <textarea ref={taRef} value={input} rows={1}
@@ -571,6 +633,16 @@ export default function GreenprintAI() {
         .gp-memdot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-top: 7px; flex: 0 0 auto; box-shadow: 0 0 6px var(--gold); }
         .gp-memclear { background: rgba(255,80,80,0.12); color: #ff6b6b; border: 1px solid rgba(255,80,80,0.25); }
         .gp-memclear:hover { background: rgba(255,80,80,0.2); }
+        .gp-modelrow { display: flex; gap: 6px; overflow-x: auto; padding: 0 2px 8px; scrollbar-width: none; }
+        .gp-modelrow::-webkit-scrollbar { display: none; }
+        .gp-modelchip { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #9aa29a; transition: all 0.15s ease; white-space: nowrap; }
+        .gp-modelchip:hover { color: #fff; border-color: rgba(255,255,255,0.18); }
+        .gp-modelchip-on { background: rgba(0,255,133,0.14); border-color: rgba(0,255,133,0.45); color: var(--grn); }
+        .gp-conn-item { border: 1px solid rgba(255,255,255,0.09); border-radius: 13px; padding: 14px; background: rgba(255,255,255,0.02); }
+        .gp-conn-live { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--grn); background: rgba(0,255,133,0.14); padding: 2px 7px; border-radius: 6px; }
+        .gp-conn-input { width: 100%; background: #0a0c0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 9px 11px; font-size: 13px; color: #ededed; outline: none; }
+        .gp-conn-input:focus { border-color: rgba(0,255,133,0.4); }
+        .gp-conn-soon { margin-top: 12px; text-align: center; font-size: 11.5px; color: #6b746b; }
         @keyframes gp-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* signature intelligence core */
