@@ -261,21 +261,25 @@ export default function GreenprintAI() {
   const empty = messages.length === 0;
 
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col">
+    <div className="gp-root min-h-screen text-text flex flex-col relative overflow-hidden">
       <Nav />
 
-      {/* ambient cinematic glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-40 left-1/4 w-[40rem] h-[40rem] rounded-full blur-[120px] opacity-[0.07]" style={{ background: "#00FF85" }} />
-        <div className="absolute top-1/3 -right-40 w-[32rem] h-[32rem] rounded-full blur-[120px] opacity-[0.05]" style={{ background: "#00FF85" }} />
+      {/* ===== cinematic animated background ===== */}
+      <div className="gp-bg pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="gp-grid" />
+        <div className="gp-orb gp-orb-1" />
+        <div className="gp-orb gp-orb-2" />
+        <div className="gp-orb gp-orb-3" />
+        <div className="gp-scan" />
+        <div className="gp-vignette" />
       </div>
 
-      <div className="flex-1 flex pt-16 min-h-0 relative">
-        {/* sidebar */}
+      <div className="flex-1 flex pt-16 min-h-0 relative z-10">
+        {/* ===== sidebar ===== */}
         <AnimatePresence>
           {railOpen && (
             <motion.div
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -284,25 +288,25 @@ export default function GreenprintAI() {
           )}
         </AnimatePresence>
         <aside
-          className={`${railOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static top-16 bottom-0 left-0 z-40 w-64 bg-surface border-r border-border flex flex-col transition-transform duration-300`}
+          className={`${railOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static top-16 bottom-0 left-0 z-40 w-64 gp-rail flex flex-col transition-transform duration-300`}
         >
           <div className="p-3">
             <button
               onClick={newChat}
-              className="w-full flex items-center gap-2 rounded-btn border border-border bg-surface2 hover:border-accent/50 text-text px-3 py-2.5 text-sm font-semibold transition-colors"
+              className="gp-newbtn w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all"
             >
-              <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
+              <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
               New chat
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
-            {convos.length === 0 && <div className="text-muted text-xs px-3 py-2 uppercase tracking-widest">No chats yet</div>}
+            {convos.length === 0 && <div className="text-muted text-[10px] px-3 py-2 uppercase tracking-[0.2em]">No chats yet</div>}
             {convos.map((c) => (
               <div
                 key={c.id}
                 onClick={() => loadChat(c.id)}
-                className={`group flex items-center gap-2 rounded-btn px-3 py-2 text-sm cursor-pointer transition-colors ${
-                  c.id === currentId ? "bg-surface2 text-text" : "text-muted hover:bg-surface2 hover:text-text"
+                className={`group flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer transition-all ${
+                  c.id === currentId ? "gp-convo-on text-text" : "text-muted hover:text-text hover:bg-white/5"
                 }`}
               >
                 <span className="flex-1 truncate">{c.title || "New chat"}</span>
@@ -316,81 +320,103 @@ export default function GreenprintAI() {
               </div>
             ))}
           </div>
-          <div className="px-4 py-3 border-t border-border flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" style={{ boxShadow: "0 0 7px #00FF85" }} />
+          <div className="px-4 py-3 border-t border-white/5 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted">
+            <span className="gp-pulse w-1.5 h-1.5 rounded-full bg-accent" />
             Greenprint AI
           </div>
         </aside>
 
-        {/* chat column */}
+        {/* ===== chat column ===== */}
         <div className="flex-1 flex flex-col min-w-0">
           <div ref={riverRef} className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 py-6">
               {empty ? (
                 <motion.div
-                  className="flex flex-col items-center text-center gap-5 pt-[8vh]"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  className="flex flex-col items-center text-center gap-6 pt-[7vh]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6 }}
                 >
-                  <div className="w-16 h-16 rounded-2xl grid place-items-center" style={{ background: "linear-gradient(145deg,#00FF85,#0a7a39)", boxShadow: "0 14px 40px -12px #00FF85" }}>
-                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="#041" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg>
-                  </div>
-                  <div>
-                    <h1 className="font-sans font-extrabold text-3xl tracking-tight">
-                      The <span className="text-accent">Greenprint</span> AI
+                  <motion.div
+                    className="gp-hero-mark"
+                    initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="#02140a" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg>
+                    <span className="gp-hero-ring" />
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className="gp-eyebrow">The Greenprint Intelligence</div>
+                    <h1 className="gp-hero-title">
+                      Build. Trade. <span className="gp-grad">Dominate.</span>
                     </h1>
-                    <p className="text-muted mt-2 max-w-md mx-auto text-sm">
-                      Your own AI. Ask about markets, a setup, your brand, content, or tell it to build something. Runs on The Greenprint.
+                    <p className="text-muted mt-3 max-w-md mx-auto text-[15px] leading-relaxed">
+                      Your own AI. Ask about markets, break down a setup, sharpen your brand, or tell it to build a full website, live.
                     </p>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2.5 w-full max-w-xl mt-2">
-                    {STARTERS.map((s) => (
+                  </motion.div>
+                  <motion.div
+                    className="grid sm:grid-cols-2 gap-3 w-full max-w-xl mt-1"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    {STARTERS.map((s, idx) => (
                       <button
                         key={s.tag}
                         onClick={() => send(s.text)}
-                        className="text-left rounded-card border border-border bg-surface hover:border-accent/40 hover:-translate-y-0.5 transition-all p-3"
+                        className="gp-starter group text-left rounded-2xl p-4"
+                        style={{ animationDelay: `${0.4 + idx * 0.08}s` }}
                       >
-                        <span className="block text-[11px] uppercase tracking-widest text-accent font-semibold mb-1">{s.tag}</span>
-                        <span className="text-sm text-muted">{s.text}</span>
+                        <span className="gp-starter-tag">{s.tag}</span>
+                        <span className="block text-sm text-muted group-hover:text-text transition-colors mt-1.5 leading-snug">{s.text}</span>
+                        <span className="gp-starter-arrow">→</span>
                       </button>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.div>
               ) : (
                 <div className="flex flex-col gap-5">
                   {messages.map((m, i) => (
-                    <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                      <div className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 mt-0.5 ${m.role === "user" ? "bg-surface2 border border-border" : ""}`} style={m.role === "assistant" ? { background: "linear-gradient(145deg,#00FF85,#0a7a39)" } : {}}>
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35 }}
+                      className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}
+                    >
+                      <div className={`w-8 h-8 rounded-xl grid place-items-center shrink-0 mt-0.5 ${m.role === "user" ? "gp-ava-user" : "gp-ava-ai"}`}>
                         {m.role === "assistant" ? (
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#041" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#02140a" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg>
                         ) : (
-                          <span className="text-[10px] font-semibold text-muted">You</span>
+                          <span className="text-[10px] font-bold text-muted">YOU</span>
                         )}
                       </div>
                       <div className={`min-w-0 ${m.role === "user" ? "max-w-[84%]" : "flex-1"}`}>
                         {m.role === "user" ? (
-                          <div className="rounded-card border border-border px-3.5 py-2.5 text-[15px]" style={{ background: "#13301d" }}>
-                            {m.content}
-                          </div>
+                          <div className="gp-user-bubble rounded-2xl px-4 py-2.5 text-[15px]">{m.content}</div>
                         ) : (
                           <div
-                            className="gp-md text-[15px] leading-relaxed"
+                            className="gp-md text-[15px] leading-relaxed pt-1"
                             dangerouslySetInnerHTML={{ __html: renderMd(extractSite(m.content).chat) + (streaming && i === messages.length - 1 ? '<span class="gp-cursor"></span>' : "") }}
                           />
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
             </div>
           </div>
 
-          {/* composer */}
-          <div className="shrink-0 px-4 pb-5 pt-1 bg-gradient-to-t from-bg to-transparent">
+          {/* ===== composer ===== */}
+          <div className="shrink-0 px-4 pb-5 pt-1 gp-composer-wrap">
             <div className="max-w-3xl mx-auto">
-              <div className="flex items-end gap-2 bg-surface border border-border rounded-2xl pl-4 pr-2 py-2 focus-within:border-accent/60 transition-colors">
+              <div className="gp-composer flex items-end gap-2 rounded-2xl pl-4 pr-2 py-2 transition-all">
                 <textarea
                   ref={taRef}
                   value={input}
@@ -403,33 +429,39 @@ export default function GreenprintAI() {
                 <button
                   onClick={() => (streaming ? stop() : send())}
                   disabled={!streaming && !input.trim()}
-                  className="shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all disabled:opacity-35 bg-accent text-bg hover:brightness-110"
+                  className="gp-send shrink-0 w-10 h-10 rounded-xl grid place-items-center transition-all disabled:opacity-30"
                 >
                   {streaming ? (
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
                   ) : (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                   )}
                 </button>
               </div>
-              <p className="text-center text-[10.5px] text-muted mt-2">
+              <p className="text-center text-[10.5px] text-muted mt-2.5 tracking-wide">
                 The Greenprint AI can make mistakes. Not financial advice. Never a guarantee of profit.
               </p>
             </div>
           </div>
         </div>
 
-        {/* website build canvas */}
+        {/* ===== website build canvas ===== */}
         {canvasOpen && (
-          <div className="flex flex-col min-w-0 border-l border-border bg-surface w-full lg:w-[48%] lg:shrink-0 fixed lg:static inset-0 top-16 z-30 lg:z-auto">
-            <div className="shrink-0 flex items-center gap-2 border-b border-border px-3 py-2 bg-surface">
-              <div className="flex gap-1 bg-surface2 rounded-btn p-0.5">
-                <button onClick={() => setCanvasTab("preview")} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${canvasTab === "preview" ? "bg-surface text-text shadow" : "text-muted"}`}>Preview</button>
-                <button onClick={() => setCanvasTab("code")} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${canvasTab === "code" ? "bg-surface text-text shadow" : "text-muted"}`}>Code</button>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col min-w-0 gp-canvas w-full lg:w-[48%] lg:shrink-0 fixed lg:static inset-0 top-16 z-30 lg:z-auto"
+          >
+            <div className="shrink-0 flex items-center gap-2 border-b border-white/5 px-3 py-2.5 gp-canvas-head">
+              <div className="flex gap-1 gp-tabs rounded-xl p-0.5">
+                <button onClick={() => setCanvasTab("preview")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${canvasTab === "preview" ? "gp-tab-on" : "text-muted"}`}>Preview</button>
+                <button onClick={() => setCanvasTab("code")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${canvasTab === "code" ? "gp-tab-on" : "text-muted"}`}>Code</button>
               </div>
-              <span className="text-xs font-semibold truncate">Website</span>
+              <span className="text-xs font-semibold truncate flex items-center gap-1.5"><span className="gp-pulse w-1.5 h-1.5 rounded-full bg-accent" />Website</span>
               <div className="ml-auto flex gap-2">
                 <button
+                  disabled={!siteHtml}
                   onClick={() => {
                     try {
                       const blob = new Blob([siteHtml], { type: "text/html" });
@@ -440,44 +472,117 @@ export default function GreenprintAI() {
                       URL.revokeObjectURL(u);
                     } catch {}
                   }}
-                  className="text-xs font-medium inline-flex items-center gap-1.5 border border-border rounded-btn px-2.5 py-1.5 text-muted hover:text-text hover:border-border/80 transition-colors"
+                  className="gp-dl text-xs font-semibold inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 disabled:opacity-30 transition-all"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7 10l5 5 5-5M5 21h14" /></svg>
                   Download
                 </button>
-                <button onClick={() => setCanvasOpen(false)} className="w-7 h-7 grid place-items-center rounded-btn border border-border text-muted hover:text-text" aria-label="Close">
+                <button onClick={() => setCanvasOpen(false)} className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-muted hover:text-text transition-colors" aria-label="Close">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                 </button>
               </div>
             </div>
             <div className="flex-1 min-h-0 relative bg-white">
               {!siteHtml ? (
-                <div className="absolute inset-0 grid place-items-center bg-bg text-muted">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                    <span className="text-sm">Building your website...</span>
+                <div className="absolute inset-0 grid place-items-center gp-canvas-building">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="gp-build-loader" />
+                    <span className="text-sm text-muted tracking-wide">Generating your website...</span>
                   </div>
                 </div>
               ) : canvasTab === "preview" ? (
                 <iframe title="Website preview" srcDoc={siteHtml} className="w-full h-full border-0 bg-white" sandbox="allow-scripts allow-forms allow-popups allow-modals" />
               ) : (
-                <pre className="absolute inset-0 overflow-auto m-0 p-4 bg-bg text-text" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{siteHtml}</pre>
+                <pre className="absolute inset-0 overflow-auto m-0 p-4 gp-code" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{siteHtml}</pre>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* mobile sidebar trigger */}
       <button
         onClick={() => setRailOpen(true)}
-        className="lg:hidden fixed bottom-24 left-4 z-30 w-11 h-11 rounded-full bg-surface2 border border-border grid place-items-center text-muted"
+        className="lg:hidden fixed bottom-24 left-4 z-30 w-11 h-11 rounded-full gp-fab grid place-items-center text-text"
         aria-label="Conversations"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12h18M3 6h18M3 18h18" /></svg>
       </button>
 
       <style jsx global>{`
+        .gp-root { background: #050705; }
+        /* animated background layers */
+        .gp-bg { z-index: 0; }
+        .gp-grid {
+          position: absolute; inset: -2px;
+          background-image: linear-gradient(rgba(0,255,133,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,133,0.05) 1px, transparent 1px);
+          background-size: 46px 46px;
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 20%, transparent 75%);
+          animation: gp-grid-drift 20s linear infinite;
+        }
+        @keyframes gp-grid-drift { from { background-position: 0 0, 0 0; } to { background-position: 46px 46px, 46px 46px; } }
+        .gp-orb { position: absolute; border-radius: 9999px; filter: blur(110px); opacity: 0.22; }
+        .gp-orb-1 { width: 44rem; height: 44rem; top: -16rem; left: -8rem; background: radial-gradient(circle, #00FF85, transparent 70%); animation: gp-float1 18s ease-in-out infinite; }
+        .gp-orb-2 { width: 36rem; height: 36rem; top: 20%; right: -12rem; background: radial-gradient(circle, #0a7a39, transparent 70%); animation: gp-float2 22s ease-in-out infinite; }
+        .gp-orb-3 { width: 30rem; height: 30rem; bottom: -14rem; left: 30%; background: radial-gradient(circle, #00c46a, transparent 70%); animation: gp-float3 26s ease-in-out infinite; }
+        @keyframes gp-float1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(60px,40px) scale(1.1); } }
+        @keyframes gp-float2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,30px) scale(1.15); } }
+        @keyframes gp-float3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-50px) scale(1.08); } }
+        .gp-scan { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent, rgba(0,255,133,0.025) 50%, transparent); background-size: 100% 8px; opacity: 0.5; animation: gp-scanline 8s linear infinite; }
+        @keyframes gp-scanline { from { background-position: 0 0; } to { background-position: 0 100vh; } }
+        .gp-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 100% 100% at 50% 0%, transparent 40%, rgba(5,7,5,0.85) 100%); }
+
+        /* sidebar */
+        .gp-rail { background: rgba(10,13,10,0.75); backdrop-filter: blur(16px); border-right: 1px solid rgba(255,255,255,0.06); }
+        .gp-newbtn { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,255,133,0.18); color: #F5F5F5; }
+        .gp-newbtn:hover { border-color: rgba(0,255,133,0.5); box-shadow: 0 0 20px -6px rgba(0,255,133,0.4); transform: translateY(-1px); }
+        .gp-convo-on { background: rgba(0,255,133,0.08); box-shadow: inset 2px 0 0 #00FF85; }
+        .gp-pulse { box-shadow: 0 0 8px #00FF85; animation: gp-pulse 2s ease-in-out infinite; }
+        @keyframes gp-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* hero */
+        .gp-hero-mark { position: relative; width: 4.5rem; height: 4.5rem; border-radius: 1.3rem; display: grid; place-items: center; background: linear-gradient(145deg, #00FF85, #0a7a39); box-shadow: 0 0 60px -10px #00FF85, inset 0 1px 0 rgba(255,255,255,0.3); }
+        .gp-hero-ring { position: absolute; inset: -8px; border-radius: 1.6rem; border: 1px solid rgba(0,255,133,0.3); animation: gp-ring 3s ease-in-out infinite; }
+        @keyframes gp-ring { 0%,100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.08); opacity: 0.2; } }
+        .gp-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3em; color: #00FF85; font-weight: 600; margin-bottom: 12px; }
+        .gp-hero-title { font-size: clamp(30px, 6vw, 46px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.02; }
+        .gp-grad { background: linear-gradient(120deg, #00FF85, #8affc4, #00FF85); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gp-shine 4s linear infinite; }
+        @keyframes gp-shine { to { background-position: 200% center; } }
+
+        /* starter cards */
+        .gp-starter { position: relative; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(10px); overflow: hidden; transition: all 0.25s cubic-bezier(0.16,1,0.3,1); opacity: 0; transform: translateY(14px); animation: gp-rise 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+        @keyframes gp-rise { to { opacity: 1; transform: translateY(0); } }
+        .gp-starter:hover { border-color: rgba(0,255,133,0.4); background: rgba(0,255,133,0.04); transform: translateY(-3px); box-shadow: 0 12px 40px -12px rgba(0,255,133,0.35); }
+        .gp-starter-tag { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #00FF85; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(0,255,133,0.1); }
+        .gp-starter-arrow { position: absolute; top: 14px; right: 14px; color: #00FF85; opacity: 0; transform: translateX(-4px); transition: all 0.25s; font-size: 16px; }
+        .gp-starter:hover .gp-starter-arrow { opacity: 1; transform: translateX(0); }
+
+        /* avatars + bubbles */
+        .gp-ava-ai { background: linear-gradient(145deg, #00FF85, #0a7a39); box-shadow: 0 0 20px -6px #00FF85; }
+        .gp-ava-user { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+        .gp-user-bubble { background: linear-gradient(145deg, rgba(0,255,133,0.14), rgba(0,255,133,0.06)); border: 1px solid rgba(0,255,133,0.2); }
+
+        /* composer */
+        .gp-composer-wrap { background: linear-gradient(to top, #050705 55%, transparent); }
+        .gp-composer { background: rgba(17,17,17,0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
+        .gp-composer:focus-within { border-color: rgba(0,255,133,0.5); box-shadow: 0 0 0 3px rgba(0,255,133,0.1), 0 0 40px -10px rgba(0,255,133,0.3); }
+        .gp-send { background: linear-gradient(145deg, #00FF85, #0a7a39); color: #02140a; box-shadow: 0 0 20px -6px #00FF85; }
+        .gp-send:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 0 28px -4px #00FF85; transform: translateY(-1px); }
+
+        /* canvas */
+        .gp-canvas { background: rgba(8,10,8,0.9); backdrop-filter: blur(16px); border-left: 1px solid rgba(255,255,255,0.07); }
+        .gp-canvas-head { background: rgba(10,13,10,0.8); }
+        .gp-tabs { background: rgba(255,255,255,0.04); }
+        .gp-tab-on { background: rgba(0,255,133,0.14); color: #00FF85; }
+        .gp-dl { background: linear-gradient(145deg, #00FF85, #0a7a39); color: #02140a; }
+        .gp-dl:hover:not(:disabled) { filter: brightness(1.1); }
+        .gp-canvas-building { background: #080a08; }
+        .gp-build-loader { width: 38px; height: 38px; border-radius: 50%; border: 3px solid rgba(0,255,133,0.15); border-top-color: #00FF85; animation: gp-spin 0.8s linear infinite; box-shadow: 0 0 24px -6px #00FF85; }
+        @keyframes gp-spin { to { transform: rotate(360deg); } }
+        .gp-code { background: #050705; color: #cfe; }
+        .gp-fab { background: rgba(17,17,17,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(0,255,133,0.2); box-shadow: 0 0 20px -8px #00FF85; }
+
+        /* markdown */
         .gp-md p { margin: 0 0 10px; }
         .gp-md p:last-child { margin-bottom: 0; }
         .gp-md ul, .gp-md ol { margin: 4px 0 11px; padding-left: 22px; }
@@ -486,12 +591,15 @@ export default function GreenprintAI() {
         .gp-md h1 { font-size: 19px; } .gp-md h2 { font-size: 17px; } .gp-md h3 { font-size: 15px; }
         .gp-md strong { color: #fff; font-weight: 650; }
         .gp-md a { color: #00FF85; }
-        .gp-md code { font-family: "JetBrains Mono", monospace; font-size: 12.5px; background: #1A1A1A; border: 1px solid #1E1E1E; padding: 1px 5px; border-radius: 5px; }
-        .gp-md pre { background: #111; border: 1px solid #1E1E1E; border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 4px 0 11px; }
+        .gp-md code { font-family: "JetBrains Mono", monospace; font-size: 12.5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 5px; }
+        .gp-md pre { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 4px 0 11px; }
         .gp-md pre code { background: none; border: none; padding: 0; font-size: 12.5px; line-height: 1.5; }
-        .gp-cursor { display: inline-block; width: 7px; height: 15px; background: #00FF85; vertical-align: -2px; margin-left: 2px; border-radius: 1px; animation: gpblink 1s step-end infinite; }
+        .gp-cursor { display: inline-block; width: 7px; height: 15px; background: #00FF85; vertical-align: -2px; margin-left: 2px; border-radius: 1px; box-shadow: 0 0 8px #00FF85; animation: gpblink 1s step-end infinite; }
         @keyframes gpblink { 50% { opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { .gp-cursor { animation: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          .gp-cursor, .gp-grid, .gp-orb-1, .gp-orb-2, .gp-orb-3, .gp-scan, .gp-hero-ring, .gp-grad, .gp-pulse, .gp-build-loader, .gp-starter { animation: none; }
+          .gp-starter { opacity: 1; transform: none; }
+        }
       `}</style>
     </div>
   );
