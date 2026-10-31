@@ -473,7 +473,8 @@ export default function GreenprintAI() {
         .gp-core-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--grn), transparent 42%, var(--gold-bright), transparent 72%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); animation: gp-rot 6s linear infinite; }
         .gp-core-ring2 { inset: 10px; opacity: 0.5; animation: gp-rot 9s linear infinite reverse; }
         .gp-core-glow { position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,133,0.35), transparent 70%); filter: blur(10px); animation: gp-breathe 3.5s ease-in-out infinite; }
-        .gp-core-mark { position: relative; width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(150deg, var(--grn), #0a7a39); box-shadow: 0 10px 34px -10px var(--grn); }
+        .gp-core-mark { position: relative; width: 74%; height: 74%; border-radius: 28%; display: grid; place-items: center; background: linear-gradient(150deg, var(--grn), #0a7a39); box-shadow: 0 10px 34px -10px var(--grn); }
+        .gp-core-mark svg { width: 46%; height: 46%; }
         @keyframes gp-rot { to { transform: rotate(360deg); } }
         @keyframes gp-breathe { 0%,100% { opacity: 0.5; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.08); } }
 
@@ -546,7 +547,21 @@ export default function GreenprintAI() {
         @media (max-width: 560px) {
           .gp-card { padding: 12px 12px 11px; }
           .gp-card-text { font-size: 12.5px; }
-          .gp-hero { min-height: calc(100dvh - 170px); }
+          .gp-hero { min-height: calc(100dvh - 160px); padding: 6px 0; }
+        }
+        /* keep the intro on one screen on shorter viewports */
+        @media (max-height: 820px) {
+          .gp-sub { display: none; }
+          .gp-core { width: 58px; height: 58px; margin-bottom: 12px; }
+          .gp-eyebrow { margin-bottom: 10px; }
+          .gp-marquee { margin-top: 14px; }
+          .gp-cards { margin-top: 16px; }
+        }
+        @media (max-height: 680px) {
+          .gp-marquee { display: none; }
+          .gp-head { font-size: clamp(30px, 7vw, 44px); }
+          .gp-core { width: 50px; height: 50px; margin-bottom: 10px; }
+          .gp-cards { gap: 8px; margin-top: 14px; }
         }
         @media (prefers-reduced-motion: reduce) {
           .gp-aurora, .gp-core-ring, .gp-core-ring2, .gp-core-glow, .gp-head-accent, .gp-marquee-track, .gp-composer-shell::before, .gp-dot, .gp-cursor, .gp-build-core span { animation: none !important; }
