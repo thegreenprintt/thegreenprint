@@ -249,6 +249,9 @@ module.exports = async function handler(req, res) {
     // Detect a question that needs CURRENT / live information, so we can turn on
     // live web search for it. Kept narrow so most chat stays search-free (and free).
     const needsWeb = !isBuild && /\b(today|todays|tonight|right now|currently|current|latest|recent|recently|this week|this month|this year|2026|2027|news|headline|price|stock|market|crypto|bitcoin|ethereum|score|weather|forecast|who is|who won|when is|release date|just happened|breaking|update on|trending)\b/.test(lastText);
+    // Cap output so premium models don't try to reserve their full 65k-token budget
+    // (which overshoots the credit balance). Builds need room; chat needs little.
+    const maxTok = isBuild ? 8192 : 2048;
 
     // ── GitHub integration (tool use) ────────────────────────────────────────
     // When the user has connected GitHub, give the model real tools it executes
@@ -289,7 +292,7 @@ module.exports = async function handler(req, res) {
       const convo = [{ role: 'system', content: sysContent + "\n\nYou have live access to the user's GitHub (logged in as " + login + "). Use the GitHub tools to actually read, search, create and commit files when asked. Confirm what you did plainly." }].concat(history);
       try {
         for (let round = 0; round < 5; round++) {
-          const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: orHeaders, body: JSON.stringify({ model: toolModel, messages: convo, tools: GH_TOOLS, tool_choice: 'auto' }) });
+          const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: orHeaders, body: JSON.stringify({ model: toolModel, messages: convo, tools: GH_TOOLS, tool_choice: 'auto', max_tokens: 2048 }) });
           if (!rr.ok) { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.write('GitHub assistant error (' + rr.status + '). Try again.'); return res.end(); }
           const jj = await rr.json();
           const msg = jj.choices && jj.choices[0] && jj.choices[0].message;
@@ -340,8 +343,8 @@ module.exports = async function handler(req, res) {
           },
           body: JSON.stringify(
             needsWeb
-              ? { model: mdl, stream: true, messages: aiMessages, plugins: [{ id: 'web', max_results: 4 }] }
-              : { model: mdl, stream: true, messages: aiMessages }
+              ? { model: mdl, stream: true, messages: aiMessages, max_tokens: maxTok, plugins: [{ id: 'web', max_results: 4 }] }
+              : { model: mdl, stream: true, messages: aiMessages, max_tokens: maxTok }
           ),
         });
       } catch (e) { lastErr = 'unreachable'; up = null; continue; }
