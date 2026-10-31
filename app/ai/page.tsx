@@ -107,11 +107,11 @@ export default function GreenprintAI() {
   function pickModel(id: string) { setModel(id); try { localStorage.setItem("gpai_model", id); } catch {} }
   function saveGh(t: string) { setGhToken(t); ghRef.current = t; try { localStorage.setItem("gpai_gh", t); } catch {} }
   const MODELS = [
-    { id: "", label: "Auto", note: "Free, fast" },
-    { id: "anthropic/claude-sonnet-5.5", label: "Claude 5.5", note: "Top tier" },
-    { id: "openai/gpt-5.6-terra-pro", label: "GPT-5.6", note: "OpenAI" },
-    { id: "google/gemini-3.8-flash", label: "Gemini 3.8", note: "Google" },
-    { id: "x-ai/grok-4.7", label: "Grok 4.7", note: "xAI" },
+    { id: "", label: "Auto", note: "Free, fast", soon: false },
+    { id: "anthropic/claude-sonnet-5.5", label: "Claude 5.5", note: "Coming soon", soon: true },
+    { id: "openai/gpt-5.6-terra-pro", label: "GPT-5.6", note: "Coming soon", soon: true },
+    { id: "google/gemini-3.8-flash", label: "Gemini 3.8", note: "Coming soon", soon: true },
+    { id: "x-ai/grok-4.7", label: "Grok 4.7", note: "Coming soon", soon: true },
   ];
   useEffect(() => { try { const m = localStorage.getItem("gpai_memory"); if (m) { const a = JSON.parse(m); if (Array.isArray(a)) { setMemory(a); memRef.current = a; } } } catch {} }, []);
   function saveMemory(a: string[]) { setMemory(a); memRef.current = a; try { localStorage.setItem("gpai_memory", JSON.stringify(a)); } catch {} }
@@ -336,7 +336,7 @@ export default function GreenprintAI() {
 
   return (
     <div className="gp-root h-[100dvh] overflow-hidden text-text flex flex-col relative">
-      <Nav />
+      <div className="hidden lg:block"><Nav /></div>
 
       {/* cinematic breathing aurora */}
       <div className="gp-stage pointer-events-none fixed inset-0" aria-hidden>
@@ -347,14 +347,14 @@ export default function GreenprintAI() {
         <div className="gp-floor" />
       </div>
 
-      <div className="flex-1 flex pt-16 min-h-0 relative z-10">
+      <div className="flex-1 flex pt-0 lg:pt-16 min-h-0 relative z-10">
         {/* ===== sidebar ===== */}
         <AnimatePresence>
           {railOpen && (
             <motion.div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRailOpen(false)} />
           )}
         </AnimatePresence>
-        <aside className={`${railOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static top-16 bottom-0 left-0 z-40 w-[258px] gp-rail flex flex-col transition-transform duration-300`}>
+        <aside className={`${railOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static top-0 lg:top-16 bottom-0 left-0 z-40 w-[258px] gp-rail flex flex-col transition-transform duration-300`}>
           <div className="p-3">
             <button onClick={newChat} className="gp-newbtn w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13.5px] font-semibold transition-all">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
@@ -428,20 +428,21 @@ export default function GreenprintAI() {
                   <button onClick={() => setConnOpen(false)} className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-muted hover:text-text transition-colors"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
                 </div>
                 <div className="px-5 pb-4">
-                  <div className="gp-conn-item">
-                    <div className="flex items-center gap-2.5 mb-2">
+                  <div className="gp-conn-item gp-conn-locked">
+                    <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z" /></svg>
-                      <span className="font-semibold text-[14px]">GitHub</span>
-                      {ghToken && <span className="gp-conn-live">Connected</span>}
-                    </div>
-                    <p className="text-muted text-[12.5px] leading-relaxed mb-2.5">Let the AI read, search, create and commit files in your repos. Paste a GitHub personal access token (it stays on this device).</p>
-                    <input type="password" value={ghToken} onChange={(e) => saveGh(e.target.value.trim())} placeholder="github_pat_... or ghp_..." className="gp-conn-input" autoComplete="off" spellCheck={false} />
-                    <div className="flex items-center justify-between mt-2">
-                      <a href="https://github.com/settings/tokens/new?description=Greenprint%20AI&scopes=repo" target="_blank" rel="noopener" className="text-[11.5px] text-accent">Create a token →</a>
-                      {ghToken && <button onClick={() => saveGh("")} className="gp-memclear text-[11.5px] font-semibold px-2.5 py-1 rounded-lg">Disconnect</button>}
+                      <span className="font-semibold text-[14px] flex-1">GitHub</span>
+                      <span className="gp-soonbadge gp-soonbadge-lg">Coming soon</span>
                     </div>
                   </div>
-                  <div className="gp-conn-soon">More connections (Buffer, Canva, and others) are coming next.</div>
+                  <div className="gp-conn-item gp-conn-locked mt-2">
+                    <div className="flex items-center gap-2.5">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3zM8 12h8M12 8v8" /></svg>
+                      <span className="font-semibold text-[14px] flex-1">Buffer, Canva &amp; more</span>
+                      <span className="gp-soonbadge gp-soonbadge-lg">Coming soon</span>
+                    </div>
+                  </div>
+                  <div className="gp-conn-soon">Connections are on the way. Everything available now is free to use.</div>
                 </div>
               </motion.div>
             </motion.div>
@@ -450,6 +451,16 @@ export default function GreenprintAI() {
 
         {/* ===== main column ===== */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          {/* mobile app bar */}
+          <div className="gp-mbar lg:hidden">
+            <button onClick={() => setRailOpen(true)} className="gp-mbar-btn" aria-label="History">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <span className="gp-mbar-title">Greenprint AI</span>
+            <button onClick={() => { if (streaming) stop(); newChat(); }} className="gp-mbar-btn" aria-label="New chat">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
+            </button>
+          </div>
           <div ref={riverRef} className="flex-1 min-h-0 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-5 py-8">
               {empty ? (
@@ -523,7 +534,9 @@ export default function GreenprintAI() {
             <div className="max-w-3xl mx-auto">
               <div className="gp-modelrow">
                 {MODELS.map((m) => (
-                  <button key={m.id || "auto"} onClick={() => pickModel(m.id)} className={`gp-modelchip ${model === m.id ? "gp-modelchip-on" : ""}`} title={m.note}>{m.label}</button>
+                  <button key={m.id || "auto"} onClick={() => { if (!m.soon) pickModel(m.id); }} disabled={m.soon} className={`gp-modelchip ${model === m.id && !m.soon ? "gp-modelchip-on" : ""} ${m.soon ? "gp-modelchip-soon" : ""}`} title={m.note}>
+                    {m.label}{m.soon && <span className="gp-soonbadge">Soon</span>}
+                  </button>
                 ))}
               </div>
               <div className="gp-composer-shell">
@@ -594,9 +607,6 @@ export default function GreenprintAI() {
         )}
       </div>
 
-      <button onClick={() => setRailOpen(true)} className="lg:hidden fixed bottom-24 left-4 z-30 w-10 h-10 rounded-full gp-fab grid place-items-center text-text" aria-label="Conversations">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-      </button>
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap');
@@ -638,6 +648,24 @@ export default function GreenprintAI() {
         .gp-modelchip { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #9aa29a; transition: all 0.15s ease; white-space: nowrap; }
         .gp-modelchip:hover { color: #fff; border-color: rgba(255,255,255,0.18); }
         .gp-modelchip-on { background: rgba(0,255,133,0.14); border-color: rgba(0,255,133,0.45); color: var(--grn); }
+        .gp-modelchip-soon { opacity: 0.55; cursor: default; }
+        .gp-modelchip-soon:hover { color: #9aa29a; border-color: rgba(255,255,255,0.1); }
+        .gp-soonbadge { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--gold); background: rgba(216,178,94,0.16); padding: 1px 5px; border-radius: 5px; margin-left: 6px; vertical-align: middle; }
+        .gp-soonbadge-lg { font-size: 9.5px; padding: 3px 8px; margin-left: 0; }
+        .gp-conn-locked { opacity: 0.8; }
+        /* mobile app bar */
+        .gp-mbar { display: none; }
+        @media (max-width: 1023px) {
+          .gp-mbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; padding-top: max(8px, env(safe-area-inset-top)); border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(6,8,6,0.8); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 20; }
+          .gp-mbar-btn { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #cdd4cd; background: transparent; }
+          .gp-mbar-btn:active { background: rgba(255,255,255,0.06); }
+          .gp-mbar-title { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: #f3f5f3; }
+          /* roomier touch targets + comfortable chat on phones */
+          .gp-composer { padding: 12px 12px 12px 16px; border-radius: 17px; }
+          .gp-send, .gp-mic { width: 40px; height: 40px; }
+          .gp-modelchip { padding: 7px 13px; font-size: 12px; }
+          .gp-rail { width: 84vw; max-width: 320px; }
+        }
         .gp-conn-item { border: 1px solid rgba(255,255,255,0.09); border-radius: 13px; padding: 14px; background: rgba(255,255,255,0.02); }
         .gp-conn-live { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--grn); background: rgba(0,255,133,0.14); padding: 2px 7px; border-radius: 6px; }
         .gp-conn-input { width: 100%; background: #0a0c0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 9px 11px; font-size: 13px; color: #ededed; outline: none; }

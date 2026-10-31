@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + memKey, 'HTTP-Referer': 'https://thegreenprint.trade', 'X-Title': 'The Greenprint AI' },
-        body: JSON.stringify({ model: 'anthropic/claude-haiku-5.5', messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: process.env.GREENPRINT_AI_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free', messages: [{ role: 'user', content: prompt }], max_tokens: 700 }),
       });
       if (!r.ok) return res.status(200).json({ memory: existing });
       const j = await r.json();
@@ -248,7 +248,12 @@ module.exports = async function handler(req, res) {
 
     // Detect a question that needs CURRENT / live information, so we can turn on
     // live web search for it. Kept narrow so most chat stays search-free (and free).
-    const needsWeb = !isBuild && /\b(today|todays|tonight|right now|currently|current|latest|recent|recently|this week|this month|this year|2026|2027|news|headline|price|stock|market|crypto|bitcoin|ethereum|score|weather|forecast|who is|who won|when is|release date|just happened|breaking|update on|trending)\b/.test(lastText);
+    // Web search is a paid feature, gated off for now (free mode).
+    const WEB_ENABLED = false;
+    const needsWeb = WEB_ENABLED && !isBuild && /\b(today|todays|tonight|right now|currently|current|latest|recent|recently|this week|this month|this year|2026|2027|news|headline|price|stock|market|crypto|bitcoin|ethereum|score|weather|forecast|who is|who won|when is|release date|just happened|breaking|update on|trending)\b/.test(lastText);
+    // Only free models are allowed to run right now (no paid spend). A paid model
+    // id requested from the UI is ignored and the free model is used instead.
+    const reqModel = (aiBody.model && /:free$/.test(String(aiBody.model))) ? aiBody.model : '';
     // Cap output so premium models don't try to reserve their full 65k-token budget
     // (which overshoots the credit balance). Builds need room; chat needs little.
     const maxTok = isBuild ? 8192 : 2048;
@@ -256,7 +261,8 @@ module.exports = async function handler(req, res) {
     // ── GitHub integration (tool use) ────────────────────────────────────────
     // When the user has connected GitHub, give the model real tools it executes
     // server-side against the GitHub API with the user's token.
-    const ghToken = (aiBody.connections && aiBody.connections.github) ? String(aiBody.connections.github) : '';
+    const INTEGRATIONS_ENABLED = false; // integrations use a paid tool model, gated off for now
+    const ghToken = (INTEGRATIONS_ENABLED && aiBody.connections && aiBody.connections.github) ? String(aiBody.connections.github) : '';
     const orHeaders = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + aiKey, 'HTTP-Referer': 'https://thegreenprint.trade', 'X-Title': 'The Greenprint AI' };
     if (ghToken) {
       const gh = (method, path, body) => fetch('https://api.github.com' + path, {
@@ -320,15 +326,9 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Choose the model chain: explicit override wins; else build model for builds; else free.
-    let tryModels;
-    if (aiBody.model) {
-      tryModels = [aiBody.model]; // user explicitly chose this model, do not silently fall back
-    } else if (isBuild) {
-      tryModels = [BUILD_MODEL, AI_MODEL].concat(AI_FALLBACKS);
-    } else {
-      tryModels = [AI_MODEL].concat(AI_FALLBACKS);
-    }
+    // Free mode: everything runs on the free model chain. Builds included
+    // (slower than a paid model, but $0). A requested free model wins if given.
+    let tryModels = reqModel ? [reqModel].concat(AI_FALLBACKS.filter((m) => m !== reqModel)) : [AI_MODEL].concat(AI_FALLBACKS);
     let up = null;
     let lastErr = '';
     for (const mdl of tryModels) {
