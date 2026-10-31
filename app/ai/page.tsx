@@ -93,6 +93,19 @@ export default function GreenprintAI() {
   const [canvasTab, setCanvasTab] = useState<"preview" | "code">("preview");
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
+  const [memory, setMemory] = useState<string[]>([]);
+  const [memOpen, setMemOpen] = useState(false);
+  const memRef = useRef<string[]>([]);
+  useEffect(() => { try { const m = localStorage.getItem("gpai_memory"); if (m) { const a = JSON.parse(m); if (Array.isArray(a)) { setMemory(a); memRef.current = a; } } } catch {} }, []);
+  function saveMemory(a: string[]) { setMemory(a); memRef.current = a; try { localStorage.setItem("gpai_memory", JSON.stringify(a)); } catch {} }
+  async function updateMemory(exchange: { role: string; content: string }[]) {
+    try {
+      const r = await fetch("/api/chat?kind=mem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memory: memRef.current, exchange }) });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j && Array.isArray(j.memory)) saveMemory(j.memory);
+    } catch {}
+  }
   const abortRef = useRef<AbortController | null>(null);
   const riverRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -224,7 +237,7 @@ export default function GreenprintAI() {
       const res = await fetch("/api/chat?kind=ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMsgs }),
+        body: JSON.stringify({ messages: nextMsgs, memory: memRef.current }),
         signal: ac.signal,
       });
 
@@ -285,6 +298,10 @@ export default function GreenprintAI() {
       );
       setConvos(updated);
       persist(updated, convoId);
+      // learn durable facts from this exchange (cheap, fire-and-forget)
+      if (aiMsg.content && !aiMsg.content.startsWith("(") && userMsg.content) {
+        updateMemory([{ role: "user", content: userMsg.content }, { role: "assistant", content: extractSite(aiMsg.content).chat.slice(0, 1200) }]);
+      }
     }
   }
 
@@ -334,11 +351,45 @@ export default function GreenprintAI() {
               </div>
             ))}
           </div>
+          <button onClick={() => setMemOpen(true)} className="gp-membtn mx-2.5 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-[12.5px] transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0-1 7.9V17a3 3 0 0 0 6 0M12 2a5 5 0 0 1 5 5v1a4 4 0 0 1 1 7.9V17a3 3 0 0 1-6 0M12 2v18" /></svg>
+            <span className="flex-1 text-left">Memory</span>
+            <span className="gp-membadge">{memory.length}</span>
+          </button>
           <div className="px-4 py-3.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] tracking-[0.15em] uppercase text-muted">
             <span className="flex items-center gap-1.5"><span className="gp-dot w-1.5 h-1.5 rounded-full" />Live</span>
             <span className="gp-goldtext">Greenprint</span>
           </div>
         </aside>
+
+        {/* memory viewer */}
+        <AnimatePresence>
+          {memOpen && (
+            <motion.div className="fixed inset-0 z-[60] grid place-items-center p-5 bg-black/60 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMemOpen(false)}>
+              <motion.div className="gp-memcard w-full max-w-md" initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.25 }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <h3 className="gp-memtitle">What it remembers about you</h3>
+                  <button onClick={() => setMemOpen(false)} className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-muted hover:text-text transition-colors"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg></button>
+                </div>
+                <div className="px-5 pb-3 max-h-[46vh] overflow-y-auto">
+                  {memory.length === 0 ? (
+                    <p className="text-muted text-[13.5px] leading-relaxed">Nothing yet. As you chat, it quietly learns durable facts about you and your business, and uses them to help. You stay in control, everything's listed here and you can clear it anytime.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {memory.map((f, k) => (
+                        <li key={k} className="gp-memitem flex items-start gap-2.5 text-[13.5px]"><span className="gp-memdot" />{f}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-white/[0.07]">
+                  <span className="text-[11px] text-muted">Stored on this device only.</span>
+                  {memory.length > 0 && <button onClick={() => { saveMemory([]); }} className="gp-memclear text-[12px] font-semibold px-3 py-1.5 rounded-lg">Clear all</button>}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ===== main column ===== */}
         <div className="flex-1 flex flex-col min-w-0">
@@ -510,6 +561,16 @@ export default function GreenprintAI() {
         .gp-convo-on { background: rgba(255,255,255,0.055); color: #f0f2f0; }
         .gp-dot { background: var(--grn); box-shadow: 0 0 7px var(--grn); animation: gp-pulse 2.2s ease-in-out infinite; }
         .gp-goldtext { color: var(--gold); }
+        .gp-membtn { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #b7bdb7; }
+        .gp-membtn:hover { color: #fff; border-color: rgba(0,255,133,0.3); background: rgba(0,255,133,0.05); }
+        .gp-membtn svg { color: var(--gold); }
+        .gp-membadge { font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; background: rgba(0,255,133,0.15); color: var(--grn); }
+        .gp-memcard { background: #0e110e; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; box-shadow: 0 40px 100px -30px rgba(0,0,0,0.7); }
+        .gp-memtitle { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.015em; color: #f3f5f3; }
+        .gp-memitem { color: #cdd4cd; line-height: 1.5; }
+        .gp-memdot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-top: 7px; flex: 0 0 auto; box-shadow: 0 0 6px var(--gold); }
+        .gp-memclear { background: rgba(255,80,80,0.12); color: #ff6b6b; border: 1px solid rgba(255,80,80,0.25); }
+        .gp-memclear:hover { background: rgba(255,80,80,0.2); }
         @keyframes gp-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* signature intelligence core */

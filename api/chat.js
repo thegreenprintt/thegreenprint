@@ -126,6 +126,46 @@ module.exports = async function handler(req, res) {
   // by living inside this existing function instead of adding a new one.
   //   GET  /api/chat?kind=ai              -> health/config check (no key exposed)
   //   POST /api/chat?kind=ai {messages}   -> streams the AI reply as plain text
+
+  // ── Memory extraction (kind=mem) ──────────────────────────────────────────
+  //   POST /api/chat?kind=mem {memory:[...], exchange:[{role,content},...]}
+  //   -> { memory:[...] } merged, durable facts about the user. Cheap + fast.
+  if (kind === 'mem') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const memKey =
+      process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_KEY ||
+      process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_OPENROUTER_API_KEY || '';
+    if (!memKey) return res.status(200).json({ memory: [] });
+    let mb = {};
+    try { mb = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch (e) { return res.status(400).json({ error: 'bad_body' }); }
+    const existing = Array.isArray(mb.memory) ? mb.memory.slice(0, 30).map((s) => String(s).slice(0, 200)) : [];
+    const exch = Array.isArray(mb.exchange) ? mb.exchange.slice(-4).map((m) => (m.role === 'user' ? 'User: ' : 'AI: ') + String(m.content || '').slice(0, 1200)).join('\n') : '';
+    if (!exch) return res.status(200).json({ memory: existing });
+    const prompt =
+      "You maintain a short memory of durable facts about a user of The Greenprint AI. " +
+      "Here is what you already remember (one fact per line):\n" + (existing.join('\n') || '(nothing yet)') +
+      "\n\nHere is the latest exchange:\n" + exch +
+      "\n\nReturn an updated memory list as a JSON array of short fact strings. Keep only durable, useful facts about the user " +
+      "(their business, goals, preferences, projects, what they are building, their style). Merge duplicates, drop anything " +
+      "temporary or trivial, never store sensitive personal data. Keep at most 25 facts, each under 160 characters. " +
+      "If nothing is worth remembering, return the existing list unchanged. Reply with ONLY the JSON array.";
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + memKey, 'HTTP-Referer': 'https://thegreenprint.trade', 'X-Title': 'The Greenprint AI' },
+        body: JSON.stringify({ model: 'anthropic/claude-haiku-5.5', messages: [{ role: 'user', content: prompt }] }),
+      });
+      if (!r.ok) return res.status(200).json({ memory: existing });
+      const j = await r.json();
+      let txt = (j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+      txt = txt.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/i, '').trim();
+      const a = txt.indexOf('['); const b = txt.lastIndexOf(']');
+      let out = existing;
+      if (a !== -1 && b !== -1) { try { const parsed = JSON.parse(txt.slice(a, b + 1)); if (Array.isArray(parsed)) out = parsed.map((s) => String(s).slice(0, 160)).filter(Boolean).slice(0, 25); } catch (e) {} }
+      return res.status(200).json({ memory: out });
+    } catch (e) { return res.status(200).json({ memory: existing }); }
+  }
+
   if (kind === 'ai') {
     const aiKey =
       process.env.OPENROUTER_API_KEY ||
@@ -192,7 +232,11 @@ module.exports = async function handler(req, res) {
       .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
       .slice(-20)
       .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
-    const aiMessages = [{ role: 'system', content: AI_SYSTEM }].concat(history);
+    const mem = Array.isArray(aiBody.memory) ? aiBody.memory.slice(0, 30).map((s) => String(s).slice(0, 200)).filter(Boolean) : [];
+    const sysContent = mem.length
+      ? AI_SYSTEM + "\n\nWhat you remember about this user (use it naturally, do not recite it back):\n- " + mem.join('\n- ')
+      : AI_SYSTEM;
+    const aiMessages = [{ role: 'system', content: sysContent }].concat(history);
 
     // Detect a website-build request from the latest user message. Builds are a
     // heavy generation that stalls on free models, so route them to a fast paid
