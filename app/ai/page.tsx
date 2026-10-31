@@ -445,6 +445,8 @@ export default function GreenprintAI() {
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap');
         .gp-root { background: #060806; --gold: #d8b25e; --gold-bright: #f0d089; --grn: #00ff85; }
+        .gp-root textarea { -webkit-tap-highlight-color: transparent; }
+        .gp-composer textarea:focus { outline: none; box-shadow: none; }
 
         /* cinematic aurora */
         .gp-stage { z-index: 0; overflow: hidden; }
@@ -511,10 +513,9 @@ export default function GreenprintAI() {
 
         /* composer with live gradient border */
         .gp-composer-wrap { background: linear-gradient(to top, #060806 58%, transparent); }
-        .gp-composer-shell { position: relative; border-radius: 17px; padding: 1.5px; background: #15181500; overflow: hidden; }
-        .gp-composer-shell::before { content: ""; position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent, rgba(0,255,133,0.55), transparent 28%, rgba(216,178,94,0.5), transparent 55%); animation: gp-rot 8s linear infinite; opacity: 0.55; }
-        .gp-composer { position: relative; z-index: 1; background: #121512; border-radius: 15.5px; padding: 10px 10px 10px 16px; }
-        .gp-composer-shell:focus-within::before { opacity: 1; animation-duration: 4s; }
+        .gp-composer-shell { position: relative; border-radius: 16px; }
+        .gp-composer { position: relative; background: #121512; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 10px 10px 10px 16px; transition: border-color 0.18s ease; }
+        .gp-composer-shell:focus-within .gp-composer { border-color: rgba(255,255,255,0.2); }
         .gp-send { background: linear-gradient(150deg, var(--grn), #0ad46f); color: #06110a; box-shadow: 0 0 18px -6px var(--grn); }
         .gp-send:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 0 26px -4px var(--grn); }
 
@@ -564,7 +565,7 @@ export default function GreenprintAI() {
           .gp-cards { gap: 8px; margin-top: 14px; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .gp-aurora, .gp-core-ring, .gp-core-ring2, .gp-core-glow, .gp-head-accent, .gp-marquee-track, .gp-composer-shell::before, .gp-dot, .gp-cursor, .gp-build-core span { animation: none !important; }
+          .gp-aurora, .gp-core-ring, .gp-core-ring2, .gp-core-glow, .gp-head-accent, .gp-marquee-track, .gp-dot, .gp-cursor, .gp-build-core span { animation: none !important; }
         }
       `}</style>
     </div>
