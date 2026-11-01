@@ -99,6 +99,18 @@ export default function GreenprintAI() {
   const [model, setModel] = useState("");               // "" = auto/free
   const [connOpen, setConnOpen] = useState(false);
   const [ghToken, setGhToken] = useState("");
+  const [attached, setAttached] = useState<string[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  function onPickImages(files: FileList | null) {
+    if (!files) return;
+    const list = Array.from(files).slice(0, 4);
+    list.forEach((f) => {
+      if (!f.type.startsWith("image/") || f.size > 6 * 1024 * 1024) return;
+      const r = new FileReader();
+      r.onload = () => setAttached((a) => (a.length >= 4 ? a : [...a, String(r.result)]));
+      r.readAsDataURL(f);
+    });
+  }
   const ghRef = useRef("");
   useEffect(() => {
     try { const m = localStorage.getItem("gpai_model"); if (m !== null) setModel(m); } catch {}
@@ -223,13 +235,15 @@ export default function GreenprintAI() {
   }
 
   async function send(text?: string) {
-    const content = (text ?? input).trim();
-    if (!content || streaming) return;
+    const imgs = attached.slice();
+    const content = (text ?? input).trim() || (imgs.length ? "What do you make of this?" : "");
+    if ((!content && !imgs.length) || streaming) return;
 
-    const userMsg: Msg = { role: "user", content };
+    const userMsg: Msg = { role: "user", content: content + (imgs.length ? "  \u{1F5BC}️" : "") };
     const nextMsgs = [...messages, userMsg];
     setMessages(nextMsgs);
     setInput("");
+    setAttached([]);
     autosize();
     setStreaming(true);
 
@@ -255,10 +269,12 @@ export default function GreenprintAI() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: nextMsgs,
+          messages: nextMsgs.map((m) => ({ role: m.role, content: m.content.replace(/\s*\u{1F5BC}️$/u, "") })),
           memory: memRef.current,
           model: model || undefined,
           connections: ghRef.current ? { github: ghRef.current } : undefined,
+          currentSite: siteHtml || undefined,
+          images: imgs.length ? imgs : undefined,
         }),
         signal: ac.signal,
       });
@@ -539,12 +555,28 @@ export default function GreenprintAI() {
                   </button>
                 ))}
               </div>
+              {attached.length > 0 && (
+                <div className="gp-thumbs">
+                  {attached.map((src, i) => (
+                    <div key={i} className="gp-thumb">
+                      <img src={src} alt="attachment" />
+                      <button onClick={() => setAttached((a) => a.filter((_, k) => k !== i))} aria-label="Remove">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="gp-composer-shell">
                 <div className="gp-composer flex items-end gap-2">
+                  <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { onPickImages(e.target.files); if (e.target) e.target.value = ""; }} />
+                  <button onClick={() => fileRef.current?.click()} title="Attach image" className="gp-attach shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all">
+                    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15l-5-5L5 21" /><path d="M3 16V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6" /><circle cx="8.5" cy="8.5" r="1.5" /></svg>
+                  </button>
                   <textarea ref={taRef} value={input} rows={1}
                     onChange={(e) => { setInput(e.target.value); autosize(); }}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                    placeholder="Describe what you want to build..."
+                    placeholder="Describe what to build, or attach a chart..."
                     className="flex-1 min-w-0 bg-transparent resize-none outline-none border-0 text-[15px] leading-[1.5] py-1.5 max-h-[180px] placeholder:text-muted/55" />
                   {voiceOk && (
                     <button onClick={toggleVoice} title={listening ? "Stop listening" : "Talk to it"} className={`gp-mic shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all ${listening ? "gp-mic-on" : ""}`}>
@@ -555,7 +587,7 @@ export default function GreenprintAI() {
                       )}
                     </button>
                   )}
-                  <button onClick={() => (streaming ? stop() : send())} disabled={!streaming && !input.trim()} className="gp-send shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all disabled:opacity-25">
+                  <button onClick={() => (streaming ? stop() : send())} disabled={!streaming && !input.trim() && attached.length === 0} className="gp-send shrink-0 w-9 h-9 rounded-xl grid place-items-center transition-all disabled:opacity-25">
                     {streaming ? (
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
                     ) : (
@@ -662,7 +694,7 @@ export default function GreenprintAI() {
           .gp-mbar-title { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: #f3f5f3; }
           /* roomier touch targets + comfortable chat on phones */
           .gp-composer { padding: 12px 12px 12px 16px; border-radius: 17px; }
-          .gp-send, .gp-mic { width: 40px; height: 40px; }
+          .gp-send, .gp-mic, .gp-attach { width: 40px; height: 40px; }
           .gp-modelchip { padding: 7px 13px; font-size: 12px; }
           .gp-rail { width: 84vw; max-width: 320px; }
         }
@@ -723,6 +755,12 @@ export default function GreenprintAI() {
         .gp-composer-shell:focus-within::before { opacity: 1; animation-duration: 4s; }
         .gp-send { background: linear-gradient(150deg, var(--grn), #0ad46f); color: #06110a; box-shadow: 0 0 18px -6px var(--grn); }
         .gp-send:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 0 26px -4px var(--grn); }
+        .gp-attach { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #c7cdc7; }
+        .gp-attach:hover { color: #fff; border-color: rgba(0,255,133,0.35); }
+        .gp-thumbs { display: flex; gap: 8px; padding: 0 2px 8px; flex-wrap: wrap; }
+        .gp-thumb { position: relative; width: 60px; height: 60px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); }
+        .gp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .gp-thumb button { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; display: grid; place-items: center; }
         .gp-mic { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #c7cdc7; }
         .gp-mic:hover { color: #fff; border-color: rgba(0,255,133,0.35); }
         .gp-mic-on { background: rgba(0,255,133,0.14); border-color: rgba(0,255,133,0.5); color: var(--grn); box-shadow: 0 0 20px -6px var(--grn); animation: gp-mic-pulse 1.4s ease-in-out infinite; }

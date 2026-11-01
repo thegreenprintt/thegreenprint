@@ -233,10 +233,29 @@ module.exports = async function handler(req, res) {
       .slice(-20)
       .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
     const mem = Array.isArray(aiBody.memory) ? aiBody.memory.slice(0, 30).map((s) => String(s).slice(0, 200)).filter(Boolean) : [];
-    const sysContent = mem.length
+    let sysContent = mem.length
       ? AI_SYSTEM + "\n\nWhat you remember about this user (use it naturally, do not recite it back):\n- " + mem.join('\n- ')
       : AI_SYSTEM;
+    // Build iteration: if a site already exists in the canvas, give it to the model
+    // so follow-up requests EDIT it instead of starting from scratch.
+    const currentSite = typeof aiBody.currentSite === 'string' ? aiBody.currentSite.slice(0, 16000) : '';
+    if (currentSite) {
+      sysContent += "\n\nThe user already has this website open in the canvas. If they ask to change, tweak, add to, or fix it, EDIT this exact document and return the FULL updated HTML in the site markers (do not start over unless they clearly ask for a brand new site):\n===GREENPRINT_SITE_START===\n" + currentSite + "\n===GREENPRINT_SITE_END===";
+    }
+    // Vision: images (data URLs) the user attached, shown with their last message.
+    const images = Array.isArray(aiBody.images) ? aiBody.images.filter((s) => typeof s === 'string' && s.startsWith('data:image')).slice(0, 4) : [];
+    const hasVision = images.length > 0;
     const aiMessages = [{ role: 'system', content: sysContent }].concat(history);
+    if (hasVision && aiMessages.length) {
+      // attach images to the final user turn as content parts for a vision model
+      for (let i = aiMessages.length - 1; i >= 0; i--) {
+        if (aiMessages[i].role === 'user') {
+          const txt = aiMessages[i].content || 'What is in this image?';
+          aiMessages[i] = { role: 'user', content: [{ type: 'text', text: txt }].concat(images.map((u) => ({ type: 'image_url', image_url: { url: u } }))) };
+          break;
+        }
+      }
+    }
 
     // Detect a website-build request from the latest user message. Builds are a
     // heavy generation that stalls on free models, so route them to a fast paid
@@ -328,7 +347,16 @@ module.exports = async function handler(req, res) {
 
     // Free mode: everything runs on the free model chain. Builds included
     // (slower than a paid model, but $0). A requested free model wins if given.
-    let tryModels = reqModel ? [reqModel].concat(AI_FALLBACKS.filter((m) => m !== reqModel)) : [AI_MODEL].concat(AI_FALLBACKS);
+    // Builds and image/vision need the fast, reliable, vision-capable model (cheap).
+    // Plain chat stays on the free model. A requested free model still wins for chat.
+    let tryModels;
+    if (isBuild || hasVision) {
+      tryModels = [BUILD_MODEL, AI_MODEL].concat(AI_FALLBACKS);
+    } else if (reqModel) {
+      tryModels = [reqModel].concat(AI_FALLBACKS.filter((m) => m !== reqModel));
+    } else {
+      tryModels = [AI_MODEL].concat(AI_FALLBACKS);
+    }
     let up = null;
     let lastErr = '';
     for (const mdl of tryModels) {
