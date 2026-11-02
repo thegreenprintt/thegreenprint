@@ -101,7 +101,7 @@ function ScoresTab({ sport }: { sport: string }) {
     const pull = () => {
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), 8000);
-      return fetch(`/api/props?type=scores&league=${sport}&t=${Date.now()}`, { signal: ctrl.signal })
+      return fetch(`/api/props?type=scores&league=${sport}&t=${Math.floor(Date.now() / 10000)}`, { signal: ctrl.signal })
         .then((r) => r.json())
         .then((d) => { if (!live) return; const g: Game[] = d?.games || []; setGames(g); setSt(g.length ? "ok" : "empty"); })
         .catch(() => { if (live) setSt((s) => (s === "ok" ? "ok" : "error")); })
