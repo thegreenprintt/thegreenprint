@@ -156,8 +156,13 @@ const SCORE_CACHE = {};
 
 async function doScores(res, base, league) {
   const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  const SKEY = 'gp:props:scores:' + league;
+  const rc = redis();
   const _c = SCORE_CACHE[league];
-  if (_c && Date.now() - _c.ts < 25000) { res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30'); return res.status(200).json(_c.payload); }
+  if (_c && Date.now() - _c.ts < 20000) { res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(_c.payload); }
+  let _r = null;
+  if (rc) { try { const _raw = await rc.get(SKEY); if (_raw) _r = JSON.parse(_raw); } catch (e) {} }
+  if (_r && _r.payload && Date.now() - _r.ts < 20000) { SCORE_CACHE[league] = { ts: _r.ts, payload: _r.payload }; res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(_r.payload); }
   try {
     const now = new Date();
     // Fetch yesterday → +2 days (UTC) and MERGE. A US night game (e.g. Monday
@@ -167,10 +172,16 @@ async function doScores(res, base, league) {
     const byId = {};
     const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const etYmd = (dt) => String(dt.getFullYear()) + String(dt.getMonth() + 1).padStart(2, '0') + String(dt.getDate()).padStart(2, '0');
-    const [sbToday, sbYest] = await Promise.all([
-      jget(base + '/scoreboard?dates=' + etYmd(etNow), 5000).catch(() => null),
-      jget(base + '/scoreboard?dates=' + etYmd(new Date(etNow.getTime() - 86400000)), 5000).catch(() => null),
+    const _fetched = await Promise.race([
+      Promise.all([
+        jget(base + '/scoreboard?dates=' + etYmd(etNow), 2500).catch(() => null),
+        jget(base + '/scoreboard?dates=' + etYmd(new Date(etNow.getTime() - 86400000)), 2500).catch(() => null),
+      ]),
+      new Promise((rs) => setTimeout(() => rs('__TO__'), 3000)),
     ]);
+    if (_fetched === '__TO__') throw new Error('deadline');
+    const [sbToday, sbYest] = _fetched;
+    if (!sbToday && !sbYest) throw new Error('no_upstream');
     const addEvents = (sb, liveOnly) => {
       const evs = (sb && sb.events) || [];
       for (const e of evs) {
@@ -223,9 +234,10 @@ async function doScores(res, base, league) {
     const rank = (s) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
     kept.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
-    const payload = { league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) }; SCORE_CACHE[league] = { ts: Date.now(), payload: payload }; return res.status(200).json(payload);
+    const payload = { league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) }; SCORE_CACHE[league] = { ts: Date.now(), payload: payload }; if (rc) { try { await rc.set(SKEY, JSON.stringify({ payload: payload, ts: Date.now() }), 'EX', 120); } catch (e) {} } res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(payload);
   } catch (e) {
-    if (SCORE_CACHE[league]) { res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json(Object.assign({ stale: true }, SCORE_CACHE[league].payload)); } res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, games: [], error: 'feed_unavailable' });
+    const _fb = (SCORE_CACHE[league] && SCORE_CACHE[league].payload) || (_r && _r.payload);
+    if (_fb) { res.setHeader('Cache-Control', 's-maxage=8, stale-while-revalidate=40'); return res.status(200).json(Object.assign({ stale: true }, _fb)); } res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, games: [], error: 'feed_unavailable' });
   }
 }
 
