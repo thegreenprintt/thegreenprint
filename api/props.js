@@ -153,92 +153,110 @@ function sideOf(competitors, homeAway) {
   };
 }
 const SCORE_CACHE = {};
+const SCORE_REFRESHING = {};
+
+// Build the scoreboard payload from ESPN and write it to both caches. Returns
+// the payload, or null if the upstream was too slow / unavailable. Never touches
+// `res`, so it can be run in the background to refresh a stale cache without
+// making any user wait on the slow relay.
+async function buildScores(base, league, rc, SKEY) {
+  const now = new Date();
+  const byId = {};
+  const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const etYmd = (dt) => String(dt.getFullYear()) + String(dt.getMonth() + 1).padStart(2, '0') + String(dt.getDate()).padStart(2, '0');
+  const _fetched = await Promise.race([
+    Promise.all([
+      jget(base + '/scoreboard?dates=' + etYmd(etNow), 2500).catch(() => null),
+      jget(base + '/scoreboard?dates=' + etYmd(new Date(etNow.getTime() - 86400000)), 2500).catch(() => null),
+    ]),
+    new Promise((rs) => setTimeout(() => rs('__TO__'), 3000)),
+  ]);
+  if (_fetched === '__TO__') return null;
+  const [sbToday, sbYest] = _fetched;
+  if (!sbToday && !sbYest) return null;
+  const addEvents = (sb, liveOnly) => {
+    const evs = (sb && sb.events) || [];
+    for (const e of evs) {
+      if (!e || !e.id || byId[e.id]) continue;
+      if (liveOnly) { const st = (e.status && e.status.type && e.status.type.state) || ''; if (st !== 'in') continue; }
+      byId[e.id] = e;
+    }
+  };
+  addEvents(sbToday, false);
+  addEvents(sbYest, true);
+  const events = Object.keys(byId).map((k) => byId[k]);
+  const games = events.map((e) => {
+    const comp = (e.competitions && e.competitions[0]) || {};
+    const stt = (e.status && e.status.type) || {};
+    const cs = comp.competitors || [];
+    const state = stt.state || '';
+    let situation = null;
+    if (state === 'in') {
+      const sit = comp.situation || {};
+      let possAbbr = '';
+      if (sit.possession) {
+        const pc = cs.find((x) => x && x.team && String(x.team.id) === String(sit.possession));
+        possAbbr = (pc && pc.team && pc.team.abbreviation) || '';
+      }
+      situation = { poss: possAbbr, dd: sit.shortDownDistanceText || sit.downDistanceText || '', last: (sit.lastPlay && sit.lastPlay.text) || '' };
+    }
+    return {
+      id: e.id, state: state,
+      detail: stt.shortDetail || stt.detail || '',
+      clock: (e.status && e.status.displayClock) || '',
+      period: (e.status && e.status.period) || 0,
+      start: e.date || '',
+      situation: situation,
+      home: sideOf(cs, 'home'), away: sideOf(cs, 'away'),
+    };
+  });
+  const cutoff = now.getTime() - 28 * 3600000;
+  const kept = games.filter((g) => {
+    if (g.state === 'in' || g.state === 'pre') return true;
+    const t = Date.parse(g.start || '') || 0;
+    return t >= cutoff;
+  });
+  const rank = (st) => (st === 'in' ? 0 : st === 'pre' ? 1 : 2);
+  kept.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
+  const payload = { league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) };
+  SCORE_CACHE[league] = { ts: Date.now(), payload: payload };
+  if (rc) { try { await rc.set(SKEY, JSON.stringify({ payload: payload, ts: Date.now() }), 'EX', 600); } catch (e) {} }
+  return payload;
+}
 
 async function doScores(res, base, league) {
-  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
   const SKEY = 'gp:props:scores:' + league;
   const rc = redis();
+  const FRESH = 12000, STALE_MAX = 600000;
+  const serve = (payload, header) => { res.setHeader('Cache-Control', header); return res.status(200).json(payload); };
+  const refresh = () => {
+    if (SCORE_REFRESHING[league]) return;
+    SCORE_REFRESHING[league] = true;
+    Promise.resolve().then(() => buildScores(base, league, rc, SKEY)).catch(() => {}).finally(() => { SCORE_REFRESHING[league] = false; });
+  };
+  // 1) Warm in-memory on this instance — instant.
   const _c = SCORE_CACHE[league];
-  if (_c && Date.now() - _c.ts < 20000) { res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(_c.payload); }
+  if (_c && Date.now() - _c.ts < FRESH) return serve(_c.payload, 's-maxage=12, stale-while-revalidate=40');
+  // 2) Redis — survives cold serverless starts; near-instant.
   let _r = null;
   if (rc) { try { const _raw = await rc.get(SKEY); if (_raw) _r = JSON.parse(_raw); } catch (e) {} }
-  if (_r && _r.payload && Date.now() - _r.ts < 20000) { SCORE_CACHE[league] = { ts: _r.ts, payload: _r.payload }; res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(_r.payload); }
-  try {
-    const now = new Date();
-    // Fetch yesterday → +2 days (UTC) and MERGE. A US night game (e.g. Monday
-    // Night Football) starts after midnight UTC, so it lives under the NEXT UTC
-    // day — querying only "today" in UTC silently drops the game in progress.
-    // Merging a window around now guarantees live games are always included.
-    const byId = {};
-    const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const etYmd = (dt) => String(dt.getFullYear()) + String(dt.getMonth() + 1).padStart(2, '0') + String(dt.getDate()).padStart(2, '0');
-    const _fetched = await Promise.race([
-      Promise.all([
-        jget(base + '/scoreboard?dates=' + etYmd(etNow), 2500).catch(() => null),
-        jget(base + '/scoreboard?dates=' + etYmd(new Date(etNow.getTime() - 86400000)), 2500).catch(() => null),
-      ]),
-      new Promise((rs) => setTimeout(() => rs('__TO__'), 3000)),
-    ]);
-    if (_fetched === '__TO__') throw new Error('deadline');
-    const [sbToday, sbYest] = _fetched;
-    if (!sbToday && !sbYest) throw new Error('no_upstream');
-    const addEvents = (sb, liveOnly) => {
-      const evs = (sb && sb.events) || [];
-      for (const e of evs) {
-        if (!e || !e.id || byId[e.id]) continue;
-        if (liveOnly) { const st = (e.status && e.status.type && e.status.type.state) || ''; if (st !== 'in') continue; }
-        byId[e.id] = e;
-      }
-    };
-    addEvents(sbToday, false);
-    addEvents(sbYest, true);
-    const events = Object.keys(byId).map((k) => byId[k]);
-    const games = events.map((e) => {
-      const comp = (e.competitions && e.competitions[0]) || {};
-      const stt = (e.status && e.status.type) || {};
-      const cs = comp.competitors || [];
-      const state = stt.state || '';
-      // Live situation: who has the ball + down & distance + last play.
-      let situation = null;
-      if (state === 'in') {
-        const sit = comp.situation || {};
-        let possAbbr = '';
-        if (sit.possession) {
-          const pc = cs.find((x) => x && x.team && String(x.team.id) === String(sit.possession));
-          possAbbr = (pc && pc.team && pc.team.abbreviation) || '';
-        }
-        situation = {
-          poss: possAbbr,
-          dd: sit.shortDownDistanceText || sit.downDistanceText || '',
-          last: (sit.lastPlay && sit.lastPlay.text) || '',
-        };
-      }
-      return {
-        id: e.id, state: state,
-        detail: stt.shortDetail || stt.detail || '',
-        clock: (e.status && e.status.displayClock) || '',
-        period: (e.status && e.status.period) || 0,
-        start: e.date || '',
-        situation: situation,
-        home: sideOf(cs, 'home'), away: sideOf(cs, 'away'),
-      };
-    });
-    // Keep every live + upcoming game; keep finals only from the last ~28h so the
-    // board doesn't pile up days of old scores.
-    const cutoff = now.getTime() - 28 * 3600000;
-    const kept = games.filter((g) => {
-      if (g.state === 'in' || g.state === 'pre') return true;
-      const t = Date.parse(g.start || '') || 0;
-      return t >= cutoff;
-    });
-    const rank = (s) => (s === 'in' ? 0 : s === 'pre' ? 1 : 2);
-    kept.sort((a, b) => rank(a.state) - rank(b.state) || String(a.start).localeCompare(String(b.start)));
-    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
-    const payload = { league: league, updated: new Date().toISOString(), count: kept.length, games: kept.slice(0, 40) }; SCORE_CACHE[league] = { ts: Date.now(), payload: payload }; if (rc) { try { await rc.set(SKEY, JSON.stringify({ payload: payload, ts: Date.now() }), 'EX', 120); } catch (e) {} } res.setHeader('Cache-Control', 's-maxage=12, stale-while-revalidate=40'); return res.status(200).json(payload);
-  } catch (e) {
-    const _fb = (SCORE_CACHE[league] && SCORE_CACHE[league].payload) || (_r && _r.payload);
-    if (_fb) { res.setHeader('Cache-Control', 's-maxage=8, stale-while-revalidate=40'); return res.status(200).json(Object.assign({ stale: true }, _fb)); } res.setHeader('Cache-Control', 's-maxage=5'); return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, games: [], error: 'feed_unavailable' });
+  if (_r && _r.payload) {
+    SCORE_CACHE[league] = { ts: _r.ts, payload: _r.payload };
+    const age = Date.now() - (_r.ts || 0);
+    if (age < FRESH) return serve(_r.payload, 's-maxage=12, stale-while-revalidate=40');
+    // Stale but usable: answer instantly and refresh in the background so the
+    // slow ESPN rebuild never blocks a real request.
+    if (age < STALE_MAX) { refresh(); return serve(_r.payload, 's-maxage=12, stale-while-revalidate=40'); }
   }
+  // 3) Nothing usable cached (first ever / evicted) → build now, capped at ~3s.
+  try {
+    const payload = await buildScores(base, league, rc, SKEY);
+    if (payload) return serve(payload, 's-maxage=12, stale-while-revalidate=40');
+  } catch (e) {}
+  const _fb = (SCORE_CACHE[league] && SCORE_CACHE[league].payload) || (_r && _r.payload);
+  if (_fb) return serve(Object.assign({ stale: true }, _fb), 's-maxage=8, stale-while-revalidate=40');
+  res.setHeader('Cache-Control', 's-maxage=5');
+  return res.status(200).json({ league: league, updated: new Date().toISOString(), count: 0, games: [], error: 'feed_unavailable' });
 }
 
 // Live box score for one game → { players: { athleteId: { statName: value } } }.
