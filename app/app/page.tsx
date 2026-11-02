@@ -980,7 +980,7 @@ export default function AppPage() {
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <style dangerouslySetInnerHTML={{ __html: "html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;}" }} />
       {/* header */}
-      <div style={{ flex: "none", zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "12px 16px" }}>
+      <div style={{ flex: "none", zIndex: 15, background: "rgba(5,8,11,.82)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", padding: "calc(12px + env(safe-area-inset-top)) 16px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, maxWidth: 620, margin: "0 auto" }}>
           <div className="disp" style={{ fontWeight: 700, fontSize: 17, letterSpacing: ".02em", whiteSpace: "nowrap" }}>THE <span style={{ color: GREEN }}>GREENPRINT</span></div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}><NotifyBell /><BookPicker book={book} setBook={setBook} /></div>
