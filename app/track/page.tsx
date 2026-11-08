@@ -449,7 +449,7 @@ function MemberRow({ m, i, emailState, onEmail, mark, onStage, onTouch }: { m: M
 }
 
 /* ── Double-pay goal panel (unchanged core, lightly polished) ─────────────── */
-function GoalPanel({ goal }: { goal?: Goal }) {
+function GoalPanel({ goal, authKey, onSaved }: { goal?: Goal; authKey: string; onSaved: () => void }) {
   const target = goal?.target ?? 10000;
   const perSub = goal?.perSub ?? 100;
   const deadline = SPRINT_DEADLINE;
@@ -462,6 +462,24 @@ function GoalPanel({ goal }: { goal?: Goal }) {
   const earnN = useCountUp(earnings ?? 0);
   const [barW, setBarW] = useState(0);
   useEffect(() => { const t = setTimeout(() => setBarW(pct), 150); return () => clearTimeout(t); }, [pct]);
+  // Admin-only inline editor for the current lifetime-earnings figure. One House
+  // doesn't expose it via API, so this is how the $10K pace gets corrected.
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editErr, setEditErr] = useState("");
+  const saveEarnings = async () => {
+    const n = Number(String(val).replace(/[$,\s]/g, ""));
+    if (!isFinite(n) || n < 0) { setEditErr("Enter a number"); return; }
+    setSaving(true); setEditErr("");
+    try {
+      const res = await fetch("/api/chat?kind=track-goal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: authKey, earnings: n }) });
+      if (res.status === 403) { setEditErr("Needs your admin key — log in with it to edit."); setSaving(false); return; }
+      const j = await res.json().catch(() => null);
+      if (j && j.ok) { setEditing(false); setVal(""); onSaved(); } else { setEditErr("Could not save."); }
+    } catch { setEditErr("Could not reach the server."); }
+    setSaving(false);
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -473,11 +491,26 @@ function GoalPanel({ goal }: { goal?: Goal }) {
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-gold animate-pulse" />
             <span className="text-gold font-mono text-[11px] tracking-[0.25em] uppercase">Double Pay Goal</span>
+            <button onClick={() => { setEditing((e) => !e); setVal(earnings != null ? String(earnings) : ""); setEditErr(""); }} title="Set current earnings" className="text-[11px] font-mono text-muted/70 hover:text-gold transition-colors">✎ set</button>
           </div>
           <div className="font-mono text-[11px] text-text/80">
             <span className="text-gold font-bold">{daysLeft}</span> days left · ${perSub}/sub ends {new Date(deadline + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </div>
         </div>
+        {editing && (
+          <div className="mb-4 rounded-xl border border-gold/25 bg-gold/[0.04] p-3">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-2">Set current lifetime earnings (toward ${(target / 1000)}K)</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 rounded-lg bg-black/30 border border-white/10 px-2.5 focus-within:border-gold">
+                <span className="text-muted text-sm">$</span>
+                <input value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveEarnings(); }} inputMode="decimal" placeholder="e.g. 9200" className="w-28 bg-transparent py-2 text-base outline-none" />
+              </div>
+              <button onClick={saveEarnings} disabled={saving} className="px-3.5 py-2 rounded-lg bg-gold text-bg text-[12px] font-bold disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+              <button onClick={() => { setEditing(false); setEditErr(""); }} className="px-2.5 py-2 rounded-lg border border-white/10 text-[12px] text-muted">Cancel</button>
+              {editErr && <span className="text-[11px] text-red font-mono">{editErr}</span>}
+            </div>
+          </div>
+        )}
         <div className="flex items-end gap-4 flex-wrap">
           {subsToGo != null ? (
             <div>
@@ -1185,7 +1218,7 @@ export default function TrackPage() {
 
           {snap && showHero && (
             <div className={view === "today" ? "" : "hidden lg:block"}>
-              <GoalPanel goal={snap.goal} />
+              <GoalPanel goal={snap.goal} authKey={pass} onSaved={() => load(pass)} />
               <SprintStrip goal={snap.goal} inactiveCount={counts.inactive + counts.lapsed} dueCount={counts.due} closedToday={pipe.closedToday} />
             </div>
           )}
