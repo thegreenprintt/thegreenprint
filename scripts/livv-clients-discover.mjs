@@ -64,17 +64,15 @@ async function main() {
 
     await dumpTables(page, "ibdashboard");
 
-    // Try the likely client-roster pages
-    const candidates = ["/client/ib/myclients", "/client/ib/my-clients", "/client/ib/clients", "/client/ib/client", "/client/ib/myclient", "/client/ib/team", "/client/ib/teamdeposit", "/client/ib/treechart", "/client/ib/mycommission"];
+    // The real roster pages (from the sidebar links above)
+    const candidates = ["/client/ib/myclientslist", "/client/ib/myteamdepositreport", "/client/ib/mycommissionlist", "/client/ib/treechart", "/client/ib/myteamwithdrawreport"];
     for (const c of candidates) {
       await page.goto(BASE + c, { waitUntil: "networkidle", timeout: 45000 }).catch(() => {});
-      await page.waitForSelector("#spinner", { state: "hidden", timeout: 12000 }).catch(() => {});
-      await page.waitForTimeout(2500);
-      const url = page.url();
+      await page.waitForSelector("#spinner", { state: "hidden", timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(4000); // datatables load rows async
       const title = await page.title().catch(() => "");
-      const is404 = /not found|404/i.test(await page.evaluate(() => document.body ? document.body.innerText.slice(0, 200) : "").catch(() => ""));
-      log("tried " + c + " -> url=" + url + " title='" + title + "'" + (is404 ? " (looks 404)" : ""));
-      if (!is404 && url.indexOf(c.split("/").pop()) >= 0) await dumpTables(page, c);
+      log("tried " + c + " -> title='" + title + "'");
+      await dumpTables(page, c);
     }
 
     // Diagnose the stored snapshot the tab reads
