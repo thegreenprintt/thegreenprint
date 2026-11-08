@@ -958,7 +958,8 @@ module.exports = async function handler(req, res) {
       // 4a) best-effort lifetime-earnings pull. Runs where it has network to One House
       //     (the hourly cron on Vercel). Conservative: only a strongly-named earnings
       //     field overwrites the number; every numeric candidate is logged for review.
-      let pulledEarnings = null; const earnDbg = { tried: [], candidates: [], detail: [] };
+      let pulledEarnings = null; const earnDbg = { tried: [], candidates: [], detail: [], matches: [] };
+      const expForScan = Number((req.query && req.query.expect) || '');
       try {
         // Lightweight hourly set; a bigger set only when discovering the endpoint.
         // /api/profile is the confirmed earnings source: data.total_commission is the
@@ -969,16 +970,17 @@ module.exports = async function handler(req, res) {
         const EARN_PATHS = DISCOVER ? BASE_PATHS.concat(MORE_PATHS) : BASE_PATHS;
         const STRICT = /(?:lifetime|total|net|overall)[_\s]*earn|earn[_\s]*(?:lifetime|total)|lifetime[_\s]*income|total[_\s]*income|total[_\s]*commission/i;
         const toNum = (v) => { if (typeof v === 'number') return isFinite(v) ? v : NaN; if (typeof v === 'string' && /^[-$,.\d]+$/.test(v.trim()) && /\d/.test(v)) { const n = Number(v.replace(/[$,]/g, '')); return isFinite(n) ? n : NaN; } return NaN; };
-        const scan = (o, path, depth, keyBag) => {
+        const scan = (o, path, depth, keyBag, label) => {
           if (o == null || depth > 6) return;
-          if (Array.isArray(o)) { for (let i = 0; i < o.length && i < 60; i++) scan(o[i], path + '[' + i + ']', depth + 1, keyBag); return; }
+          if (Array.isArray(o)) { for (let i = 0; i < o.length && i < 60; i++) scan(o[i], path + '[' + i + ']', depth + 1, keyBag, label); return; }
           if (typeof o !== 'object') return;
           for (const key of Object.keys(o)) {
             const kp = path ? path + '.' + key : key; const num = toNum(o[key]);
             if (isFinite(num)) {
               if (/earn|income|commission|wallet|balance|payout|bonus|reward|revenue/i.test(key)) { earnDbg.candidates.push({ k: kp, v: num }); if (keyBag) keyBag.push(kp); }
+              if (isFinite(expForScan) && Math.abs(num - expForScan) < 1 && earnDbg.matches.length < 20) earnDbg.matches.push((label ? label + ' ' : '') + kp);
               if (pulledEarnings == null && STRICT.test(key) && num >= 0) pulledEarnings = num;
-            } else if (o[key] && typeof o[key] === 'object') { scan(o[key], kp, depth + 1, keyBag); }
+            } else if (o[key] && typeof o[key] === 'object') { scan(o[key], kp, depth + 1, keyBag, label); }
           }
         };
         const tryOne = async (p, method) => {
@@ -991,11 +993,13 @@ module.exports = async function handler(req, res) {
               return;
             }
             const jj = await rr.json().catch(() => null); earnDbg.tried.push(tag);
-            if (jj) { const keyBag = []; scan(jj, '', 0, keyBag); if (DISCOVER) { const top = (jj && typeof jj === 'object' && !Array.isArray(jj)) ? Object.keys(jj).slice(0, 20) : (Array.isArray(jj) ? ['<array>'] : []); earnDbg.detail.push({ p: p + (method === 'POST' ? '#POST' : ''), status: rr.status, topKeys: top, earnKeys: Array.from(new Set(keyBag)).slice(0, 20) }); } }
+            if (jj) { const keyBag = []; scan(jj, '', 0, keyBag, p + (method === 'POST' ? '#POST' : '')); if (DISCOVER) { const top = (jj && typeof jj === 'object' && !Array.isArray(jj)) ? Object.keys(jj).slice(0, 25) : (Array.isArray(jj) ? ['<array>'] : []); earnDbg.detail.push({ p: p + (method === 'POST' ? '#POST' : ''), status: rr.status, topKeys: top, earnKeys: Array.from(new Set(keyBag)).slice(0, 20) }); } }
           } catch (e) { earnDbg.tried.push(p + ':err'); }
         };
         for (const p of EARN_PATHS) { if (pulledEarnings != null && !DISCOVER) break; await tryOne(p, 'GET'); }
-        if (DISCOVER && pulledEarnings == null) { await tryOne('/api/user/dashboard', 'POST'); } // the 500 route may want POST
+        // The dashboard route 500s on a bare GET — in discovery, try POST and a couple
+        // of common param shapes to coax it open (it likely holds the headline number).
+        if (DISCOVER) { await tryOne('/api/user/dashboard', 'POST'); await tryOne('/api/user/dashboard?type=all', 'GET'); await tryOne('/api/dashboard', 'POST'); await tryOne('/api/user/dashboard/stats', 'GET'); await tryOne('/api/user/wallet', 'GET'); await tryOne('/api/user/wallets', 'GET'); await tryOne('/api/user/income-report', 'GET'); await tryOne('/api/user/genealogy', 'GET'); }
         try { await r.set('gp:1h:earnpull', JSON.stringify({ at: now, pulled: pulledEarnings, candidates: earnDbg.candidates.slice(0, 40), tried: earnDbg.tried, detail: earnDbg.detail.slice(0, 40) })); } catch (e) {}
       } catch (e) {}
       // Discovery probe: report what we found and stop — no snapshot write.
@@ -1009,7 +1013,7 @@ module.exports = async function handler(req, res) {
         const exp = Number((req.query && req.query.expect) || '');
         let match = null;
         if (isFinite(exp)) {
-          match = { matchesPulled: pulledEarnings != null && Math.abs(pulledEarnings - exp) < 1, matchField: (earnDbg.candidates.find((c) => Math.abs(c.v - exp) < 1) || {}).k || null };
+          match = { matchesPulled: pulledEarnings != null && Math.abs(pulledEarnings - exp) < 1, matchField: (earnDbg.candidates.find((c) => Math.abs(c.v - exp) < 1) || {}).k || null, anyFieldMatches: Array.from(new Set(earnDbg.matches)).slice(0, 20) };
         }
         return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null, mag: mag, match: match } });
       }
