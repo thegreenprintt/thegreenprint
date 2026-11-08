@@ -693,6 +693,28 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, broker: rec });
     }
 
+    // ── SPRINT GOAL — set the $10K double-pay goal fields directly (admin only) ─
+    //   POST ?kind=track-goal {key:GP_ADMIN_KEY, earnings?, target?, perSub?, deadline?}
+    //   Lets the goal — above all the current earnings — be corrected in one call
+    //   without waiting on a browser pull. Only touches goal; members stay intact.
+    if (kind === 'track-goal') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const k = clean(body.key, 128) || qkey;
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+      let rec = null;
+      try { rec = JSON.parse((await r.get('gp:track:v1')) || 'null'); } catch (e) { rec = null; }
+      if (!rec || typeof rec !== 'object') return res.status(400).json({ error: 'no_snapshot' });
+      const g = (rec.goal && typeof rec.goal === 'object') ? rec.goal : { earnings: null, target: 10000, perSub: 100, deadline: '2026-11-30' };
+      if (body.earnings !== undefined && body.earnings !== null && body.earnings !== '') { const e = Number(body.earnings); if (isFinite(e) && e >= 0) g.earnings = Math.round(e * 100) / 100; }
+      if (body.target !== undefined) { const t = Number(body.target); if (isFinite(t) && t > 0) g.target = Math.round(t); }
+      if (body.perSub !== undefined) { const p = Number(body.perSub); if (isFinite(p) && p > 0) g.perSub = Math.round(p); }
+      if (body.deadline !== undefined) { const d = clean(body.deadline, 10); if (/^\d{4}-\d{2}-\d{2}$/.test(d)) g.deadline = d; }
+      rec.goal = g; rec.updatedAt = Date.now();
+      try { await r.set('gp:track:v1', JSON.stringify(rec)); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, goal: g });
+    }
+
     // ── LEADS — leads now live in PRIVATE Redis, never the public Firebase DB ─
     // Capture (public, write-only), update (admin), read (admin), and a one-time
     // migrate from the old Firebase node. This closes the hole where anyone could
@@ -923,8 +945,40 @@ module.exports = async function handler(req, res) {
       });
       let active = 0, inactive = 0, lapsed = 0, due = 0;
       for (const m of members) { if (m.status === 'active') active++; else if (m.status === 'lapsed') lapsed++; else inactive++; const d = m.nextDue ? Math.ceil((Date.parse(m.nextDue) - now) / DAY) : null; if (m.status === 'active' && d !== null && d <= 7) due++; }
-      // 4) preserve the existing goal (earnings) so the $10K tracker keeps its number
-      let goal = null; try { const prev = JSON.parse((await r.get('gp:track:v1')) || 'null'); goal = prev && prev.goal ? prev.goal : null; } catch (e) {}
+      // 4) rebuild the goal. target/perSub/deadline are owned by the app (double-pay
+      //    runs through the end of November — SPRINT_DEADLINE). earnings is pulled from
+      //    One House when we can find a lifetime/total-earnings field, else the last
+      //    known value is kept so the number never resets to blank.
+      const SPRINT_DEADLINE = '2026-11-30';
+      let prevGoal = null; try { const prev = JSON.parse((await r.get('gp:track:v1')) || 'null'); prevGoal = prev && prev.goal ? prev.goal : null; } catch (e) {}
+      const prevEarn = (prevGoal && typeof prevGoal.earnings === 'number') ? prevGoal.earnings : null;
+      // 4a) best-effort lifetime-earnings pull. Runs where it has network to One House
+      //     (the hourly cron on Vercel). Conservative: only a strongly-named earnings
+      //     field overwrites the number; every numeric candidate is logged for review.
+      let pulledEarnings = null; const earnDbg = { tried: [], candidates: [] };
+      try {
+        const EARN_PATHS = ['/api/user/dashboard', '/api/dashboard', '/api/user/profile', '/api/user/me', '/api/user/wallet', '/api/user/earnings', '/api/user/earning', '/api/user/income', '/api/user/statistics', '/api/user/commission'];
+        const STRICT = /(?:lifetime|total)[_\s]*earn|earn[_\s]*(?:lifetime|total)|lifetime[_\s]*income|total[_\s]*income/i;
+        const toNum = (v) => { if (typeof v === 'number') return isFinite(v) ? v : NaN; if (typeof v === 'string' && /^[-$,.\d]+$/.test(v.trim()) && /\d/.test(v)) { const n = Number(v.replace(/[$,]/g, '')); return isFinite(n) ? n : NaN; } return NaN; };
+        const scan = (o, path, depth) => {
+          if (o == null || depth > 6) return;
+          if (Array.isArray(o)) { for (let i = 0; i < o.length && i < 60; i++) scan(o[i], path + '[' + i + ']', depth + 1); return; }
+          if (typeof o !== 'object') return;
+          for (const key of Object.keys(o)) {
+            const kp = path ? path + '.' + key : key; const num = toNum(o[key]);
+            if (isFinite(num)) {
+              if (/earn|income|commission/i.test(key)) earnDbg.candidates.push({ k: kp, v: num });
+              if (pulledEarnings == null && STRICT.test(key) && num >= 0) pulledEarnings = num;
+            } else if (o[key] && typeof o[key] === 'object') { scan(o[key], kp, depth + 1); }
+          }
+        };
+        for (const p of EARN_PATHS) {
+          if (pulledEarnings != null) break;
+          try { const rr = await fetch(B + p, { headers: H }); if (!rr.ok) { earnDbg.tried.push(p + ':' + rr.status); continue; } const jj = await rr.json().catch(() => null); earnDbg.tried.push(p + ':ok'); if (jj) scan(jj, '', 0); } catch (e) { earnDbg.tried.push(p + ':err'); }
+        }
+        try { await r.set('gp:1h:earnpull', JSON.stringify({ at: now, pulled: pulledEarnings, candidates: earnDbg.candidates.slice(0, 40), tried: earnDbg.tried })); } catch (e) {}
+      } catch (e) {}
+      const goal = { earnings: (pulledEarnings != null ? Math.round(pulledEarnings * 100) / 100 : prevEarn), target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
       try { await r.set('gp:track:v1', JSON.stringify(record)); await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
       // 4b) incremental geo — fill real city/state/phone for members that don't have it yet

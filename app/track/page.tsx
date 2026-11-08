@@ -11,7 +11,7 @@ import { stateFromPhone, stateName } from "./areacodes";
    - Today: your daily method of operation, a sized hit list, work it top down
    - Focus This Week: a scored, ranked lock-in list (who to work + why)
    - Pipeline: every member tracked new → contacted → talking → committed → closed
-   - Sprint: the $10K-by-Nov-1 double-pay pace, daily target, money on the table
+   - Sprint: the $10K double-pay pace (through end of Nov), daily target, money on the table
    - Playbook: the scripts, objection handlers and follow-up cadence
    - The System: a duplicatable whiteboard of the whole machine
    Reads the snapshot from /api/chat?kind=track. Passcode-gated. Marks persist.
@@ -49,7 +49,13 @@ const STAGE_META: Record<Stage, { label: string; color: string; short: string }>
 const LS_KEY = "gp_track_key";
 const MARKS_LS = "gp_track_marks";
 const DAY = 86400000;
-const SPRINT_START = "2026-10-23"; // the night Jay called the $10K/10-day sprint
+const SPRINT_START = "2026-10-23"; // the night Jay called the $10K sprint
+// Double-pay was extended through the end of November. This constant is the single
+// source of truth for the deadline so the pace is always right even if a stored
+// snapshot still carries the old date. Change it here if the window moves again.
+const SPRINT_DEADLINE = "2026-11-30";
+const SPRINT_DEADLINE_LABEL = new Date(SPRINT_DEADLINE + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const sprintTotalDays = Math.max(1, Math.round((new Date(SPRINT_DEADLINE + "T23:59:59").getTime() - new Date(SPRINT_START + "T00:00:00").getTime()) / DAY));
 
 const fmtWhen = (ms: number) => (!ms ? "never" : new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
 const telHref = (p: string) => "tel:" + (p || "").replace(/[^\d+]/g, "");
@@ -446,7 +452,7 @@ function MemberRow({ m, i, emailState, onEmail, mark, onStage, onTouch }: { m: M
 function GoalPanel({ goal }: { goal?: Goal }) {
   const target = goal?.target ?? 10000;
   const perSub = goal?.perSub ?? 100;
-  const deadline = goal?.deadline ?? "2026-11-01";
+  const deadline = SPRINT_DEADLINE;
   const earnings = goal?.earnings ?? null;
   const remaining = earnings != null ? Math.max(0, target - earnings) : null;
   const subsToGo = remaining != null ? Math.ceil(remaining / perSub) : null;
@@ -500,7 +506,7 @@ function GoalPanel({ goal }: { goal?: Goal }) {
   );
 }
 
-/* ── Sprint strip: $10K in 10 days pace + money on the table ──────────────── */
+/* ── Sprint strip: $10K double-pay pace + money on the table ──────────────── */
 function Ring({ pct, size = 54, stroke = 5, color = "#00FF85", children }: { pct: number; size?: number; stroke?: number; color?: string; children?: React.ReactNode }) {
   const r = (size - stroke) / 2; const c = 2 * Math.PI * r; const off = c * (1 - Math.min(1, Math.max(0, pct / 100)));
   return (
@@ -518,9 +524,9 @@ function SprintStrip({ goal, inactiveCount, dueCount, closedToday }: { goal?: Go
   const perSub = goal?.perSub ?? 100;
   const earnings = goal?.earnings ?? null;
   const subsToGo = earnings != null ? Math.ceil(Math.max(0, target - earnings) / perSub) : null;
-  const deadline = goal?.deadline ?? "2026-11-01";
+  const deadline = SPRINT_DEADLINE;
   const daysToMoney = Math.max(1, Math.ceil((new Date(deadline + "T23:59:59").getTime() - Date.now()) / DAY));
-  const sprintTotal = 10;
+  const sprintTotal = sprintTotalDays;
   const dayOf = Math.min(sprintTotal, Math.max(1, Math.round((Date.now() - new Date(SPRINT_START + "T00:00:00").getTime()) / DAY) + 1));
   const dailyTarget = subsToGo != null ? Math.ceil(subsToGo / daysToMoney) : null;
   const onTable = inactiveCount * perSub;
@@ -537,7 +543,7 @@ function SprintStrip({ goal, inactiveCount, dueCount, closedToday }: { goal?: Go
       <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="flex items-center gap-3">
           <Ring pct={(dayOf / sprintTotal) * 100} color="#00FF85"><span className="font-mono text-sm font-bold text-accent">{daysToMoney}</span></Ring>
-          <div><div className="text-[10px] font-mono uppercase tracking-wider text-muted">Days to Nov 1</div><div className="text-sm text-text/80 font-mono">double pay ends</div></div>
+          <div><div className="text-[10px] font-mono uppercase tracking-wider text-muted">Days to {SPRINT_DEADLINE_LABEL}</div><div className="text-sm text-text/80 font-mono">double pay ends</div></div>
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-1">Subs to $10K</div>
@@ -1051,7 +1057,7 @@ export default function TrackPage() {
   // Today's hit list: highest-impact, not already closed/skipped, sized to the sprint
   const dailyTarget = useMemo(() => {
     const target = snap?.goal?.target ?? 10000, perSub = snap?.goal?.perSub ?? 100, earn = snap?.goal?.earnings ?? null;
-    const deadline = snap?.goal?.deadline ?? "2026-11-01";
+    const deadline = SPRINT_DEADLINE;
     const dTo = Math.max(1, Math.ceil((new Date(deadline + "T23:59:59").getTime() - Date.now()) / DAY));
     const subsToGo = earn != null ? Math.ceil(Math.max(0, target - earn) / perSub) : 3;
     return Math.max(1, Math.ceil(subsToGo / dTo));
@@ -1561,7 +1567,7 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
         <div className="relative">
           <div className="text-accent font-mono text-[11px] tracking-[0.25em] uppercase mb-2">The Daily Method of Operation</div>
           <h2 className="gp-display text-2xl font-bold mb-1">Run this every day and the business runs itself.</h2>
-          <p className="text-text/70 text-sm">Close <span className="text-accent font-bold">{dailyTarget}/day</span> and you hit $10K before Nov 1. Here's the exact loop.</p>
+          <p className="text-text/70 text-sm">Close <span className="text-accent font-bold">{dailyTarget}/day</span> and you hit $10K before {SPRINT_DEADLINE_LABEL}. Here's the exact loop.</p>
         </div>
       </section>
 
@@ -1602,7 +1608,7 @@ function SystemView({ dailyTarget }: { dailyTarget: number }) {
         <div className="rounded-2xl border border-gold/15 bg-gradient-to-br from-gold/[0.05] to-transparent p-5 space-y-3 text-[13px] text-text/80 leading-relaxed">
           <p><span className="text-gold font-bold">Days 1–3:</span> Blitz the list. Pure check-ins to everyone inactive and everyone due this week. No pitching, just reconnecting. Move every touch to "contacted."</p>
           <p><span className="text-gold font-bold">Days 4–6:</span> Work the conversations. Anyone who replied moves to "talking." Call them, handle objections, invite the warm ones to a live session.</p>
-          <p><span className="text-gold font-bold">Days 7–9:</span> Close. Make the ask to everyone in "talking" and "committed." Use the takeaway. Each reactivation before Nov 1 pays you double.</p>
+          <p><span className="text-gold font-bold">Days 7–9:</span> Close. Make the ask to everyone in "talking" and "committed." Use the takeaway. Each reactivation before {SPRINT_DEADLINE_LABEL} pays you double.</p>
           <p><span className="text-gold font-bold">Day 10:</span> Last push + duplication. Final door-open touch, then ask every new yes who they know. End the sprint at $10K.</p>
         </div>
       </section>
