@@ -47,22 +47,27 @@ async function main() {
     // 3) extract
     snap = await page.evaluate(() => {
       const num = (s) => { if (s == null) return null; const m = String(s).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
-      // read a labeled card: find the leaf element whose text is the label, climb up
-      // to the container that also holds a number, return that number.
-      const read = (label) => {
-        const els = Array.from(document.querySelectorAll("div,span,p,h1,h2,h3,h4,h5,h6,td,strong,b,small,label"));
-        const norm = (t) => (t || "").replace(/\s+/g, " ").trim().toLowerCase();
-        const leaf = els.find((e) => e.children.length === 0 && norm(e.textContent) === label.toLowerCase());
+      const norm = (t) => (t || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const numIn = (s, label) => { if (!s) return null; const m = String(s).replace(new RegExp(label, "i"), " ").replace(/,/g, "").match(/-?\$?\s*(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : null; };
+      // DOM read: leaf element matching the label, then its siblings/ancestors for a number.
+      const readDom = (label) => {
+        const els = Array.from(document.querySelectorAll("div,span,p,h1,h2,h3,h4,h5,h6,td,strong,b,small,label,a"));
+        const leaf = els.find((e) => e.children.length === 0 && (norm(e.textContent) === label.toLowerCase() || norm(e.textContent).startsWith(label.toLowerCase() + " ")));
         if (!leaf) return null;
+        for (const sib of [leaf.nextElementSibling, leaf.previousElementSibling]) { const v = numIn(sib && sib.textContent, label); if (v != null) return v; }
         let node = leaf;
-        for (let i = 0; i < 4 && node.parentElement; i++) {
-          node = node.parentElement;
-          const txt = (node.textContent || "").replace(new RegExp(label, "i"), " ");
-          const m = txt.replace(/,/g, "").match(/-?\$?\s*(\d+(?:\.\d+)?)/);
-          if (m) return Number(m[1]);
-        }
+        for (let i = 0; i < 4 && node.parentElement; i++) { node = node.parentElement; const v = numIn(node.textContent, label); if (v != null) return v; }
         return null;
       };
+      // Text fallback: find the label line, take a number from the next couple of lines.
+      const lines = (document.body ? document.body.innerText : "").split("\n").map((s) => s.trim()).filter(Boolean);
+      const readLine = (label) => {
+        const i = lines.findIndex((l) => norm(l) === label.toLowerCase());
+        if (i < 0) return null;
+        for (let j = i + 1; j <= i + 2 && j < lines.length; j++) { const m = lines[j].replace(/,/g, "").match(/^-?\$?\s*(\d+(?:\.\d+)?)$/); if (m) return Number(m[1]); }
+        return null;
+      };
+      const read = (label) => { const a = readDom(label); return a != null ? a : readLine(label); };
       const subIBs = [];
       const table = document.querySelector("#topsubibearn");
       if (table) {
