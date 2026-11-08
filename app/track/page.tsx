@@ -27,9 +27,9 @@ interface Lead { _key: string; name?: string; email?: string; phone?: string; st
 interface TreeNode { id: number; sp: number | null; name: string; email: string; active: number; subs: number; lvl: number; paid?: number; lastEnroll?: string | null; }
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
-interface BrokerTrader { name: string; email: string; account: string; balance: number; equity: number; lots: number; lotsMonth: number; rebate: number; deposits: number; status: string; lastTradeAt: string | null; }
-interface BrokerTotals { lots: number; lotsMonth: number; rebate: number; rebateMonth: number; rebatePending: number; rebatePaid: number; traders: number; funded: number; trading: number; deposits: number; equity: number; newLots24h: number; }
-interface Broker { updatedAt: number; source: string; broker: string; perLot: number; totals: BrokerTotals; traders: BrokerTrader[]; }
+interface BrokerSubIB { name: string; email: string; commission: number; }
+interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; }
+interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
 type VoiceKey = "default" | "auntie" | "og" | "homie";
@@ -811,15 +811,7 @@ function BKpi({ label, value, tone, delay, big }: { label: string; value: string
   );
 }
 
-const BROKER_STATUS_META: Record<string, { label: string; color: string }> = {
-  trading: { label: "TRADING", color: "#00FF85" },
-  funded: { label: "FUNDED", color: "#4a9eff" },
-  new: { label: "NEW", color: "#8a8a8a" },
-  idle: { label: "IDLE", color: "#C9A84C" },
-};
-
 function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number }) {
-  const [sortBy, setSortBy] = useState<"lots" | "rebate" | "balance">("lots");
   if (!broker) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -827,18 +819,19 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <div className="text-[34px] mb-2">📈</div>
         <div className="gp-display text-text font-bold text-lg mb-1">Broker book not synced yet</div>
         <div className="text-muted text-sm max-w-md mx-auto leading-relaxed">
-          This is your Livv Global IB book — every referred trader&apos;s balance and the lots they trade, with your
-          rebate at <span className="text-accent font-semibold">$25 / lot</span>. It fills in on the first hourly sync
-          from your Livv dashboard. Nothing is shown until real numbers land.
+          This is your Livv Global IB book — your commission, your clients, and your sub‑IBs.
+          It fills in on the hourly sync from your Livv dashboard. Nothing is shown until real numbers land.
         </div>
       </motion.div>
     );
   }
   const t = broker.totals;
-  const perLot = broker.perLot || 25;
+  const money = (n: number | null | undefined) => (n == null ? "—" : usd(n));
+  const cnt = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString());
   const agoMin = broker.updatedAt ? Math.max(0, Math.floor((nowTs - broker.updatedAt) / 60000)) : null;
   const ago = agoMin == null ? "—" : agoMin < 1 ? "just now" : agoMin < 60 ? agoMin + "m ago" : Math.floor(agoMin / 60) + "h ago";
-  const traders = [...(broker.traders || [])].sort((a, b) => (Number(b[sortBy]) || 0) - (Number(a[sortBy]) || 0));
+  const subs = [...(broker.subIBs || [])].sort((a, b) => (b.commission || 0) - (a.commission || 0));
+  const rankColor = (i: number) => (i === 0 ? "#C9A84C" : i === 1 ? "#cfcfcf" : i === 2 ? "#cd7f32" : "#6a6a6a");
 
   return (
     <div className="space-y-5">
@@ -847,77 +840,59 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <div className="flex items-center gap-2.5">
           <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
           <span className="gp-display text-text font-semibold">{broker.broker || "Livv Global"} · IB Book</span>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-accent/80 border border-accent/25 rounded px-1.5 py-0.5">{usd(perLot)} / lot</span>
+          {t.payPerLot != null && <span className="text-[10px] font-mono uppercase tracking-wider text-accent/80 border border-accent/25 rounded px-1.5 py-0.5">{usd(t.payPerLot)} / lot</span>}
         </div>
         <div className="text-[11px] font-mono text-muted">updated {ago} · hourly</div>
       </div>
 
-      {/* hero: rebate earned */}
+      {/* hero: available commission */}
       <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="gp-card relative overflow-hidden rounded-2xl p-6">
         <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl opacity-30" style={{ background: "#00FF85" }} />
-        <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Rebate earned · lifetime</div>
-        <div className="gp-display gp-num relative z-[1] text-[52px] sm:text-[64px] leading-none font-bold text-accent" style={{ textShadow: "0 0 36px #00FF8540" }}>{usd(t.rebate)}</div>
+        <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Available commission</div>
+        <div className="gp-display gp-num relative z-[1] text-[52px] sm:text-[64px] leading-none font-bold text-accent" style={{ textShadow: "0 0 36px #00FF8540" }}>{money(t.availableCommission)}</div>
         <div className="relative z-[1] mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <span className="text-muted">This month <span className="text-text font-semibold">{usd(t.rebateMonth)}</span></span>
-          {t.rebatePending > 0 && <span className="text-muted">Pending <span className="text-[#C9A84C] font-semibold">{usd(t.rebatePending)}</span></span>}
-          {t.rebatePaid > 0 && <span className="text-muted">Paid out <span className="text-text font-semibold">{usd(t.rebatePaid)}</span></span>}
-          <span className="text-muted">= <span className="text-text font-semibold">{lotsFmt(t.lots)}</span> lots traded</span>
+          <span className="text-muted">This month <span className="text-text font-semibold">{money(t.monthlyCommission)}</span></span>
+          <span className="text-muted">Withdrawn <span className="text-text font-semibold">{money(t.withdrawnCommission)}</span></span>
+          {t.clientTransaction != null && <span className="text-muted">Client volume <span className="text-text font-semibold">{money(t.clientTransaction)}</span></span>}
         </div>
       </motion.div>
 
       {/* kpi grid */}
       <div className="flex flex-wrap gap-3">
-        <BKpi label="Lots · lifetime" value={lotsFmt(t.lots)} tone="#00FF85" delay={0.02} />
-        <BKpi label="Lots · this month" value={lotsFmt(t.lotsMonth)} tone="#C9A84C" delay={0.06} />
-        <BKpi label="New lots · 24h" value={lotsFmt(t.newLots24h)} tone="#9b7bff" delay={0.1} />
-        <BKpi label="Traders · trading" value={String(t.trading)} tone="#4a9eff" delay={0.14} />
-        <BKpi label="Accounts · funded" value={String(t.funded)} tone="#4a9eff" delay={0.18} />
-        <BKpi label="Referred · total" value={String(t.traders)} tone="#F5F5F5" delay={0.22} />
-        <BKpi label="Book equity" value={usd(t.equity)} tone="#00FF85" delay={0.26} />
-        <BKpi label="Deposits" value={usd(t.deposits)} tone="#F5F5F5" delay={0.3} />
+        <BKpi label="Total clients" value={cnt(t.totalClients)} tone="#00FF85" delay={0.02} />
+        <BKpi label="Active traders · sub‑IB" value={cnt(t.activeTraders)} tone="#4a9eff" delay={0.06} />
+        <BKpi label="FTD" value={cnt(t.ftd)} tone="#9b7bff" delay={0.1} />
+        <BKpi label="This month" value={money(t.monthlyCommission)} tone="#C9A84C" delay={0.14} />
+        <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.18} />
+        {t.clientTransaction != null && <BKpi label="Client transaction" value={money(t.clientTransaction)} tone="#F5F5F5" delay={0.22} />}
       </div>
 
-      {/* traders table */}
+      {/* sub-IB leaderboard */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <div className="gp-display text-text font-semibold text-sm">Referred accounts <span className="text-muted font-normal">({traders.length})</span></div>
-          <div className="flex items-center gap-1 text-[11px]">
-            <span className="text-muted mr-1">sort</span>
-            {(["lots", "rebate", "balance"] as const).map((s) => (
-              <button key={s} onClick={() => setSortBy(s)} className={`px-2 py-0.5 rounded-md font-mono uppercase tracking-wider transition-colors ${sortBy === s ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text border border-transparent"}`}>{s}</button>
-            ))}
-          </div>
+          <div className="gp-display text-text font-semibold text-sm">Top sub‑IBs by commission <span className="text-muted font-normal">({subs.length})</span></div>
         </div>
-        {traders.length === 0 ? (
-          <div className="p-8 text-center text-muted text-sm">No per-account rows in this sync. Totals above are the book summary.</div>
+        {subs.length === 0 ? (
+          <div className="p-8 text-center text-muted text-sm">No sub‑IBs in this sync.</div>
         ) : (
           <div className="divide-y divide-white/[0.05]">
-            {/* header row (desktop) */}
-            <div className="hidden sm:grid grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.8fr_0.9fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
-              <div>Account</div><div>Status</div><div className="text-right">Balance</div><div className="text-right">Equity</div><div className="text-right">Lots</div><div className="text-right">Rebate</div>
+            <div className="hidden sm:grid grid-cols-[0.4fr_1.8fr_1.4fr_0.9fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
+              <div>#</div><div>Name</div><div>Email</div><div className="text-right">Commission</div>
             </div>
-            {traders.map((tr, i) => {
-              const meta = BROKER_STATUS_META[tr.status] || BROKER_STATUS_META.new;
-              return (
-                <div key={(tr.account || tr.email || tr.name) + i} className="grid grid-cols-2 sm:grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.8fr_0.9fr] gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
-                  <div className="col-span-2 sm:col-span-1 min-w-0">
-                    <div className="text-text text-sm font-medium truncate">{tr.name}</div>
-                    {(tr.account || tr.email) && <div className="text-muted text-[11px] font-mono truncate">{tr.account || tr.email}</div>}
-                  </div>
-                  <div><span className="text-[9px] font-mono uppercase tracking-wider rounded px-1.5 py-0.5 border" style={{ color: meta.color, borderColor: meta.color + "55" }}>{meta.label}</span></div>
-                  <div className="text-right text-text/90 text-sm tabular-nums">{usd(tr.balance)}</div>
-                  <div className="text-right text-text/70 text-sm tabular-nums hidden sm:block">{usd(tr.equity)}</div>
-                  <div className="text-right text-text/90 text-sm tabular-nums">{lotsFmt(tr.lots)}</div>
-                  <div className="text-right text-accent text-sm font-semibold tabular-nums">{usd(tr.rebate)}</div>
-                </div>
-              );
-            })}
+            {subs.map((s, i) => (
+              <div key={(s.email || s.name) + i} className="grid grid-cols-[0.4fr_2fr_1fr] sm:grid-cols-[0.4fr_1.8fr_1.4fr_0.9fr] gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
+                <div className="gp-display font-bold tabular-nums" style={{ color: rankColor(i) }}>{i + 1}</div>
+                <div className="min-w-0"><div className="text-text text-sm font-medium truncate">{properName(s.name)}</div><div className="sm:hidden text-muted text-[11px] font-mono truncate">{s.email}</div></div>
+                <div className="hidden sm:block text-muted text-[12px] font-mono truncate">{s.email}</div>
+                <div className="text-right text-accent text-sm font-semibold tabular-nums">{money(s.commission)}</div>
+              </div>
+            ))}
           </div>
         )}
       </div>
       <div className="text-[11px] text-muted/70 leading-relaxed px-1">
-        Rebate = lots traded × {usd(perLot)}. Balances and volume are read from your Livv Global IB dashboard on the hourly sync.
+        Read from your Livv Global IB dashboard on the hourly sync. Commission is what you earn from your clients&apos; trading volume.
         Educational / business tracking only — not financial advice.
       </div>
     </div>
@@ -1149,7 +1124,7 @@ export default function TrackPage() {
     { id: "inactive", label: "Inactive", n: counts.inactive + counts.lapsed, group: "Book" },
     { id: "active", label: "Active", n: counts.active, group: "Book" },
     { id: "all", label: "Everyone", n: counts.total, group: "Book" },
-    { id: "broker", label: "Broker Book", n: broker?.totals?.trading, group: "Broker" },
+    { id: "broker", label: "Broker Book", n: broker?.totals?.totalClients ?? undefined, group: "Broker" },
     { id: "playbook", label: "Playbook", group: "Win" },
     { id: "system", label: "The System", group: "Win" },
   ];
