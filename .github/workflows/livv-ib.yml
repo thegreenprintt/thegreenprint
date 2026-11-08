@@ -1,0 +1,36 @@
+name: greenprint-livv-ib
+# Reads the Livv IB dashboard (commission, clients, sub-IBs) every hour and posts
+# it to /track's Broker tab. Needs secrets LIVV_EMAIL, LIVV_PASSWORD, GP_ADMIN_KEY.
+on:
+  schedule:
+    - cron: '47 * * * *'   # hourly at :47 UTC (offset from the other readers)
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "debug (1 = verbose, still no dollar values)"
+        required: false
+jobs:
+  livv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright Chromium (isolated)
+        run: |
+          mkdir -p /tmp/pw
+          cd /tmp/pw
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.48.2 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Read Livv IB + post broker snapshot
+        env:
+          LIVV_EMAIL: ${{ secrets.LIVV_EMAIL }}
+          LIVV_PASSWORD: ${{ secrets.LIVV_PASSWORD }}
+          GP_ADMIN_KEY: ${{ secrets.GP_ADMIN_KEY }}
+          DEBUG: ${{ inputs.debug }}
+        run: |
+          cp "$GITHUB_WORKSPACE/scripts/livv-ib.mjs" /tmp/pw/livv-ib.mjs
+          cd /tmp/pw
+          node livv-ib.mjs
