@@ -961,7 +961,10 @@ module.exports = async function handler(req, res) {
       let pulledEarnings = null; const earnDbg = { tried: [], candidates: [], detail: [] };
       try {
         // Lightweight hourly set; a bigger set only when discovering the endpoint.
-        const BASE_PATHS = ['/api/user/dashboard', '/api/dashboard', '/api/user/earnings', '/api/user/earning', '/api/user/income', '/api/user/wallet', '/api/user/statistics', '/api/user/profile'];
+        // /api/profile is the confirmed earnings source: data.total_commission is the
+        // lifetime earnings (total_payout is only what's been withdrawn). It leads the
+        // list so the hourly pull grabs it directly; the rest are fallbacks.
+        const BASE_PATHS = ['/api/profile', '/api/user/dashboard', '/api/user/earnings', '/api/user/earning', '/api/user/income'];
         const MORE_PATHS = ['/api/user/dashboard-data', '/api/user/home', '/api/home', '/api/user/overview', '/api/user/summary', '/api/user/stats', '/api/user/board', '/api/user/incomes', '/api/user/earning-summary', '/api/user/income-summary', '/api/user/earning-statics', '/api/user/earning-statistics', '/api/user/total-earning', '/api/user/total-income', '/api/user/wallet-balance', '/api/user/payout', '/api/user/payouts', '/api/user/commissions', '/api/user/commission', '/api/user/rewards', '/api/user/bonus', '/api/user/rank', '/api/user/team-sales', '/api/user/sales', '/api/user/report', '/api/user', '/api/me', '/api/profile', '/api/user/detail', '/api/user/details', '/api/dashboard/user', '/api/user/me'];
         const EARN_PATHS = DISCOVER ? BASE_PATHS.concat(MORE_PATHS) : BASE_PATHS;
         const STRICT = /(?:lifetime|total|net|overall)[_\s]*earn|earn[_\s]*(?:lifetime|total)|lifetime[_\s]*income|total[_\s]*income|total[_\s]*commission/i;
