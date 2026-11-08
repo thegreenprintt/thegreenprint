@@ -1004,7 +1004,14 @@ module.exports = async function handler(req, res) {
         // Units check only — never the amount: number of whole digits and whether it
         // has cents, so we can confirm it's dollars (~4-5 digits) not cents or zero.
         const mag = pulledEarnings != null ? { digits: String(Math.floor(Math.abs(pulledEarnings))).length, hasCents: Math.round(pulledEarnings * 100) % 100 !== 0, positive: pulledEarnings > 0 } : null;
-        return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null, mag: mag } });
+        // expect=<n>: compare (never logs the amount) — reports whether the pulled value
+        // matches and WHICH field equals n, so the right earnings field is confirmed.
+        const exp = Number((req.query && req.query.expect) || '');
+        let match = null;
+        if (isFinite(exp)) {
+          match = { matchesPulled: pulledEarnings != null && Math.abs(pulledEarnings - exp) < 1, matchField: (earnDbg.candidates.find((c) => Math.abs(c.v - exp) < 1) || {}).k || null };
+        }
+        return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null, mag: mag, match: match } });
       }
       const goal = { earnings: (pulledEarnings != null ? Math.round(pulledEarnings * 100) / 100 : prevEarn), target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
