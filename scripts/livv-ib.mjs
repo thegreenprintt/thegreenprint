@@ -172,10 +172,16 @@ async function main() {
   if (DEBUG && snap.subIBs && snap.subIBs.length) {
     const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
     const byName = {}; for (const c of clients) byName[norm(c.name)] = c;
+    const perLot = snap.payPerLot || 25;
     for (const s of snap.subIBs) {
       const self = byName[norm(s.name)];
       const match = self ? (Math.abs((self.commission || 0) - (s.commission || 0)) < 0.01) : null;
-      log("xcheck subIB '" + s.name + "': inRoster=" + !!self + " rosterCommMatchesLeaderboard=" + match);
+      // team = clients whose sponsor (IB Name) is this sub-IB; does teamVol × perLot
+      // (and teamVol × 25) equal their real leaderboard commission?
+      const team = clients.filter((c) => norm(c.ibName) === norm(s.name));
+      const teamVol = team.reduce((a, c) => a + (c.volume || 0), 0);
+      const near = (x) => s.commission != null && Math.abs(x - s.commission) < Math.max(0.5, s.commission * 0.03);
+      log("xcheck '" + s.name + "': rosterCommMatch=" + match + " teamSize=" + team.length + " teamVolxPerLot~=" + near(teamVol * perLot) + " teamVolx25~=" + near(teamVol * 25));
     }
   }
 
