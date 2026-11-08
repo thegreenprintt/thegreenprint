@@ -1017,7 +1017,12 @@ module.exports = async function handler(req, res) {
         }
         return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null, mag: mag, match: match } });
       }
-      const goal = { earnings: (pulledEarnings != null ? Math.round(pulledEarnings * 100) / 100 : prevEarn), target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
+      // NOTE: One House's API does not expose the dashboard "Lifetime Earnings" figure
+      // (the /api/user/dashboard route 500s; total_commission is a different number), so
+      // we do NOT auto-overwrite earnings here — that would show a wrong value. earnings
+      // is owned by whatever last set it via ?kind=track-goal (the ✎ editor, or the
+      // hourly browser scrape that reads the real dashboard number). We only preserve it.
+      const goal = { earnings: prevEarn, target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
       try { await r.set('gp:track:v1', JSON.stringify(record)); await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
       // 4b) incremental geo — fill real city/state/phone for members that don't have it yet
