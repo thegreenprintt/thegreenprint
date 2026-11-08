@@ -65,29 +65,59 @@ async function main() {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   let earnings = null;
-  try {
-    // 1) open the app origin so we can write its localStorage
-    await page.goto(FRONTEND, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
-    await page.evaluate((t) => {
-      try { for (const k of ["accessToken", "token", "authToken", "access_token"]) localStorage.setItem(k, t); } catch (e) {}
-    }, token);
-    log("token injected into localStorage");
 
-    // 2) load the dashboard and let the SPA render
-    await page.goto(FRONTEND + "/user/dashboard", { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
-    // click a "Go To Dashboard" splash button if present
-    try { const btn = page.getByText(/go to dashboard/i); if (await btn.count()) { await btn.first().click({ timeout: 4000 }); } } catch (e) {}
-    // wait up to ~25s for the label to appear
-    for (let i = 0; i < 25; i++) {
-      const text = await page.evaluate(() => document.body ? document.body.innerText : "");
-      earnings = parseEarnings(text);
-      if (earnings != null) break;
+  const diag = async (where) => {
+    try {
+      const info = await page.evaluate(() => ({ url: location.href, title: document.title, hasLabel: /lifetime\s*earnings/i.test(document.body ? document.body.innerText : ""), dollars: ((document.body ? document.body.innerText : "").match(/\$/g) || []).length, chars: (document.body ? document.body.innerText : "").length }));
+      log(where + " → url=" + info.url + " title='" + info.title + "' hasLabel=" + info.hasLabel + " $signs=" + info.dollars + " chars=" + info.chars);
+      return info;
+    } catch (e) { log(where + " → diag_error " + String(e && e.message)); return {}; }
+  };
+  const scrapeLoop = async (secs) => {
+    for (let i = 0; i < secs; i++) {
+      const text = await page.evaluate(() => (document.body ? document.body.innerText : "")).catch(() => "");
+      const e = parseEarnings(text);
+      if (e != null && e > 0) return e;
       await page.waitForTimeout(1000);
     }
+    return null;
+  };
+
+  try {
+    // Approach 1: inject the API token into localStorage, then load the dashboard.
+    await page.goto(FRONTEND, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
+    await page.evaluate((t) => { try { for (const k of ["accessToken", "token", "authToken", "access_token"]) localStorage.setItem(k, t); } catch (e) {} }, token);
+    log("token injected into localStorage");
+    await page.goto(FRONTEND + "/user/dashboard", { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+    try { const btn = page.getByText(/go to dashboard/i); if (await btn.count()) await btn.first().click({ timeout: 4000 }); } catch (e) {}
+    await diag("after token-inject");
+    earnings = await scrapeLoop(20);
+
+    // Approach 2 (fallback): real UI login if the dashboard didn't authenticate.
     if (earnings == null) {
-      const text = await page.evaluate(() => document.body ? document.body.innerText : "");
-      log("could not find 'Lifetime Earnings' on dashboard. Page had 'earnings' keyword: " + /earnings/i.test(text) + ", chars: " + (text || "").length);
+      log("token-inject did not yield earnings — trying a real UI login");
+      const loginUrls = [FRONTEND + "/login", FRONTEND + "/", FRONTEND + "/sign-in"];
+      for (const lu of loginUrls) {
+        await page.goto(lu, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
+        const emailBox = page.locator('input[type="email"], input[name*="email" i], input[placeholder*="email" i]').first();
+        const passBox = page.locator('input[type="password"], input[name*="pass" i], input[placeholder*="password" i]').first();
+        if (await emailBox.count() && await passBox.count()) {
+          log("login form found at " + lu);
+          await emailBox.fill(EMAIL).catch(() => {});
+          await passBox.fill(PASSWORD).catch(() => {});
+          const submit = page.locator('button[type="submit"], button:has-text("Log In"), button:has-text("Login"), button:has-text("Sign In"), button:has-text("Sign in")').first();
+          if (await submit.count()) { await submit.click({ timeout: 8000 }).catch(() => {}); } else { await passBox.press("Enter").catch(() => {}); }
+          await page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => {});
+          break;
+        }
+      }
+      await page.goto(FRONTEND + "/user/dashboard", { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+      try { const btn = page.getByText(/go to dashboard/i); if (await btn.count()) await btn.first().click({ timeout: 4000 }); } catch (e) {}
+      await diag("after UI-login");
+      earnings = await scrapeLoop(20);
     }
+
+    if (earnings == null) await diag("final (not found)");
   } finally {
     await browser.close().catch(() => {});
   }
