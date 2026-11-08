@@ -700,14 +700,7 @@ module.exports = async function handler(req, res) {
     if (kind === 'track-goal') {
       const adminKey = process.env.GP_ADMIN_KEY || '';
       const k = clean(body.key, 128) || qkey;
-      if (!adminKey || k !== adminKey) {
-        // ?debug=1 — non-sensitive auth diagnostics (no keys, just configured/length)
-        // so a 403 can be told apart: server env unset vs. a wrong/short key value.
-        if (String((req.query && req.query.debug) || '') === '1') {
-          return res.status(403).json({ error: 'not_admin', serverKeyConfigured: !!adminKey, serverKeyLen: adminKey.length, sentKeyLen: k.length, lenMatch: !!adminKey && k.length === adminKey.length });
-        }
-        return res.status(403).json({ error: 'not_admin' });
-      }
+      if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
       let rec = null;
       try { rec = JSON.parse((await r.get('gp:track:v1')) || 'null'); } catch (e) { rec = null; }
       if (!rec || typeof rec !== 'object') return res.status(400).json({ error: 'no_snapshot' });
