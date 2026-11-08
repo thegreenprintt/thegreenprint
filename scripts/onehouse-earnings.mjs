@@ -15,9 +15,9 @@
 
 import { chromium } from "playwright";
 
-const EMAIL = process.env.ONE_HOUSE_EMAIL || "";
-const PASSWORD = process.env.ONE_HOUSE_PASSWORD || "";
-const ADMIN_KEY = process.env.GP_ADMIN_KEY || "";
+const EMAIL = (process.env.ONE_HOUSE_EMAIL || "").trim();
+const PASSWORD = (process.env.ONE_HOUSE_PASSWORD || "").trim();
+const ADMIN_KEY = (process.env.GP_ADMIN_KEY || "").trim(); // trim: paste often adds a newline
 const SITE = (process.env.SITE || "https://thegreenprint.trade").replace(/\/$/, "");
 const EXPECT = process.env.EXPECT ? Number(process.env.EXPECT) : null;
 const BACKEND = "https://backend.1houseglobal.dev";
