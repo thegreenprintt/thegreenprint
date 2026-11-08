@@ -27,6 +27,9 @@ interface Lead { _key: string; name?: string; email?: string; phone?: string; st
 interface TreeNode { id: number; sp: number | null; name: string; email: string; active: number; subs: number; lvl: number; paid?: number; lastEnroll?: string | null; }
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
+interface BrokerTrader { name: string; email: string; account: string; balance: number; equity: number; lots: number; lotsMonth: number; rebate: number; deposits: number; status: string; lastTradeAt: string | null; }
+interface BrokerTotals { lots: number; lotsMonth: number; rebate: number; rebateMonth: number; rebatePending: number; rebatePaid: number; traders: number; funded: number; trading: number; deposits: number; equity: number; newLots24h: number; }
+interface Broker { updatedAt: number; source: string; broker: string; perLot: number; totals: BrokerTotals; traders: BrokerTrader[]; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
 type VoiceKey = "default" | "auntie" | "og" | "homie";
@@ -652,7 +655,7 @@ function NotifyBell() {
   );
 }
 
-type View = "today" | "focus" | "pipeline" | "community" | "due" | "inactive" | "active" | "all" | "playbook" | "system";
+type View = "today" | "focus" | "pipeline" | "community" | "due" | "inactive" | "active" | "all" | "broker" | "playbook" | "system";
 
 /* ── AI Command: a living read on the board that names your highest-leverage play ── */
 function AICommand({ moves, markFor, openLeads, counts, goal, onTouch }: {
@@ -749,6 +752,139 @@ function AICommand({ moves, markFor, openLeads, counts, goal, onTouch }: {
   );
 }
 
+/* ── Broker / IB Book: Livv Global rebates off referred trading volume ────────
+   Jay earns a flat rebate per lot his referred traders trade. This view reads the
+   broker snapshot (pushed hourly) and shows what he's earned, the lots behind it,
+   and every referred account's balance + volume. No fake numbers: until the first
+   hourly sync lands it shows a clean "awaiting sync" state. */
+const usd = (n: number) => "$" + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const lotsFmt = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+function BKpi({ label, value, tone, delay, big }: { label: string; value: string; tone: string; delay: number; big?: boolean }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="gp-card group relative flex-1 min-w-[120px] overflow-hidden rounded-2xl p-4 transition-transform hover:-translate-y-0.5">
+      <div className="absolute inset-x-0 top-0 h-px z-[1]" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-25 group-hover:opacity-60 transition-opacity" style={{ background: tone }} />
+      <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-2">{label}</div>
+      <div className={`gp-display gp-num relative z-[1] ${big ? "text-[40px]" : "text-[28px]"} leading-none font-bold`} style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{value}</div>
+    </motion.div>
+  );
+}
+
+const BROKER_STATUS_META: Record<string, { label: string; color: string }> = {
+  trading: { label: "TRADING", color: "#00FF85" },
+  funded: { label: "FUNDED", color: "#4a9eff" },
+  new: { label: "NEW", color: "#8a8a8a" },
+  idle: { label: "IDLE", color: "#C9A84C" },
+};
+
+function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number }) {
+  const [sortBy, setSortBy] = useState<"lots" | "rebate" | "balance">("lots");
+  if (!broker) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center">
+        <div className="text-[34px] mb-2">📈</div>
+        <div className="gp-display text-text font-bold text-lg mb-1">Broker book not synced yet</div>
+        <div className="text-muted text-sm max-w-md mx-auto leading-relaxed">
+          This is your Livv Global IB book — every referred trader&apos;s balance and the lots they trade, with your
+          rebate at <span className="text-accent font-semibold">$25 / lot</span>. It fills in on the first hourly sync
+          from your Livv dashboard. Nothing is shown until real numbers land.
+        </div>
+      </motion.div>
+    );
+  }
+  const t = broker.totals;
+  const perLot = broker.perLot || 25;
+  const agoMin = broker.updatedAt ? Math.max(0, Math.floor((nowTs - broker.updatedAt) / 60000)) : null;
+  const ago = agoMin == null ? "—" : agoMin < 1 ? "just now" : agoMin < 60 ? agoMin + "m ago" : Math.floor(agoMin / 60) + "h ago";
+  const traders = [...(broker.traders || [])].sort((a, b) => (Number(b[sortBy]) || 0) - (Number(a[sortBy]) || 0));
+
+  return (
+    <div className="space-y-5">
+      {/* header strip */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+          <span className="gp-display text-text font-semibold">{broker.broker || "Livv Global"} · IB Book</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-accent/80 border border-accent/25 rounded px-1.5 py-0.5">{usd(perLot)} / lot</span>
+        </div>
+        <div className="text-[11px] font-mono text-muted">updated {ago} · hourly</div>
+      </div>
+
+      {/* hero: rebate earned */}
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="gp-card relative overflow-hidden rounded-2xl p-6">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl opacity-30" style={{ background: "#00FF85" }} />
+        <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Rebate earned · lifetime</div>
+        <div className="gp-display gp-num relative z-[1] text-[52px] sm:text-[64px] leading-none font-bold text-accent" style={{ textShadow: "0 0 36px #00FF8540" }}>{usd(t.rebate)}</div>
+        <div className="relative z-[1] mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <span className="text-muted">This month <span className="text-text font-semibold">{usd(t.rebateMonth)}</span></span>
+          {t.rebatePending > 0 && <span className="text-muted">Pending <span className="text-[#C9A84C] font-semibold">{usd(t.rebatePending)}</span></span>}
+          {t.rebatePaid > 0 && <span className="text-muted">Paid out <span className="text-text font-semibold">{usd(t.rebatePaid)}</span></span>}
+          <span className="text-muted">= <span className="text-text font-semibold">{lotsFmt(t.lots)}</span> lots traded</span>
+        </div>
+      </motion.div>
+
+      {/* kpi grid */}
+      <div className="flex flex-wrap gap-3">
+        <BKpi label="Lots · lifetime" value={lotsFmt(t.lots)} tone="#00FF85" delay={0.02} />
+        <BKpi label="Lots · this month" value={lotsFmt(t.lotsMonth)} tone="#C9A84C" delay={0.06} />
+        <BKpi label="New lots · 24h" value={lotsFmt(t.newLots24h)} tone="#9b7bff" delay={0.1} />
+        <BKpi label="Traders · trading" value={String(t.trading)} tone="#4a9eff" delay={0.14} />
+        <BKpi label="Accounts · funded" value={String(t.funded)} tone="#4a9eff" delay={0.18} />
+        <BKpi label="Referred · total" value={String(t.traders)} tone="#F5F5F5" delay={0.22} />
+        <BKpi label="Book equity" value={usd(t.equity)} tone="#00FF85" delay={0.26} />
+        <BKpi label="Deposits" value={usd(t.deposits)} tone="#F5F5F5" delay={0.3} />
+      </div>
+
+      {/* traders table */}
+      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06]">
+          <div className="gp-display text-text font-semibold text-sm">Referred accounts <span className="text-muted font-normal">({traders.length})</span></div>
+          <div className="flex items-center gap-1 text-[11px]">
+            <span className="text-muted mr-1">sort</span>
+            {(["lots", "rebate", "balance"] as const).map((s) => (
+              <button key={s} onClick={() => setSortBy(s)} className={`px-2 py-0.5 rounded-md font-mono uppercase tracking-wider transition-colors ${sortBy === s ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text border border-transparent"}`}>{s}</button>
+            ))}
+          </div>
+        </div>
+        {traders.length === 0 ? (
+          <div className="p-8 text-center text-muted text-sm">No per-account rows in this sync. Totals above are the book summary.</div>
+        ) : (
+          <div className="divide-y divide-white/[0.05]">
+            {/* header row (desktop) */}
+            <div className="hidden sm:grid grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.8fr_0.9fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
+              <div>Account</div><div>Status</div><div className="text-right">Balance</div><div className="text-right">Equity</div><div className="text-right">Lots</div><div className="text-right">Rebate</div>
+            </div>
+            {traders.map((tr, i) => {
+              const meta = BROKER_STATUS_META[tr.status] || BROKER_STATUS_META.new;
+              return (
+                <div key={(tr.account || tr.email || tr.name) + i} className="grid grid-cols-2 sm:grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.8fr_0.9fr] gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
+                  <div className="col-span-2 sm:col-span-1 min-w-0">
+                    <div className="text-text text-sm font-medium truncate">{tr.name}</div>
+                    {(tr.account || tr.email) && <div className="text-muted text-[11px] font-mono truncate">{tr.account || tr.email}</div>}
+                  </div>
+                  <div><span className="text-[9px] font-mono uppercase tracking-wider rounded px-1.5 py-0.5 border" style={{ color: meta.color, borderColor: meta.color + "55" }}>{meta.label}</span></div>
+                  <div className="text-right text-text/90 text-sm tabular-nums">{usd(tr.balance)}</div>
+                  <div className="text-right text-text/70 text-sm tabular-nums hidden sm:block">{usd(tr.equity)}</div>
+                  <div className="text-right text-text/90 text-sm tabular-nums">{lotsFmt(tr.lots)}</div>
+                  <div className="text-right text-accent text-sm font-semibold tabular-nums">{usd(tr.rebate)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="text-[11px] text-muted/70 leading-relaxed px-1">
+        Rebate = lots traded × {usd(perLot)}. Balances and volume are read from your Livv Global IB dashboard on the hourly sync.
+        Educational / business tracking only — not financial advice.
+      </div>
+    </div>
+  );
+}
+
 export default function TrackPage() {
   const [pass, setPass] = useState(""); const [input, setInput] = useState("");
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -765,6 +901,7 @@ export default function TrackPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [geo, setGeo] = useState<Record<string, { p?: string; c?: string; s?: string }>>({});
+  const [broker, setBroker] = useState<Broker | null>(null);
 
   const load = useCallback(async (key: string, silent = false) => {
     if (!silent) { setLoading(true); setErr(""); }
@@ -775,6 +912,7 @@ export default function TrackPage() {
       if (j.marks && typeof j.marks === "object") setMarks((prev) => ({ ...prev, ...j.marks }));
       if (Array.isArray(j.tree)) setTree(j.tree);
       if (j.geo && typeof j.geo === "object") setGeo(j.geo);
+      setBroker(j.broker && typeof j.broker === "object" ? j.broker : null);
       try { localStorage.setItem(LS_KEY, key); } catch {}
     } catch { if (!silent) setErr("Could not reach the server."); }
     if (!silent) setLoading(false);
@@ -972,13 +1110,14 @@ export default function TrackPage() {
     { id: "inactive", label: "Inactive", n: counts.inactive + counts.lapsed, group: "Book" },
     { id: "active", label: "Active", n: counts.active, group: "Book" },
     { id: "all", label: "Everyone", n: counts.total, group: "Book" },
+    { id: "broker", label: "Broker Book", n: broker?.totals?.trading, group: "Broker" },
     { id: "playbook", label: "Playbook", group: "Win" },
     { id: "system", label: "The System", group: "Win" },
   ];
-  const groups = ["Work", "Book", "Win"];
+  const groups = ["Work", "Book", "Broker", "Win"];
   const listViews: View[] = ["due", "inactive", "active", "all"];
   const showHero = view === "today" || view === "focus" || view === "pipeline";
-  const showTiles = view !== "playbook" && view !== "system" && view !== "community";
+  const showTiles = view !== "playbook" && view !== "system" && view !== "community" && view !== "broker";
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
 
   return (
@@ -1068,6 +1207,7 @@ export default function TrackPage() {
               { id: "due", label: "Due This Week", icon: "⏰" },
               { id: "inactive", label: "Inactive", icon: "💤" },
               { id: "active", label: "Active", icon: "✅" },
+              { id: "broker", label: "Broker Book", icon: "📈" },
               { id: "playbook", label: "Playbook", icon: "📘" },
               { id: "system", label: "The System", icon: "🧭" },
             ];
@@ -1112,7 +1252,7 @@ export default function TrackPage() {
             );
           })()}
 
-          {!snap && <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center"><div className="text-text font-semibold mb-1">No snapshot yet</div><div className="text-muted text-sm">The next refresh will fill this in.</div></div>}
+          {!snap && view !== "broker" && <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center"><div className="text-text font-semibold mb-1">No snapshot yet</div><div className="text-muted text-sm">The next refresh will fill this in.</div></div>}
 
           {snap && showTiles && (
             <div className={`mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5 ${view === "today" || view === "focus" ? "" : "hidden lg:block"}`}>
@@ -1284,6 +1424,9 @@ export default function TrackPage() {
               <div className="text-center text-[11px] font-mono text-muted mt-4">Showing {list.length} of {counts.total} · badges reflect people brought in, not earnings</div>
             </>
           )}
+
+          {/* BROKER / IB BOOK VIEW */}
+          {view === "broker" && <BrokerView broker={broker} nowTs={nowTs} />}
 
           {/* COMMUNITY VIEW */}
           {snap && view === "community" && <CommunityView members={members} tree={tree} />}

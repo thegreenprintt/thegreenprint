@@ -590,8 +590,107 @@ module.exports = async function handler(req, res) {
       try { tree = JSON.parse((await r.get('gp:track:tree')) || '[]') || []; } catch (e) { tree = []; }
       let geo = {};
       try { geo = JSON.parse((await r.get('gp:track:geo')) || '{}') || {}; } catch (e) { geo = {}; }
+      let broker = null;
+      try { broker = JSON.parse((await r.get('gp:broker:v1')) || 'null'); } catch (e) { broker = null; }
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo });
+      return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo, broker: broker });
+    }
+
+    // ── BROKER / IB BOOK — Livv Global IB rebates off referred trading volume ──
+    //   Jay earns a flat rebate per lot his referred traders trade (default $25).
+    //   POST ?kind=broker {key:GP_ADMIN_KEY, source, perLot?, broker:{totals, traders[]}}
+    //         -> store the latest IB snapshot. A missing/empty snapshot is rejected
+    //            so a failed hourly pull never wipes the last good numbers.
+    //   GET  ?kind=broker&key=<GP_ADMIN_KEY|GP_TRACK_KEY|passcode>
+    //         -> return the stored broker snapshot (the /track Broker view reads this,
+    //            and ?kind=track returns it inline too).
+    if (kind === 'broker') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
+      const BKEY = 'gp:broker:v1';
+      const perLotDefault = Number(process.env.BROKER_PER_LOT) || 25;
+      if (req.method === 'POST') {
+        const k = clean(body.key, 128) || qkey;
+        if (!adminKey || k !== adminKey) return res.status(403).json({ error: 'not_admin' });
+        const b = (body.broker && typeof body.broker === 'object') ? body.broker : null;
+        const rawTraders = (b && Array.isArray(b.traders)) ? b.traders : [];
+        const rawTotals = (b && b.totals && typeof b.totals === 'object') ? b.totals : {};
+        const lots0 = Number(rawTotals.lots) || 0;
+        // Never store an empty/partial snapshot: need either per-trader rows or a lot count.
+        if (!b || (rawTraders.length === 0 && lots0 <= 0)) {
+          return res.status(400).json({ error: 'bad_snapshot' });
+        }
+        const perLot = Number(body.perLot) || Number(b.perLot) || perLotDefault;
+        const num = (v) => { const n = Number(v); return isFinite(n) ? n : 0; };
+        const round2 = (n) => Math.round(n * 100) / 100;
+        // Normalise per-trader rows and fill rebate from lots when not supplied.
+        const traders = rawTraders.slice(0, 2000).map((t) => {
+          const lots = num(t.lots);
+          return {
+            name: clean(t.name, 80) || clean(t.account, 40) || 'Trader',
+            email: clean(t.email, 160).toLowerCase(),
+            account: clean(t.account, 48),
+            balance: round2(num(t.balance)),
+            equity: round2(num(t.equity != null ? t.equity : t.balance)),
+            lots: round2(lots),
+            lotsMonth: round2(num(t.lotsMonth)),
+            rebate: round2(t.rebate != null ? num(t.rebate) : lots * perLot),
+            deposits: round2(num(t.deposits)),
+            status: clean(t.status, 16) || (lots > 0 ? 'trading' : (num(t.balance) > 0 ? 'funded' : 'new')),
+            lastTradeAt: clean(t.lastTradeAt, 40) || null,
+          };
+        });
+        // Derive book-level totals from rows when the push didn't send them.
+        const sum = (f) => traders.reduce((a, t) => a + (Number(t[f]) || 0), 0);
+        const lots = lots0 > 0 ? lots0 : sum('lots');
+        const totals = {
+          lots: round2(lots),
+          lotsMonth: round2(rawTotals.lotsMonth != null ? num(rawTotals.lotsMonth) : sum('lotsMonth')),
+          rebate: round2(rawTotals.rebate != null ? num(rawTotals.rebate) : lots * perLot),
+          rebateMonth: round2(rawTotals.rebateMonth != null ? num(rawTotals.rebateMonth) : (rawTotals.lotsMonth != null ? num(rawTotals.lotsMonth) : sum('lotsMonth')) * perLot),
+          rebatePending: round2(num(rawTotals.rebatePending)),
+          rebatePaid: round2(num(rawTotals.rebatePaid)),
+          traders: rawTotals.traders != null ? Math.round(num(rawTotals.traders)) : traders.length,
+          funded: rawTotals.funded != null ? Math.round(num(rawTotals.funded)) : traders.filter((t) => t.balance > 0).length,
+          trading: rawTotals.trading != null ? Math.round(num(rawTotals.trading)) : traders.filter((t) => t.lots > 0).length,
+          deposits: round2(rawTotals.deposits != null ? num(rawTotals.deposits) : sum('deposits')),
+          equity: round2(rawTotals.equity != null ? num(rawTotals.equity) : sum('equity')),
+          newLots24h: round2(num(rawTotals.newLots24h)),
+        };
+        const record = {
+          updatedAt: Date.now(),
+          source: clean(body.source, 24) || clean(b.source, 24) || 'manual',
+          broker: clean(b.name, 40) || 'Livv Global',
+          perLot: perLot,
+          totals: totals,
+          traders: traders,
+        };
+        try { await r.set(BKEY, JSON.stringify(record)); }
+        catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
+        // Alert Jay on fresh volume since the last hourly pull.
+        try {
+          let prev = null; try { prev = JSON.parse((await r.get('gp:broker:notify:last')) || 'null'); } catch (e2) {}
+          if (prev && typeof prev.lots === 'number') {
+            const d = round2(totals.lots - prev.lots);
+            if (d >= 1) {
+              const earned = round2(d * perLot);
+              await sendPush(r, '📈 ' + d + ' new lot' + (d === 1 ? '' : 's') + ' traded', 'Your book just added $' + earned.toLocaleString() + ' in rebates. Open the Broker tab.', '/track', OKEY).catch(() => {});
+            }
+          }
+          await r.set('gp:broker:notify:last', JSON.stringify({ lots: totals.lots, rebate: totals.rebate, ts: record.updatedAt }));
+        } catch (e) {}
+        return res.status(200).json({ ok: true, stored: traders.length, lots: totals.lots, rebate: totals.rebate, updatedAt: record.updatedAt });
+      }
+      // GET — read, gated like the tracker (admin key, env view key, or passcode).
+      const k = qkey || clean(body.key, 128);
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
+      let rec = null;
+      try { rec = JSON.parse((await r.get(BKEY)) || 'null'); } catch (e) { rec = null; }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, broker: rec });
     }
 
     // ── LEADS — leads now live in PRIVATE Redis, never the public Firebase DB ─
