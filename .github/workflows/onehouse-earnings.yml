@@ -4,7 +4,7 @@ name: greenprint-onehouse-earnings
 # ONE_HOUSE_PASSWORD, GP_ADMIN_KEY. Runs hands-off; no personal computer required.
 on:
   schedule:
-    - cron: '41 * * * *'   # hourly at :41 UTC (offset from the genealogy refresh)
+    - cron: '11,41 * * * *'   # twice hourly (GitHub drops some scheduled runs)
   workflow_dispatch:
     inputs:
       expect:

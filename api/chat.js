@@ -641,6 +641,33 @@ module.exports = async function handler(req, res) {
             funded: (balance || 0) > 0,
           };
         }).sort((a, b2) => (b2.volume || 0) - (a.volume || 0));
+        // ── History + per-client movement (what Jay can't see on Livv) ──────────
+        // Deltas vs the last sync and vs a daily baseline ~a week back, plus a
+        // "newly funded" flag. All best-effort; never blocks the store.
+        const ckey = (c) => (c.tradingId || c.email || c.name || '').toLowerCase();
+        let baselineDate = null;
+        try {
+          const round2b = (n) => (n == null ? null : Math.round(n * 100) / 100);
+          // previous snapshot → since-last-sync delta
+          const prevMap = {};
+          try { const p = JSON.parse((await r.get(BKEY)) || 'null'); if (p && Array.isArray(p.clients)) for (const c of p.clients) prevMap[ckey(c)] = c; } catch (e2) {}
+          // write today's daily baseline once (first sync of the day)
+          const dayStr = (off) => { const d = new Date(Date.now() - off * 86400000); return d.toISOString().slice(0, 10); };
+          const todayKey = 'gp:broker:day:' + dayStr(0);
+          let hasToday = false; try { hasToday = !!(await r.get(todayKey)); } catch (e2) {}
+          if (!hasToday) { const base = {}; for (const c of clients) base[ckey(c)] = { b: c.balance, v: c.volume }; try { await r.set(todayKey, JSON.stringify(base), 'EX', 60 * 60 * 24 * 40); } catch (e2) {} }
+          // find a baseline ~7 days back (closest available)
+          let weekBase = null;
+          for (const off of [7, 6, 8, 5, 9, 4, 10, 3, 2, 1]) { try { const v = JSON.parse((await r.get('gp:broker:day:' + dayStr(off))) || 'null'); if (v) { weekBase = v; baselineDate = dayStr(off); break; } } catch (e2) {} }
+          for (const c of clients) {
+            const kk = ckey(c); const pv = prevMap[kk]; const wb = weekBase && weekBase[kk];
+            c.dBalance = pv ? round2b((c.balance || 0) - (Number(pv.balance) || 0)) : null;
+            c.dVolume = pv ? round2b((c.volume || 0) - (Number(pv.volume) || 0)) : null;
+            c.wBalance = wb ? round2b((c.balance || 0) - (Number(wb.b) || 0)) : null;
+            c.wVolume = wb ? round2b((c.volume || 0) - (Number(wb.v) || 0)) : null;
+            c.newFunded = wb ? ((Number(wb.b) || 0) <= 0 && (c.balance || 0) > 0) : false;
+          }
+        } catch (e) {}
         const csum = (f) => clients.reduce((a, c) => a + (Number(c[f]) || 0), 0);
         const totals = {
           monthlyCommission: round2(num(rawTotals.monthlyCommission)),
@@ -671,6 +698,7 @@ module.exports = async function handler(req, res) {
           totals: totals,
           subIBs: subIBs,
           clients: clients,
+          baselineDate: baselineDate,
         };
         try { await r.set(BKEY, JSON.stringify(record)); }
         catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }

@@ -3,7 +3,9 @@ name: greenprint-livv-ib
 # it to /track's Broker tab. Needs secrets LIVV_EMAIL, LIVV_PASSWORD, GP_ADMIN_KEY.
 on:
   schedule:
-    - cron: '47 * * * *'   # hourly at :47 UTC (offset from the other readers)
+    # GitHub drops scheduled runs under load, so fire several times an hour to
+    # stay fresh even when some are skipped. The reader is cheap + idempotent.
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
     inputs:
       debug:

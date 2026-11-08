@@ -28,9 +28,9 @@ interface TreeNode { id: number; sp: number | null; name: string; email: string;
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 interface BrokerSubIB { name: string; email: string; commission: number; }
-interface BrokerClient { name: string; email: string; phone: string; tradingId: string; balance: number | null; volume: number | null; commission: number | null; ibName: string; level: number; funded: boolean; }
+interface BrokerClient { name: string; email: string; phone: string; tradingId: string; balance: number | null; volume: number | null; commission: number | null; ibName: string; level: number; funded: boolean; dBalance?: number | null; dVolume?: number | null; wBalance?: number | null; wVolume?: number | null; newFunded?: boolean; }
 interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; roster?: number; funded?: number; unfunded?: number; trading?: number; totalBalance?: number; totalVolume?: number; }
-interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; clients?: BrokerClient[]; }
+interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; clients?: BrokerClient[]; baselineDate?: string | null; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
 type VoiceKey = "default" | "auntie" | "og" | "homie";
@@ -813,10 +813,86 @@ function BKpi({ label, value, tone, delay, big }: { label: string; value: string
 }
 
 const volFmt = (n: number | null | undefined) => (n == null ? "—" : (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-US", { maximumFractionDigits: 2 }));
+const bMoney = (n: number | null | undefined) => (n == null ? "—" : usd(n));
+
+function clientTag(c: BrokerClient): { label: string; color: string; hint: string } {
+  const v = c.volume || 0;
+  if (c.funded && v <= 0) return { label: "READY", color: "#C9A84C", hint: "Funded but not trading — reach out" };
+  if (c.funded && v > 0) return { label: "ACTIVE", color: "#00FF85", hint: "Funded & trading" };
+  if (!c.funded && v > 0) return { label: "DREW DOWN", color: "#FF6B6B", hint: "Traded, balance now empty" };
+  return { label: "UNFUNDED", color: "#8a8a8a", hint: "Hasn't funded yet" };
+}
+
+/* Per-client action sheet — see everything + text/email them in Jay's voice */
+function ClientSheet({ c, onClose }: { c: BrokerClient; onClose: () => void }) {
+  const first = firstName(c.name) || "there";
+  const digits = (c.phone || "").replace(/[^\d+]/g, "");
+  const vibes = [
+    { k: "funded", label: "Funded up?", msg: `Yo ${first}, you funded up and ready for the week? 💚 Let's eat.` },
+    { k: "feeling", label: "How you feeling?", msg: `${first}! How you feeling about the markets this week? I'm here if you need anything.` },
+    { k: "trade", label: "Let's get it", msg: `${first} — big week ahead, let's get it. You trading?` },
+    { k: "reactivate", label: "Come back", msg: `${first}, been a minute. Let's get you back active this week — I got you.` },
+  ];
+  const [msg, setMsg] = useState(vibes[0].msg);
+  const [copied, setCopied] = useState(false);
+  const tag = clientTag(c);
+  const sms = digits ? `sms:${digits}?&body=${encodeURIComponent(msg)}` : "";
+  const mail = c.email ? `mailto:${c.email}?subject=${encodeURIComponent("Quick one from Jay")}&body=${encodeURIComponent(msg)}` : "";
+  const Stat = ({ label, value, tone }: { label: string; value: string; tone?: string }) => (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1">{label}</div><div className="gp-display text-base font-bold tabular-nums" style={{ color: tone || "#F5F5F5" }}>{value}</div></div>
+  );
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 w-full max-w-lg rounded-t-3xl border-t border-white/10 bg-surface2 p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto">
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <div className="gp-display text-text font-bold text-lg truncate">{properName(c.name)}</div>
+            <div className="text-muted text-[12px] font-mono truncate">{c.email || "no email"}{c.phone ? " · " + c.phone : ""}</div>
+            <div className="text-muted/70 text-[11px] font-mono mt-0.5">Level {c.level}{c.ibName ? " · under " + properName(c.ibName) : ""}{c.tradingId ? " · " + c.tradingId : ""}</div>
+          </div>
+          <span className="shrink-0 text-[10px] font-mono uppercase tracking-wider rounded px-2 py-1 border" style={{ color: tag.color, borderColor: tag.color + "55" }}>{tag.label}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <Stat label="Funded" value={c.funded ? bMoney(c.balance) : "No"} tone={c.funded ? "#00FF85" : "#8a8a8a"} />
+          <Stat label="Volume" value={volFmt(c.volume)} tone="#4a9eff" />
+          <Stat label="Commission" value={bMoney(c.commission)} tone="#C9A84C" />
+        </div>
+        {(c.wVolume != null || c.wBalance != null) && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] mb-3 px-1">
+            {c.wVolume != null && <span className="text-muted">Volume this wk <span className="font-semibold" style={{ color: c.wVolume > 0 ? "#00FF85" : c.wVolume < 0 ? "#FF6B6B" : "#F5F5F5" }}>{c.wVolume > 0 ? "+" : ""}{volFmt(c.wVolume)}</span></span>}
+            {c.wBalance != null && <span className="text-muted">Funding this wk <span className="font-semibold" style={{ color: c.wBalance > 0 ? "#00FF85" : c.wBalance < 0 ? "#FF6B6B" : "#F5F5F5" }}>{c.wBalance > 0 ? "+" : ""}{bMoney(c.wBalance)}</span></span>}
+          </div>
+        )}
+        <div className="text-[10px] font-mono uppercase tracking-wider text-muted mb-1.5">Reach out</div>
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {vibes.map((v) => (
+            <button key={v.k} onClick={() => setMsg(v.msg)} className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-colors ${msg === v.msg ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text border border-white/10"}`}>{v.label}</button>
+          ))}
+        </div>
+        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={3} className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2.5 text-[15px] outline-none focus:border-accent resize-none mb-3" />
+        <div className="grid grid-cols-2 gap-2">
+          {sms
+            ? <a href={sms} className="flex items-center justify-center gap-2 rounded-xl bg-accent text-bg font-bold py-3 text-sm active:scale-95 transition-transform">💬 Text</a>
+            : <div className="flex items-center justify-center rounded-xl border border-white/10 text-muted py-3 text-sm">No phone</div>}
+          {mail
+            ? <a href={mail} className="flex items-center justify-center gap-2 rounded-xl bg-gold text-bg font-bold py-3 text-sm active:scale-95 transition-transform">✉ Email</a>
+            : <div className="flex items-center justify-center rounded-xl border border-white/10 text-muted py-3 text-sm">No email</div>}
+        </div>
+        <button onClick={() => { try { navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {} }} className="w-full mt-2 rounded-xl border border-white/10 text-muted py-2 text-[12px] font-mono hover:text-text transition-colors">{copied ? "copied ✓" : "copy message"}</button>
+        <button onClick={onClose} className="w-full mt-2 text-muted text-[12px] py-1">close</button>
+      </motion.div>
+    </div>,
+    document.body
+  );
+}
 
 function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number }) {
-  const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "name">("volume");
-  const [filter, setFilter] = useState<"all" | "funded" | "unfunded">("all");
+  const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "growth" | "name">("volume");
+  const [filter, setFilter] = useState<"all" | "funded" | "unfunded" | "ready">("all");
+  const [openClient, setOpenClient] = useState<BrokerClient | null>(null);
   if (!broker) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -838,12 +914,26 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const all = broker.clients || [];
   const rosterN = t.roster ?? all.length;
   const fundedN = t.funded ?? all.filter((c) => c.funded).length;
-  const filtered = all.filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : !c.funded));
+  const ready = all.filter((c) => c.funded && (c.volume || 0) <= 0); // funded, not trading
+  const isReady = (c: BrokerClient) => c.funded && (c.volume || 0) <= 0;
+  const filtered = all.filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : filter === "unfunded" ? !c.funded : isReady(c)));
+  const metric = (c: BrokerClient): number => {
+    if (sortBy === "growth") return c.wVolume || 0;
+    if (sortBy === "balance") return c.balance || 0;
+    if (sortBy === "commission") return c.commission || 0;
+    return c.volume || 0;
+  };
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
-    return (Number(b[sortBy]) || 0) - (Number(a[sortBy]) || 0);
+    return metric(b) - metric(a);
   });
   const chip = (active: boolean) => `px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-colors ${active ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text border border-white/10"}`;
+
+  // Movers (this week) — surfaces only once a baseline has accrued.
+  const hasHistory = !!broker.baselineDate;
+  const topGrowth = hasHistory ? all.filter((c) => (c.wVolume || 0) > 0).sort((a, b) => (b.wVolume || 0) - (a.wVolume || 0)).slice(0, 5) : [];
+  const newFunded = hasHistory ? all.filter((c) => c.newFunded) : [];
+  const withdrew = hasHistory ? all.filter((c) => (c.wBalance || 0) < -1).sort((a, b) => (a.wBalance || 0) - (b.wBalance || 0)).slice(0, 5) : [];
 
   return (
     <div className="space-y-5">
@@ -867,17 +957,54 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.22} />
       </div>
 
+      {/* needs attention — the highest-leverage play */}
+      {ready.length > 0 && (
+        <button onClick={() => { setFilter("ready"); setSortBy("balance"); }}
+          className="w-full text-left rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4 hover:border-gold/40 transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="gp-display text-gold font-bold">🟡 {ready.length} funded · not trading</div>
+              <div className="text-muted text-[12px] mt-0.5">They put money in but haven&apos;t traded. Tap to work the list and text them.</div>
+            </div>
+            <span className="text-gold text-xl shrink-0">→</span>
+          </div>
+        </button>
+      )}
+
+      {/* movers this week */}
+      {hasHistory && (topGrowth.length > 0 || newFunded.length > 0 || withdrew.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[{ t: "📈 Biggest volume this week", list: topGrowth, m: (c: BrokerClient) => "+" + volFmt(c.wVolume), col: "#00FF85" },
+            { t: "💰 Newly funded this week", list: newFunded, m: (c: BrokerClient) => bMoney(c.balance), col: "#4a9eff" },
+            { t: "📉 Withdrew this week", list: withdrew, m: (c: BrokerClient) => bMoney(c.wBalance), col: "#FF6B6B" }].map((grp, gi) => (
+            <div key={gi} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+              <div className="text-[11px] font-mono text-muted mb-2">{grp.t}</div>
+              {grp.list.length === 0 ? <div className="text-muted/50 text-[12px]">—</div> : (
+                <div className="space-y-1.5">
+                  {grp.list.map((c, i) => (
+                    <button key={i} onClick={() => setOpenClient(c)} className="w-full flex items-center justify-between gap-2 text-left">
+                      <span className="text-text/90 text-[13px] truncate">{properName(c.name)}</span>
+                      <span className="text-[13px] font-semibold tabular-nums shrink-0" style={{ color: grp.col }}>{grp.m(c)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* roster */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] flex-wrap">
           <div className="gp-display text-text font-semibold text-sm">Your book <span className="text-muted font-normal">({sorted.length})</span></div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(["all", "funded", "unfunded"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>{f === "all" ? "All" : f === "funded" ? "Funded" : "Not funded"}</button>
+            {(["all", "funded", "unfunded", "ready"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>{f === "all" ? "All" : f === "funded" ? "Funded" : f === "unfunded" ? "Not funded" : "Ready"}</button>
             ))}
             <span className="w-px h-4 bg-white/10 mx-0.5" />
-            {(["volume", "balance", "commission", "name"] as const).map((s) => (
-              <button key={s} onClick={() => setSortBy(s)} className={chip(sortBy === s)}>{s === "balance" ? "funded $" : s}</button>
+            {(["volume", "growth", "balance", "commission", "name"] as const).map((s) => (
+              <button key={s} onClick={() => setSortBy(s)} className={chip(sortBy === s)}>{s === "balance" ? "funded $" : s === "growth" ? "▲ week" : s}</button>
             ))}
           </div>
         </div>
@@ -889,36 +1016,47 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
             <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
               <div>#</div><div>Client</div><div className="text-right">Funded</div><div className="text-right">Volume</div><div className="text-right">Commission</div>
             </div>
-            {sorted.map((c, i) => (
-              <div key={(c.tradingId || c.email || c.name) + i} className="grid grid-cols-[1.7fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
-                {/* rank (desktop) */}
-                <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums">{i + 1}</div>
-                {/* client */}
-                <div className="min-w-0 flex items-center gap-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: c.funded ? "#00FF85" : "#555" }} />
-                  <div className="min-w-0">
-                    <div className="text-text text-sm font-medium truncate">{properName(c.name)}</div>
-                    <div className="text-muted/70 text-[10px] font-mono truncate">L{c.level}{c.ibName ? " · " + properName(c.ibName) : ""}</div>
+            {sorted.map((c, i) => {
+              const tg = clientTag(c);
+              return (
+                <button key={(c.tradingId || c.email || c.name) + i} onClick={() => setOpenClient(c)}
+                  className="w-full text-left grid grid-cols-[1.7fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
+                  <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums">{i + 1}</div>
+                  {/* client + tag */}
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: tg.color }} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-text text-sm font-medium truncate">{properName(c.name)}</span>
+                        <span className="shrink-0 text-[8px] font-mono uppercase tracking-wider rounded px-1 py-px border" style={{ color: tg.color, borderColor: tg.color + "44" }}>{tg.label}</span>
+                      </div>
+                      <div className="text-muted/70 text-[10px] font-mono truncate">L{c.level}{c.ibName ? " · " + properName(c.ibName) : ""}</div>
+                    </div>
                   </div>
-                </div>
-                {/* funded (mobile: right column top) */}
-                <div className="text-right sm:text-right">
-                  {c.funded
-                    ? <span className="inline-block text-accent text-sm font-semibold tabular-nums">{money(c.balance)}</span>
-                    : <span className="inline-block text-[10px] font-mono uppercase tracking-wider text-muted border border-white/10 rounded px-1.5 py-0.5">none</span>}
-                </div>
-                {/* volume + commission: desktop separate cols; mobile under name */}
-                <div className="text-right text-text/85 text-sm tabular-nums col-start-1 sm:col-auto"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(c.volume)}</div>
-                <div className="text-right text-text/60 text-sm tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{money(c.commission)}</div>
-              </div>
-            ))}
+                  {/* funded */}
+                  <div className="text-right">
+                    {c.funded
+                      ? <span className="inline-block text-accent text-sm font-semibold tabular-nums">{money(c.balance)}</span>
+                      : <span className="inline-block text-[10px] font-mono uppercase tracking-wider text-muted border border-white/10 rounded px-1.5 py-0.5">none</span>}
+                  </div>
+                  {/* volume (+week delta) */}
+                  <div className="text-right text-text/85 text-sm tabular-nums col-start-1 sm:col-auto">
+                    <span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(c.volume)}
+                    {c.wVolume != null && c.wVolume > 0 && <span className="text-accent text-[10px] font-mono ml-1">+{volFmt(c.wVolume)}</span>}
+                  </div>
+                  <div className="text-right text-text/60 text-sm tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{money(c.commission)}</div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
       <div className="text-[11px] text-muted/70 leading-relaxed px-1">
-        Everyone under you, read from your Livv Global IB dashboard each hour. &quot;Funded&quot; is the client&apos;s current account balance; volume is total lots traded.
-        Business tracking only — not financial advice.
+        Everyone under you, read from your Livv Global IB dashboard each hour. Tap anyone to see their numbers and text or email them.
+        {hasHistory ? " Week-over-week movers compare to " + broker.baselineDate + "." : " Week-over-week movers (growth, new funding, withdrawals) start filling in over the next few days."}
+        {" "}Business tracking only — not financial advice.
       </div>
+      {openClient && <ClientSheet c={openClient} onClose={() => setOpenClient(null)} />}
     </div>
   );
 }
