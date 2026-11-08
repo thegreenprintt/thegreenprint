@@ -1,0 +1,37 @@
+name: greenprint-onehouse-earnings
+# Reads the real "Lifetime Earnings" off the One House dashboard every hour (it is
+# not in the API) and posts it to /track. Needs repo secrets ONE_HOUSE_EMAIL,
+# ONE_HOUSE_PASSWORD, GP_ADMIN_KEY. Runs hands-off; no personal computer required.
+on:
+  schedule:
+    - cron: '41 * * * *'   # hourly at :41 UTC (offset from the genealogy refresh)
+  workflow_dispatch:
+    inputs:
+      expect:
+        description: "Optional: expected value to verify against (logs only a match boolean)"
+        required: false
+jobs:
+  earnings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright Chromium (isolated, does not touch the repo)
+        run: |
+          mkdir -p /tmp/pw
+          cd /tmp/pw
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.48.2 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Read + post One House earnings
+        env:
+          ONE_HOUSE_EMAIL: ${{ secrets.ONE_HOUSE_EMAIL }}
+          ONE_HOUSE_PASSWORD: ${{ secrets.ONE_HOUSE_PASSWORD }}
+          GP_ADMIN_KEY: ${{ secrets.GP_ADMIN_KEY }}
+          EXPECT: ${{ inputs.expect }}
+        run: |
+          cp "$GITHUB_WORKSPACE/scripts/onehouse-earnings.mjs" /tmp/pw/onehouse-earnings.mjs
+          cd /tmp/pw
+          node onehouse-earnings.mjs
