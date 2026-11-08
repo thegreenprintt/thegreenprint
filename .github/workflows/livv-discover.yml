@@ -1,0 +1,29 @@
+name: greenprint-livv-discover
+# One-off: map the Livv IB dashboard (login flow, API endpoints, data shape) so the
+# hourly reader can be built. Needs secrets LIVV_EMAIL, LIVV_PASSWORD. Logs structure
+# only (URLs, key names, masked labels) — never financial values. Safe to delete after.
+on:
+  workflow_dispatch:
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright Chromium (isolated)
+        run: |
+          mkdir -p /tmp/pw
+          cd /tmp/pw
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.48.2 >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+      - name: Probe Livv IB dashboard
+        env:
+          LIVV_EMAIL: ${{ secrets.LIVV_EMAIL }}
+          LIVV_PASSWORD: ${{ secrets.LIVV_PASSWORD }}
+        run: |
+          cp "$GITHUB_WORKSPACE/scripts/livv-discover.mjs" /tmp/pw/livv-discover.mjs
+          cd /tmp/pw
+          node livv-discover.mjs
