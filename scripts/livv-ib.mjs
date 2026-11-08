@@ -144,6 +144,28 @@ async function main() {
     throw new Error("livv_parse_empty");
   }
 
+  // Targeted diagnostic: given CHECK="name=amount", figure out which quantity for
+  // that person equals the amount — so we learn the correct sub-IB-earnings formula.
+  // Logs booleans only (does X match the amount you gave me), never other values.
+  if (process.env.CHECK && process.env.CHECK.indexOf("=") > 0) {
+    const [rawName, rawAmt] = process.env.CHECK.split("=");
+    const want = Number(rawAmt);
+    const needle = (rawName || "").trim().toLowerCase();
+    const near = (x) => x != null && Math.abs(Number(x) - want) < Math.max(1, want * 0.02); // within 2%
+    const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
+    const matches = clients.filter((c) => (c.name || "").toLowerCase().includes(needle));
+    log("CHECK '" + needle + "'=" + want + " → roster matches: " + matches.length);
+    for (const m of matches) {
+      const team = clients.filter((c) => norm(c.ibName) === norm(m.name));
+      const teamVol = team.reduce((a, c) => a + (c.volume || 0), 0);
+      const teamComm = team.reduce((a, c) => a + (c.commission || 0), 0);
+      const perLot = snap.payPerLot || 25;
+      log("  '" + m.name + "' L" + m.level + " under '" + m.ibName + "': ownComm~=" + near(m.commission) +
+        " ownVol~=" + near(m.volume) + " ownVolxPerLot~=" + near((m.volume || 0) * perLot) +
+        " | teamSize=" + team.length + " teamVol~=" + near(teamVol) + " teamVolxPerLot~=" + near(teamVol * perLot) + " teamComm~=" + near(teamComm));
+    }
+  }
+
   // DEBUG cross-check: does each person's roster "Total Commission" equal Livv's
   // leaderboard commission for that sub-IB? If yes, the roster column IS their IB
   // commission and we can trust it for everyone. Logs booleans only, no amounts.
