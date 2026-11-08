@@ -897,9 +897,12 @@ module.exports = async function handler(req, res) {
       const PING = 'gp1h-cron-pull-v1'; // public trigger token, safe because the pull is rate-limited and returns no PII
       const isAdmin = adminKey && k === adminKey;
       if (!isCron && !isAdmin && k !== PING) return res.status(403).json({ error: 'not_authorized' });
+      // discover=1 is a read-only probe (find the earnings endpoint); it writes no
+      // snapshot, so it is exempt from the self-rate-limit and can run on demand.
+      const DISCOVER = String((req.query && req.query.discover) || '') === '1';
       // Self-rate-limit: never hit One House more than once per ~9 min, so a public trigger can't be abused.
       const force = isAdmin && String((req.query && req.query.force) || '') === '1';
-      if (!force) { try { const p0 = JSON.parse((await r.get('gp:track:v1')) || 'null'); if (p0 && p0.source === 'auto-1h' && (Date.now() - (p0.updatedAt || 0)) < 9 * 60 * 1000) return res.status(200).json({ ok: true, skipped: true, reason: 'recent' }); } catch (e) {} }
+      if (!force && !DISCOVER) { try { const p0 = JSON.parse((await r.get('gp:track:v1')) || 'null'); if (p0 && p0.source === 'auto-1h' && (Date.now() - (p0.updatedAt || 0)) < 9 * 60 * 1000) return res.status(200).json({ ok: true, skipped: true, reason: 'recent' }); } catch (e) {} }
       const rawEmail = process.env.ONE_HOUSE_EMAIL || '';
       const rawPass = process.env.ONE_HOUSE_PASSWORD || '';
       const email = rawEmail.trim();
@@ -955,29 +958,48 @@ module.exports = async function handler(req, res) {
       // 4a) best-effort lifetime-earnings pull. Runs where it has network to One House
       //     (the hourly cron on Vercel). Conservative: only a strongly-named earnings
       //     field overwrites the number; every numeric candidate is logged for review.
-      let pulledEarnings = null; const earnDbg = { tried: [], candidates: [] };
+      let pulledEarnings = null; const earnDbg = { tried: [], candidates: [], detail: [] };
       try {
-        const EARN_PATHS = ['/api/user/dashboard', '/api/dashboard', '/api/user/profile', '/api/user/me', '/api/user/wallet', '/api/user/earnings', '/api/user/earning', '/api/user/income', '/api/user/statistics', '/api/user/commission'];
-        const STRICT = /(?:lifetime|total)[_\s]*earn|earn[_\s]*(?:lifetime|total)|lifetime[_\s]*income|total[_\s]*income/i;
+        // Lightweight hourly set; a bigger set only when discovering the endpoint.
+        const BASE_PATHS = ['/api/user/dashboard', '/api/dashboard', '/api/user/earnings', '/api/user/earning', '/api/user/income', '/api/user/wallet', '/api/user/statistics', '/api/user/profile'];
+        const MORE_PATHS = ['/api/user/dashboard-data', '/api/user/home', '/api/home', '/api/user/overview', '/api/user/summary', '/api/user/stats', '/api/user/board', '/api/user/incomes', '/api/user/earning-summary', '/api/user/income-summary', '/api/user/earning-statics', '/api/user/earning-statistics', '/api/user/total-earning', '/api/user/total-income', '/api/user/wallet-balance', '/api/user/payout', '/api/user/payouts', '/api/user/commissions', '/api/user/commission', '/api/user/rewards', '/api/user/bonus', '/api/user/rank', '/api/user/team-sales', '/api/user/sales', '/api/user/report', '/api/user', '/api/me', '/api/profile', '/api/user/detail', '/api/user/details', '/api/dashboard/user', '/api/user/me'];
+        const EARN_PATHS = DISCOVER ? BASE_PATHS.concat(MORE_PATHS) : BASE_PATHS;
+        const STRICT = /(?:lifetime|total|net|overall)[_\s]*earn|earn[_\s]*(?:lifetime|total)|lifetime[_\s]*income|total[_\s]*income|total[_\s]*commission/i;
         const toNum = (v) => { if (typeof v === 'number') return isFinite(v) ? v : NaN; if (typeof v === 'string' && /^[-$,.\d]+$/.test(v.trim()) && /\d/.test(v)) { const n = Number(v.replace(/[$,]/g, '')); return isFinite(n) ? n : NaN; } return NaN; };
-        const scan = (o, path, depth) => {
+        const scan = (o, path, depth, keyBag) => {
           if (o == null || depth > 6) return;
-          if (Array.isArray(o)) { for (let i = 0; i < o.length && i < 60; i++) scan(o[i], path + '[' + i + ']', depth + 1); return; }
+          if (Array.isArray(o)) { for (let i = 0; i < o.length && i < 60; i++) scan(o[i], path + '[' + i + ']', depth + 1, keyBag); return; }
           if (typeof o !== 'object') return;
           for (const key of Object.keys(o)) {
             const kp = path ? path + '.' + key : key; const num = toNum(o[key]);
             if (isFinite(num)) {
-              if (/earn|income|commission/i.test(key)) earnDbg.candidates.push({ k: kp, v: num });
+              if (/earn|income|commission|wallet|balance|payout|bonus|reward|revenue/i.test(key)) { earnDbg.candidates.push({ k: kp, v: num }); if (keyBag) keyBag.push(kp); }
               if (pulledEarnings == null && STRICT.test(key) && num >= 0) pulledEarnings = num;
-            } else if (o[key] && typeof o[key] === 'object') { scan(o[key], kp, depth + 1); }
+            } else if (o[key] && typeof o[key] === 'object') { scan(o[key], kp, depth + 1, keyBag); }
           }
         };
-        for (const p of EARN_PATHS) {
-          if (pulledEarnings != null) break;
-          try { const rr = await fetch(B + p, { headers: H }); if (!rr.ok) { earnDbg.tried.push(p + ':' + rr.status); continue; } const jj = await rr.json().catch(() => null); earnDbg.tried.push(p + ':ok'); if (jj) scan(jj, '', 0); } catch (e) { earnDbg.tried.push(p + ':err'); }
-        }
-        try { await r.set('gp:1h:earnpull', JSON.stringify({ at: now, pulled: pulledEarnings, candidates: earnDbg.candidates.slice(0, 40), tried: earnDbg.tried })); } catch (e) {}
+        const tryOne = async (p, method) => {
+          try {
+            const rr = await fetch(B + p, method === 'POST' ? { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: '{}' } : { headers: H });
+            const tag = p + (method === 'POST' ? '#POST' : '') + ':' + rr.status;
+            if (!rr.ok) {
+              earnDbg.tried.push(tag);
+              if (DISCOVER && rr.status >= 500) { const t = await rr.text().catch(() => ''); earnDbg.detail.push({ p: p + (method === 'POST' ? '#POST' : ''), status: rr.status, err: String(t || '').replace(/\s+/g, ' ').slice(0, 160) }); }
+              return;
+            }
+            const jj = await rr.json().catch(() => null); earnDbg.tried.push(tag);
+            if (jj) { const keyBag = []; scan(jj, '', 0, keyBag); if (DISCOVER) { const top = (jj && typeof jj === 'object' && !Array.isArray(jj)) ? Object.keys(jj).slice(0, 20) : (Array.isArray(jj) ? ['<array>'] : []); earnDbg.detail.push({ p: p + (method === 'POST' ? '#POST' : ''), status: rr.status, topKeys: top, earnKeys: Array.from(new Set(keyBag)).slice(0, 20) }); } }
+          } catch (e) { earnDbg.tried.push(p + ':err'); }
+        };
+        for (const p of EARN_PATHS) { if (pulledEarnings != null && !DISCOVER) break; await tryOne(p, 'GET'); }
+        if (DISCOVER && pulledEarnings == null) { await tryOne('/api/user/dashboard', 'POST'); } // the 500 route may want POST
+        try { await r.set('gp:1h:earnpull', JSON.stringify({ at: now, pulled: pulledEarnings, candidates: earnDbg.candidates.slice(0, 40), tried: earnDbg.tried, detail: earnDbg.detail.slice(0, 40) })); } catch (e) {}
       } catch (e) {}
+      // Discovery probe: report what we found and stop — no snapshot write.
+      if (DISCOVER) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null } });
+      }
       const goal = { earnings: (pulledEarnings != null ? Math.round(pulledEarnings * 100) / 100 : prevEarn), target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
       try { await r.set('gp:track:v1', JSON.stringify(record)); await r.set('gp:track:tree', JSON.stringify(tree.slice(0, 5000))); } catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
@@ -1023,6 +1045,7 @@ module.exports = async function handler(req, res) {
       // was locked in. Lets the earnings pull be verified/tuned without leaking numbers.
       if (String((req.query && req.query.debug) || '') === '1') {
         out.earn = { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), pulled: pulledEarnings != null, deadline: goal.deadline };
+        if (earnDbg.detail && earnDbg.detail.length) out.earn.detail = earnDbg.detail; // field names + 5xx error text, no dollar values
         if (isAdmin) out.earn.earnings = goal.earnings;
       }
       return res.status(200).json(out);

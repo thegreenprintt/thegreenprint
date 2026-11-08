@@ -1,0 +1,15 @@
+name: greenprint-onehouse-discover
+# One-off: find which One House endpoint holds lifetime earnings. Read-only probe
+# (writes no snapshot). Prints field names + any 5xx error text, never dollar amounts.
+# Safe to delete after the earnings endpoint is wired.
+on:
+  workflow_dispatch:
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe One House for the earnings endpoint
+        run: |
+          echo "Discovery (field names + errors only, no dollar amounts):"
+          curl -s -m 150 "https://thegreenprint.trade/api/chat?kind=1h-refresh&key=gp1h-cron-pull-v1&debug=1&discover=1" | head -c 8000 || true
+          echo
