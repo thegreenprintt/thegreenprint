@@ -34,13 +34,13 @@ async function main() {
   page.on("response", async (resp) => {
     try {
       const url = resp.url();
-      if (url.indexOf(HOST) < 0) return;
       const ct = (resp.headers()["content-type"] || "");
-      if (ct.indexOf("application/json") < 0) return;
-      const path = url.replace(BASE, "").split("?")[0];
+      if (ct.indexOf("application/json") < 0) return; // any host, JSON only
+      let host = ""; try { host = new URL(url).host; } catch (e) {}
+      const path = url.split("?")[0].replace(/^https?:\/\/[^/]+/, "");
       let topKeys = [], dataShape = "";
       try { const j = await resp.json(); topKeys = (j && typeof j === "object" && !Array.isArray(j)) ? Object.keys(j).slice(0, 30) : (Array.isArray(j) ? ["<array[" + j.length + "]>"] : []); if (j && j.data !== undefined) dataShape = shape(j.data); } catch (e) {}
-      apis.push({ path, status: resp.status(), topKeys, dataShape });
+      apis.push({ host, path, status: resp.status(), topKeys, dataShape });
     } catch (e) {}
   });
 
@@ -78,10 +78,23 @@ async function main() {
     log("dashboard labels (values masked as #):");
     for (const l of labels) console.log("   " + l);
 
-    log("API calls seen on IB dashboard:");
+    log("API calls seen (any host, JSON):");
     const seen = new Set();
-    for (const a of apis) { const key = a.path + ":" + a.status; if (seen.has(key)) continue; seen.add(key); console.log("   " + a.status + " " + a.path + "  top=" + JSON.stringify(a.topKeys) + (a.dataShape ? "  data=" + a.dataShape : "")); }
-    if (!apis.length) log("   (no JSON API calls captured — dashboard may render server-side or use a different host)");
+    for (const a of apis) { const key = a.host + a.path + ":" + a.status; if (seen.has(key)) continue; seen.add(key); console.log("   " + a.status + " " + a.host + a.path + "  top=" + JSON.stringify(a.topKeys) + (a.dataShape ? "  data=" + a.dataShape : "")); }
+    if (!apis.length) log("   (no JSON API calls captured — server-rendered)");
+
+    // DOM structure with values masked, so robust selectors can be written.
+    const html = await page.evaluate(() => {
+      const root = document.querySelector("main") || document.querySelector("[class*=content]") || document.body;
+      let h = root ? root.outerHTML : "";
+      // mask numbers and emails so the structure (tags/classes) is visible, not the data
+      h = h.replace(/>\s*\$?\s*[\d][\d,]*\.?\d*\s*</g, ">#<").replace(/[\w.+-]+@[\w.-]+/g, "x@x");
+      // strip inline svg/style noise
+      h = h.replace(/<svg[\s\S]*?<\/svg>/g, "<svg/>").replace(/\s+/g, " ");
+      return h.slice(0, 9000);
+    }).catch(() => "");
+    log("dashboard DOM (masked, 9k):");
+    console.log(html);
   } finally {
     await browser.close().catch(() => {});
   }
