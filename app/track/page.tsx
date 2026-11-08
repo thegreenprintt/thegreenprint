@@ -893,8 +893,9 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "growth" | "name">("volume");
   const [filter, setFilter] = useState<"all" | "funded" | "unfunded" | "ready">("all");
   const [openClient, setOpenClient] = useState<BrokerClient | null>(null);
-  const [mode, setMode] = useState<"clients" | "subibs">("clients");
+  const [mode, setMode] = useState<"today" | "clients" | "subibs">("today");
   const [ibFilter, setIbFilter] = useState<string | null>(null);
+  const textHref = (c: BrokerClient) => { const d = (c.phone || "").replace(/[^\d+]/g, ""); if (!d) return ""; const f = firstName(c.name) || "there"; return `sms:${d}?&body=${encodeURIComponent(`Yo ${f}, you funded up and ready for the week? 💚`)}`; };
   if (!broker) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -971,52 +972,145 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   }).sort((a, b) => b.volume - a.volume);
 
   return (
-    <div className="space-y-5">
-      {/* header strip */}
+    <div className="space-y-4">
+      {/* header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
           <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
           <span className="gp-display text-text font-semibold">{broker.broker || "Livv Global"} · IB Book</span>
           {t.payPerLot != null && <span className="text-[10px] font-mono uppercase tracking-wider text-accent/80 border border-accent/25 rounded px-1.5 py-0.5">{usd(t.payPerLot)} / lot</span>}
         </div>
-        <div className="text-[11px] font-mono text-muted">updated {ago} · hourly</div>
+        <div className="text-[11px] font-mono text-muted">updated {ago}</div>
       </div>
 
-      {/* summary tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <BKpi label="Funded" value={`${fundedN}/${rosterN}`} tone="#00FF85" delay={0.02} />
-        <BKpi label="Total funded" value={money(t.totalBalance)} tone="#00FF85" delay={0.06} />
-        <BKpi label="Total volume" value={volFmt(t.totalVolume)} tone="#4a9eff" delay={0.1} />
-        <BKpi label="Available comm." value={money(t.availableCommission)} tone="#C9A84C" delay={0.14} />
-        <BKpi label="This month" value={money(t.monthlyCommission)} tone="#9b7bff" delay={0.18} />
-        <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.22} />
-      </div>
-
-      {/* mode toggle: your clients vs your sub-IBs */}
-      <div className="flex items-center gap-1 rounded-xl border border-white/10 p-1 w-full sm:w-auto">
-        {(["clients", "subibs"] as const).map((m) => (
+      {/* mode tabs */}
+      <div className="flex items-center gap-1 rounded-xl border border-white/10 p-1">
+        {(["today", "clients", "subibs"] as const).map((m) => (
           <button key={m} onClick={() => { setMode(m); setIbFilter(null); }}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-text"}`}>
-            {m === "clients" ? "My clients" : "My sub‑IBs"}
+            className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-text"}`}>
+            {m === "today" ? "Today" : m === "clients" ? "Clients" : "Sub‑IBs"}
           </button>
         ))}
       </div>
 
+      {/* ───────── TODAY (simple default) ───────── */}
+      {mode === "today" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2.5">
+            <BKpi label="This month" value={money(t.monthlyCommission)} tone="#00FF85" delay={0} />
+            <BKpi label="Available" value={money(t.availableCommission)} tone="#C9A84C" delay={0.05} />
+            <BKpi label="Funded" value={`${fundedN}/${rosterN}`} tone="#4a9eff" delay={0.1} />
+          </div>
+
+          <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="gp-display text-gold font-bold text-base">🟡 Reach out today</div>
+              <div className="text-[11px] font-mono text-muted">{ready.length} funded · idle</div>
+            </div>
+            {ready.length === 0 ? (
+              <div className="text-muted text-sm">Everyone who&apos;s funded is trading. 🔥</div>
+            ) : (
+              <>
+                <div className="text-muted text-[12px] mb-3">Funded up but haven&apos;t traded — tap 💬 to text them.</div>
+                <div className="space-y-1">
+                  {ready.slice(0, 8).map((c, i) => (
+                    <div key={i} className="flex items-center gap-2 py-0.5">
+                      <button onClick={() => setOpenClient(c)} className="min-w-0 flex-1 text-left text-text text-sm truncate">{properName(c.name)}</button>
+                      <span className="text-accent text-[13px] font-semibold tabular-nums shrink-0">{money(c.balance)}</span>
+                      {textHref(c) && <a href={textHref(c)} onClick={(e) => e.stopPropagation()} className="shrink-0 px-2.5 py-1 rounded-lg bg-accent text-bg text-[13px] font-bold active:scale-95">💬</a>}
+                    </div>
+                  ))}
+                </div>
+                {ready.length > 8 && <button onClick={() => { setMode("clients"); setFilter("ready"); setSortBy("balance"); }} className="mt-3 text-[12px] font-mono text-gold">work all {ready.length} →</button>}
+              </>
+            )}
+          </div>
+
+          {moneyOnTable > 0 && (
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-[13px] text-muted">💸 <span className="text-gold font-semibold">~{usd(moneyOnTable)}</span> in commission is sitting idle in those funded accounts.</div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2.5">
+            <BKpi label="Clients" value={String(rosterN)} tone="#F5F5F5" delay={0} />
+            <BKpi label="Total funded" value={money(t.totalBalance)} tone="#00FF85" delay={0.05} />
+            <BKpi label="Volume" value={volFmt(t.totalVolume)} tone="#4a9eff" delay={0.1} />
+          </div>
+
+          {hasHistory && (topGrowth.length > 0 || newFunded.length > 0 || withdrew.length > 0) && (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-2">
+              <div className="text-[11px] font-mono text-muted">This week</div>
+              {newFunded.length > 0 && <div className="text-[13px] text-text/90">💰 <span className="text-[#4a9eff] font-semibold">{newFunded.length}</span> newly funded</div>}
+              {topGrowth.length > 0 && <div className="text-[13px] text-text/90">📈 Top grower: <span className="text-accent font-semibold">{properName(topGrowth[0].name)}</span> +{volFmt(topGrowth[0].wVolume)} lots</div>}
+              {withdrew.length > 0 && <button onClick={() => setMode("clients")} className="text-[13px] text-text/90 block">📉 <span className="text-red font-semibold">{withdrew.length}</span> withdrew this week — tap to save them</button>}
+            </div>
+          )}
+
+          {projMonth != null && <div className="text-[12px] text-muted px-1">📅 On pace for <span className="text-accent font-semibold">{usd(projMonth)}</span> this month.</div>}
+        </div>
+      )}
+
+      {/* ───────── CLIENTS (full roster) ───────── */}
+      {mode === "clients" && (
+        <div className="space-y-3">
+          {ibFilter && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.05] px-4 py-2.5">
+              <div className="text-sm text-text">Showing <span className="text-accent font-semibold">{properName(ibFilter)}</span>&apos;s clients</div>
+              <button onClick={() => setIbFilter(null)} className="text-[12px] font-mono text-muted hover:text-text">clear ✕</button>
+            </div>
+          )}
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] flex-wrap">
+              <div className="gp-display text-text font-semibold text-sm">Your book <span className="text-muted font-normal">({sorted.length})</span></div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(["all", "funded", "unfunded", "ready"] as const).map((f) => (
+                  <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>{f === "all" ? "All" : f === "funded" ? "Funded" : f === "unfunded" ? "Not funded" : "Ready"}</button>
+                ))}
+                <span className="w-px h-4 bg-white/10 mx-0.5" />
+                {(["volume", "growth", "balance", "commission", "name"] as const).map((s) => (
+                  <button key={s} onClick={() => setSortBy(s)} className={chip(sortBy === s)}>{s === "balance" ? "funded $" : s === "growth" ? "▲ week" : s}</button>
+                ))}
+              </div>
+            </div>
+            {sorted.length === 0 ? (
+              <div className="p-8 text-center text-muted text-sm">{all.length === 0 ? "Roster fills in on the next sync." : "No clients match this filter."}</div>
+            ) : (
+              <div className="divide-y divide-white/[0.05]">
+                <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
+                  <div>#</div><div>Client</div><div className="text-right">Funded</div><div className="text-right">Volume</div><div className="text-right">Commission</div>
+                </div>
+                {sorted.map((c, i) => { const tg = clientTag(c); return (
+                  <button key={(c.tradingId || c.email || c.name) + i} onClick={() => setOpenClient(c)} className="w-full text-left grid grid-cols-[1.7fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
+                    <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums">{i + 1}</div>
+                    <div className="min-w-0 flex items-center gap-2.5">
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: tg.color }} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5"><span className="text-text text-sm font-medium truncate">{properName(c.name)}</span><span className="shrink-0 text-[8px] font-mono uppercase tracking-wider rounded px-1 py-px border" style={{ color: tg.color, borderColor: tg.color + "44" }}>{tg.label}</span></div>
+                        <div className="text-muted/70 text-[10px] font-mono truncate">L{c.level}{c.ibName ? " · " + properName(c.ibName) : ""}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">{c.funded ? <span className="text-accent text-sm font-semibold tabular-nums">{money(c.balance)}</span> : <span className="text-[10px] font-mono uppercase tracking-wider text-muted border border-white/10 rounded px-1.5 py-0.5">none</span>}</div>
+                    <div className="text-right text-text/85 text-sm tabular-nums col-start-1 sm:col-auto"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(c.volume)}{c.wVolume != null && c.wVolume > 0 && <span className="text-accent text-[10px] font-mono ml-1">+{volFmt(c.wVolume)}</span>}</div>
+                    <div className="text-right text-text/60 text-sm tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{money(c.commission)}</div>
+                  </button>
+                ); })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ───────── SUB-IBs ───────── */}
       {mode === "subibs" && (
         teams.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-8 text-center text-muted text-sm">No sub‑IBs found in your downline yet.</div>
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-8 text-center text-muted text-sm">No sub‑IBs in your downline yet.</div>
         ) : (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06] gp-display text-text font-semibold text-sm">Your sub‑IBs <span className="text-muted font-normal">({teams.length})</span> · ranked by team volume</div>
-            <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
-              <div>#</div><div>Sub‑IB</div><div className="text-right">Clients</div><div className="text-right">Funded</div><div className="text-right">Team volume</div><div className="text-right">Commission</div>
-            </div>
+            <div className="px-4 py-3 border-b border-white/[0.06] gp-display text-text font-semibold text-sm">Your sub‑IBs <span className="text-muted font-normal">({teams.length})</span> · by team volume</div>
+            <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70"><div>#</div><div>Sub‑IB</div><div className="text-right">Clients</div><div className="text-right">Funded</div><div className="text-right">Team volume</div><div className="text-right">Commission</div></div>
             <div className="divide-y divide-white/[0.05]">
               {teams.map((tm, i) => (
-                <button key={tm.name + i} onClick={() => { setIbFilter(tm.name); setMode("clients"); setFilter("all"); }}
-                  className="w-full text-left grid grid-cols-[1.5fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
-                  <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums" style={{ color: i < 3 ? "#C9A84C" : undefined }}>{i + 1}</div>
+                <button key={tm.name + i} onClick={() => { setIbFilter(tm.name); setMode("clients"); setFilter("all"); }} className="w-full text-left grid grid-cols-[1.5fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
+                  <div className="hidden sm:block gp-display text-sm tabular-nums" style={{ color: i < 3 ? "#C9A84C" : "#8a8a8a" }}>{i + 1}</div>
                   <div className="min-w-0"><div className="text-text text-sm font-medium truncate">{properName(tm.name)}</div><div className="text-muted/70 text-[10px] font-mono truncate sm:hidden">{tm.clients} clients · {tm.funded} funded</div></div>
                   <div className="hidden sm:block text-right text-text/85 text-sm tabular-nums">{tm.clients}</div>
                   <div className="hidden sm:block text-right text-accent text-sm tabular-nums">{tm.funded}</div>
@@ -1025,141 +1119,12 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
                 </button>
               ))}
             </div>
-            <div className="px-4 py-2.5 text-[11px] text-muted/70 leading-relaxed border-t border-white/[0.06]">Tap a sub‑IB to see their clients. &quot;~&quot; commission is estimated as their team&apos;s volume × {usd(perLot)}/lot; exact figures come from Livv&apos;s top‑earner list.</div>
+            <div className="px-4 py-2.5 text-[11px] text-muted/70 border-t border-white/[0.06]">Tap a sub‑IB to see their clients. &quot;~&quot; = estimated (team volume × {usd(perLot)}/lot).</div>
           </div>
         )
       )}
 
-      {/* ───────── CLIENTS ───────── */}
-      {mode === "clients" && (<>
-
-      {/* three numbers that hit different */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="gp-card rounded-2xl p-4 relative overflow-hidden">
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">💸 Money on the table</div>
-          <div className="gp-display gp-num text-[30px] leading-none font-bold text-gold">{moneyOnTable > 0 ? "~" + usd(moneyOnTable) : "—"}</div>
-          <div className="text-[11px] text-muted mt-1.5">if your {ready.length} funded‑but‑idle clients traded like your average</div>
-        </div>
-        <div className="gp-card rounded-2xl p-4 relative overflow-hidden">
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">📅 On pace this month</div>
-          <div className="gp-display gp-num text-[30px] leading-none font-bold text-accent">{projMonth != null ? usd(projMonth) : "—"}</div>
-          <div className="text-[11px] text-muted mt-1.5">{monthComm > 0 ? money(monthComm) + " so far · day " + dom + " of " + diM : "builds through the month"}</div>
-        </div>
-        <button onClick={() => { if (atRisk.length) { setFilter("all"); setSortBy("growth"); } }} className="gp-card rounded-2xl p-4 relative overflow-hidden text-left">
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">⚠️ Cooling off</div>
-          <div className="gp-display gp-num text-[30px] leading-none font-bold text-red">{hasHistory ? atRisk.length : "—"}</div>
-          <div className="text-[11px] text-muted mt-1.5">{hasHistory ? "funded clients whose volume dropped this week" : "needs a few days of history to flag"}</div>
-        </button>
-      </div>
-
-      {ibFilter && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.05] px-4 py-2.5">
-          <div className="text-sm text-text">Showing <span className="text-accent font-semibold">{properName(ibFilter)}</span>&apos;s clients</div>
-          <button onClick={() => setIbFilter(null)} className="text-[12px] font-mono text-muted hover:text-text">clear ✕</button>
-        </div>
-      )}
-
-      {/* needs attention — the highest-leverage play */}
-      {ready.length > 0 && (
-        <button onClick={() => { setFilter("ready"); setSortBy("balance"); }}
-          className="w-full text-left rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4 hover:border-gold/40 transition-colors">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="gp-display text-gold font-bold">🟡 {ready.length} funded · not trading</div>
-              <div className="text-muted text-[12px] mt-0.5">They put money in but haven&apos;t traded. Tap to work the list and text them.</div>
-            </div>
-            <span className="text-gold text-xl shrink-0">→</span>
-          </div>
-        </button>
-      )}
-
-      {/* movers this week */}
-      {hasHistory && (topGrowth.length > 0 || newFunded.length > 0 || withdrew.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[{ t: "📈 Biggest volume this week", list: topGrowth, m: (c: BrokerClient) => "+" + volFmt(c.wVolume), col: "#00FF85" },
-            { t: "💰 Newly funded this week", list: newFunded, m: (c: BrokerClient) => bMoney(c.balance), col: "#4a9eff" },
-            { t: "📉 Withdrew this week", list: withdrew, m: (c: BrokerClient) => bMoney(c.wBalance), col: "#FF6B6B" }].map((grp, gi) => (
-            <div key={gi} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5">
-              <div className="text-[11px] font-mono text-muted mb-2">{grp.t}</div>
-              {grp.list.length === 0 ? <div className="text-muted/50 text-[12px]">—</div> : (
-                <div className="space-y-1.5">
-                  {grp.list.map((c, i) => (
-                    <button key={i} onClick={() => setOpenClient(c)} className="w-full flex items-center justify-between gap-2 text-left">
-                      <span className="text-text/90 text-[13px] truncate">{properName(c.name)}</span>
-                      <span className="text-[13px] font-semibold tabular-nums shrink-0" style={{ color: grp.col }}>{grp.m(c)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* roster */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] flex-wrap">
-          <div className="gp-display text-text font-semibold text-sm">Your book <span className="text-muted font-normal">({sorted.length})</span></div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {(["all", "funded", "unfunded", "ready"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>{f === "all" ? "All" : f === "funded" ? "Funded" : f === "unfunded" ? "Not funded" : "Ready"}</button>
-            ))}
-            <span className="w-px h-4 bg-white/10 mx-0.5" />
-            {(["volume", "growth", "balance", "commission", "name"] as const).map((s) => (
-              <button key={s} onClick={() => setSortBy(s)} className={chip(sortBy === s)}>{s === "balance" ? "funded $" : s === "growth" ? "▲ week" : s}</button>
-            ))}
-          </div>
-        </div>
-        {sorted.length === 0 ? (
-          <div className="p-8 text-center text-muted text-sm">{all.length === 0 ? "Client roster fills in on the next sync." : "No clients match this filter."}</div>
-        ) : (
-          <div className="divide-y divide-white/[0.05]">
-            {/* desktop header */}
-            <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
-              <div>#</div><div>Client</div><div className="text-right">Funded</div><div className="text-right">Volume</div><div className="text-right">Commission</div>
-            </div>
-            {sorted.map((c, i) => {
-              const tg = clientTag(c);
-              return (
-                <button key={(c.tradingId || c.email || c.name) + i} onClick={() => setOpenClient(c)}
-                  className="w-full text-left grid grid-cols-[1.7fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
-                  <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums">{i + 1}</div>
-                  {/* client + tag */}
-                  <div className="min-w-0 flex items-center gap-2.5">
-                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: tg.color }} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-text text-sm font-medium truncate">{properName(c.name)}</span>
-                        <span className="shrink-0 text-[8px] font-mono uppercase tracking-wider rounded px-1 py-px border" style={{ color: tg.color, borderColor: tg.color + "44" }}>{tg.label}</span>
-                      </div>
-                      <div className="text-muted/70 text-[10px] font-mono truncate">L{c.level}{c.ibName ? " · " + properName(c.ibName) : ""}</div>
-                    </div>
-                  </div>
-                  {/* funded */}
-                  <div className="text-right">
-                    {c.funded
-                      ? <span className="inline-block text-accent text-sm font-semibold tabular-nums">{money(c.balance)}</span>
-                      : <span className="inline-block text-[10px] font-mono uppercase tracking-wider text-muted border border-white/10 rounded px-1.5 py-0.5">none</span>}
-                  </div>
-                  {/* volume (+week delta) */}
-                  <div className="text-right text-text/85 text-sm tabular-nums col-start-1 sm:col-auto">
-                    <span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(c.volume)}
-                    {c.wVolume != null && c.wVolume > 0 && <span className="text-accent text-[10px] font-mono ml-1">+{volFmt(c.wVolume)}</span>}
-                  </div>
-                  <div className="text-right text-text/60 text-sm tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{money(c.commission)}</div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      </>)}
-
-      <div className="text-[11px] text-muted/70 leading-relaxed px-1">
-        Everyone under you, read from your Livv Global IB dashboard each hour. Tap anyone to see their numbers and text or email them.
-        {hasHistory ? " Week-over-week movers compare to " + broker.baselineDate + "." : " Week-over-week movers (growth, new funding, withdrawals) start filling in over the next few days."}
-        {" "}Business tracking only — not financial advice.
-      </div>
+      <div className="text-[11px] text-muted/60 leading-relaxed px-1">Read from your Livv dashboard every hour — no Livv login needed. Business tracking only, not financial advice.</div>
       {openClient && <ClientSheet c={openClient} onClose={() => setOpenClient(null)} />}
     </div>
   );
