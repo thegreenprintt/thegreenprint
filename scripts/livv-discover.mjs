@@ -83,18 +83,30 @@ async function main() {
     for (const a of apis) { const key = a.host + a.path + ":" + a.status; if (seen.has(key)) continue; seen.add(key); console.log("   " + a.status + " " + a.host + a.path + "  top=" + JSON.stringify(a.topKeys) + (a.dataShape ? "  data=" + a.dataShape : "")); }
     if (!apis.length) log("   (no JSON API calls captured — server-rendered)");
 
-    // DOM structure with values masked, so robust selectors can be written.
-    const html = await page.evaluate(() => {
-      const root = document.querySelector("main") || document.querySelector("[class*=content]") || document.body;
-      let h = root ? root.outerHTML : "";
-      // mask numbers and emails so the structure (tags/classes) is visible, not the data
-      h = h.replace(/>\s*\$?\s*[\d][\d,]*\.?\d*\s*</g, ">#<").replace(/[\w.+-]+@[\w.-]+/g, "x@x");
-      // strip inline svg/style noise
-      h = h.replace(/<svg[\s\S]*?<\/svg>/g, "<svg/>").replace(/\s+/g, " ");
-      return h.slice(0, 9000);
-    }).catch(() => "");
-    log("dashboard DOM (masked, 9k):");
-    console.log(html);
+    // Wait for the loading spinner to go away and the cards to actually render.
+    await page.waitForSelector("#spinner", { state: "hidden", timeout: 20000 }).catch(() => {});
+    await page.waitForSelector("text=Monthly Commission", { timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+
+    // Grab the card-grid HTML (anchored on a known label, climb to the container),
+    // masked so structure (tags/classes) is visible but values/emails are not.
+    const mask = (h) => h.replace(/>\s*\$?\s*[\d][\d,]*\.?\d*\s*</g, ">#<").replace(/[\w.+-]+@[\w.-]+/g, "x@x").replace(/<svg[\s\S]*?<\/svg>/g, "<svg/>").replace(/\s+/g, " ").slice(0, 9000);
+    const cards = await page.evaluate(() => {
+      const all = Array.from(document.querySelectorAll("body *"));
+      const lbl = all.find((e) => e.children.length === 0 && /Monthly Commission/i.test(e.textContent || ""));
+      let node = lbl; for (let i = 0; i < 6 && node && node.parentElement; i++) node = node.parentElement;
+      return node ? node.outerHTML : "(anchor not found)";
+    }).catch((e) => "(err " + (e && e.message) + ")");
+    log("card-grid DOM (masked):");
+    console.log(mask(cards));
+
+    // Grab the sub-IB table HTML too.
+    const table = await page.evaluate(() => {
+      const t = Array.from(document.querySelectorAll("table")).find((x) => /commission earned/i.test(x.textContent || ""));
+      return t ? t.outerHTML : "(no table)";
+    }).catch(() => "(err)");
+    log("sub-IB table DOM (masked):");
+    console.log(mask(table));
   } finally {
     await browser.close().catch(() => {});
   }
