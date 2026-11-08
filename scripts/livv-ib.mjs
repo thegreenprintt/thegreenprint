@@ -135,15 +135,24 @@ async function main() {
     const scrapeReport = async (path) => {
       await page.goto(BASE + path, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
       await page.waitForSelector("#spinner", { state: "hidden", timeout: 20000 }).catch(() => {});
-      await page.waitForTimeout(3500);
+      await page.waitForTimeout(2500);
+      // These datatables are server-side paginated (only 10 load). Ask for all rows.
+      await page.evaluate(() => {
+        try {
+          const t = Array.from(document.querySelectorAll("table")).find((x) => x.querySelector("tbody tr")) || document.querySelector("table");
+          const w = window;
+          if (t && w.jQuery && w.jQuery.fn && w.jQuery.fn.dataTable && w.jQuery.fn.dataTable.isDataTable(t)) { w.jQuery(t).DataTable().page.len(10000).draw(); }
+        } catch (e) {}
+      }).catch(() => {});
+      // wait for the big fetch to render
+      await page.waitForFunction(() => { const t = Array.from(document.querySelectorAll("table")).find((x) => x.querySelector("tbody tr")); return t && t.querySelectorAll("tbody tr").length > 10; }, { timeout: 15000 }).catch(() => {});
+      await page.waitForTimeout(2000);
       return await page.evaluate(() => {
         const tables = Array.from(document.querySelectorAll("table"));
         const t = tables.find((x) => x.querySelector("tbody tr")) || tables[0];
         if (!t) return { headers: [], rows: [] };
         const headers = Array.from(t.querySelectorAll("thead th")).map((h) => (h.textContent || "").replace(/\s+/g, " ").trim().toLowerCase());
-        let rowsEl = [];
-        try { const w = window; if (w.jQuery && w.jQuery.fn && w.jQuery.fn.dataTable && w.jQuery.fn.dataTable.isDataTable(t)) { w.jQuery(t).DataTable().rows().every(function () { rowsEl.push(this.node()); }); } } catch (e) {}
-        if (!rowsEl.length) rowsEl = Array.from(t.querySelectorAll("tbody tr"));
+        const rowsEl = Array.from(t.querySelectorAll("tbody tr"));
         const rows = rowsEl.map((tr) => Array.from(tr.querySelectorAll("td")).map((td) => (td.textContent || "").replace(/\s+/g, " ").trim()));
         return { headers, rows };
       }).catch(() => ({ headers: [], rows: [] }));
@@ -184,8 +193,14 @@ async function main() {
     " | deposits(" + reports.deposits.count + ")=" + digits(reports.deposits.total) + " withdrawals(" + reports.withdrawals.count + ")=" + digits(reports.withdrawals.total));
   if (process.env.CHECK && process.env.CHECK.indexOf("=") > 0) {
     const [nm, amt] = process.env.CHECK.split("="); const want = Number(amt); const nk = (nm || "").trim().toLowerCase();
+    const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
     const near = (x) => x != null && Math.abs(Number(x) - want) < Math.max(1, want * 0.03);
-    for (const c of clients) if ((c.name || "").toLowerCase().includes(nk)) log("  CHECK '" + c.name + "': deposits~=" + near(c.deposits) + " balance~=" + near(c.balance) + " commission~=" + near(c.commission));
+    for (const c of clients) if ((c.name || "").toLowerCase().includes(nk)) {
+      const team = clients.filter((x) => norm(x.ibName) === norm(c.name));
+      const teamDep = team.reduce((a, x) => a + (x.deposits || 0), 0);
+      const teamVol = team.reduce((a, x) => a + (x.volume || 0), 0);
+      log("  CHECK '" + c.name + "': ownDeposits~=" + near(c.deposits) + " balance~=" + near(c.balance) + " commission~=" + near(c.commission) + " | teamDeposits~=" + near(teamDep) + " teamVol~=" + near(teamVol));
+    }
   }
 
   if (!snap || (snap.availableCommission == null && snap.monthlyCommission == null && !clients.length)) {
