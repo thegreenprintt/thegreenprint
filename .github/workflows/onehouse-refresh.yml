@@ -11,4 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger One House refresh
-        run: curl -s -m 90 "https://thegreenprint.trade/api/chat?kind=1h-refresh&key=gp1h-cron-pull-v1" || true
+        run: |
+          echo "Refresh response (field names only, no dollar amounts):"
+          curl -s -m 120 "https://thegreenprint.trade/api/chat?kind=1h-refresh&key=gp1h-cron-pull-v1&debug=1" | head -c 4000 || true
+          echo

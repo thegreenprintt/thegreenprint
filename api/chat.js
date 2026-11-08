@@ -1017,7 +1017,15 @@ module.exports = async function handler(req, res) {
         await r.set('gp:track:notify:last', JSON.stringify({ activeEmails: activeEmails, lapsed: lapsed, count: active, ts: now }));
       } catch (e) {}
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ ok: true, source: 'auto-1h', members: members.length, active: active, inactive: inactive, lapsed: lapsed });
+      const out = { ok: true, source: 'auto-1h', members: members.length, active: active, inactive: inactive, lapsed: lapsed };
+      // ?debug=1 — safe diagnostics: which endpoints answered and what earnings-like
+      // FIELD NAMES One House returned (never the dollar amounts), plus whether a value
+      // was locked in. Lets the earnings pull be verified/tuned without leaking numbers.
+      if (String((req.query && req.query.debug) || '') === '1') {
+        out.earn = { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), pulled: pulledEarnings != null, deadline: goal.deadline };
+        if (isAdmin) out.earn.earnings = goal.earnings;
+      }
+      return res.status(200).json(out);
     }
 
     // ── ORG TREE — store/read the One House genealogy (sponsor links) ─────────
