@@ -617,21 +617,46 @@ module.exports = async function handler(req, res) {
         const round2 = (n) => (n == null ? null : Math.round(n * 100) / 100);
         const rawTotals = (b && b.totals && typeof b.totals === 'object') ? b.totals : {};
         const rawSubs = (b && Array.isArray(b.subIBs)) ? b.subIBs : [];
-        // Commission model (Livv): commission + client/trader counts + a sub-IB
-        // leaderboard. Reject an empty snapshot so a failed pull never wipes good data.
+        const rawClients = (b && Array.isArray(b.clients)) ? b.clients : [];
+        const rint = (v) => { const n = num(v); return n != null ? Math.round(n) : null; };
+        // Commission model (Livv): commission totals + the full client roster
+        // (balance=funding, volume) + a sub-IB leaderboard. Reject empties so a failed
+        // pull never wipes good data.
         const anyTotal = ['monthlyCommission', 'availableCommission', 'withdrawnCommission', 'clientTransaction', 'totalClients', 'activeTraders', 'ftd', 'payPerLot'].some((key) => num(rawTotals[key]) != null);
-        if (!b || (rawSubs.length === 0 && !anyTotal)) {
+        if (!b || (rawSubs.length === 0 && rawClients.length === 0 && !anyTotal)) {
           return res.status(400).json({ error: 'bad_snapshot' });
         }
+        const clients = rawClients.slice(0, 2000).map((c) => {
+          const balance = round2(num(c.balance));
+          const volume = round2(num(c.volume));
+          return {
+            name: clean(c.name, 80) || 'Client',
+            email: clean(c.email, 160).toLowerCase(),
+            phone: clean(c.phone, 32),
+            tradingId: clean(c.tradingId, 48),
+            balance: balance, volume: volume,
+            commission: round2(num(c.commission)),
+            ibName: clean(c.ibName, 80),
+            level: rint(c.level) || 1,
+            funded: (balance || 0) > 0,
+          };
+        }).sort((a, b2) => (b2.volume || 0) - (a.volume || 0));
+        const csum = (f) => clients.reduce((a, c) => a + (Number(c[f]) || 0), 0);
         const totals = {
           monthlyCommission: round2(num(rawTotals.monthlyCommission)),
           availableCommission: round2(num(rawTotals.availableCommission)),
           withdrawnCommission: round2(num(rawTotals.withdrawnCommission)),
           clientTransaction: round2(num(rawTotals.clientTransaction)),
-          totalClients: num(rawTotals.totalClients) != null ? Math.round(num(rawTotals.totalClients)) : null,
-          activeTraders: num(rawTotals.activeTraders) != null ? Math.round(num(rawTotals.activeTraders)) : null,
-          ftd: num(rawTotals.ftd) != null ? Math.round(num(rawTotals.ftd)) : null,
+          totalClients: rint(rawTotals.totalClients) != null ? rint(rawTotals.totalClients) : (clients.length || null),
+          activeTraders: rint(rawTotals.activeTraders),
+          ftd: rint(rawTotals.ftd),
           payPerLot: round2(num(rawTotals.payPerLot)),
+          roster: clients.length,
+          funded: rint(rawTotals.funded) != null ? rint(rawTotals.funded) : clients.filter((c) => c.funded).length,
+          unfunded: rint(rawTotals.unfunded) != null ? rint(rawTotals.unfunded) : clients.filter((c) => !c.funded).length,
+          trading: rint(rawTotals.trading) != null ? rint(rawTotals.trading) : clients.filter((c) => (c.volume || 0) > 0).length,
+          totalBalance: round2(num(rawTotals.totalBalance) != null ? num(rawTotals.totalBalance) : csum('balance')),
+          totalVolume: round2(num(rawTotals.totalVolume) != null ? num(rawTotals.totalVolume) : csum('volume')),
         };
         const subIBs = rawSubs.slice(0, 500).map((s) => ({
           name: clean(s.name, 80) || 'Sub-IB',
@@ -645,6 +670,7 @@ module.exports = async function handler(req, res) {
           model: 'commission',
           totals: totals,
           subIBs: subIBs,
+          clients: clients,
         };
         try { await r.set(BKEY, JSON.stringify(record)); }
         catch (e) { return res.status(200).json({ ok: false, error: 'store_failed' }); }
@@ -658,7 +684,7 @@ module.exports = async function handler(req, res) {
           }
           await r.set('gp:broker:notify:last', JSON.stringify({ avail: avail, ts: record.updatedAt }));
         } catch (e) {}
-        return res.status(200).json({ ok: true, subIBs: subIBs.length, updatedAt: record.updatedAt });
+        return res.status(200).json({ ok: true, subIBs: subIBs.length, clients: clients.length, updatedAt: record.updatedAt });
       }
       // GET — read, gated like the tracker (admin key, env view key, or passcode).
       const k = qkey || clean(body.key, 128);

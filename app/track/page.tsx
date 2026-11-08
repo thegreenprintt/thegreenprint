@@ -28,8 +28,9 @@ interface TreeNode { id: number; sp: number | null; name: string; email: string;
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 interface BrokerSubIB { name: string; email: string; commission: number; }
-interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; }
-interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; }
+interface BrokerClient { name: string; email: string; phone: string; tradingId: string; balance: number | null; volume: number | null; commission: number | null; ibName: string; level: number; funded: boolean; }
+interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; roster?: number; funded?: number; unfunded?: number; trading?: number; totalBalance?: number; totalVolume?: number; }
+interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; clients?: BrokerClient[]; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
 type VoiceKey = "default" | "auntie" | "og" | "homie";
@@ -811,7 +812,11 @@ function BKpi({ label, value, tone, delay, big }: { label: string; value: string
   );
 }
 
+const volFmt = (n: number | null | undefined) => (n == null ? "—" : (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-US", { maximumFractionDigits: 2 }));
+
 function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number }) {
+  const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "name">("volume");
+  const [filter, setFilter] = useState<"all" | "funded" | "unfunded">("all");
   if (!broker) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -819,19 +824,26 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <div className="text-[34px] mb-2">📈</div>
         <div className="gp-display text-text font-bold text-lg mb-1">Broker book not synced yet</div>
         <div className="text-muted text-sm max-w-md mx-auto leading-relaxed">
-          This is your Livv Global IB book — your commission, your clients, and your sub‑IBs.
-          It fills in on the hourly sync from your Livv dashboard. Nothing is shown until real numbers land.
+          Your Livv Global book — everyone under you, who&apos;s funded and how much, and their trade volume.
+          It fills in on the hourly sync from your Livv dashboard.
         </div>
       </motion.div>
     );
   }
   const t = broker.totals;
   const money = (n: number | null | undefined) => (n == null ? "—" : usd(n));
-  const cnt = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString());
   const agoMin = broker.updatedAt ? Math.max(0, Math.floor((nowTs - broker.updatedAt) / 60000)) : null;
   const ago = agoMin == null ? "—" : agoMin < 1 ? "just now" : agoMin < 60 ? agoMin + "m ago" : Math.floor(agoMin / 60) + "h ago";
-  const subs = [...(broker.subIBs || [])].sort((a, b) => (b.commission || 0) - (a.commission || 0));
-  const rankColor = (i: number) => (i === 0 ? "#C9A84C" : i === 1 ? "#cfcfcf" : i === 2 ? "#cd7f32" : "#6a6a6a");
+
+  const all = broker.clients || [];
+  const rosterN = t.roster ?? all.length;
+  const fundedN = t.funded ?? all.filter((c) => c.funded).length;
+  const filtered = all.filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : !c.funded));
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+    return (Number(b[sortBy]) || 0) - (Number(a[sortBy]) || 0);
+  });
+  const chip = (active: boolean) => `px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold transition-colors ${active ? "bg-accent/15 text-accent border border-accent/30" : "text-muted hover:text-text border border-white/10"}`;
 
   return (
     <div className="space-y-5">
@@ -845,55 +857,67 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <div className="text-[11px] font-mono text-muted">updated {ago} · hourly</div>
       </div>
 
-      {/* hero: available commission */}
-      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="gp-card relative overflow-hidden rounded-2xl p-6">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl opacity-30" style={{ background: "#00FF85" }} />
-        <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Available commission</div>
-        <div className="gp-display gp-num relative z-[1] text-[52px] sm:text-[64px] leading-none font-bold text-accent" style={{ textShadow: "0 0 36px #00FF8540" }}>{money(t.availableCommission)}</div>
-        <div className="relative z-[1] mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <span className="text-muted">This month <span className="text-text font-semibold">{money(t.monthlyCommission)}</span></span>
-          <span className="text-muted">Withdrawn <span className="text-text font-semibold">{money(t.withdrawnCommission)}</span></span>
-          {t.clientTransaction != null && <span className="text-muted">Client volume <span className="text-text font-semibold">{money(t.clientTransaction)}</span></span>}
-        </div>
-      </motion.div>
-
-      {/* kpi grid */}
-      <div className="flex flex-wrap gap-3">
-        <BKpi label="Total clients" value={cnt(t.totalClients)} tone="#00FF85" delay={0.02} />
-        <BKpi label="Active traders · sub‑IB" value={cnt(t.activeTraders)} tone="#4a9eff" delay={0.06} />
-        <BKpi label="FTD" value={cnt(t.ftd)} tone="#9b7bff" delay={0.1} />
-        <BKpi label="This month" value={money(t.monthlyCommission)} tone="#C9A84C" delay={0.14} />
-        <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.18} />
-        {t.clientTransaction != null && <BKpi label="Client transaction" value={money(t.clientTransaction)} tone="#F5F5F5" delay={0.22} />}
+      {/* summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <BKpi label="Funded" value={`${fundedN}/${rosterN}`} tone="#00FF85" delay={0.02} />
+        <BKpi label="Total funded" value={money(t.totalBalance)} tone="#00FF85" delay={0.06} />
+        <BKpi label="Total volume" value={volFmt(t.totalVolume)} tone="#4a9eff" delay={0.1} />
+        <BKpi label="Available comm." value={money(t.availableCommission)} tone="#C9A84C" delay={0.14} />
+        <BKpi label="This month" value={money(t.monthlyCommission)} tone="#9b7bff" delay={0.18} />
+        <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.22} />
       </div>
 
-      {/* sub-IB leaderboard */}
+      {/* roster */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <div className="gp-display text-text font-semibold text-sm">Top sub‑IBs by commission <span className="text-muted font-normal">({subs.length})</span></div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] flex-wrap">
+          <div className="gp-display text-text font-semibold text-sm">Your book <span className="text-muted font-normal">({sorted.length})</span></div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(["all", "funded", "unfunded"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>{f === "all" ? "All" : f === "funded" ? "Funded" : "Not funded"}</button>
+            ))}
+            <span className="w-px h-4 bg-white/10 mx-0.5" />
+            {(["volume", "balance", "commission", "name"] as const).map((s) => (
+              <button key={s} onClick={() => setSortBy(s)} className={chip(sortBy === s)}>{s === "balance" ? "funded $" : s}</button>
+            ))}
+          </div>
         </div>
-        {subs.length === 0 ? (
-          <div className="p-8 text-center text-muted text-sm">No sub‑IBs in this sync.</div>
+        {sorted.length === 0 ? (
+          <div className="p-8 text-center text-muted text-sm">{all.length === 0 ? "Client roster fills in on the next sync." : "No clients match this filter."}</div>
         ) : (
           <div className="divide-y divide-white/[0.05]">
-            <div className="hidden sm:grid grid-cols-[0.4fr_1.8fr_1.4fr_0.9fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
-              <div>#</div><div>Name</div><div>Email</div><div className="text-right">Commission</div>
+            {/* desktop header */}
+            <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
+              <div>#</div><div>Client</div><div className="text-right">Funded</div><div className="text-right">Volume</div><div className="text-right">Commission</div>
             </div>
-            {subs.map((s, i) => (
-              <div key={(s.email || s.name) + i} className="grid grid-cols-[0.4fr_2fr_1fr] sm:grid-cols-[0.4fr_1.8fr_1.4fr_0.9fr] gap-2 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
-                <div className="gp-display font-bold tabular-nums" style={{ color: rankColor(i) }}>{i + 1}</div>
-                <div className="min-w-0"><div className="text-text text-sm font-medium truncate">{properName(s.name)}</div><div className="sm:hidden text-muted text-[11px] font-mono truncate">{s.email}</div></div>
-                <div className="hidden sm:block text-muted text-[12px] font-mono truncate">{s.email}</div>
-                <div className="text-right text-accent text-sm font-semibold tabular-nums">{money(s.commission)}</div>
+            {sorted.map((c, i) => (
+              <div key={(c.tradingId || c.email || c.name) + i} className="grid grid-cols-[1.7fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.02] transition-colors">
+                {/* rank (desktop) */}
+                <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums">{i + 1}</div>
+                {/* client */}
+                <div className="min-w-0 flex items-center gap-2.5">
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: c.funded ? "#00FF85" : "#555" }} />
+                  <div className="min-w-0">
+                    <div className="text-text text-sm font-medium truncate">{properName(c.name)}</div>
+                    <div className="text-muted/70 text-[10px] font-mono truncate">L{c.level}{c.ibName ? " · " + properName(c.ibName) : ""}</div>
+                  </div>
+                </div>
+                {/* funded (mobile: right column top) */}
+                <div className="text-right sm:text-right">
+                  {c.funded
+                    ? <span className="inline-block text-accent text-sm font-semibold tabular-nums">{money(c.balance)}</span>
+                    : <span className="inline-block text-[10px] font-mono uppercase tracking-wider text-muted border border-white/10 rounded px-1.5 py-0.5">none</span>}
+                </div>
+                {/* volume + commission: desktop separate cols; mobile under name */}
+                <div className="text-right text-text/85 text-sm tabular-nums col-start-1 sm:col-auto"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(c.volume)}</div>
+                <div className="text-right text-text/60 text-sm tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{money(c.commission)}</div>
               </div>
             ))}
           </div>
         )}
       </div>
       <div className="text-[11px] text-muted/70 leading-relaxed px-1">
-        Read from your Livv Global IB dashboard on the hourly sync. Commission is what you earn from your clients&apos; trading volume.
-        Educational / business tracking only — not financial advice.
+        Everyone under you, read from your Livv Global IB dashboard each hour. &quot;Funded&quot; is the client&apos;s current account balance; volume is total lots traded.
+        Business tracking only — not financial advice.
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ async function main() {
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
   const page = await browser.newContext().then((c) => c.newPage());
   let snap = null;
+  let clients = [];
   try {
     // 1) login
     await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
@@ -88,29 +89,76 @@ async function main() {
         subIBs,
       };
     });
+
+    // 3b) client roster — everyone under Jay, with balance (funding) + volume.
+    await page.goto(BASE + "/client/ib/myclientslist", { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+    await page.waitForSelector("#spinner", { state: "hidden", timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(4000); // datatables load async
+    clients = await page.evaluate(() => {
+      const parseNum = (s) => { if (s == null) return null; const m = String(s).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+      const out = [];
+      for (let lvl = 1; lvl <= 7; lvl++) {
+        const table = document.querySelector("#level" + lvl + "listing");
+        if (!table) continue;
+        const heads = Array.from(table.querySelectorAll("thead th")).map((h) => (h.textContent || "").replace(/\s+/g, " ").trim().toLowerCase());
+        const col = (want) => heads.findIndex((h) => h === want);
+        const colInc = (want) => heads.findIndex((h) => h.includes(want));
+        const iName = colInc("name"), iEmail = colInc("email"), iPhone = colInc("phone"), iTid = colInc("trading"),
+          iBal = col("balance"), iVol = colInc("volume"), iComm = colInc("commission"), iIb = colInc("ib name");
+        // Prefer the DataTables API so we get ALL pages, not just the visible 10.
+        let rows = [];
+        try {
+          const w = window;
+          if (w.jQuery && w.jQuery.fn && w.jQuery.fn.dataTable && w.jQuery.fn.dataTable.isDataTable(table)) {
+            w.jQuery(table).DataTable().rows().every(function () { rows.push(this.node()); });
+          }
+        } catch (e) {}
+        if (!rows.length) rows = Array.from(table.querySelectorAll("tbody tr"));
+        for (const tr of rows) {
+          const td = tr.querySelectorAll("td");
+          if (td.length < 5) continue;
+          const cell = (i) => (i >= 0 && td[i] ? (td[i].textContent || "").replace(/\s+/g, " ").trim() : "");
+          const name = cell(iName);
+          if (!name || /no data/i.test(name)) continue;
+          out.push({
+            name, email: cell(iEmail).toLowerCase(), phone: cell(iPhone), tradingId: cell(iTid),
+            balance: parseNum(cell(iBal)), volume: parseNum(cell(iVol)), commission: parseNum(cell(iComm)),
+            ibName: cell(iIb), level: lvl,
+          });
+        }
+      }
+      return out;
+    }).catch(() => []);
   } finally {
     await browser.close().catch(() => {});
   }
 
-  log("extracted: monthlyComm=" + digits(snap && snap.monthlyCommission) + " available=" + digits(snap && snap.availableCommission) +
-    " withdrawn=" + digits(snap && snap.withdrawnCommission) + " clientTxn=" + digits(snap && snap.clientTransaction) +
-    " totalClients=" + (snap && snap.totalClients) + " payPerLot=" + digits(snap && snap.payPerLot) +
-    " activeTraders=" + (snap && snap.activeTraders) + " ftd=" + (snap && snap.ftd) + " subIBs=" + (snap && snap.subIBs ? snap.subIBs.length : 0));
+  const fundedCount = clients.filter((c) => (c.balance || 0) > 0).length;
+  const tradingCount = clients.filter((c) => (c.volume || 0) > 0).length;
+  log("extracted: available=" + digits(snap && snap.availableCommission) + " monthly=" + digits(snap && snap.monthlyCommission) +
+    " withdrawn=" + digits(snap && snap.withdrawnCommission) + " totalClients=" + (snap && snap.totalClients) +
+    " payPerLot=" + digits(snap && snap.payPerLot) + " subIBs=" + (snap && snap.subIBs ? snap.subIBs.length : 0) +
+    " | roster=" + clients.length + " funded=" + fundedCount + " trading=" + tradingCount);
 
-  if (!snap || (snap.availableCommission == null && snap.monthlyCommission == null && (!snap.subIBs || !snap.subIBs.length))) {
-    throw new Error("livv_dashboard_parse_empty");
+  if (!snap || (snap.availableCommission == null && snap.monthlyCommission == null && !clients.length)) {
+    throw new Error("livv_parse_empty");
   }
 
-  // 4) post the broker snapshot
+  // 4) post the broker snapshot (commission summary + full client roster)
+  const sum = (f) => clients.reduce((a, c) => a + (Number(c[f]) || 0), 0);
   const broker = {
     name: "Livv Global",
     model: "commission",
     totals: {
       monthlyCommission: snap.monthlyCommission, availableCommission: snap.availableCommission,
       withdrawnCommission: snap.withdrawnCommission, clientTransaction: snap.clientTransaction,
-      totalClients: snap.totalClients, activeTraders: snap.activeTraders, ftd: snap.ftd, payPerLot: snap.payPerLot,
+      totalClients: snap.totalClients != null ? snap.totalClients : (clients.length || null),
+      activeTraders: snap.activeTraders, ftd: snap.ftd, payPerLot: snap.payPerLot,
+      roster: clients.length, funded: fundedCount, unfunded: clients.length - fundedCount,
+      trading: tradingCount, totalBalance: Math.round(sum("balance") * 100) / 100, totalVolume: Math.round(sum("volume") * 100) / 100,
     },
     subIBs: snap.subIBs || [],
+    clients: clients,
   };
   const pr = await fetch(SITE + "/api/chat?kind=broker", {
     method: "POST", headers: { "Content-Type": "application/json" },
