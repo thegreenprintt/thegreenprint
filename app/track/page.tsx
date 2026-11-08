@@ -803,11 +803,11 @@ const lotsFmt = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toLoca
 function BKpi({ label, value, tone, delay, big }: { label: string; value: string; tone: string; delay: number; big?: boolean }) {
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="gp-card group relative flex-1 min-w-[120px] overflow-hidden rounded-2xl p-4 transition-transform hover:-translate-y-0.5">
+      className="gp-card group relative min-w-0 overflow-hidden rounded-2xl p-3.5 transition-transform hover:-translate-y-0.5">
       <div className="absolute inset-x-0 top-0 h-px z-[1]" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-25 group-hover:opacity-60 transition-opacity" style={{ background: tone }} />
-      <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-2">{label}</div>
-      <div className={`gp-display gp-num relative z-[1] ${big ? "text-[40px]" : "text-[28px]"} leading-none font-bold`} style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{value}</div>
+      <div className="relative z-[1] text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.15em] text-muted mb-1.5 truncate">{label}</div>
+      <div className={`gp-display gp-num relative z-[1] ${big ? "text-[clamp(26px,7vw,40px)]" : "text-[clamp(17px,5.2vw,26px)]"} leading-none font-bold tabular-nums truncate`} style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{value}</div>
     </motion.div>
   );
 }
@@ -1124,7 +1124,7 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
                 </button>
               ))}
             </div>
-            <div className="px-4 py-2.5 text-[11px] text-muted/70 border-t border-white/[0.06]">Tap a sub‑IB to see their clients. Commission is each sub‑IB&apos;s own earnings from Livv (&quot;—&quot; if Livv hasn&apos;t reported it yet).</div>
+            <div className="px-4 py-2.5 text-[11px] text-muted/70 border-t border-white/[0.06]">Tap a sub‑IB to see their clients. Commission is their real Livv earnings where Livv exposes it; it shows &quot;—&quot; for IBs who don&apos;t appear in your client list (Livv only renders those in the visual tree). Team volume is always exact.</div>
           </div>
         )
       )}
