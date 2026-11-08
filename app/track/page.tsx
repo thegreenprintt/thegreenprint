@@ -28,8 +28,8 @@ interface TreeNode { id: number; sp: number | null; name: string; email: string;
 interface Goal { earnings: number | null; target: number; perSub: number; deadline: string; }
 interface Snapshot { updatedAt: number; source: string; counts: Record<string, number>; members: Member[]; goal?: Goal; }
 interface BrokerSubIB { name: string; email: string; commission: number; }
-interface BrokerClient { name: string; email: string; phone: string; tradingId: string; balance: number | null; volume: number | null; commission: number | null; ibName: string; level: number; funded: boolean; dBalance?: number | null; dVolume?: number | null; wBalance?: number | null; wVolume?: number | null; newFunded?: boolean; }
-interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; roster?: number; funded?: number; unfunded?: number; trading?: number; totalBalance?: number; totalVolume?: number; }
+interface BrokerClient { name: string; email: string; phone: string; tradingId: string; balance: number | null; volume: number | null; commission: number | null; deposits?: number | null; withdrawals?: number | null; ibName: string; level: number; funded: boolean; dBalance?: number | null; dVolume?: number | null; wBalance?: number | null; wVolume?: number | null; newFunded?: boolean; }
+interface BrokerTotals { monthlyCommission: number | null; availableCommission: number | null; withdrawnCommission: number | null; clientTransaction: number | null; totalClients: number | null; activeTraders: number | null; ftd: number | null; payPerLot: number | null; roster?: number; funded?: number; unfunded?: number; trading?: number; totalBalance?: number; totalVolume?: number; teamDeposits?: number | null; teamWithdrawals?: number | null; netFunding?: number | null; depositCount?: number | null; withdrawalCount?: number | null; }
 interface Broker { updatedAt: number; source: string; broker: string; model?: string; totals: BrokerTotals; subIBs: BrokerSubIB[]; clients?: BrokerClient[]; baselineDate?: string | null; }
 
 type Stage = "new" | "contacted" | "talking" | "committed" | "closed" | "skip";
@@ -855,11 +855,17 @@ function ClientSheet({ c, onClose }: { c: BrokerClient; onClose: () => void }) {
           </div>
           <span className="shrink-0 text-[10px] font-mono uppercase tracking-wider rounded px-2 py-1 border" style={{ color: tag.color, borderColor: tag.color + "55" }}>{tag.label}</span>
         </div>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <Stat label="Funded" value={c.funded ? bMoney(c.balance) : "No"} tone={c.funded ? "#00FF85" : "#8a8a8a"} />
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          <Stat label="Funded now" value={c.funded ? bMoney(c.balance) : "No"} tone={c.funded ? "#00FF85" : "#8a8a8a"} />
           <Stat label="Volume" value={volFmt(c.volume)} tone="#4a9eff" />
           <Stat label="Commission" value={bMoney(c.commission)} tone="#C9A84C" />
         </div>
+        {(c.deposits != null || c.withdrawals != null) && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] mb-3 px-1">
+            {c.deposits != null && <span className="text-muted">Deposited <span className="text-accent font-semibold">{bMoney(c.deposits)}</span></span>}
+            {c.withdrawals != null && c.withdrawals > 0 && <span className="text-muted">Withdrawn <span className="text-red font-semibold">{bMoney(c.withdrawals)}</span></span>}
+          </div>
+        )}
         {(c.wVolume != null || c.wBalance != null) && (
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] mb-3 px-1">
             {c.wVolume != null && <span className="text-muted">Volume this wk <span className="font-semibold" style={{ color: c.wVolume > 0 ? "#00FF85" : c.wVolume < 0 ? "#FF6B6B" : "#F5F5F5" }}>{c.wVolume > 0 ? "+" : ""}{volFmt(c.wVolume)}</span></span>}
@@ -893,7 +899,7 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "growth" | "name">("volume");
   const [filter, setFilter] = useState<"all" | "funded" | "unfunded" | "ready">("all");
   const [openClient, setOpenClient] = useState<BrokerClient | null>(null);
-  const [mode, setMode] = useState<"today" | "clients" | "subibs">("today");
+  const [mode, setMode] = useState<"today" | "business" | "clients" | "subibs">("today");
   const [ibFilter, setIbFilter] = useState<string | null>(null);
   const textHref = (c: BrokerClient) => { const d = (c.phone || "").replace(/[^\d+]/g, ""); if (!d) return ""; const f = firstName(c.name) || "there"; return `sms:${d}?&body=${encodeURIComponent(`Yo ${f}, you funded up and ready for the week? 💚`)}`; };
   if (!broker) {
@@ -990,13 +996,51 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
 
       {/* mode tabs */}
       <div className="flex items-center gap-1 rounded-xl border border-white/10 p-1">
-        {(["today", "clients", "subibs"] as const).map((m) => (
+        {(["today", "business", "clients", "subibs"] as const).map((m) => (
           <button key={m} onClick={() => { setMode(m); setIbFilter(null); }}
-            className={`flex-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-text"}`}>
-            {m === "today" ? "Today" : m === "clients" ? "Clients" : "Sub‑IBs"}
+            className={`flex-1 px-2 py-2 rounded-lg text-[12px] sm:text-[13px] font-semibold transition-colors ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-text"}`}>
+            {m === "today" ? "Today" : m === "business" ? "Business" : m === "clients" ? "Clients" : "Sub‑IBs"}
           </button>
         ))}
       </div>
+
+      {/* ───────── BUSINESS (the whole P&L) ───────── */}
+      {mode === "business" && (
+        <div className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="gp-card gp-card-gold relative overflow-hidden rounded-3xl p-6">
+            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full blur-3xl" style={{ background: "rgba(0,255,133,0.18)" }} />
+            <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full blur-3xl" style={{ background: "rgba(201,168,76,0.12)" }} />
+            <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Total funding · your book</div>
+            <div className="gp-display gp-num relative z-[1] text-[clamp(40px,12vw,68px)] leading-none font-bold text-accent truncate" style={{ textShadow: "0 0 40px #00FF8540" }}>{money(t.teamDeposits)}</div>
+            <div className="relative z-[1] mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <span className="text-muted">Deposits <span className="text-text font-semibold">{t.depositCount != null ? t.depositCount.toLocaleString() : "—"}</span></span>
+              <span className="text-muted">Withdrawn <span className="text-red font-semibold">{money(t.teamWithdrawals)}</span></span>
+              <span className="text-muted">Net in <span className="text-accent font-semibold">{money(t.netFunding)}</span></span>
+            </div>
+          </motion.div>
+
+          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted px-1">Your commission</div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <BKpi label="Available" value={money(t.availableCommission)} tone="#00FF85" delay={0} />
+            <BKpi label="This month" value={money(t.monthlyCommission)} tone="#C9A84C" delay={0.05} />
+            <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#9b7bff" delay={0.1} />
+          </div>
+
+          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted px-1">Your book</div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <BKpi label="Clients" value={String(rosterN)} tone="#F5F5F5" delay={0} />
+            <BKpi label="Funded" value={`${fundedN}/${rosterN}`} tone="#00FF85" delay={0.05} />
+            <BKpi label="Trading" value={String(t.trading ?? "—")} tone="#4a9eff" delay={0.1} />
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <BKpi label="Live balance" value={money(t.totalBalance)} tone="#00FF85" delay={0} />
+            <BKpi label="Total volume" value={volFmt(t.totalVolume)} tone="#4a9eff" delay={0.05} />
+            <BKpi label="Pay / lot" value={money(t.payPerLot)} tone="#C9A84C" delay={0.1} />
+          </div>
+          <div className="text-[11px] text-muted/60 px-1">Funding, deposits and withdrawals read from your Livv Team reports; commission from your IB dashboard — every hour.</div>
+        </div>
+      )}
 
       {/* ───────── TODAY (simple default) ───────── */}
       {mode === "today" && (

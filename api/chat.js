@@ -636,6 +636,7 @@ module.exports = async function handler(req, res) {
             tradingId: clean(c.tradingId, 48),
             balance: balance, volume: volume,
             commission: round2(num(c.commission)),
+            deposits: round2(num(c.deposits)), withdrawals: round2(num(c.withdrawals)),
             ibName: clean(c.ibName, 80),
             level: rint(c.level) || 1,
             funded: (balance || 0) > 0,
@@ -684,6 +685,11 @@ module.exports = async function handler(req, res) {
           trading: rint(rawTotals.trading) != null ? rint(rawTotals.trading) : clients.filter((c) => (c.volume || 0) > 0).length,
           totalBalance: round2(num(rawTotals.totalBalance) != null ? num(rawTotals.totalBalance) : csum('balance')),
           totalVolume: round2(num(rawTotals.totalVolume) != null ? num(rawTotals.totalVolume) : csum('volume')),
+          teamDeposits: round2(num(rawTotals.teamDeposits)),
+          teamWithdrawals: round2(num(rawTotals.teamWithdrawals)),
+          netFunding: round2(num(rawTotals.netFunding)),
+          depositCount: rint(rawTotals.depositCount),
+          withdrawalCount: rint(rawTotals.withdrawalCount),
         };
         const subIBs = rawSubs.slice(0, 500).map((s) => ({
           name: clean(s.name, 80) || 'Sub-IB',

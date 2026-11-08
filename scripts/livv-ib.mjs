@@ -24,6 +24,7 @@ async function main() {
   const page = await browser.newContext().then((c) => c.newPage());
   let snap = null;
   let clients = [];
+  let reports = { deposits: { total: 0, byKey: {}, count: 0 }, withdrawals: { total: 0, byKey: {}, count: 0 } };
   try {
     // 1) login
     await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
@@ -129,6 +130,47 @@ async function main() {
       }
       return out;
     }).catch(() => []);
+
+    // 3c) team deposit + withdraw reports → total funding + per-client deposits.
+    const scrapeReport = async (path) => {
+      await page.goto(BASE + path, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+      await page.waitForSelector("#spinner", { state: "hidden", timeout: 20000 }).catch(() => {});
+      await page.waitForTimeout(3500);
+      return await page.evaluate(() => {
+        const tables = Array.from(document.querySelectorAll("table"));
+        const t = tables.find((x) => x.querySelector("tbody tr")) || tables[0];
+        if (!t) return { headers: [], rows: [] };
+        const headers = Array.from(t.querySelectorAll("thead th")).map((h) => (h.textContent || "").replace(/\s+/g, " ").trim().toLowerCase());
+        let rowsEl = [];
+        try { const w = window; if (w.jQuery && w.jQuery.fn && w.jQuery.fn.dataTable && w.jQuery.fn.dataTable.isDataTable(t)) { w.jQuery(t).DataTable().rows().every(function () { rowsEl.push(this.node()); }); } } catch (e) {}
+        if (!rowsEl.length) rowsEl = Array.from(t.querySelectorAll("tbody tr"));
+        const rows = rowsEl.map((tr) => Array.from(tr.querySelectorAll("td")).map((td) => (td.textContent || "").replace(/\s+/g, " ").trim()));
+        return { headers, rows };
+      }).catch(() => ({ headers: [], rows: [] }));
+    };
+    const mnum = (s) => { const m = String(s || "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : 0; };
+    const sumReport = (rep) => {
+      const h = rep.headers || [];
+      const iAmt = h.findIndex((x) => x.includes("amount")), iStat = h.findIndex((x) => x.includes("status")), iName = h.findIndex((x) => x.includes("name")), iEmail = h.findIndex((x) => x.includes("email"));
+      let total = 0; const byKey = {}; let count = 0;
+      for (const r of rep.rows || []) {
+        if (!r.length) continue;
+        if (iStat >= 0 && !/approv|success|complete|paid/i.test(r[iStat] || "")) continue;
+        const amt = iAmt >= 0 ? mnum(r[iAmt]) : 0; if (!amt) continue;
+        total += amt; count++;
+        const key = ((iEmail >= 0 && r[iEmail]) ? r[iEmail] : (iName >= 0 ? r[iName] : "")).toLowerCase().replace(/[^a-z0-9@._-]/g, "");
+        if (key) byKey[key] = Math.round(((byKey[key] || 0) + amt) * 100) / 100;
+      }
+      return { total: Math.round(total * 100) / 100, byKey, count };
+    };
+    reports = { deposits: sumReport(await scrapeReport("/client/ib/myteamdepositreport")), withdrawals: sumReport(await scrapeReport("/client/ib/myteamwithdrawreport")) };
+    // attach per-client deposits/withdrawals (match by email, then normalized name)
+    const normk = (s) => (s || "").toLowerCase().replace(/[^a-z0-9@._-]/g, "");
+    for (const c of clients) {
+      const ek = normk(c.email), nk = normk(c.name);
+      c.deposits = reports.deposits.byKey[ek] != null ? reports.deposits.byKey[ek] : (reports.deposits.byKey[nk] != null ? reports.deposits.byKey[nk] : null);
+      c.withdrawals = reports.withdrawals.byKey[ek] != null ? reports.withdrawals.byKey[ek] : (reports.withdrawals.byKey[nk] != null ? reports.withdrawals.byKey[nk] : null);
+    }
   } finally {
     await browser.close().catch(() => {});
   }
@@ -138,7 +180,13 @@ async function main() {
   log("extracted: available=" + digits(snap && snap.availableCommission) + " monthly=" + digits(snap && snap.monthlyCommission) +
     " withdrawn=" + digits(snap && snap.withdrawnCommission) + " totalClients=" + (snap && snap.totalClients) +
     " payPerLot=" + digits(snap && snap.payPerLot) + " subIBs=" + (snap && snap.subIBs ? snap.subIBs.length : 0) +
-    " | roster=" + clients.length + " funded=" + fundedCount + " trading=" + tradingCount);
+    " | roster=" + clients.length + " funded=" + fundedCount + " trading=" + tradingCount +
+    " | deposits(" + reports.deposits.count + ")=" + digits(reports.deposits.total) + " withdrawals(" + reports.withdrawals.count + ")=" + digits(reports.withdrawals.total));
+  if (process.env.CHECK && process.env.CHECK.indexOf("=") > 0) {
+    const [nm, amt] = process.env.CHECK.split("="); const want = Number(amt); const nk = (nm || "").trim().toLowerCase();
+    const near = (x) => x != null && Math.abs(Number(x) - want) < Math.max(1, want * 0.03);
+    for (const c of clients) if ((c.name || "").toLowerCase().includes(nk)) log("  CHECK '" + c.name + "': deposits~=" + near(c.deposits) + " balance~=" + near(c.balance) + " commission~=" + near(c.commission));
+  }
 
   if (!snap || (snap.availableCommission == null && snap.monthlyCommission == null && !clients.length)) {
     throw new Error("livv_parse_empty");
@@ -197,6 +245,9 @@ async function main() {
       activeTraders: snap.activeTraders, ftd: snap.ftd, payPerLot: snap.payPerLot,
       roster: clients.length, funded: fundedCount, unfunded: clients.length - fundedCount,
       trading: tradingCount, totalBalance: Math.round(sum("balance") * 100) / 100, totalVolume: Math.round(sum("volume") * 100) / 100,
+      teamDeposits: reports.deposits.total, teamWithdrawals: reports.withdrawals.total,
+      netFunding: Math.round((reports.deposits.total - reports.withdrawals.total) * 100) / 100,
+      depositCount: reports.deposits.count, withdrawalCount: reports.withdrawals.count,
     },
     subIBs: snap.subIBs || [],
     clients: clients,
