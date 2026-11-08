@@ -893,6 +893,8 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const [sortBy, setSortBy] = useState<"volume" | "balance" | "commission" | "growth" | "name">("volume");
   const [filter, setFilter] = useState<"all" | "funded" | "unfunded" | "ready">("all");
   const [openClient, setOpenClient] = useState<BrokerClient | null>(null);
+  const [mode, setMode] = useState<"clients" | "subibs">("clients");
+  const [ibFilter, setIbFilter] = useState<string | null>(null);
   if (!broker) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -916,7 +918,9 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const fundedN = t.funded ?? all.filter((c) => c.funded).length;
   const ready = all.filter((c) => c.funded && (c.volume || 0) <= 0); // funded, not trading
   const isReady = (c: BrokerClient) => c.funded && (c.volume || 0) <= 0;
-  const filtered = all.filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : filter === "unfunded" ? !c.funded : isReady(c)));
+  const filtered = all
+    .filter((c) => (ibFilter ? (c.ibName || "").toLowerCase() === ibFilter.toLowerCase() : true))
+    .filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : filter === "unfunded" ? !c.funded : isReady(c)));
   const metric = (c: BrokerClient): number => {
     if (sortBy === "growth") return c.wVolume || 0;
     if (sortBy === "balance") return c.balance || 0;
@@ -934,6 +938,37 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const topGrowth = hasHistory ? all.filter((c) => (c.wVolume || 0) > 0).sort((a, b) => (b.wVolume || 0) - (a.wVolume || 0)).slice(0, 5) : [];
   const newFunded = hasHistory ? all.filter((c) => c.newFunded) : [];
   const withdrew = hasHistory ? all.filter((c) => (c.wBalance || 0) < -1).sort((a, b) => (a.wBalance || 0) - (b.wBalance || 0)).slice(0, 5) : [];
+
+  // ── Numbers that hit different ──────────────────────────────────────────────
+  const perLot = t.payPerLot || 25;
+  const activeTraders = all.filter((c) => (c.volume || 0) > 0);
+  const avgVol = activeTraders.length ? activeTraders.reduce((s, c) => s + (c.volume || 0), 0) / activeTraders.length : 0;
+  const moneyOnTable = Math.round(ready.length * avgVol * perLot); // if READY traded like your average
+  const now = new Date();
+  const dom = now.getDate();
+  const diM = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthComm = t.monthlyCommission || 0;
+  const projMonth = dom > 0 && monthComm > 0 ? Math.round((monthComm / dom) * diM) : null;
+  const atRisk = hasHistory ? all.filter((c) => c.funded && (c.wVolume || 0) < 0) : [];
+
+  // ── Sub-IB teams: group the roster by sponsor (exclude Jay's own directs) ────
+  const norm = (s: string) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
+  const meKey = norm("Jacob Walton");
+  const subCommByName: Record<string, number> = {};
+  for (const s of broker.subIBs || []) subCommByName[norm(s.name)] = s.commission;
+  const teamMap: Record<string, { name: string; clients: number; funded: number; volume: number; balance: number }> = {};
+  for (const c of all) {
+    const ib = (c.ibName || "").trim();
+    if (!ib || norm(ib) === meKey) continue;
+    const key = norm(ib);
+    if (!teamMap[key]) teamMap[key] = { name: ib, clients: 0, funded: 0, volume: 0, balance: 0 };
+    const tm = teamMap[key];
+    tm.clients++; if (c.funded) tm.funded++; tm.volume += c.volume || 0; tm.balance += c.balance || 0;
+  }
+  const teams = Object.entries(teamMap).map(([key, tm]) => {
+    const livv = subCommByName[key];
+    return { ...tm, commission: livv != null ? livv : Math.round(tm.volume * perLot), commEst: livv == null };
+  }).sort((a, b) => b.volume - a.volume);
 
   return (
     <div className="space-y-5">
@@ -956,6 +991,73 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
         <BKpi label="This month" value={money(t.monthlyCommission)} tone="#9b7bff" delay={0.18} />
         <BKpi label="Withdrawn" value={money(t.withdrawnCommission)} tone="#F5F5F5" delay={0.22} />
       </div>
+
+      {/* mode toggle: your clients vs your sub-IBs */}
+      <div className="flex items-center gap-1 rounded-xl border border-white/10 p-1 w-full sm:w-auto">
+        {(["clients", "subibs"] as const).map((m) => (
+          <button key={m} onClick={() => { setMode(m); setIbFilter(null); }}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? "bg-accent/15 text-accent" : "text-muted hover:text-text"}`}>
+            {m === "clients" ? "My clients" : "My sub‑IBs"}
+          </button>
+        ))}
+      </div>
+
+      {/* ───────── SUB-IBs ───────── */}
+      {mode === "subibs" && (
+        teams.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-8 text-center text-muted text-sm">No sub‑IBs found in your downline yet.</div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/[0.06] gp-display text-text font-semibold text-sm">Your sub‑IBs <span className="text-muted font-normal">({teams.length})</span> · ranked by team volume</div>
+            <div className="hidden sm:grid grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-muted/70">
+              <div>#</div><div>Sub‑IB</div><div className="text-right">Clients</div><div className="text-right">Funded</div><div className="text-right">Team volume</div><div className="text-right">Commission</div>
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              {teams.map((tm, i) => (
+                <button key={tm.name + i} onClick={() => { setIbFilter(tm.name); setMode("clients"); setFilter("all"); }}
+                  className="w-full text-left grid grid-cols-[1.5fr_1fr] sm:grid-cols-[0.35fr_2fr_1fr_1fr_1fr_1fr] gap-x-2 gap-y-1 px-4 py-2.5 items-center hover:bg-white/[0.03] active:bg-white/[0.05] transition-colors">
+                  <div className="hidden sm:block gp-display text-muted/60 text-sm tabular-nums" style={{ color: i < 3 ? "#C9A84C" : undefined }}>{i + 1}</div>
+                  <div className="min-w-0"><div className="text-text text-sm font-medium truncate">{properName(tm.name)}</div><div className="text-muted/70 text-[10px] font-mono truncate sm:hidden">{tm.clients} clients · {tm.funded} funded</div></div>
+                  <div className="hidden sm:block text-right text-text/85 text-sm tabular-nums">{tm.clients}</div>
+                  <div className="hidden sm:block text-right text-accent text-sm tabular-nums">{tm.funded}</div>
+                  <div className="text-right text-[#4a9eff] text-sm font-semibold tabular-nums col-start-1 sm:col-auto"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">VOL</span>{volFmt(tm.volume)}</div>
+                  <div className="text-right text-accent text-sm font-semibold tabular-nums"><span className="sm:hidden text-muted/60 text-[10px] font-mono mr-1">COMM</span>{tm.commEst ? "~" : ""}{bMoney(tm.commission)}</div>
+                </button>
+              ))}
+            </div>
+            <div className="px-4 py-2.5 text-[11px] text-muted/70 leading-relaxed border-t border-white/[0.06]">Tap a sub‑IB to see their clients. &quot;~&quot; commission is estimated as their team&apos;s volume × {usd(perLot)}/lot; exact figures come from Livv&apos;s top‑earner list.</div>
+          </div>
+        )
+      )}
+
+      {/* ───────── CLIENTS ───────── */}
+      {mode === "clients" && (<>
+
+      {/* three numbers that hit different */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="gp-card rounded-2xl p-4 relative overflow-hidden">
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">💸 Money on the table</div>
+          <div className="gp-display gp-num text-[30px] leading-none font-bold text-gold">{moneyOnTable > 0 ? "~" + usd(moneyOnTable) : "—"}</div>
+          <div className="text-[11px] text-muted mt-1.5">if your {ready.length} funded‑but‑idle clients traded like your average</div>
+        </div>
+        <div className="gp-card rounded-2xl p-4 relative overflow-hidden">
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">📅 On pace this month</div>
+          <div className="gp-display gp-num text-[30px] leading-none font-bold text-accent">{projMonth != null ? usd(projMonth) : "—"}</div>
+          <div className="text-[11px] text-muted mt-1.5">{monthComm > 0 ? money(monthComm) + " so far · day " + dom + " of " + diM : "builds through the month"}</div>
+        </div>
+        <button onClick={() => { if (atRisk.length) { setFilter("all"); setSortBy("growth"); } }} className="gp-card rounded-2xl p-4 relative overflow-hidden text-left">
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-1.5">⚠️ Cooling off</div>
+          <div className="gp-display gp-num text-[30px] leading-none font-bold text-red">{hasHistory ? atRisk.length : "—"}</div>
+          <div className="text-[11px] text-muted mt-1.5">{hasHistory ? "funded clients whose volume dropped this week" : "needs a few days of history to flag"}</div>
+        </button>
+      </div>
+
+      {ibFilter && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.05] px-4 py-2.5">
+          <div className="text-sm text-text">Showing <span className="text-accent font-semibold">{properName(ibFilter)}</span>&apos;s clients</div>
+          <button onClick={() => setIbFilter(null)} className="text-[12px] font-mono text-muted hover:text-text">clear ✕</button>
+        </div>
+      )}
 
       {/* needs attention — the highest-leverage play */}
       {ready.length > 0 && (
@@ -1051,6 +1153,8 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
           </div>
         )}
       </div>
+      </>)}
+
       <div className="text-[11px] text-muted/70 leading-relaxed px-1">
         Everyone under you, read from your Livv Global IB dashboard each hour. Tap anyone to see their numbers and text or email them.
         {hasHistory ? " Week-over-week movers compare to " + broker.baselineDate + "." : " Week-over-week movers (growth, new funding, withdrawals) start filling in over the next few days."}
