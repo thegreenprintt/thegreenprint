@@ -91,14 +91,16 @@ async function main() {
     // Grab the card-grid HTML (anchored on a known label, climb to the container),
     // masked so structure (tags/classes) is visible but values/emails are not.
     const mask = (h) => h.replace(/>\s*\$?\s*[\d][\d,]*\.?\d*\s*</g, ">#<").replace(/[\w.+-]+@[\w.-]+/g, "x@x").replace(/<svg[\s\S]*?<\/svg>/g, "<svg/>").replace(/\s+/g, " ").slice(0, 9000);
-    const cards = await page.evaluate(() => {
-      const all = Array.from(document.querySelectorAll("body *"));
-      const lbl = all.find((e) => e.children.length === 0 && /Monthly Commission/i.test(e.textContent || ""));
-      let node = lbl; for (let i = 0; i < 6 && node && node.parentElement; i++) node = node.parentElement;
-      return node ? node.outerHTML : "(anchor not found)";
-    }).catch((e) => "(err " + (e && e.message) + ")");
-    log("card-grid DOM (masked):");
-    console.log(mask(cards));
+    const ids = await page.evaluate(() => {
+      const out = [];
+      document.querySelectorAll("[id]").forEach((e) => {
+        const txt = (e.textContent || "").trim().replace(/\s+/g, " ");
+        if (txt && txt.length < 60 && e.children.length <= 3) out.push(e.id + " = " + txt.replace(/[\d][\d,]*\.?\d*/g, "#").replace(/[\w.+-]+@[\w.-]+/g, "x@x"));
+      });
+      return out.slice(0, 150);
+    }).catch((e) => ["(err " + (e && e.message) + ")"]);
+    log("id → masked value map (" + ids.length + "):");
+    for (const line of ids) console.log("   " + line);
 
     // Grab the sub-IB table HTML too.
     const table = await page.evaluate(() => {
