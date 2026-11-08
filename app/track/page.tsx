@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { stateFromPhone, stateName } from "./areacodes";
@@ -94,6 +94,43 @@ function useCountUp(target: number, ms = 1000) {
   }, [target, ms]); return n;
 }
 
+/* ── FitText — guarantees a value never overflows its tile (shrinks to fit) ── */
+function FitText({ text, className, style, align = "left", min = 0.4 }: { text: string; className?: string; style?: React.CSSProperties; align?: "left" | "right"; min?: number }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current, inner = innerRef.current;
+    if (!wrap || !inner) return;
+    const fit = () => {
+      const avail = wrap.clientWidth;
+      const need = inner.scrollWidth; // untransformed intrinsic width
+      setScale(need > avail && need > 0 ? Math.max(min, avail / need) : 1);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [text, min]);
+  return (
+    <div ref={wrapRef} className={className} style={{ ...style, overflow: "hidden" }}>
+      <span ref={innerRef} className="inline-block tabular-nums whitespace-nowrap will-change-transform"
+        style={{ transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: align === "right" ? "right center" : "left center" }}>
+        {text}
+      </span>
+    </div>
+  );
+}
+
+/* ── CountMoney — cinematic count-up that also auto-fits its tile ── */
+function CountMoney({ value, className, style, align }: { value: number | null | undefined; className?: string; style?: React.CSSProperties; align?: "left" | "right" }) {
+  const target = Number(value) || 0;
+  const n = useCountUp(target, 1100);
+  const settled = n === Math.round(target);
+  const text = value == null ? "—" : (settled ? usd(target) : usd(n));
+  return <FitText text={text} className={className} style={style} align={align} />;
+}
+
 /* ── Celebration confetti (fires when you close someone) ──────────────────── */
 const CONFETTI_COLORS = ["#00FF85", "#C9A84C", "#4a9eff", "#9b7bff", "#ffffff"];
 function ConfettiBurst() {
@@ -119,7 +156,7 @@ function StatTile({ label, value, tone, delay, prefix, suffix }: { label: string
       <div className="absolute inset-x-0 top-0 h-px z-[1]" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-25 group-hover:opacity-60 transition-opacity" style={{ background: tone }} />
       <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-2">{label}</div>
-      <div className="gp-display gp-num relative z-[1] text-[34px] leading-none font-bold" style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{prefix || ""}{n.toLocaleString()}{suffix || ""}</div>
+      <FitText text={`${prefix || ""}${n.toLocaleString()}${suffix || ""}`} className="gp-display gp-num relative z-[1] text-[34px] leading-none font-bold" style={{ color: tone, textShadow: `0 0 28px ${tone}40` }} />
     </motion.div>
   );
 }
@@ -807,7 +844,7 @@ function BKpi({ label, value, tone, delay, big }: { label: string; value: string
       <div className="absolute inset-x-0 top-0 h-px z-[1]" style={{ background: `linear-gradient(90deg,transparent,${tone},transparent)` }} />
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-25 group-hover:opacity-60 transition-opacity" style={{ background: tone }} />
       <div className="relative z-[1] text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.15em] text-muted mb-1.5 truncate">{label}</div>
-      <div className={`gp-display gp-num relative z-[1] ${big ? "text-[clamp(26px,7vw,40px)]" : "text-[clamp(17px,5.2vw,26px)]"} leading-none font-bold tabular-nums truncate`} style={{ color: tone, textShadow: `0 0 28px ${tone}40` }}>{value}</div>
+      <FitText text={value} className={`gp-display gp-num relative z-[1] ${big ? "text-[clamp(26px,7vw,40px)]" : "text-[clamp(18px,5.4vw,26px)]"} leading-none font-bold`} style={{ color: tone, textShadow: `0 0 28px ${tone}40` }} />
     </motion.div>
   );
 }
@@ -839,7 +876,7 @@ function ClientSheet({ c, onClose }: { c: BrokerClient; onClose: () => void }) {
   const sms = digits ? `sms:${digits}?&body=${encodeURIComponent(msg)}` : "";
   const mail = c.email ? `mailto:${c.email}?subject=${encodeURIComponent("Quick one from Jay")}&body=${encodeURIComponent(msg)}` : "";
   const Stat = ({ label, value, tone }: { label: string; value: string; tone?: string }) => (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1">{label}</div><div className="gp-display text-base font-bold tabular-nums" style={{ color: tone || "#F5F5F5" }}>{value}</div></div>
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 min-w-0"><div className="text-[9px] font-mono uppercase tracking-wider text-muted mb-1">{label}</div><FitText text={value} className="gp-display text-base font-bold" style={{ color: tone || "#F5F5F5" }} /></div>
   );
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center">
@@ -901,6 +938,16 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const [openClient, setOpenClient] = useState<BrokerClient | null>(null);
   const [mode, setMode] = useState<"today" | "business" | "clients" | "subibs">("today");
   const [ibFilter, setIbFilter] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const clientKey = (c: BrokerClient) => c.tradingId || c.email || c.name;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const [reached, setReached] = useState<Record<string, boolean>>({});
+  useEffect(() => { try { const raw = localStorage.getItem("gp_reached_" + todayKey); if (raw) setReached(JSON.parse(raw)); } catch {} }, [todayKey]);
+  const toggleReached = (c: BrokerClient) => setReached((prev) => {
+    const k = clientKey(c); const next = { ...prev, [k]: !prev[k] };
+    try { localStorage.setItem("gp_reached_" + todayKey, JSON.stringify(next)); } catch {}
+    return next;
+  });
   const textHref = (c: BrokerClient) => { const d = (c.phone || "").replace(/[^\d+]/g, ""); if (!d) return ""; const f = firstName(c.name) || "there"; return `sms:${d}?&body=${encodeURIComponent(`Yo ${f}, you funded up and ready for the week? 💚`)}`; };
   if (!broker) {
     return (
@@ -925,9 +972,13 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const fundedN = t.funded ?? all.filter((c) => c.funded).length;
   const ready = all.filter((c) => c.funded && (c.volume || 0) <= 0); // funded, not trading
   const isReady = (c: BrokerClient) => c.funded && (c.volume || 0) <= 0;
+  const reachedCount = ready.filter((c) => reached[clientKey(c)]).length;
+  const readyOrdered = [...ready].sort((a, b) => (reached[clientKey(a)] ? 1 : 0) - (reached[clientKey(b)] ? 1 : 0) || (b.balance || 0) - (a.balance || 0));
+  const q = query.trim().toLowerCase();
   const filtered = all
     .filter((c) => (ibFilter ? (c.ibName || "").toLowerCase() === ibFilter.toLowerCase() : true))
-    .filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : filter === "unfunded" ? !c.funded : isReady(c)));
+    .filter((c) => (filter === "all" ? true : filter === "funded" ? c.funded : filter === "unfunded" ? !c.funded : isReady(c)))
+    .filter((c) => (q ? (`${c.name} ${c.email} ${c.tradingId} ${c.ibName}`).toLowerCase().includes(q) : true));
   const metric = (c: BrokerClient): number => {
     if (sortBy === "growth") return c.wVolume || 0;
     if (sortBy === "balance") return c.balance || 0;
@@ -1012,7 +1063,7 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full blur-3xl" style={{ background: "rgba(0,255,133,0.18)" }} />
             <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full blur-3xl" style={{ background: "rgba(201,168,76,0.12)" }} />
             <div className="relative z-[1] text-[10px] font-mono uppercase tracking-[0.25em] text-muted mb-2">Total funding · your book</div>
-            <div className="gp-display gp-num relative z-[1] text-[clamp(40px,12vw,68px)] leading-none font-bold text-accent truncate" style={{ textShadow: "0 0 40px #00FF8540" }}>{money(t.teamDeposits)}</div>
+            <CountMoney value={t.teamDeposits} className="gp-display gp-num relative z-[1] text-[clamp(40px,13vw,68px)] leading-none font-bold text-accent" style={{ textShadow: "0 0 40px #00FF8540" }} />
             <div className="relative z-[1] mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <span className="text-muted">Deposits <span className="text-text font-semibold">{t.depositCount != null ? t.depositCount.toLocaleString() : "—"}</span></span>
               <span className="text-muted">Withdrawn <span className="text-red font-semibold">{money(t.teamWithdrawals)}</span></span>
@@ -1052,23 +1103,31 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
           </div>
 
           <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/[0.08] to-transparent p-4">
-            <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center justify-between gap-2 mb-2">
               <div className="gp-display text-gold font-bold text-base">🟡 Reach out today</div>
-              <div className="text-[11px] font-mono text-muted">{ready.length} funded · idle</div>
+              <div className="text-[11px] font-mono text-muted shrink-0">{reachedCount}/{ready.length} reached</div>
             </div>
             {ready.length === 0 ? (
               <div className="text-muted text-sm">Everyone who&apos;s funded is trading. 🔥</div>
             ) : (
               <>
-                <div className="text-muted text-[12px] mb-3">Funded up but haven&apos;t traded — tap 💬 to text them.</div>
+                <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden mb-3">
+                  <motion.div className="h-full rounded-full bg-gradient-to-r from-gold to-accent" initial={{ width: 0 }} animate={{ width: `${Math.round((reachedCount / Math.max(1, ready.length)) * 100)}%` }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} />
+                </div>
+                {reachedCount >= ready.length ? (
+                  <div className="text-accent text-sm font-semibold mb-1">🔥 Every funded account reached today. That&apos;s the work.</div>
+                ) : (
+                  <div className="text-muted text-[12px] mb-3">Funded up but haven&apos;t traded — 💬 to text, ◯ when you&apos;ve reached out.</div>
+                )}
                 <div className="space-y-1">
-                  {ready.slice(0, 8).map((c, i) => (
-                    <div key={i} className="flex items-center gap-2 py-0.5">
-                      <button onClick={() => setOpenClient(c)} className="min-w-0 flex-1 text-left text-text text-sm truncate">{properName(c.name)}</button>
+                  {readyOrdered.slice(0, 8).map((c, i) => { const done = !!reached[clientKey(c)]; return (
+                    <div key={clientKey(c) + i} className={`flex items-center gap-2 py-0.5 transition-opacity ${done ? "opacity-45" : ""}`}>
+                      <button onClick={() => toggleReached(c)} aria-label="mark reached" className={`shrink-0 h-6 w-6 rounded-full border grid place-items-center text-[12px] active:scale-90 transition-colors ${done ? "bg-accent border-accent text-bg" : "border-white/25 text-transparent"}`}>✓</button>
+                      <button onClick={() => setOpenClient(c)} className={`min-w-0 flex-1 text-left text-text text-sm truncate ${done ? "line-through" : ""}`}>{properName(c.name)}</button>
                       <span className="text-accent text-[13px] font-semibold tabular-nums shrink-0">{money(c.balance)}</span>
                       {textHref(c) && <a href={textHref(c)} onClick={(e) => e.stopPropagation()} className="shrink-0 px-2.5 py-1 rounded-lg bg-accent text-bg text-[13px] font-bold active:scale-95">💬</a>}
                     </div>
-                  ))}
+                  ); })}
                 </div>
                 {ready.length > 8 && <button onClick={() => { setMode("clients"); setFilter("ready"); setSortBy("balance"); }} className="mt-3 text-[12px] font-mono text-gold">work all {ready.length} →</button>}
               </>
@@ -1107,6 +1166,12 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
               <button onClick={() => setIbFilter(null)} className="text-[12px] font-mono text-muted hover:text-text">clear ✕</button>
             </div>
           )}
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/70 text-sm">⌕</span>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} inputMode="search" placeholder="Search your book…"
+              className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-9 py-2.5 text-[15px] text-text outline-none focus:border-accent/50 placeholder:text-muted/50" />
+            {query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text text-sm">✕</button>}
+          </div>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.06] flex-wrap">
               <div className="gp-display text-text font-semibold text-sm">Your book <span className="text-muted font-normal">({sorted.length})</span></div>
