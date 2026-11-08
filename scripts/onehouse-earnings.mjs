@@ -134,7 +134,15 @@ async function main() {
   });
   const pj = await pr.json().catch(() => null);
   log("posted to /track: status " + pr.status + ", ok=" + !!(pj && pj.ok));
-  if (!pj || !pj.ok) throw new Error("post_failed:" + pr.status);
+  if (!pj || !pj.ok) {
+    // On auth failure, fetch the safe diagnostic (no keys) to explain the 403.
+    try {
+      const dr = await fetch(SITE + "/api/chat?kind=track-goal&debug=1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: ADMIN_KEY, earnings }) });
+      const dj = await dr.json().catch(() => null);
+      if (dj) log("auth diag: serverKeyConfigured=" + dj.serverKeyConfigured + " serverKeyLen=" + dj.serverKeyLen + " sentKeyLen=" + dj.sentKeyLen + " lenMatch=" + dj.lenMatch);
+    } catch (e) {}
+    throw new Error("post_failed:" + pr.status);
+  }
   log("done — earnings updated on /track");
 }
 
