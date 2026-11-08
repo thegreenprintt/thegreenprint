@@ -1001,7 +1001,10 @@ module.exports = async function handler(req, res) {
       // Discovery probe: report what we found and stop — no snapshot write.
       if (DISCOVER) {
         res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null } });
+        // Units check only — never the amount: number of whole digits and whether it
+        // has cents, so we can confirm it's dollars (~4-5 digits) not cents or zero.
+        const mag = pulledEarnings != null ? { digits: String(Math.floor(Math.abs(pulledEarnings))).length, hasCents: Math.round(pulledEarnings * 100) % 100 !== 0, positive: pulledEarnings > 0 } : null;
+        return res.status(200).json({ ok: true, discover: true, earn: { tried: earnDbg.tried, candidateKeys: Array.from(new Set(earnDbg.candidates.map((c) => c.k))).slice(0, 40), detail: earnDbg.detail.slice(0, 40), pulled: pulledEarnings != null, mag: mag } });
       }
       const goal = { earnings: (pulledEarnings != null ? Math.round(pulledEarnings * 100) / 100 : prevEarn), target: 10000, perSub: 100, deadline: SPRINT_DEADLINE };
       const record = { updatedAt: now, source: 'auto-1h', counts: { active: active, inactive: inactive, lapsed: lapsed, due: due, withPhone: 0, total: members.length }, goal: goal, members: members.slice(0, 2000) };
