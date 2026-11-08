@@ -144,6 +144,19 @@ async function main() {
     throw new Error("livv_parse_empty");
   }
 
+  // DEBUG cross-check: does each person's roster "Total Commission" equal Livv's
+  // leaderboard commission for that sub-IB? If yes, the roster column IS their IB
+  // commission and we can trust it for everyone. Logs booleans only, no amounts.
+  if (DEBUG && snap.subIBs && snap.subIBs.length) {
+    const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
+    const byName = {}; for (const c of clients) byName[norm(c.name)] = c;
+    for (const s of snap.subIBs) {
+      const self = byName[norm(s.name)];
+      const match = self ? (Math.abs((self.commission || 0) - (s.commission || 0)) < 0.01) : null;
+      log("xcheck subIB '" + s.name + "': inRoster=" + !!self + " rosterCommMatchesLeaderboard=" + match);
+    }
+  }
+
   // 4) post the broker snapshot (commission summary + full client roster)
   const sum = (f) => clients.reduce((a, c) => a + (Number(c[f]) || 0), 0);
   const broker = {

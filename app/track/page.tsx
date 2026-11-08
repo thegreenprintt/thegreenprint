@@ -957,6 +957,8 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
   const meKey = norm("Jacob Walton");
   const subCommByName: Record<string, number> = {};
   for (const s of broker.subIBs || []) subCommByName[norm(s.name)] = s.commission;
+  const selfByName: Record<string, BrokerClient> = {};
+  for (const c of all) selfByName[norm(c.name)] = c; // each person's own roster row
   const teamMap: Record<string, { name: string; clients: number; funded: number; volume: number; balance: number }> = {};
   for (const c of all) {
     const ib = (c.ibName || "").trim();
@@ -967,8 +969,11 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
     tm.clients++; if (c.funded) tm.funded++; tm.volume += c.volume || 0; tm.balance += c.balance || 0;
   }
   const teams = Object.entries(teamMap).map(([key, tm]) => {
-    const livv = subCommByName[key];
-    return { ...tm, commission: livv != null ? livv : Math.round(tm.volume * perLot), commEst: livv == null };
+    // Accurate commission = the sub-IB's own "Total Commission" from their roster
+    // row; fall back to Livv's top-earner leaderboard; otherwise unknown (no guess).
+    const self = selfByName[key];
+    const commission = self && self.commission != null ? self.commission : (subCommByName[key] != null ? subCommByName[key] : null);
+    return { ...tm, commission, commEst: false };
   }).sort((a, b) => b.volume - a.volume);
 
   return (
@@ -1119,7 +1124,7 @@ function BrokerView({ broker, nowTs }: { broker: Broker | null; nowTs: number })
                 </button>
               ))}
             </div>
-            <div className="px-4 py-2.5 text-[11px] text-muted/70 border-t border-white/[0.06]">Tap a sub‑IB to see their clients. &quot;~&quot; = estimated (team volume × {usd(perLot)}/lot).</div>
+            <div className="px-4 py-2.5 text-[11px] text-muted/70 border-t border-white/[0.06]">Tap a sub‑IB to see their clients. Commission is each sub‑IB&apos;s own earnings from Livv (&quot;—&quot; if Livv hasn&apos;t reported it yet).</div>
           </div>
         )
       )}
