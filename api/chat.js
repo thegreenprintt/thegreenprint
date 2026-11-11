@@ -176,9 +176,9 @@ module.exports = async function handler(req, res) {
     const AI_MODEL = process.env.GREENPRINT_AI_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
     // Fallback free models tried in order if the primary is rate-limited (429) or down.
     const AI_FALLBACKS = [
-      'google/gemma-4-31b-it:free',
-      'google/gemma-4-26b-a4b-it:free',
-      'thinkingmachines/inkling:free',
+      'baidu/ernie-5.5-flash-preview:free',
+      'nvidia/nemotron-3.5-lightning:free',
+      'nvidia/nemotron-3.5-super-vl:free',
     ];
     const AI_SYSTEM =
       "You are The Greenprint AI, the in-house AI for The Greenprint, a trading-education brand " +
@@ -363,26 +363,18 @@ module.exports = async function handler(req, res) {
       tryModels = [AI_MODEL].concat(AI_FALLBACKS);
     }
     let up = null;
+    let used = '';
     let lastErr = '';
+    const orBody = (mdl, stream) => needsWeb
+      ? { model: mdl, stream, messages: aiMessages, max_tokens: maxTok, plugins: [{ id: 'web', max_results: 4 }] }
+      : { model: mdl, stream, messages: aiMessages, max_tokens: maxTok };
     for (const mdl of tryModels) {
       try {
         up = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + aiKey,
-            'HTTP-Referer': 'https://thegreenprint.trade',
-            'X-Title': 'The Greenprint AI',
-          },
-          body: JSON.stringify(
-            needsWeb
-              ? { model: mdl, stream: true, messages: aiMessages, max_tokens: maxTok, plugins: [{ id: 'web', max_results: 4 }] }
-              : { model: mdl, stream: true, messages: aiMessages, max_tokens: maxTok }
-          ),
+          method: 'POST', headers: orHeaders, body: JSON.stringify(orBody(mdl, true)),
         });
       } catch (e) { lastErr = 'unreachable'; up = null; continue; }
-      if (up.ok && up.body) break; // got a good stream
-      // capture the error, then try the next model
+      if (up.ok && up.body) { used = mdl; break; } // got a good stream
       try { const j = await up.json(); lastErr = 'model_error_' + up.status + ((j && j.error && j.error.message) ? ': ' + j.error.message : ''); }
       catch (e) { lastErr = 'model_error_' + up.status; }
       up = null;
@@ -398,6 +390,7 @@ module.exports = async function handler(req, res) {
     const reader = up.body.getReader();
     const dec = new TextDecoder();
     let carry = '';
+    let wrote = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -413,11 +406,26 @@ module.exports = async function handler(req, res) {
           try {
             const j = JSON.parse(data);
             const delta = j && j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
-            if (delta) res.write(delta);
+            if (delta) { res.write(delta); wrote = true; }
           } catch (e) {}
         }
       }
     } catch (e) {}
+    // If the streamed model produced nothing, fall through to the next models
+    // (non-streaming) so the user always gets a real reply, never a blank.
+    if (!wrote) {
+      const startIdx = used ? tryModels.indexOf(used) + 1 : 0;
+      for (let k = startIdx; k < tryModels.length; k++) {
+        try {
+          const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: orHeaders, body: JSON.stringify(orBody(tryModels[k], false)) });
+          if (!rr.ok) continue;
+          const jj = await rr.json();
+          const c = jj && jj.choices && jj.choices[0] && jj.choices[0].message && jj.choices[0].message.content;
+          if (c && c.trim()) { res.write(c); wrote = true; break; }
+        } catch (e) {}
+      }
+    }
+    if (!wrote) res.write('The free models are busy right now. Give it a moment and try again.');
     return res.end();
   }
   // ── end AI engine ──────────────────────────────────────────────────────────
