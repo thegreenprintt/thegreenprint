@@ -610,7 +610,15 @@ export default function GreenprintAI() {
                 <button onClick={() => setCanvasTab("code")} className={`px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all ${canvasTab === "code" ? "gp-tab-on" : "text-muted"}`}>Code</button>
               </div>
               <span className="text-[12px] text-muted truncate">Website</span>
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex gap-1.5">
+                <button disabled={!siteHtml} title="Open full screen in a new tab" onClick={() => { try { const w = window.open("", "_blank"); if (w) { w.document.open(); w.document.write(siteHtml); w.document.close(); } } catch {} }}
+                  className="gp-canvas-ico" aria-label="Open in new tab">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+                </button>
+                <button disabled={!siteHtml} title="Copy the code" onClick={() => { try { navigator.clipboard?.writeText(siteHtml); } catch {} }}
+                  className="gp-canvas-ico" aria-label="Copy code">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                </button>
                 <button disabled={!siteHtml} onClick={() => { try { const blob = new Blob([siteHtml], { type: "text/html" }); const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = u; a.download = "greenprint-site.html"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u); } catch {} }}
                   className="gp-dl text-[12px] font-semibold inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 disabled:opacity-30 transition-all">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7 10l5 5 5-5M5 21h14" /></svg>
@@ -776,6 +784,9 @@ export default function GreenprintAI() {
         .gp-tabs { background: rgba(255,255,255,0.05); }
         .gp-tab-on { background: rgba(0,255,133,0.14); color: var(--grn); }
         .gp-dl { background: linear-gradient(150deg, var(--grn), #0ad46f); color: #06110a; }
+        .gp-canvas-ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: #c7cdc7; background: rgba(255,255,255,0.04); transition: all 0.15s ease; }
+        .gp-canvas-ico:hover:not(:disabled) { color: #fff; border-color: rgba(0,255,133,0.35); }
+        .gp-canvas-ico:disabled { opacity: 0.3; }
         .gp-dl:hover:not(:disabled) { filter: brightness(1.1); }
         .gp-canvas-building { background: #080a08; }
         .gp-build-core { position: relative; width: 46px; height: 46px; }

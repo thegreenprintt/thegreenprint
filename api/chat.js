@@ -196,7 +196,12 @@ module.exports = async function handler(req, res) {
       "===GREENPRINT_SITE_END===\n" +
       "Rules for the HTML: one self-contained file, all CSS in a <style> tag and all JS in a <script> tag, " +
       "no external stylesheets or scripts except Google Fonts links. Make it genuinely premium and high end, " +
-      "dark modern aesthetic unless asked otherwise, real content not lorem ipsum, responsive on mobile. " +
+      "the quality of a 9-figure brand. Default to a full multi-section page, not a bare hero: a sticky nav, " +
+      "a bold hero with a clear headline and call to action, a features or what-you-get section, social proof " +
+      "or results framing, an FAQ or about block, and a footer. Use a distinctive Google Font pairing (not Inter), " +
+      "a considered color palette, real on-topic copy (never lorem ipsum), tasteful motion (hover states, subtle " +
+      "reveals), strong type scale, and generous spacing. Must be fully responsive and look great on a phone. " +
+      "Dark modern aesthetic unless asked otherwise. " +
       "Before the opening marker, write ONE short sentence saying what you built. After the closing marker, " +
       "write ONE short sentence on what they can change next. Put NOTHING else outside the markers. " +
       "For any request that is NOT a website, never use these markers, just answer normally.";
@@ -275,7 +280,7 @@ module.exports = async function handler(req, res) {
     const reqModel = (aiBody.model && /:free$/.test(String(aiBody.model))) ? aiBody.model : '';
     // Cap output so premium models don't try to reserve their full 65k-token budget
     // (which overshoots the credit balance). Builds need room; chat needs little.
-    const maxTok = isBuild ? 8192 : 2048;
+    const maxTok = isBuild ? 16384 : 2048;
 
     // ── GitHub integration (tool use) ────────────────────────────────────────
     // When the user has connected GitHub, give the model real tools it executes
