@@ -1880,7 +1880,8 @@ export default function GreenprintAI() {
           .gp-mbar-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: visible !important; max-width: 64vw; font-size: 16px; color: #fff; -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
           .gp-mbar-mark { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; background: radial-gradient(circle at 32% 26%, #9dffd0, #22ff98 32%, #08b158 72%); box-shadow: 0 0 14px -3px var(--grn), inset 0 1px 0 rgba(255,255,255,0.35); }
           .gp-mbar-mark svg { width: 12px; height: 12px; }
-          .gp-river { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px); mask-image: linear-gradient(to bottom, transparent 0, #000 22px); }
+          .gp-floor { background: radial-gradient(ellipse 150% 85% at 50% 55%, transparent 55%, rgba(3,4,3,0.75) 100%) !important; }
+          .gp-mbar-btn { color: #f3f5f3 !important; }
         }
       `}</style>
     </div>
