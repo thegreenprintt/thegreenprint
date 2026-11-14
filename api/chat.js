@@ -236,11 +236,34 @@ module.exports = async function handler(req, res) {
     const history = incoming
       .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
       .slice(-20)
-      .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
+      .map((m, i, arr) => ({ role: m.role, content: m.content.slice(0, i === arr.length - 1 ? 24000 : 8000) }));
     const mem = Array.isArray(aiBody.memory) ? aiBody.memory.slice(0, 30).map((s) => String(s).slice(0, 200)).filter(Boolean) : [];
     let sysContent = mem.length
       ? AI_SYSTEM + "\n\nWhat you remember about this user (use it naturally, do not recite it back):\n- " + mem.join('\n- ')
       : AI_SYSTEM;
+    // Modes: each one layers focused guidance on top of the base persona.
+    const AI_MODES = {
+      coach: "MODE: TRADE COACH. Act as a calm, sharp trading coach. Prioritize risk management, process, and psychology over picking trades. " +
+        "When discussing a setup, structure it as: context, entry trigger, stop loss, target, position size, and what would invalidate it. " +
+        "If you do not know their risk per trade or account size and it matters, ask. This is education, not personal financial advice.",
+      content: "MODE: CONTENT STUDIO. You write social content for The Greenprint: hooks, captions, short video scripts, threads, emails, and stories. " +
+        "Voice is casual, confident, direct and internet-native, never cringe, never guru hype, never fake results or income claims. " +
+        "When asked for content, give several meaningfully different options, formatted ready to post.",
+      builder: "MODE: BUILDER. The user is here to build websites, pages, and code. Lean toward building. For anything that is a page or site, " +
+        "use the website markers and ship a complete, premium result. For other code, give complete working files in fenced code blocks.",
+      strategist: "MODE: STRATEGIST. Act as a sharp strategic partner to a young founder actively building. Give a clear recommendation, not a list of options, " +
+        "challenge weak logic directly, and always name the next action. If key information is missing, ask up to 3 sharp questions first.",
+    };
+    const mode = typeof aiBody.mode === 'string' && AI_MODES[aiBody.mode] ? aiBody.mode : '';
+    if (mode) sysContent += "\n\n" + AI_MODES[mode];
+    const instructions = typeof aiBody.instructions === 'string' ? aiBody.instructions.trim().slice(0, 1500) : '';
+    if (instructions) sysContent += "\n\nThe user's custom instructions for how you should respond (follow them unless they conflict with the rules above):\n" + instructions;
+    sysContent += "\n\nATTACHED FILES: The user may paste the contents of files they attached, marked with [Attached file: name]. Read them carefully and answer about them directly.";
+    if (aiBody.followups) {
+      sysContent += "\n\nFOLLOW UPS: At the very end of a normal answer (never for a website build), add one final line in exactly this format: " +
+        "<<<FOLLOWUPS: short question one | short question two | short question three>>> with 3 short follow-ups the user would plausibly ask next, " +
+        "written in the user's voice. Do not mention or explain this line.";
+    }
     // Build iteration: if a site already exists in the canvas, give it to the model
     // so follow-up requests EDIT it instead of starting from scratch.
     const currentSite = typeof aiBody.currentSite === 'string' ? aiBody.currentSite.slice(0, 16000) : '';
@@ -268,7 +291,9 @@ module.exports = async function handler(req, res) {
     const BUILD_MODEL = process.env.GREENPRINT_BUILD_MODEL || 'anthropic/claude-haiku-5.5';
     const lastUser = [...history].reverse().find((m) => m.role === 'user');
     const lastText = (lastUser && lastUser.content ? lastUser.content : '').toLowerCase();
-    const isBuild = /\b(build|make|create|design|generate|code)\b[^.?!]*\b(website|web page|webpage|site|landing page|page|homepage|html)\b/.test(lastText);
+    const isBuild = /\b(build|make|create|design|generate|code)\b[^.?!]*\b(website|web page|webpage|site|landing page|page|homepage|html)\b/.test(lastText)
+      || (!!currentSite && /\b(add|change|make|edit|update|remove|replace|fix|move|swap|turn|tweak|redesign|restyle|rewrite)\b/.test(lastText))
+      || (mode === 'builder' && /\b(website|site|page|landing|section|html|hero|navbar|footer|portfolio|store)\b/.test(lastText));
 
     // Detect a question that needs CURRENT / live information, so we can turn on
     // live web search for it. Kept narrow so most chat stays search-free (and free).
