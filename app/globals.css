@@ -178,3 +178,9 @@ html, body {
   }
   html { scroll-behavior: auto; }
 }
+
+/* gp-nozoom: no double-tap zoom, and 16px inputs so iPhone never auto-zooms on focus */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (max-width: 1023px) {
+  input, textarea, select { font-size: 16px !important; }
+}

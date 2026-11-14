@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { DisclaimerBar } from "@/components/ui/DisclaimerBar";
+import { NoZoom } from "@/components/NoZoom";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,14 +35,22 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Greenprint", statusBarStyle: "black-translucent" },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="bg-bg text-text font-sans antialiased min-h-screen">
+        <NoZoom />
         {children}
         <DisclaimerBar />
       </body>

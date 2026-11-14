@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import type { ReactNode, ClipboardEvent, MouseEvent as RMouseEvent } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import type { ReactNode, ClipboardEvent, MouseEvent as RMouseEvent, TouchEvent } from "react";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { Nav } from "@/components/Nav";
 import {
   Msg, Convo, ModeId, MODES, STARTERS, COMMANDS, Command, uid, SITE_START, SITE_END, extractSite, cleanSiteHtml,
@@ -11,6 +11,7 @@ import {
 } from "./lib";
 import { TradingTools, ToolTab } from "./Tools";
 import { TalkMode, speak } from "./TalkMode";
+import { Ambient } from "./Ambient";
 
 /*
   The Greenprint AI — cinematic workspace at /ai
@@ -51,10 +52,40 @@ const Ico = {
   down: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7" /></svg>,
   export: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 21h14" /></svg>,
   logo: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#06110a" strokeWidth={2.7} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg>,
+  camera: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7.5 6.5H4a2 2 0 0 0-2 2V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8.5a2 2 0 0 0-2-2h-3.5Z" /><circle cx="12" cy="13" r="3.5" /></svg>,
+  install: <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12M7 10l5 5 5-5" /><rect x="4" y="17" width="16" height="4" rx="1.5" /></svg>,
+  share: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>,
   doc: <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></svg>,
 };
 
-function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () => void; children: ReactNode; wide?: boolean }) {
+const TAG_ICON: Record<string, string> = {
+  Build: "M3 5h18v14H3zM3 9h18", Course: "M3 5h18v14H3zM3 9h18", Event: "M3 5h18v14H3zM3 9h18M8 3v4M16 3v4", Links: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1", Tool: "M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3",
+  Trade: "M3 17l5-5 4 3 8-9M14 6h6v6", Setup: "M3 17l5-5 4 3 8-9M14 6h6v6", Risk: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z", Review: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9", Mindset: "M12 3a6 6 0 0 0-4 10.5V17h8v-3.5A6 6 0 0 0 12 3zM9 21h6",
+  Content: "M12 3l2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4z", Hooks: "M12 3l2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4z", Caption: "M4 5h16v11H8l-4 4z", Script: "M5 3h10l4 4v14H5zM9 12h6M9 16h6", Week: "M4 5h16v15H4zM4 10h16M9 3v4M15 3v4",
+  Strategy: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM15.5 8.5l-2 5-5 2 2-5z", Growth: "M3 17l5-5 4 3 8-9M14 6h6v6", Offer: "M20 12l-8 8-9-9V3h8z M7.5 7.5h.01", Deal: "M8 12l3 3 5-5M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0", Focus: "M12 2v4M12 18v4M2 12h4M18 12h4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
+};
+function TagIcon({ tag }: { tag: string }) {
+  return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={TAG_ICON[tag] || TAG_ICON.Build} /></svg>;
+}
+
+function Modal({ open, onClose, children, wide, sheet }: { open: boolean; onClose: () => void; children: ReactNode; wide?: boolean; sheet?: boolean }) {
+  const drag = useDragControls();
+  if (sheet) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <motion.div className="fixed inset-0 z-[60] flex items-end bg-black/60 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+            <motion.div className="gp-memcard gp-sheet w-full max-h-[90dvh] overflow-y-auto" drag="y" dragControls={drag} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }}
+              onDragEnd={(_e, info) => { if (info.offset.y > 110 || info.velocity.y > 600) onClose(); }}
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 32, stiffness: 340 }} onClick={(e) => e.stopPropagation()}>
+              <div className="gp-sheet-grab" onPointerDown={(e) => drag.start(e)}><div className="gp-sheet-handle" /></div>
+              {children}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
   return (
     <AnimatePresence>
       {open && (
@@ -127,6 +158,15 @@ export default function GreenprintAI() {
   const [slashSel, setSlashSel] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
+  const [intro, setIntro] = useState(false);
+  const [installEvt, setInstallEvt] = useState<any>(null);
+  const [standalone, setStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [iosHint, setIosHint] = useState(false);
+  const [appH, setAppH] = useState<number | null>(null);
+  const camRef = useRef<HTMLInputElement>(null);
+  const swipeRef = useRef<{ x: number; y: number; t: number; id?: string } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const memRef = useRef<string[]>([]);
@@ -140,6 +180,7 @@ export default function GreenprintAI() {
   const toastTimer = useRef<any>(null);
   currentIdRef.current = currentId;
 
+  function buzz(ms: number | number[] = 12) { try { if (isPhone && "vibrate" in navigator) navigator.vibrate(ms); } catch {} }
   function flash(msg: string) {
     setToast(msg);
     clearTimeout(toastTimer.current);
@@ -164,6 +205,65 @@ export default function GreenprintAI() {
     } catch {}
     try { setTtsOk("speechSynthesis" in window); } catch {}
   }, []);
+
+  // ---------- phone + installed-app behaviour ----------
+  useEffect(() => {
+    try { if (!sessionStorage.getItem("gpai_intro")) { setIntro(true); sessionStorage.setItem("gpai_intro", "1"); setTimeout(() => setIntro(false), 1900); } } catch {}
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const onMq = () => setIsPhone(mq.matches);
+    onMq(); mq.addEventListener?.("change", onMq);
+    const sa = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    setStandalone(sa);
+    const ua = navigator.userAgent || "";
+    setIsIOS(/iphone|ipad|ipod/i.test(ua) || (ua.includes("Mac") && "ontouchend" in document));
+    const onBip = (e: any) => { e.preventDefault(); setInstallEvt(e); };
+    const onInstalled = () => { setInstallEvt(null); setStandalone(true); };
+    window.addEventListener("beforeinstallprompt", onBip);
+    window.addEventListener("appinstalled", onInstalled);
+    try { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/ai-sw.js", { scope: "/ai" }).catch(() => {}); } catch {}
+    // keyboard: keep the composer above the on-screen keyboard (iOS ignores resizes-content)
+    const vv = (window as any).visualViewport;
+    const onVV = () => {
+      if (!vv || !mq.matches) { setAppH(null); return; }
+      const open = vv.height < window.innerHeight - 120;
+      setAppH(open ? Math.round(vv.height) : null);
+      if (open) window.scrollTo(0, 0);
+    };
+    vv?.addEventListener("resize", onVV);
+    // home-screen shortcuts: /ai?talk=1, ?snap=1, ?tool=size|rr
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("tool") === "size" || q.get("tool") === "rr") { setToolTab(q.get("tool") as ToolTab); setToolsOpen(true); }
+    if (q.get("talk") === "1") setTimeout(() => setTalkOpen(true), 300);
+    if (q.get("snap") === "1") setTimeout(() => camRef.current?.click(), 300);
+    if (q.toString()) window.history.replaceState(null, "", "/ai");
+    return () => {
+      mq.removeEventListener?.("change", onMq);
+      window.removeEventListener("beforeinstallprompt", onBip);
+      window.removeEventListener("appinstalled", onInstalled);
+      vv?.removeEventListener("resize", onVV);
+    };
+  }, []);
+  async function installApp() {
+    if (installEvt) {
+      try { installEvt.prompt(); const r = await installEvt.userChoice; if (r?.outcome === "accepted") { setInstallEvt(null); flash("Installing Greenprint AI"); } } catch {}
+    } else setIosHint(true);
+  }
+  const canInstall = !standalone && (!!installEvt || isIOS);
+
+  // edge swipe: from the left edge opens history, swipe left closes it
+  function onTouchStart(e: TouchEvent) {
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }
+  function onTouchEnd(e: TouchEvent) {
+    const st = swipeRef.current; swipeRef.current = null;
+    if (!st || !isPhone) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - st.x, dy = t.clientY - st.y;
+    if (Math.abs(dy) > 60 || Date.now() - st.t > 700) return;
+    if (!railOpen && st.x < 28 && dx > 70) { setRailOpen(true); buzz(8); }
+    else if (railOpen && dx < -70) setRailOpen(false);
+  }
 
   function latestSite(msgs: Msg[]): string {
     for (let i = msgs.length - 1; i >= 0; i--) {
@@ -245,7 +345,7 @@ export default function GreenprintAI() {
       if (el && (force || stickRef.current)) el.scrollTop = el.scrollHeight;
     });
   };
-  useEffect(() => scrollDown(), [messages]);
+  useEffect(() => { if (messages.length) scrollDown(); else if (riverRef.current) riverRef.current.scrollTop = 0; }, [messages]);
   function onRiverScroll() {
     const el = riverRef.current;
     if (!el) return;
@@ -420,6 +520,7 @@ export default function GreenprintAI() {
           setSiteHtml(cleanSiteHtml(final.html));
           setCanvasOpen(true);
           setFrameKey((k) => k + 1);
+          buzz([14, 60, 22]);
         }
         if (!acc) { aiMsg.content = "(No response. Try again.)"; show([...nextMsgs, { ...aiMsg }]); }
       }
@@ -460,6 +561,7 @@ export default function GreenprintAI() {
     }
     const userMsg: Msg = { role: "user", content, ...(keepFiles.length ? { files: keepFiles } : {}), ...(imgs.length ? { imgs: imgs.length } : {}) };
     setInput(""); setAttached([]); setFiles([]); setEditIdx(null);
+    buzz(10);
     requestAnimationFrame(autosize);
     return run(base, userMsg, imgs);
   }
@@ -485,6 +587,7 @@ export default function GreenprintAI() {
 
   function copyText(key: string, text: string) {
     try { navigator.clipboard?.writeText(text); } catch {}
+    buzz(8);
     setCopied(key);
     setTimeout(() => setCopied((c) => (c === key ? null : c)), 1400);
   }
@@ -553,7 +656,7 @@ export default function GreenprintAI() {
   const deviceW = device === "phone" ? 390 : device === "tab" ? 820 : 0;
 
   return (
-    <div className="gp-root h-[100dvh] overflow-hidden text-text flex flex-col relative">
+    <div className="gp-root h-[100dvh] overflow-hidden text-text flex flex-col relative" style={appH ? { height: appH } : undefined} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="hidden lg:block"><Nav /></div>
 
       <div className="gp-stage pointer-events-none fixed inset-0" aria-hidden>
@@ -561,6 +664,7 @@ export default function GreenprintAI() {
         <div className="gp-aurora gp-a2" />
         <div className="gp-aurora gp-a3" />
         <div className="gp-noise" />
+        <Ambient intensity={isPhone ? 0.7 : 1} />
         <div className="gp-floor" />
       </div>
 
@@ -593,6 +697,8 @@ export default function GreenprintAI() {
                 {g.items.map((c) => (
                   <div key={c.id} className="relative">
                     <div onClick={() => renaming !== c.id && loadChat(c.id)}
+                      onTouchStart={(e) => { swipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), id: c.id }; e.stopPropagation(); }}
+                      onTouchEnd={(e) => { const st = swipeRef.current; swipeRef.current = null; e.stopPropagation(); if (!st) return; const dx = e.changedTouches[0].clientX - st.x; if (dx < -55 && Math.abs(e.changedTouches[0].clientY - st.y) < 40) { setMenuFor(c.id); buzz(8); } else if (dx < -70) setRailOpen(false); }}
                       className={`group flex items-center gap-1.5 rounded-lg pl-3 pr-1.5 py-2 text-[13.5px] cursor-pointer transition-colors ${c.id === currentId ? "gp-convo-on" : "text-muted hover:text-text hover:bg-white/[0.04]"}`}>
                       {c.pinned && <span className="gp-pin" aria-hidden />}
                       {renaming === c.id ? (
@@ -639,7 +745,7 @@ export default function GreenprintAI() {
         </aside>
 
         {/* ===== modals ===== */}
-        <Modal open={memOpen} onClose={() => setMemOpen(false)}>
+        <Modal sheet={isPhone} open={memOpen} onClose={() => setMemOpen(false)}>
           <ModalHead title="What it remembers about you" onClose={() => setMemOpen(false)} />
           <div className="px-5 pb-3 max-h-[46vh] overflow-y-auto">
             {memory.length === 0 ? (
@@ -661,7 +767,7 @@ export default function GreenprintAI() {
           </div>
         </Modal>
 
-        <Modal open={connOpen} onClose={() => setConnOpen(false)}>
+        <Modal sheet={isPhone} open={connOpen} onClose={() => setConnOpen(false)}>
           <ModalHead title="Connections" onClose={() => setConnOpen(false)} />
           <div className="px-5 pb-4 flex flex-col gap-2">
             {["GitHub", "Buffer", "Canva", "Google Drive", "Notion"].map((n) => (
@@ -674,7 +780,7 @@ export default function GreenprintAI() {
           </div>
         </Modal>
 
-        <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} wide>
+        <Modal sheet={isPhone} open={settingsOpen} onClose={() => setSettingsOpen(false)} wide>
           <ModalHead title="Settings" onClose={() => setSettingsOpen(false)} />
           <div className="px-5 pb-2">
             <div className="text-[12px] font-semibold text-text mb-1.5">Custom instructions</div>
@@ -700,7 +806,20 @@ export default function GreenprintAI() {
           </div>
         </Modal>
 
-        <Modal open={toolsOpen} onClose={() => setToolsOpen(false)} wide>
+        <Modal sheet={isPhone} open={iosHint} onClose={() => setIosHint(false)}>
+          <ModalHead title="Get the Greenprint AI app" onClose={() => setIosHint(false)} />
+          <div className="px-5 pb-6">
+            <p className="text-[13.5px] text-muted leading-relaxed mb-4">Add it to your home screen. It opens full screen like a real app, with its own icon.</p>
+            <ol className="gp-steps">
+              <li><span>1</span><div>Tap <b className="inline-flex items-center gap-1 align-middle">Share {Ico.share}</b> in Safari&apos;s toolbar</div></li>
+              <li><span>2</span><div>Scroll down and tap <b>Add to Home Screen</b></div></li>
+              <li><span>3</span><div>Tap <b>Add</b>. Greenprint AI is now on your home screen.</div></li>
+            </ol>
+            <p className="text-[11.5px] text-muted mt-4">Using Chrome on iPhone? Tap the share icon in the address bar, then Add to Home Screen.</p>
+          </div>
+        </Modal>
+
+        <Modal sheet={isPhone} open={toolsOpen} onClose={() => setToolsOpen(false)} wide>
           <TradingTools tab={toolTab} setTab={setToolTab} onClose={() => setToolsOpen(false)} onAsk={(p) => { setToolsOpen(false); setMode("coach"); setTimeout(() => sendRef.current(p), 30); }} />
         </Modal>
 
@@ -719,6 +838,9 @@ export default function GreenprintAI() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <span className="gp-mbar-title truncate">{current && !empty ? current.title : "Greenprint AI"}</span>
+            {canInstall && empty && (
+              <button onClick={installApp} className="gp-installbtn" aria-label="Install the app">{Ico.install}<span>Get the app</span></button>
+            )}
             <button onClick={() => { if (streaming) stop(); newChat(); }} className="gp-mbar-btn" aria-label="New chat">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
             </button>
@@ -739,19 +861,26 @@ export default function GreenprintAI() {
           )}
 
           <div ref={riverRef} onScroll={onRiverScroll} onClick={onRiverClick} className="flex-1 min-h-0 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 sm:px-5 py-8">
+            <div className={`max-w-3xl mx-auto px-4 sm:px-5 ${empty ? "py-3 lg:py-6 min-h-full flex flex-col" : "py-8"}`}>
               {empty ? (
-                <div className="gp-hero flex flex-col items-center text-center">
-                  <motion.div className="gp-core" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}>
-                    <span className="gp-core-ring" /><span className="gp-core-ring gp-core-ring2" /><span className="gp-core-glow" />
-                    <span className="gp-core-mark"><svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#06110a" strokeWidth={2.7} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg></span>
+                <div className="gp-hero flex-1 flex flex-col items-center text-center">
+                  <motion.div className="gp-core gp-core-xl" initial={{ opacity: 0, scale: 0.6, filter: "blur(12px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: intro ? 0.35 : 0 }}>
+                    <span className="gp-core-halo" />
+                    <span className="gp-core-ring" /><span className="gp-core-ring gp-core-ring2" /><span className="gp-core-ring gp-core-ring3" />
+                    <span className="gp-core-orbit"><i /></span><span className="gp-core-orbit gp-core-orbit2"><i /></span>
+                    <span className="gp-core-glow" />
+                    <span className="gp-core-mark"><span className="gp-core-gloss" /><svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#06110a" strokeWidth={2.7} strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l5-5 4 3 8-9" /><path d="M14 6h6v6" /></svg></span>
                   </motion.div>
-                  <motion.div className="gp-eyebrow" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }}>
-                    {mode ? modeInfo.label : "The Greenprint Intelligence"}
+                  <motion.div key={"eb" + mode} className="gp-eyebrow gp-eyebrow-lines" initial={{ opacity: 0, letterSpacing: "0.6em" }} animate={{ opacity: 1, letterSpacing: isPhone ? "0.24em" : "0.34em" }} transition={{ duration: 1.1, delay: intro ? 0.7 : 0.1, ease: [0.16, 1, 0.3, 1] }}>
+                    <span>{mode ? modeInfo.label : "The Greenprint Intelligence"}</span>
                   </motion.div>
-                  <motion.h1 className="gp-head" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-                    Describe it.<br /><span className="gp-head-accent">Watch it build.</span>
-                  </motion.h1>
+                  <h1 className="gp-head gp-head-xl">
+                    {["Describe", "it."].map((w, k) => (
+                      <motion.span key={w} className="gp-word" initial={{ opacity: 0, y: 28, filter: "blur(10px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.9, delay: (intro ? 0.85 : 0.15) + k * 0.09, ease: [0.16, 1, 0.3, 1] }}>{w}&nbsp;</motion.span>
+                    ))}
+                    <br />
+                    <motion.span className="gp-word gp-head-accent gp-head-sweep" initial={{ opacity: 0, y: 28, filter: "blur(10px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 1, delay: (intro ? 1.05 : 0.33), ease: [0.16, 1, 0.3, 1] }}>Watch it build.</motion.span>
+                  </h1>
                   <motion.p className="gp-sub" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.38 }}>
                     Websites, trade breakdowns, content, strategy, your files and PDFs. Type, talk, or drop something in. Type <b>/</b> for shortcuts.
                   </motion.p>
@@ -760,16 +889,23 @@ export default function GreenprintAI() {
                       {[...CAPS, ...CAPS].map((cap, k) => (<span key={k} className="gp-mq-item"><span className="gp-mq-dot" />{cap}</span>))}
                     </div>
                   </motion.div>
+                  <motion.div className="gp-mhero lg:hidden" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }}>
+                    {voiceOk && ttsOk && <button onClick={openTalk} className="gp-mhero-talk"><span className="gp-mhero-orb">{Ico.wave}</span><span className="text-left"><b>Talk to it</b><em>Hands-free</em></span></button>}
+                    <button onClick={() => camRef.current?.click()} className="gp-mhero-snap"><span className="gp-mhero-orb gp-mhero-orb2">{Ico.camera}</span><span className="text-left"><b>Snap a chart</b><em>It breaks it down</em></span></button>
+                  </motion.div>
                   <motion.div key={mode} className="gp-cards" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}>
                     {(STARTERS[mode] || STARTERS[""]).map((s) => (
-                      <button key={s.tag} onClick={() => send(s.text)} className="gp-card group">
+                      <button key={s.tag} onClick={() => send(s.text)} className="gp-card group"
+                        onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`); e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`); }}>
+                        <span className="gp-card-spot" aria-hidden />
+                        <span className="gp-card-ico"><TagIcon tag={s.tag} /></span>
                         <span className="gp-card-tag">{s.tag}</span>
                         <span className="gp-card-text">{s.text}</span>
                         <span className="gp-card-go">Go<svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
                       </button>
                     ))}
                   </motion.div>
-                  <motion.div className="gp-quick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.9 }}>
+                  <motion.div className="gp-quick hidden lg:flex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.9 }}>
                     <button onClick={() => { setToolTab("size"); setToolsOpen(true); }}>{Ico.calc}Position size</button>
                     <button onClick={() => { setToolTab("rr"); setToolsOpen(true); }}>{Ico.calc}Risk / reward</button>
                     {voiceOk && ttsOk && <button onClick={openTalk}>{Ico.wave}Talk mode</button>}
@@ -785,8 +921,8 @@ export default function GreenprintAI() {
                     const siteHere = m.role === "assistant" && m.content.includes(SITE_END) ? cleanSiteHtml(extractSite(m.content).html) : "";
                     return (
                       <motion.div key={i} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={`gp-msg flex gap-3 sm:gap-3.5 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                        <div className={`w-8 h-8 rounded-xl grid place-items-center shrink-0 mt-0.5 ${m.role === "user" ? "gp-ava-user" : "gp-ava-ai"}`}>
-                          {m.role === "assistant" ? Ico.logo : (<span className="text-[9px] font-bold text-muted">YOU</span>)}
+                        <div className={`w-8 h-8 rounded-xl grid place-items-center shrink-0 mt-0.5 relative ${m.role === "user" ? "gp-ava-user" : "gp-ava-ai"} ${live ? "gp-ava-live" : ""}`}>
+                          {m.role === "assistant" ? (<>{live && <span className="gp-ava-ring" />}{Ico.logo}</>) : (<span className="text-[9px] font-bold text-muted">YOU</span>)}
                         </div>
                         <div className={`min-w-0 ${m.role === "user" ? "max-w-[84%] flex flex-col items-end" : "flex-1"}`}>
                           {m.role === "user" ? (
@@ -870,8 +1006,11 @@ export default function GreenprintAI() {
                     <AnimatePresence>
                       {plusOpen && (
                         <>
-                          <div className="fixed inset-0 z-[26]" onClick={() => setPlusOpen(false)} />
-                          <motion.div className="gp-pop gp-pop-plus" initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }}>
+                          <div className={`fixed inset-0 z-[26] ${isPhone ? "bg-black/55 backdrop-blur-sm" : ""}`} onClick={() => setPlusOpen(false)} />
+                          <motion.div className="gp-pop gp-pop-plus" initial={isPhone ? { y: "100%" } : { opacity: 0, y: 6, scale: 0.98 }} animate={isPhone ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }} exit={isPhone ? { y: "100%" } : { opacity: 0, y: 6 }} transition={isPhone ? { type: "spring", damping: 32, stiffness: 340 } : { duration: 0.15 }}
+                            drag={isPhone ? "y" : false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }} onDragEnd={(_e, info) => { if (info.offset.y > 90 || info.velocity.y > 500) setPlusOpen(false); }}>
+                            {isPhone && <div className="gp-sheet-handle" />}
+                            {isPhone && <button onClick={() => { setPlusOpen(false); camRef.current?.click(); }}>{Ico.camera}<span className="flex-1 text-left">Snap a chart<em>Take a photo, it breaks it down</em></span></button>}
                             <button onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>{Ico.clip}<span className="flex-1 text-left">Upload files or images<em>PDF, docs, CSV, code, charts</em></span></button>
                             <button onClick={() => { setPlusOpen(false); setToolTab("size"); setToolsOpen(true); }}>{Ico.calc}<span className="flex-1 text-left">Trading tools<em>Position size, risk / reward</em></span></button>
                             {voiceOk && ttsOk && <button onClick={() => { setPlusOpen(false); openTalk(); }}>{Ico.wave}<span className="flex-1 text-left">Talk mode<em>Hands-free voice conversation</em></span></button>}
@@ -884,9 +1023,14 @@ export default function GreenprintAI() {
                       )}
                     </AnimatePresence>
               <div className="gp-modelrow">
-                {MODES.map((m) => (
-                  <button key={m.id || "chat"} onClick={() => setMode(m.id)} className={`gp-modelchip ${mode === m.id ? "gp-modelchip-on" : ""}`} title={m.blurb}>{m.label}</button>
-                ))}
+                <div className="gp-seg">
+                  {MODES.map((m) => (
+                    <button key={m.id || "chat"} onClick={() => { setMode(m.id); buzz(6); }} className={`gp-seg-btn ${mode === m.id ? "gp-seg-on" : ""}`} title={m.blurb}>
+                      {mode === m.id && <motion.span layoutId="gp-seg-pill" className="gp-seg-pill" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                      <span className="relative z-[1]">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <span className="gp-rowsep" />
                 <div className="relative">
                   <button onClick={() => setModelOpen((o) => !o)} className="gp-modelchip gp-modelpick">
@@ -934,6 +1078,7 @@ export default function GreenprintAI() {
               <div className="gp-composer-shell">
                 <div className="gp-composer flex items-end gap-2">
                   <input ref={fileRef} type="file" accept={FILE_ACCEPT} multiple hidden onChange={(e) => { onPickFiles(e.target.files); if (e.target) e.target.value = ""; }} />
+                  <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPickFiles(e.target.files); if (e.target) e.target.value = ""; if (!input.trim()) setInput("Break down this chart: trend, key levels, and where a stop loss would go."); }} />
                   <div className="relative shrink-0">
                     <button onClick={() => setPlusOpen((o) => !o)} title="Add" className={`gp-attach w-9 h-9 rounded-xl grid place-items-center transition-all ${plusOpen ? "gp-attach-on" : ""}`}>{Ico.plus}</button>
                   </div>
@@ -1039,6 +1184,15 @@ export default function GreenprintAI() {
       </div>
 
       <AnimatePresence>
+        {intro && (
+          <motion.div className="gp-intro" initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } }}>
+            <motion.div className="gp-intro-flare" initial={{ scale: 0.2, opacity: 0 }} animate={{ scale: 1, opacity: [0, 1, 0.8] }} transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }} />
+            <motion.div className="gp-intro-word" initial={{ opacity: 0, letterSpacing: "0.9em" }} animate={{ opacity: 1, letterSpacing: "0.42em" }} transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1] }}>GREENPRINT&nbsp;AI</motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {toast && (
           <motion.div className="gp-toast" initial={{ opacity: 0, y: 10, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: 10, x: "-50%" }}>{toast}</motion.div>
         )}
@@ -1112,6 +1266,7 @@ export default function GreenprintAI() {
         /* signature intelligence core */
         .gp-hero { min-height: calc(100dvh - 230px); justify-content: flex-start; padding: 12px 0; }
         .gp-hero > :first-child { margin-top: auto; } .gp-hero > :last-child { margin-bottom: auto; }
+        .gp-hero { min-height: 0 !important; }
         .gp-core { position: relative; width: 66px; height: 66px; display: grid; place-items: center; margin-bottom: 16px; }
         .gp-core-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--grn), transparent 42%, var(--gold-bright), transparent 72%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); animation: gp-rot 6s linear infinite; }
         .gp-core-ring2 { inset: 10px; opacity: 0.5; animation: gp-rot 9s linear infinite reverse; }
@@ -1357,6 +1512,7 @@ export default function GreenprintAI() {
         .gp-tout-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; font-size: 13px; color: #9aa29a; border-bottom: 1px solid rgba(255,255,255,0.04); }
         .gp-tout-row:last-child { border-bottom: 0; }
         .gp-tout-row b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .gp-tout-big .gp-tout-empty { font-family: inherit; font-size: 13px; font-weight: 500; color: #7f887f; letter-spacing: 0; }
         .gp-tout-warn { font-size: 12px; color: #ffb36b; padding: 8px 0; }
         .gp-tools-ask { margin-top: 12px; width: 100%; font-size: 13px; font-weight: 700; color: #06110a; background: linear-gradient(150deg, var(--grn), #0ad46f); padding: 11px; border-radius: 11px; transition: filter 0.15s; }
         .gp-tools-ask:disabled { opacity: 0.3; }
@@ -1408,6 +1564,50 @@ export default function GreenprintAI() {
         .gp-codehd button:hover { color: #fff; border-color: rgba(0,255,133,0.4); }
         .gp-codeblk pre { margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
 
+        /* ===== mobile app ===== */
+        .gp-sheet { border-radius: 24px 24px 0 0 !important; border-bottom: 0 !important; padding-bottom: max(14px, env(safe-area-inset-bottom)); max-width: none !important; }
+        .gp-sheet-grab { padding: 2px 0 6px; touch-action: none; cursor: grab; }
+        .gp-sheet-handle { width: 40px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); margin: 9px auto 0; }
+        .gp-installbtn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: #06110a; background: linear-gradient(150deg, var(--grn), #0ad46f); box-shadow: 0 0 18px -6px var(--grn); white-space: nowrap; flex: 0 0 auto; }
+        .gp-steps { display: flex; flex-direction: column; gap: 10px; }
+        .gp-steps li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #dfe5df; padding: 12px; border-radius: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
+        .gp-steps li > span { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #06110a; background: var(--grn); flex: 0 0 auto; }
+        .gp-steps b { color: #fff; }
+        .gp-steps b svg { color: var(--grn); }
+        .gp-mhero { display: none; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 40rem; margin-top: 12px; }
+        .gp-mhero button { display: flex; align-items: center; gap: 11px; padding: 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.03); transition: transform 0.15s; }
+        .gp-mhero button:active { transform: scale(0.97); }
+        .gp-mhero .gp-mhero-talk { border-color: rgba(0,255,133,0.35); background: linear-gradient(150deg, rgba(0,255,133,0.12), rgba(0,255,133,0.03)); }
+        .gp-mhero b { display: block; font-size: 14px; color: #fff; font-weight: 700; }
+        .gp-mhero em { display: block; font-style: normal; font-size: 11px; color: #8a938a; }
+        .gp-mhero-orb { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #06110a; background: radial-gradient(circle at 35% 30%, #7dffbf, var(--grn) 45%, #0a7a39); box-shadow: 0 0 18px -4px var(--grn); flex: 0 0 auto; animation: gp-breathe 3s ease-in-out infinite; }
+        .gp-mhero-orb2 { background: linear-gradient(150deg, var(--gold-bright), #b8903f); box-shadow: 0 0 16px -6px var(--gold); animation: none; }
+        @media (max-width: 1023px) {
+          .gp-pop-plus { position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; margin: 0 !important; min-width: 0 !important; border-radius: 24px 24px 0 0; padding: 4px 10px max(16px, env(safe-area-inset-bottom)); border-bottom: 0; }
+          .gp-pop-plus button { padding: 13px 10px; font-size: 15px; }
+          .gp-pop-plus .gp-sheet-handle { margin: 6px auto 8px; }
+          .gp-root { overscroll-behavior: none; }
+          .gp-cards { gap: 8px; }
+        }
+        @media (max-width: 1023px) and (max-height: 760px) { .gp-marquee { display: none; } }
+        @media (max-width: 1023px) and (max-height: 860px) { .gp-marquee { display: none; } }
+        @media (max-width: 1023px) {
+          .gp-mhero { display: grid; }
+          .gp-quick { display: none !important; }
+          .gp-hero { padding: 0 !important; }
+          .gp-sub { display: none; }
+          .gp-card-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+          .gp-cards { margin-top: 10px; }
+          .gp-mhero { margin-top: 14px; }
+          .gp-eyebrow { margin-bottom: 10px; }
+        }
+        @media (max-width: 1023px) and (max-height: 700px) {
+          .gp-core { width: 44px; height: 44px; margin-bottom: 8px; }
+          .gp-eyebrow { margin-bottom: 8px; }
+          .gp-head { font-size: 32px; }
+          .gp-card { padding: 10px 11px; }
+        }
+        @media (display-mode: standalone) { .gp-mbar { padding-top: max(10px, env(safe-area-inset-top)); } }
         .gp-toast { position: fixed; left: 50%; bottom: 110px; z-index: 90; font-size: 13px; font-weight: 600; color: #06110a; background: var(--grn); padding: 9px 16px; border-radius: 999px; box-shadow: 0 12px 40px -10px rgba(0,255,133,0.6); white-space: nowrap; }
 
         @media (max-width: 1023px) {
@@ -1419,6 +1619,132 @@ export default function GreenprintAI() {
         @media (max-height: 940px) { .gp-sub { display: none; } }
         @media (max-height: 860px) { .gp-quick { display: none; } }
         @media (prefers-reduced-motion: reduce) { .gp-orb-ring, .gp-orb-core, .gp-thinking span, .gp-spin { animation: none !important; } }
+
+        /* ================= v3 CINEMATIC ================= */
+        .gp-root { background: #030403; }
+        .gp-a1 { background: radial-gradient(circle, rgba(0,255,133,0.16), transparent 62%); }
+        .gp-a2 { background: radial-gradient(circle, rgba(216,178,94,0.13), transparent 62%); }
+        .gp-floor { background: radial-gradient(ellipse 110% 75% at 50% 32%, transparent 40%, rgba(3,4,3,0.94) 100%); }
+        .gp-motes { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.9; }
+        .gp-horizon { position: absolute; left: 50%; bottom: -38vh; width: 140vw; height: 70vh; margin-left: -70vw; border-radius: 50%;
+          background: radial-gradient(ellipse at 50% 0%, rgba(0,255,133,0.20), rgba(0,255,133,0.06) 35%, transparent 62%);
+          box-shadow: 0 -1px 0 0 rgba(160,255,210,0.10); filter: blur(2px); animation: gp-horizon 9s ease-in-out infinite; }
+        .gp-horizon::after { content: ""; position: absolute; left: 18%; right: 18%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(180,255,220,0.55), rgba(240,208,137,0.45), transparent); filter: blur(0.5px); }
+        @keyframes gp-horizon { 0%,100% { opacity: 0.75; transform: scaleX(1); } 50% { opacity: 1; transform: scaleX(1.04); } }
+        .gp-sweep { position: absolute; top: -20%; bottom: -20%; width: 34vw; left: -40vw; transform: skewX(-18deg);
+          background: linear-gradient(90deg, transparent, rgba(160,255,210,0.035), rgba(240,208,137,0.05), transparent); animation: gp-sweep 13s cubic-bezier(0.65,0,0.35,1) infinite; }
+        @keyframes gp-sweep { 0%, 62% { left: -40vw; } 100% { left: 120vw; } }
+        .gp-grain { position: absolute; inset: -50%; opacity: 0.07; pointer-events: none; mix-blend-mode: overlay;
+          background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27160%27%20height%3D%27160%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.9%27%20numOctaves%3D%272%27%20stitchTiles%3D%27stitch%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url%28%23n%29%27%20opacity%3D%270.9%27%2F%3E%3C%2Fsvg%3E");
+          animation: gp-grain 0.9s steps(4) infinite; }
+        @keyframes gp-grain { 0% { transform: translate(0,0); } 25% { transform: translate(-3%,2%); } 50% { transform: translate(2%,-3%); } 75% { transform: translate(-2%,-1%); } 100% { transform: translate(0,0); } }
+
+        /* glass surfaces */
+        .gp-rail { background: linear-gradient(180deg, rgba(10,13,10,0.72), rgba(6,8,6,0.82)); backdrop-filter: blur(28px) saturate(140%); border-right: 1px solid rgba(255,255,255,0.06); box-shadow: inset -1px 0 0 rgba(0,255,133,0.04); }
+        .gp-newbtn { background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025)); border: 1px solid rgba(255,255,255,0.11); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 26px -14px rgba(0,0,0,0.9); }
+        .gp-convo-on { position: relative; background: linear-gradient(90deg, rgba(0,255,133,0.10), rgba(255,255,255,0.03)); color: #fff; box-shadow: inset 0 0 0 1px rgba(0,255,133,0.14); }
+        .gp-convo-on::before { content: ""; position: absolute; left: -1px; top: 22%; bottom: 22%; width: 2px; border-radius: 2px; background: var(--grn); box-shadow: 0 0 10px var(--grn); }
+        .gp-memcard { background: linear-gradient(180deg, rgba(20,24,20,0.92), rgba(10,12,10,0.96)); backdrop-filter: blur(30px) saturate(140%); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 50px 120px -30px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.4); }
+        .gp-pop, .gp-slash, .gp-rowmenu { background: linear-gradient(180deg, rgba(22,27,22,0.94), rgba(12,15,12,0.97)); backdrop-filter: blur(26px) saturate(140%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 30px 70px -18px rgba(0,0,0,0.9); }
+        .gp-mbar { background: linear-gradient(180deg, rgba(3,4,3,0.85), rgba(3,4,3,0.55)) !important; backdrop-filter: blur(22px) saturate(150%) !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important; }
+        .gp-chathead { background: linear-gradient(180deg, rgba(3,4,3,0.7), rgba(3,4,3,0.3)); backdrop-filter: blur(16px); }
+
+        /* the intelligence core */
+        .gp-core-xl { width: 112px; height: 112px; margin-bottom: 22px; }
+        .gp-core-halo { position: absolute; inset: -60%; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,133,0.22), rgba(0,255,133,0.05) 40%, transparent 66%); animation: gp-breathe 4.5s ease-in-out infinite; pointer-events: none; }
+        .gp-core-xl .gp-core-ring { -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px)); }
+        .gp-core-xl .gp-core-ring2 { inset: 13px; opacity: 0.6; }
+        .gp-core-ring3 { inset: -14px !important; opacity: 0.28; animation-duration: 16s !important; }
+        .gp-core-orbit { position: absolute; inset: -14px; border-radius: 50%; animation: gp-rot 7s linear infinite; }
+        .gp-core-orbit i { position: absolute; top: -3px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #c9ffe4; box-shadow: 0 0 10px 2px var(--grn); }
+        .gp-core-orbit2 { inset: 4px; animation-duration: 11s; animation-direction: reverse; }
+        .gp-core-orbit2 i { background: #ffe9b8; box-shadow: 0 0 10px 2px var(--gold); width: 4px; height: 4px; margin-left: -2px; top: -2px; }
+        .gp-core-xl .gp-core-mark { width: 62%; height: 62%; border-radius: 30%; background: radial-gradient(circle at 32% 26%, #9dffd0 0%, #22ff98 28%, #08b158 62%, #065f30 100%); box-shadow: 0 18px 50px -12px rgba(0,255,133,0.85), inset 0 -6px 14px rgba(0,40,20,0.45), inset 0 2px 0 rgba(255,255,255,0.35); overflow: hidden; }
+        .gp-core-gloss { position: absolute; left: 10%; right: 10%; top: 6%; height: 42%; border-radius: 50%; background: linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0)); pointer-events: none; }
+        .gp-core-xl .gp-core-mark svg { position: relative; }
+
+        /* type */
+        .gp-eyebrow-lines { display: inline-flex; align-items: center; gap: 14px; font-size: 10.5px; }
+        .gp-eyebrow-lines::before, .gp-eyebrow-lines::after { content: ""; width: 34px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
+        .gp-eyebrow-lines::after { background: linear-gradient(90deg, var(--gold), transparent); }
+        .gp-head-xl { font-size: clamp(40px, 7.4vw, 78px); line-height: 0.93; letter-spacing: -0.045em; text-shadow: 0 10px 60px rgba(0,255,133,0.10); }
+        .gp-word { display: inline-block; }
+        .gp-head-sweep { position: relative; }
+        .gp-head-accent { background: linear-gradient(100deg, #00ff85 0%, #9dffcf 22%, #f0d089 48%, #00ff85 74%, #9dffcf 100%); background-size: 240% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gp-sheen 7s linear infinite; filter: drop-shadow(0 6px 30px rgba(0,255,133,0.22)); }
+
+        /* prompt cards: glass, hairline gradient, cursor spotlight */
+        .gp-cards { grid-template-columns: repeat(4, 1fr); max-width: 54rem; gap: 12px; margin-top: 30px; }
+        .gp-card { padding: 16px 15px 15px; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012)); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(14px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 20px 40px -26px rgba(0,0,0,0.9); }
+        .gp-card::before { opacity: 0.45; background: linear-gradient(150deg, rgba(0,255,133,0.55), transparent 35%, transparent 65%, rgba(216,178,94,0.45)); }
+        .gp-card:hover { transform: translateY(-4px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 30px 60px -24px rgba(0,255,133,0.45); }
+        .gp-card-spot { position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity 0.3s; pointer-events: none; background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(0,255,133,0.14), transparent 60%); }
+        .gp-card:hover .gp-card-spot { opacity: 1; }
+        .gp-card-ico { position: relative; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; color: var(--grn); background: rgba(0,255,133,0.08); border: 1px solid rgba(0,255,133,0.18); margin-bottom: 12px; box-shadow: 0 0 18px -8px var(--grn); }
+        .gp-card-tag { position: relative; }
+        .gp-card-text { position: relative; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .gp-card-go { position: relative; }
+        .gp-quick { margin-top: 22px; }
+        .gp-quick button { backdrop-filter: blur(10px); background: rgba(255,255,255,0.03); }
+
+        /* segmented mode switcher */
+        .gp-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); flex: 0 0 auto; }
+        .gp-seg-btn { position: relative; font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; color: #8f978f; white-space: nowrap; transition: color 0.2s; }
+        .gp-seg-btn:hover { color: #e6ebe6; }
+        .gp-seg-on { color: #06110a !important; }
+        .gp-seg-pill { position: absolute; inset: 0; border-radius: 999px; background: linear-gradient(150deg, #5dffb0, var(--grn) 45%, #0ac466); box-shadow: 0 0 18px -4px rgba(0,255,133,0.7), inset 0 1px 0 rgba(255,255,255,0.4); }
+        .gp-modelrow { align-items: center; gap: 8px; padding-bottom: 10px; }
+        .gp-rowsep { display: none; }
+
+        /* composer dock */
+        .gp-composer-wrap { background: linear-gradient(to top, #030403 55%, rgba(3,4,3,0)); }
+        .gp-composer-shell { border-radius: 22px; padding: 1.5px; box-shadow: 0 30px 80px -30px rgba(0,255,133,0.35), 0 20px 40px -20px rgba(0,0,0,0.9); }
+        .gp-composer-shell::before { opacity: 0.6; }
+        .gp-composer { border-radius: 20.5px; background: linear-gradient(180deg, rgba(22,27,22,0.96), rgba(13,16,13,0.98)); backdrop-filter: blur(20px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); padding: 11px 11px 11px 12px; }
+        .gp-send { background: radial-gradient(circle at 35% 28%, #a4ffd4, var(--grn) 42%, #08b458); box-shadow: 0 0 22px -6px var(--grn), inset 0 1px 0 rgba(255,255,255,0.45); border-radius: 13px; }
+        .gp-attach, .gp-mic { border-radius: 13px; background: rgba(255,255,255,0.04); }
+
+        /* messages */
+        .gp-ava-ai { background: radial-gradient(circle at 32% 26%, #9dffd0, #22ff98 30%, #08b158 70%); box-shadow: 0 0 22px -6px var(--grn), inset 0 1px 0 rgba(255,255,255,0.35); }
+        .gp-ava-ring { position: absolute; inset: -5px; border-radius: 14px; background: conic-gradient(from 0deg, transparent, var(--grn), transparent 45%, var(--gold-bright), transparent 80%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 1.5px; animation: gp-rot 1.6s linear infinite; }
+        .gp-ava-live { box-shadow: 0 0 30px -4px var(--grn); }
+        .gp-user-bubble { background: linear-gradient(160deg, rgba(0,255,133,0.10), rgba(255,255,255,0.03)); border: 1px solid rgba(0,255,133,0.16); border-radius: 18px 18px 6px 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+        .gp-md { color: #e3e8e3; }
+        .gp-md h1, .gp-md h2, .gp-md h3 { color: #fff; }
+        .gp-sitecard { backdrop-filter: blur(12px); }
+
+        /* intro */
+        .gp-intro { position: fixed; inset: 0; z-index: 100; background: #020302; display: grid; place-items: center; pointer-events: none; }
+        .gp-intro-flare { position: absolute; width: 70vmin; height: 70vmin; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,133,0.35), rgba(0,255,133,0.06) 40%, transparent 65%); }
+        .gp-intro-word { position: relative; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 13px; color: #e8f5ee; text-shadow: 0 0 24px rgba(0,255,133,0.6); }
+
+        @media (max-width: 1023px) {
+          .gp-cards { grid-template-columns: 1fr 1fr; margin-top: 12px; gap: 8px; }
+          .gp-card { padding: 11px 12px; }
+          .gp-card-ico { width: 24px; height: 24px; border-radius: 8px; margin-bottom: 7px; }
+          .gp-card-ico svg { width: 13px; height: 13px; }
+          .gp-card-text { -webkit-line-clamp: 2; font-size: 12.5px; }
+          .gp-core-xl { width: 84px; height: 84px; margin-bottom: 16px; }
+          .gp-head-xl { font-size: clamp(36px, 10.5vw, 46px); }
+          .gp-seg-btn { padding: 6px 11px; font-size: 12px; }
+          .gp-modelrow { margin: 0 -12px; padding-left: 12px; padding-right: 12px; }
+        }
+        @media (max-width: 1023px) and (max-height: 700px) {
+          .gp-core-xl { width: 60px; height: 60px; margin-bottom: 10px; }
+          .gp-head-xl { font-size: 34px; }
+          .gp-core-orbit, .gp-core-ring3 { display: none; }
+        }
+        @media (min-width: 1024px) and (max-height: 820px) {
+          .gp-core-xl { width: 84px; height: 84px; margin-bottom: 14px; }
+          .gp-head-xl { font-size: clamp(38px, 5.6vw, 60px); }
+          .gp-cards { margin-top: 20px; }
+        }
+        @media (max-width: 1023px) {
+          .gp-eyebrow-lines { font-size: 10px; gap: 10px; }
+          .gp-eyebrow-lines::before, .gp-eyebrow-lines::after { width: 18px; }
+        }
+        @media (max-width: 1023px) and (max-height: 760px) { .gp-cards > :nth-child(n+3) { display: none; } }
+        @media (max-width: 1023px) and (max-height: 620px) { .gp-cards { display: none; } }
+        @media (prefers-reduced-motion: reduce) { .gp-horizon, .gp-sweep, .gp-grain, .gp-core-orbit, .gp-core-halo, .gp-ava-ring { animation: none !important; } }
       `}</style>
     </div>
   );

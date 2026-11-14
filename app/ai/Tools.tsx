@@ -90,7 +90,7 @@ export function TradingTools({ tab, setTab, onClose, onAsk }: { tab: ToolTab; se
           </div>
           <div className="mt-2.5"><Field label="Value per 1.00 move" hint="1 for stocks, point value for futures" value={mult} onChange={setMult} /></div>
           <div className="gp-tout">
-            <div className="gp-tout-big"><span>Position size</span><b>{size.ok ? `${fmt(size.units, 0)} ${num(mult) === 1 ? "shares" : "contracts"}` : "Enter entry and stop loss"}</b></div>
+            <div className="gp-tout-big"><span>Position size</span><b className={size.ok ? "" : "gp-tout-empty"}>{size.ok ? `${fmt(size.units, 0)} ${num(mult) === 1 ? "shares" : "contracts"}` : "Enter entry and stop loss"}</b></div>
             <div className="gp-tout-row"><span>Max risk ({fmt(num(riskPct))}%)</span><b>{money(size.riskCash)}</b></div>
             <div className="gp-tout-row"><span>Risk per {num(mult) === 1 ? "share" : "contract"}</span><b>{size.ok ? money(size.perUnit) : "-"}</b></div>
             {num(mult) === 1 && <div className="gp-tout-row"><span>Position value</span><b>{size.ok ? money(size.units * num(entry)) : "-"}</b></div>}
@@ -109,7 +109,7 @@ export function TradingTools({ tab, setTab, onClose, onAsk }: { tab: ToolTab; se
             <Field label="Target" value={rTarget} onChange={setRTarget} />
           </div>
           <div className="gp-tout">
-            <div className="gp-tout-big"><span>Risk to reward</span><b>{rr.ok ? `1 : ${fmt(rr.R)}` : "Enter all three prices"}</b></div>
+            <div className="gp-tout-big"><span>Risk to reward</span><b className={rr.ok ? "" : "gp-tout-empty"}>{rr.ok ? `1 : ${fmt(rr.R)}` : "Enter all three prices"}</b></div>
             {rr.ok && !rr.valid && <div className="gp-tout-warn">Your target and stop loss are on the same side of entry. Double check the prices.</div>}
             <div className="gp-tout-row"><span>Risk per unit</span><b>{rr.ok ? fmt(rr.risk, 4) : "-"}</b></div>
             <div className="gp-tout-row"><span>Reward per unit</span><b>{rr.ok ? fmt(rr.reward, 4) : "-"}</b></div>
