@@ -932,7 +932,7 @@ export default function GreenprintAI() {
             <button onClick={() => setRailOpen(true)} className="gp-mbar-btn" aria-label="History">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <span className="gp-mbar-title truncate">{current && !empty ? current.title : "Greenprint AI"}</span>
+            <span className="gp-mbar-title"><span className="gp-mbar-mark">{Ico.logo}</span><span className="truncate">{current && !empty ? current.title : "Greenprint AI"}</span></span>
             {canInstall && empty && (
               <button onClick={installApp} className="gp-installbtn" aria-label="Install the app">{Ico.install}<span>Get the app</span></button>
             )}
@@ -1874,6 +1874,14 @@ export default function GreenprintAI() {
         @media (max-width: 1023px) and (max-height: 760px) { .gp-cards > :nth-child(n+3) { display: none; } }
         @media (max-width: 1023px) and (max-height: 620px) { .gp-cards { display: none; } }
         @media (prefers-reduced-motion: reduce) { .gp-horizon, .gp-sweep, .gp-grain, .gp-core-orbit, .gp-core-halo, .gp-ava-ring { animation: none !important; } }
+        /* seamless phone header: no band, no line, crisp title */
+        @media (max-width: 1023px) {
+          .gp-mbar { background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-bottom: 0 !important; position: relative !important; }
+          .gp-mbar-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: visible !important; max-width: 64vw; font-size: 16px; color: #fff; -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
+          .gp-mbar-mark { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; background: radial-gradient(circle at 32% 26%, #9dffd0, #22ff98 32%, #08b158 72%); box-shadow: 0 0 14px -3px var(--grn), inset 0 1px 0 rgba(255,255,255,0.35); }
+          .gp-mbar-mark svg { width: 12px; height: 12px; }
+          .gp-river { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px); mask-image: linear-gradient(to bottom, transparent 0, #000 22px); }
+        }
       `}</style>
     </div>
   );
