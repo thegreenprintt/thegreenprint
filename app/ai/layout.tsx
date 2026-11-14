@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import StyledJsxRegistry from "./StyleRegistry";
 
 export const metadata: Metadata = {
   title: "Greenprint AI",
@@ -19,5 +20,5 @@ export const viewport: Viewport = {
 };
 
 export default function AILayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <StyledJsxRegistry>{children}</StyledJsxRegistry>;
 }

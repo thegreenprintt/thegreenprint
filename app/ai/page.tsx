@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { Nav } from "@/components/Nav";
 import {
   Msg, Convo, ModeId, MODES, STARTERS, COMMANDS, Command, uid, SITE_START, SITE_END, extractSite, cleanSiteHtml,
-  splitFollowups, displayText, renderMd, groupConvos, convoToMarkdown, downloadText, extractFileText, wireContent,
+  splitFollowups, displayText, renderMd, undash, groupConvos, convoToMarkdown, downloadText, extractFileText, wireContent,
   FILE_ACCEPT, MAX_FILE_CHARS,
 } from "./lib";
 import { TradingTools, ToolTab } from "./Tools";
@@ -1016,7 +1016,8 @@ export default function GreenprintAI() {
                   {messages.map((m, i) => {
                     const isLast = i === messages.length - 1;
                     const live = streaming && isLast && m.role === "assistant";
-                    const { text, followups } = m.role === "assistant" ? splitFollowups(extractSite(m.content).chat) : { text: m.content, followups: [] as string[] };
+                    const { text: rawText, followups } = m.role === "assistant" ? splitFollowups(extractSite(m.content).chat) : { text: m.content, followups: [] as string[] };
+                    const text = m.role === "assistant" ? undash(rawText) : rawText;
                     const siteHere = m.role === "assistant" && m.content.includes(SITE_END) ? cleanSiteHtml(extractSite(m.content).html) : "";
                     return (
                       <motion.div key={i} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={`gp-msg flex gap-3 sm:gap-3.5 ${m.role === "user" ? "flex-row-reverse" : ""} ${sheetFor === i ? "gp-msg-pressed" : ""}`}

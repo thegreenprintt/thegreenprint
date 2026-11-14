@@ -118,8 +118,12 @@ export function splitFollowups(raw: string): { text: string; followups: string[]
 }
 
 // What the user sees / copies for an assistant message
+// The free models sometimes use em/en dashes despite instructions; swap them for commas.
+export function undash(s: string): string {
+  return s.replace(/(\d)\s*[\u2013\u2014]\s*(\d)/g, "$1 to $2").replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/,\s*,/g, ",");
+}
 export function displayText(raw: string): string {
-  return splitFollowups(extractSite(raw).chat).text;
+  return undash(splitFollowups(extractSite(raw).chat).text);
 }
 
 // Markdown → safe HTML (escapes first). Supports headings, bold/italic, links,
