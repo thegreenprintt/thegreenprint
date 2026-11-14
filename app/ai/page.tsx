@@ -159,6 +159,9 @@ export default function GreenprintAI() {
   const [dragging, setDragging] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
+  const [sheetFor, setSheetFor] = useState<number | null>(null);
+  const [online, setOnline] = useState(true);
+  const pressRef = useRef<any>(null);
   const [intro, setIntro] = useState(false);
   const [installEvt, setInstallEvt] = useState<any>(null);
   const [standalone, setStandalone] = useState(false);
@@ -177,6 +180,7 @@ export default function GreenprintAI() {
   const recogRef = useRef<any>(null);
   const currentIdRef = useRef<string | null>(null);
   const stickRef = useRef(true);
+  const contentRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<any>(null);
   currentIdRef.current = currentId;
 
@@ -243,12 +247,50 @@ export default function GreenprintAI() {
       vv?.removeEventListener("resize", onVV);
     };
   }, []);
+  useEffect(() => {
+    const up = () => setOnline(true), down = () => setOnline(false);
+    setOnline(navigator.onLine !== false);
+    window.addEventListener("online", up); window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+  async function autoTitle(id: string, exchange: { role: string; content: string }[]) {
+    try {
+      const r = await fetch("/api/chat?kind=title", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ exchange }) });
+      if (!r.ok) return;
+      const j = await r.json();
+      const t = String(j?.title || "").trim();
+      if (t) updateConvos((p) => p.map((c) => (c.id === id && !c.renamed ? { ...c, title: t } : c)));
+    } catch {}
+  }
   async function installApp() {
     if (installEvt) {
       try { installEvt.prompt(); const r = await installEvt.userChoice; if (r?.outcome === "accepted") { setInstallEvt(null); flash("Installing Greenprint AI"); } } catch {}
     } else setIosHint(true);
   }
   const canInstall = !standalone && (!!installEvt || isIOS);
+
+  // Back gesture / back button closes whatever is open, like a native app
+  const overlayOpen = railOpen || (canvasOpen && isPhone) || settingsOpen || toolsOpen || memOpen || connOpen || talkOpen || plusOpen || iosHint || sheetFor !== null || modelOpen;
+  const pushedRef = useRef(false);
+  useEffect(() => {
+    if (overlayOpen && !pushedRef.current) {
+      try { window.history.pushState({ gpOverlay: 1 }, ""); pushedRef.current = true; } catch {}
+    } else if (!overlayOpen && pushedRef.current) {
+      pushedRef.current = false;
+      try { if (window.history.state?.gpOverlay) window.history.back(); } catch {}
+    }
+  }, [overlayOpen]);
+  useEffect(() => {
+    const onPop = () => {
+      if (!pushedRef.current) return;
+      pushedRef.current = false;
+      setRailOpen(false); setSettingsOpen(false); setToolsOpen(false); setMemOpen(false); setConnOpen(false);
+      setTalkOpen(false); setPlusOpen(false); setIosHint(false); setSheetFor(null); setModelOpen(false);
+      if (window.matchMedia("(max-width: 1023px)").matches) setCanvasOpen(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   // edge swipe: from the left edge opens history, swipe left closes it
   function onTouchStart(e: TouchEvent) {
@@ -339,19 +381,39 @@ export default function GreenprintAI() {
   }
 
   // ---------- scrolling ----------
-  const scrollDown = (force = false) => {
+  // Follows the answer while you're at the bottom. The moment you scroll up
+  // (finger, wheel, or keys) it lets go, and it picks back up when you return.
+  const scrollDown = (force = false, smooth = false) => {
     requestAnimationFrame(() => {
       const el = riverRef.current;
-      if (el && (force || stickRef.current)) el.scrollTop = el.scrollHeight;
+      if (!el || !(force || stickRef.current)) return;
+      if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      else el.scrollTop = el.scrollHeight;
     });
   };
-  useEffect(() => { if (messages.length) scrollDown(); else if (riverRef.current) riverRef.current.scrollTop = 0; }, [messages]);
+  const lastConvoRef = useRef<string | null>(null);
+  useEffect(() => {
+    const el = riverRef.current;
+    if (!messages.length) { if (el) el.scrollTop = 0; lastConvoRef.current = currentId; return; }
+    if (lastConvoRef.current !== currentId) { lastConvoRef.current = currentId; stickRef.current = true; scrollDown(true); return; }
+    scrollDown();
+  }, [messages, currentId]);
+  // content grows on its own (markdown, tables, site cards, follow-ups): keep pinned
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { const r = riverRef.current; if (r && stickRef.current) r.scrollTop = r.scrollHeight; });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const touchYRef = useRef(0);
+  function letGo() { stickRef.current = false; }
   function onRiverScroll() {
     const el = riverRef.current;
     if (!el) return;
     const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickRef.current = gap < 140;
-    setShowDown(gap > 320);
+    if (gap < 48) stickRef.current = true;
+    setShowDown(gap > 240);
   }
 
   const autosize = () => {
@@ -393,7 +455,7 @@ export default function GreenprintAI() {
   function commitRename() {
     const id = renaming; if (!id) return;
     const t = renameVal.trim();
-    if (t) updateConvos((p) => p.map((c) => (c.id === id ? { ...c, title: t.slice(0, 80) } : c)));
+    if (t) updateConvos((p) => p.map((c) => (c.id === id ? { ...c, title: t.slice(0, 80), renamed: true } : c)));
     setRenaming(null);
   }
   function exportChat(id: string) {
@@ -534,6 +596,9 @@ export default function GreenprintAI() {
       const finalMsgs = [...nextMsgs, { ...aiMsg }];
       const id = convoId;
       updateConvos((p) => p.map((c) => (c.id === id ? { ...c, messages: finalMsgs, ts: Date.now() } : c)), id);
+      if (base.length === 0 && aiMsg.content && !aiMsg.content.startsWith("(") && !aiMsg.content.startsWith("**")) {
+        autoTitle(id, [{ role: "user", content: userMsg.content }, { role: "assistant", content: displayText(aiMsg.content).slice(0, 600) }]);
+      }
       if (aiMsg.content && !aiMsg.content.startsWith("(") && userMsg.content) {
         updateMemory([{ role: "user", content: userMsg.content.slice(0, 1200) }, { role: "assistant", content: displayText(aiMsg.content).slice(0, 1200) }]);
       }
@@ -552,6 +617,7 @@ export default function GreenprintAI() {
     const typed = (text ?? input).trim();
     if (!typed && !imgs.length && !fls.length) return "";
     if (fileBusy > 0) { flash("Still reading your file..."); return ""; }
+    if (!online) { flash("You're offline. Reconnect to chat."); return ""; }
     const content = typed || (fls.length ? "Summarize this and pull out the key points." : "What do you make of this?");
     let base = messages;
     let keepFiles = fls;
@@ -595,6 +661,12 @@ export default function GreenprintAI() {
     if (speakingIdx === i) { try { window.speechSynthesis.cancel(); } catch {} setSpeakingIdx(null); return; }
     setSpeakingIdx(i);
     speak(messages[i].content, () => setSpeakingIdx((s) => (s === i ? null : s)));
+  }
+  async function shareText(title: string, text: string) {
+    try {
+      if ((navigator as any).share) { await (navigator as any).share({ title, text }); return; }
+    } catch (e: any) { if (e?.name === "AbortError") return; }
+    try { await navigator.clipboard?.writeText(text); flash("Copied to share"); } catch {}
   }
   function openVersion(html: string) {
     setSiteHtml(html); setCanvasOpen(true); setCanvasTab("preview"); setFrameKey((k) => k + 1);
@@ -715,6 +787,7 @@ export default function GreenprintAI() {
                           <button onClick={() => togglePin(c.id)}>{c.pinned ? "Unpin" : "Pin to top"}</button>
                           <button onClick={() => startRename(c)}>Rename</button>
                           <button onClick={() => exportChat(c.id)}>Export as file</button>
+                          {isPhone && <button onClick={() => { setMenuFor(null); shareText(c.title || "Greenprint AI chat", convoToMarkdown(c)); }}>Share chat</button>}
                           <button className="gp-danger" onClick={() => delChat(c.id)}>Delete</button>
                         </motion.div>
                       )}
@@ -806,6 +879,28 @@ export default function GreenprintAI() {
           </div>
         </Modal>
 
+        <Modal sheet={isPhone} open={sheetFor !== null} onClose={() => setSheetFor(null)}>
+          {sheetFor !== null && messages[sheetFor] && (() => {
+            const i = sheetFor, m = messages[i];
+            const txt = m.role === "assistant" ? displayText(m.content) : m.content;
+            const site = m.role === "assistant" && m.content.includes(SITE_END) ? cleanSiteHtml(extractSite(m.content).html) : "";
+            const act = (fn: () => void) => () => { setSheetFor(null); setTimeout(fn, 180); };
+            return (
+              <div className="px-3 pb-3 pt-1">
+                <div className="gp-sheet-quote">{txt.slice(0, 220)}{txt.length > 220 ? "..." : ""}</div>
+                <div className="gp-sheet-list">
+                  <button onClick={act(() => copyText((m.role === "user" ? "u" : "a") + i, txt))}>{Ico.copy}<span>Copy</span></button>
+                  <button onClick={act(() => shareText(current?.title || "Greenprint AI", txt))}>{Ico.share}<span>Share</span></button>
+                  {m.role === "assistant" && ttsOk && <button onClick={act(() => toggleSpeak(i))}>{Ico.speaker}<span>{speakingIdx === i ? "Stop reading" : "Read aloud"}</span></button>}
+                  {m.role === "assistant" && site && <button onClick={act(() => openVersion(site))}>{Ico.site}<span>Open website</span></button>}
+                  {m.role === "assistant" && i === lastAssistant && !streaming && <button onClick={act(regenerate)}>{Ico.redo}<span>Regenerate</span></button>}
+                  {m.role === "user" && !streaming && <button onClick={act(() => startEdit(i))}>{Ico.edit}<span>Edit and resend</span></button>}
+                </div>
+              </div>
+            );
+          })()}
+        </Modal>
+
         <Modal sheet={isPhone} open={iosHint} onClose={() => setIosHint(false)}>
           <ModalHead title="Get the Greenprint AI app" onClose={() => setIosHint(false)} />
           <div className="px-5 pb-6">
@@ -860,8 +955,12 @@ export default function GreenprintAI() {
             </div>
           )}
 
-          <div ref={riverRef} onScroll={onRiverScroll} onClick={onRiverClick} className="flex-1 min-h-0 overflow-y-auto">
-            <div className={`max-w-3xl mx-auto px-4 sm:px-5 ${empty ? "py-3 lg:py-6 min-h-full flex flex-col" : "py-8"}`}>
+          <div ref={riverRef} onScroll={onRiverScroll} onClick={onRiverClick} className="flex-1 min-h-0 overflow-y-auto gp-river"
+            onWheel={(e) => { if (e.deltaY < 0) letGo(); }}
+            onTouchStart={(e) => { touchYRef.current = e.touches[0].clientY; }}
+            onTouchMove={(e) => { if (e.touches[0].clientY > touchYRef.current + 6) letGo(); }}
+            onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "PageUp" || e.key === "Home") letGo(); }}>
+            <div ref={contentRef} className={`max-w-3xl mx-auto px-4 sm:px-5 ${empty ? "py-3 lg:py-6 min-h-full flex flex-col" : "py-8"}`}>
               {empty ? (
                 <div className="gp-hero flex-1 flex flex-col items-center text-center">
                   <motion.div className="gp-core gp-core-xl" initial={{ opacity: 0, scale: 0.6, filter: "blur(12px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: intro ? 0.35 : 0 }}>
@@ -913,14 +1012,17 @@ export default function GreenprintAI() {
                   </motion.div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-6">
+                <motion.div key={currentId || "new"} className="flex flex-col gap-6" initial={{ opacity: 0, y: 14, filter: "blur(6px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>
                   {messages.map((m, i) => {
                     const isLast = i === messages.length - 1;
                     const live = streaming && isLast && m.role === "assistant";
                     const { text, followups } = m.role === "assistant" ? splitFollowups(extractSite(m.content).chat) : { text: m.content, followups: [] as string[] };
                     const siteHere = m.role === "assistant" && m.content.includes(SITE_END) ? cleanSiteHtml(extractSite(m.content).html) : "";
                     return (
-                      <motion.div key={i} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={`gp-msg flex gap-3 sm:gap-3.5 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+                      <motion.div key={i} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={`gp-msg flex gap-3 sm:gap-3.5 ${m.role === "user" ? "flex-row-reverse" : ""} ${sheetFor === i ? "gp-msg-pressed" : ""}`}
+                        onTouchStart={() => { if (!isPhone || live) return; clearTimeout(pressRef.current); pressRef.current = setTimeout(() => { setSheetFor(i); buzz(14); }, 430); }}
+                        onTouchMove={() => clearTimeout(pressRef.current)} onTouchEnd={() => clearTimeout(pressRef.current)}
+                        onContextMenu={(e) => { if (isPhone) e.preventDefault(); }}>
                         <div className={`w-8 h-8 rounded-xl grid place-items-center shrink-0 mt-0.5 relative ${m.role === "user" ? "gp-ava-user" : "gp-ava-ai"} ${live ? "gp-ava-live" : ""}`}>
                           {m.role === "assistant" ? (<>{live && <span className="gp-ava-ring" />}{Ico.logo}</>) : (<span className="text-[9px] font-bold text-muted">YOU</span>)}
                         </div>
@@ -955,6 +1057,9 @@ export default function GreenprintAI() {
                                   <span className="gp-sitecard-go">Open</span>
                                 </button>
                               )}
+                              {!live && i === lastAssistant && /^\*\*(Something went wrong|The AI engine|No OpenRouter)/.test(m.content) && (
+                                <button onClick={regenerate} className="gp-retry">{Ico.redo}Try again</button>
+                              )}
                               {!live && m.content && (
                                 <div className="gp-acts">
                                   <button onClick={() => copyText("a" + i, displayText(m.content))} title="Copy">{copied === "a" + i ? Ico.check : Ico.copy}</button>
@@ -975,7 +1080,7 @@ export default function GreenprintAI() {
                       </motion.div>
                     );
                   })}
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
@@ -983,7 +1088,7 @@ export default function GreenprintAI() {
           {/* jump to latest */}
           <AnimatePresence>
             {showDown && !empty && (
-              <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} onClick={() => { stickRef.current = true; scrollDown(true); }} className="gp-downbtn" aria-label="Jump to latest">{Ico.down}</motion.button>
+              <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} onClick={() => { stickRef.current = true; scrollDown(true, true); buzz(6); }} className={`gp-downbtn ${streaming ? "gp-downbtn-live" : ""}`} aria-label="Jump to latest">{Ico.down}</motion.button>
             )}
           </AnimatePresence>
 
@@ -1052,6 +1157,13 @@ export default function GreenprintAI() {
                 )}
               </AnimatePresence>
 
+              <AnimatePresence>
+                {!online && (
+                  <motion.div className="gp-offline" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}>
+                    <span className="gp-offline-dot" />You&apos;re offline. Your chats and tools still work, replies need a connection.
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {editIdx !== null && (
                 <div className="gp-editbar"><span>{Ico.edit}Editing your message. Sending replaces everything after it.</span><button onClick={() => { setEditIdx(null); setInput(""); }}>Cancel</button></div>
               )}
@@ -1608,6 +1720,23 @@ export default function GreenprintAI() {
           .gp-card { padding: 10px 11px; }
         }
         @media (display-mode: standalone) { .gp-mbar { padding-top: max(10px, env(safe-area-inset-top)); } }
+        /* ===== app feel ===== */
+        html, body { overscroll-behavior: none; }
+        .gp-root { -webkit-tap-highlight-color: transparent; }
+        .gp-root button, .gp-rail, .gp-mbar, .gp-modelrow, .gp-seg, .gp-chathead, .gp-acts, .gp-follow, .gp-quick, .gp-mhero, .gp-cards, .gp-pop, .gp-sheet-list { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+        .gp-river { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+        .gp-msg { transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.25s; }
+        .gp-msg-pressed { transform: scale(0.97); opacity: 0.85; }
+        @media (max-width: 1023px) { .gp-md, .gp-user-bubble { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
+        .gp-sheet-quote { font-size: 13px; line-height: 1.5; color: #9aa29a; padding: 6px 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .gp-sheet-list { display: flex; flex-direction: column; }
+        .gp-sheet-list button { display: flex; align-items: center; gap: 14px; padding: 14px 10px; border-radius: 12px; font-size: 15.5px; color: #eef2ee; text-align: left; }
+        .gp-sheet-list button:active { background: rgba(255,255,255,0.06); }
+        .gp-sheet-list button svg { width: 18px; height: 18px; color: var(--gold); }
+        .gp-retry { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12.5px; font-weight: 700; color: #06110a; background: linear-gradient(150deg, var(--grn), #0ad46f); padding: 8px 14px; border-radius: 10px; }
+        .gp-offline { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: #ffd28a; padding: 8px 12px; margin-bottom: 8px; border-radius: 12px; background: rgba(255,170,60,0.08); border: 1px solid rgba(255,170,60,0.25); }
+        .gp-offline-dot { width: 7px; height: 7px; border-radius: 50%; background: #ffb347; box-shadow: 0 0 8px #ffb347; flex: 0 0 auto; }
+        .gp-downbtn-live { border-color: rgba(0,255,133,0.5) !important; color: var(--grn) !important; box-shadow: 0 0 22px -6px var(--grn), 0 10px 30px -8px rgba(0,0,0,0.8) !important; animation: gp-mic-pulse 1.4s ease-in-out infinite; }
         .gp-toast { position: fixed; left: 50%; bottom: 110px; z-index: 90; font-size: 13px; font-weight: 600; color: #06110a; background: var(--grn); padding: 9px 16px; border-radius: 999px; box-shadow: 0 12px 40px -10px rgba(0,255,133,0.6); white-space: nowrap; }
 
         @media (max-width: 1023px) {

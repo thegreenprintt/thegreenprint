@@ -13,6 +13,7 @@ export interface Convo {
   messages: Msg[];
   ts: number;
   pinned?: boolean;
+  renamed?: boolean;
   mode?: ModeId;
 }
 

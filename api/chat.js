@@ -166,6 +166,36 @@ module.exports = async function handler(req, res) {
     } catch (e) { return res.status(200).json({ memory: existing }); }
   }
 
+  // ── Smart chat titles (kind=title) ───────────────────────────────────────
+  //   POST /api/chat?kind=title {exchange:[{role,content}]} -> { title } (free model)
+  if (kind === 'title') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const tKey =
+      process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_KEY ||
+      process.env.OPEN_ROUTER_API_KEY || process.env.NEXT_OPENROUTER_API_KEY || '';
+    if (!tKey) return res.status(200).json({ title: '' });
+    let tb = {};
+    try { tb = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch (e) { return res.status(400).json({ error: 'bad_body' }); }
+    const ex = Array.isArray(tb.exchange) ? tb.exchange.slice(0, 2).map((m) => (m.role === 'user' ? 'User: ' : 'AI: ') + String(m.content || '').slice(0, 600)).join('\n') : '';
+    if (!ex) return res.status(200).json({ title: '' });
+    const tModels = [process.env.GREENPRINT_AI_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3.5-lightning:free', 'baidu/ernie-5.5-flash-preview:free'];
+    for (const mdl of tModels) {
+      try {
+        const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tKey, 'HTTP-Referer': 'https://thegreenprint.trade', 'X-Title': 'The Greenprint AI' },
+          body: JSON.stringify({ model: mdl, max_tokens: 30, messages: [{ role: 'user', content: 'Write a short title (2 to 5 words, Title Case, no quotes, no punctuation at the end, no dashes) for this chat:\n\n' + ex + '\n\nReply with only the title.' }] }),
+        });
+        if (!r.ok) continue;
+        const j = await r.json();
+        let t = String((j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '').split('\n')[0];
+        t = t.replace(/^["'#*\s]+|["'*.\s]+$/g, '').replace(/[\u2013\u2014]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48);
+        if (t && t.split(' ').length <= 8) return res.status(200).json({ title: t });
+      } catch (e) {}
+    }
+    return res.status(200).json({ title: '' });
+  }
+
   if (kind === 'ai') {
     const aiKey =
       process.env.OPENROUTER_API_KEY ||
