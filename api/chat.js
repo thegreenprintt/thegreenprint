@@ -296,9 +296,17 @@ module.exports = async function handler(req, res) {
     }
     // Build iteration: if a site already exists in the canvas, give it to the model
     // so follow-up requests EDIT it instead of starting from scratch.
-    const currentSite = typeof aiBody.currentSite === 'string' ? aiBody.currentSite.slice(0, 16000) : '';
-    if (currentSite) {
-      sysContent += "\n\nThe user already has this website open in the canvas. If they ask to change, tweak, add to, or fix it, EDIT this exact document and return the FULL updated HTML in the site markers (do not start over unless they clearly ask for a brand new site):\n===GREENPRINT_SITE_START===\n" + currentSite + "\n===GREENPRINT_SITE_END===";
+    const currentSite = typeof aiBody.currentSite === 'string' ? aiBody.currentSite.slice(0, 80000) : '';
+    if (currentSite && aiBody.fullSite) {
+      sysContent += "\n\nThe user already has this website open in the canvas. Apply their requested change to this exact document and return the FULL updated HTML in the ===GREENPRINT_SITE_START=== / ===GREENPRINT_SITE_END=== markers. Keep everything else the same.\nCURRENT_SITE_START\n" + currentSite + "\nCURRENT_SITE_END";
+    } else if (currentSite) {
+      sysContent += "\n\nThe user already has a website open in the canvas (shown below between CURRENT_SITE markers). " +
+        "If they ask to change, tweak, add to, or fix it, DO NOT resend the whole site. Reply with one short sentence saying what you changed, then send ONLY patches in exactly this format:\n" +
+        "===GREENPRINT_PATCH_START===\n<<<<<<< FIND\n(exact text copied character for character from the current site, long enough to be unique)\n=======\n(the replacement text)\n>>>>>>> REPLACE\n(more FIND/REPLACE blocks as needed)\n===GREENPRINT_PATCH_END===\n" +
+        "To add a new section, FIND the closing tag of the section it should come after (plus a little surrounding text so it is unique) and REPLACE it with that same text followed by the new section. " +
+        "To change styles, patch the relevant CSS rules. Keep every FIND exact and unique. " +
+        "Only if the request is a full redesign, a brand new site, or changes most of the page, send the full new site with the ===GREENPRINT_SITE_START=== / ===GREENPRINT_SITE_END=== markers instead.\n" +
+        "CURRENT_SITE_START\n" + currentSite + "\nCURRENT_SITE_END";
     }
     // Vision: images (data URLs) the user attached, shown with their last message.
     const images = Array.isArray(aiBody.images) ? aiBody.images.filter((s) => typeof s === 'string' && s.startsWith('data:image')).slice(0, 4) : [];

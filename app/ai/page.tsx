@@ -7,11 +7,12 @@ import { Nav } from "@/components/Nav";
 import {
   Msg, Convo, ModeId, MODES, STARTERS, COMMANDS, Command, uid, SITE_START, SITE_END, extractSite, cleanSiteHtml,
   splitFollowups, displayText, renderMd, undash, groupConvos, convoToMarkdown, downloadText, extractFileText, wireContent,
-  FILE_ACCEPT, MAX_FILE_CHARS,
+  FILE_ACCEPT, MAX_FILE_CHARS, PATCH_START, EDIT_TAG, extractPatch, applyPatches,
 } from "./lib";
 import { TradingTools, ToolTab } from "./Tools";
 import { TalkMode, speak } from "./TalkMode";
 import { Ambient } from "./Ambient";
+import { LivePreview } from "./LivePreview";
 
 /*
   The Greenprint AI — cinematic workspace at /ai
@@ -127,6 +128,9 @@ export default function GreenprintAI() {
   const [canvasTab, setCanvasTab] = useState<"preview" | "code">("preview");
   const [device, setDevice] = useState<"desk" | "tab" | "phone">("desk");
   const [frameKey, setFrameKey] = useState(0);
+  const [liveHtml, setLiveHtml] = useState("");
+  const [liveMode, setLiveMode] = useState<"" | "build" | "patch">("");
+  const [buildPct, setBuildPct] = useState(0);
   const [listening, setListening] = useState(false);
   const [voiceOk, setVoiceOk] = useState(false);
   const [ttsOk, setTtsOk] = useState(false);
@@ -508,7 +512,9 @@ export default function GreenprintAI() {
   }
 
   // ---------- sending ----------
-  async function run(base: Msg[], userMsg: Msg, imgs: string[]): Promise<string> {
+  async function run(base: Msg[], userMsg: Msg, imgs: string[], opts: { fullSite?: boolean } = {}): Promise<string> {
+    const baseSite = siteHtml;
+    let needFull = false;
     const nextMsgs = [...base, userMsg];
     stickRef.current = true;
     setMessages(nextMsgs);
@@ -550,7 +556,8 @@ export default function GreenprintAI() {
           mode: mode || undefined,
           instructions: settings.instructions || undefined,
           followups: wantFollowups || undefined,
-          currentSite: siteHtml || undefined,
+          currentSite: baseSite || undefined,
+          fullSite: opts.fullSite || undefined,
           images: imgs.length ? imgs : undefined,
         }),
         signal: ac.signal,
@@ -565,15 +572,29 @@ export default function GreenprintAI() {
         const reader = res.body.getReader();
         const dec = new TextDecoder();
         let acc = "";
-        let openedCanvas = false;
+        let openedCanvas = false, openedPatch = false, lastLive = 0, buildT0 = 0;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           acc += dec.decode(value, { stream: true });
           aiMsg.content = acc;
-          if (!openedCanvas && acc.includes(SITE_START) && currentIdRef.current === convoId) {
-            setCanvasOpen(true); setCanvasTab("preview"); setSiteHtml("");
+          const here = currentIdRef.current === convoId;
+          if (!openedCanvas && acc.includes(SITE_START) && here) {
+            setCanvasOpen(true); setCanvasTab("preview"); setLiveMode("build"); setLiveHtml(""); setBuildPct(0.03); buildT0 = Date.now();
             openedCanvas = true;
+          }
+          if (!openedPatch && !openedCanvas && acc.includes(PATCH_START) && here) {
+            setLiveMode("patch");
+            if (baseSite) { setCanvasOpen(true); setCanvasTab("preview"); }
+            openedPatch = true;
+          }
+          // live build: push the partial page to the preview about once a second
+          if (openedCanvas && here && !acc.includes(SITE_END) && Date.now() - lastLive > 850) {
+            lastLive = Date.now();
+            const partial = cleanSiteHtml(extractSite(acc).html);
+            if (partial.length > 250) setLiveHtml(partial);
+            const byTime = 1 - Math.exp(-(Date.now() - buildT0) / 16000);
+            setBuildPct(Math.min(0.96, Math.max(partial.length / 21000, byTime * 0.92)));
           }
           show([...nextMsgs, { ...aiMsg }]);
         }
@@ -584,6 +605,21 @@ export default function GreenprintAI() {
           setFrameKey((k) => k + 1);
           buzz([14, 60, 22]);
         }
+        // fast edit: apply the FIND/REPLACE patches to the site that was open
+        const pt = !acc.includes(SITE_START) ? extractPatch(acc) : null;
+        if (pt && baseSite) {
+          const r = applyPatches(baseSite, pt.blocks);
+          if (r.applied > 0) {
+            aiMsg.content = (pt.chat ? pt.chat + "\n" : "") + EDIT_TAG + SITE_START + "\n" + r.html + "\n" + "===GREENPRINT_SITE_END===" +
+              (r.failed ? `\n\n_${r.failed} small change${r.failed > 1 ? "s" : ""} couldn't be matched. Ask again if something's missing._` : "");
+            show([...nextMsgs, { ...aiMsg }]);
+            if (currentIdRef.current === convoId) { setSiteHtml(r.html); setCanvasOpen(true); setFrameKey((k) => k + 1); buzz([14, 60, 22]); }
+          } else {
+            needFull = true;
+            aiMsg.content = "Rebuilding the page with that change...";
+            show([...nextMsgs, { ...aiMsg }]);
+          }
+        }
         if (!acc) { aiMsg.content = "(No response. Try again.)"; show([...nextMsgs, { ...aiMsg }]); }
       }
     } catch (e: any) {
@@ -593,6 +629,7 @@ export default function GreenprintAI() {
     } finally {
       setStreaming(false);
       abortRef.current = null;
+      setLiveMode(""); setLiveHtml(""); setBuildPct(0);
       const finalMsgs = [...nextMsgs, { ...aiMsg }];
       const id = convoId;
       updateConvos((p) => p.map((c) => (c.id === id ? { ...c, messages: finalMsgs, ts: Date.now() } : c)), id);
@@ -607,6 +644,7 @@ export default function GreenprintAI() {
         speak(aiMsg.content, () => setSpeakingIdx(null));
       }
     }
+    if (needFull && !opts.fullSite) return run(base, userMsg, imgs, { fullSite: true });
     return aiMsg.content;
   }
 
@@ -1270,8 +1308,17 @@ export default function GreenprintAI() {
                 <button onClick={() => setCanvasOpen(false)} className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-muted hover:text-text transition-colors" aria-label="Close">{Ico.x}</button>
               </div>
             </div>
-            <div className={`flex-1 min-h-0 relative ${deviceW && canvasTab === "preview" && siteHtml ? "gp-devstage" : "bg-white"}`}>
-              {!siteHtml ? (
+            {liveMode === "build" && <div className="gp-buildbar"><span style={{ width: `${Math.round(buildPct * 100)}%` }} /></div>}
+            <div className={`flex-1 min-h-0 relative ${deviceW && canvasTab === "preview" && (siteHtml || liveHtml) ? "gp-devstage" : "bg-white"}`}>
+              {liveMode === "build" && liveHtml && canvasTab === "preview" ? (
+                deviceW ? (
+                  <div className="absolute inset-0 overflow-auto flex justify-center py-5">
+                    <div className="gp-devframe relative" style={{ width: deviceW }}><LivePreview html={liveHtml} /></div>
+                  </div>
+                ) : <LivePreview html={liveHtml} />
+              ) : liveMode === "build" && canvasTab === "code" ? (
+                <pre className="absolute inset-0 overflow-auto m-0 p-4 gp-code" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{liveHtml || "Writing the code..."}</pre>
+              ) : (!siteHtml || liveMode === "build") ? (
                 <div className="absolute inset-0 grid place-items-center gp-canvas-building">
                   <div className="flex flex-col items-center gap-4">
                     <div className="gp-build-core"><span /><span /></div>
@@ -1290,6 +1337,12 @@ export default function GreenprintAI() {
                 )
               ) : (
                 <pre className="absolute inset-0 overflow-auto m-0 p-4 gp-code" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{siteHtml}</pre>
+              )}
+              {liveMode === "build" && (
+                <div className="gp-livepill"><span className="gp-livedot" />Building live<em>{Math.round(buildPct * 100)}%</em></div>
+              )}
+              {liveMode === "patch" && siteHtml && (
+                <div className="gp-patching"><div className="gp-patching-pill"><span className="gp-spin" />Applying your changes</div></div>
               )}
             </div>
           </motion.div>
@@ -1884,6 +1937,15 @@ export default function GreenprintAI() {
           .gp-floor { background: radial-gradient(ellipse 150% 85% at 50% 55%, transparent 55%, rgba(3,4,3,0.75) 100%) !important; }
           .gp-mbar-btn { color: #f3f5f3 !important; }
         }
+        /* live build */
+        .gp-buildbar { height: 2px; background: rgba(255,255,255,0.06); position: relative; overflow: hidden; flex: 0 0 auto; }
+        .gp-buildbar span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--grn), var(--gold-bright)); box-shadow: 0 0 12px var(--grn); transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+        .gp-livepill { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(8,11,8,0.86); border: 1px solid rgba(0,255,133,0.35); backdrop-filter: blur(12px); box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7), 0 0 24px -8px var(--grn); pointer-events: none; }
+        .gp-livepill em { font-style: normal; color: var(--grn); font-variant-numeric: tabular-nums; }
+        .gp-livedot { width: 7px; height: 7px; border-radius: 50%; background: var(--grn); box-shadow: 0 0 10px var(--grn); animation: gp-breathe 1.2s ease-in-out infinite; }
+        .gp-patching { position: absolute; inset: 0; z-index: 5; display: grid; place-items: end center; padding-bottom: 18px; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgba(0,255,133,0.10) 45%, rgba(240,208,137,0.10) 52%, transparent 66%); background-size: 260% 100%; animation: gp-patchsweep 1.3s linear infinite; }
+        @keyframes gp-patchsweep { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+        .gp-patching-pill { display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px 8px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(8,11,8,0.86); border: 1px solid rgba(0,255,133,0.35); backdrop-filter: blur(12px); }
       `}</style>
     </div>
   );

@@ -85,9 +85,59 @@ const SITE_START = "===GREENPRINT_SITE_START===";
 const SITE_END = "===GREENPRINT_SITE_END===";
 export { SITE_START, SITE_END };
 
+export const PATCH_START = "===GREENPRINT_PATCH_START===";
+export const PATCH_END = "===GREENPRINT_PATCH_END===";
+export const EDIT_TAG = "<!--gp-edit-->";
+
+// Fast edits: the model sends FIND/REPLACE blocks instead of the whole site.
+export function extractPatch(raw: string): { blocks: { find: string; replace: string }[]; chat: string; building: boolean } | null {
+  const i = raw.indexOf(PATCH_START);
+  if (i === -1) return null;
+  const intro = raw.slice(0, i).trim();
+  const after = raw.slice(i + PATCH_START.length);
+  const j = after.indexOf(PATCH_END);
+  const body = j === -1 ? after : after.slice(0, j);
+  const blocks: { find: string; replace: string }[] = [];
+  const re = /<{5,}\s*FIND\s*\n([\s\S]*?)\n={5,}\s*\n([\s\S]*?)\n?>{5,}\s*REPLACE/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) blocks.push({ find: m[1], replace: m[2] });
+  return { blocks, chat: intro, building: j === -1 };
+}
+function escapeRe(s: string) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+export function applyPatches(html: string, blocks: { find: string; replace: string }[]): { html: string; applied: number; failed: number } {
+  let out = html, applied = 0, failed = 0;
+  for (const b of blocks) {
+    if (!b.find.trim()) { failed++; continue; }
+    const k = out.indexOf(b.find);
+    if (k !== -1) { out = out.slice(0, k) + b.replace + out.slice(k + b.find.length); applied++; continue; }
+    // whitespace-tolerant fallback
+    const parts = b.find.trim().split(/\s+/).map(escapeRe);
+    if (parts.length) {
+      const rx = new RegExp(parts.join("\\s*"));
+      const mm = out.match(rx);
+      if (mm && mm.index !== undefined) { out = out.slice(0, mm.index) + b.replace + out.slice(mm.index + mm[0].length); applied++; continue; }
+    }
+    failed++;
+  }
+  return { html: out, applied, failed };
+}
+
 export function extractSite(raw: string): { html: string; chat: string; building: boolean } {
+  const pt = extractPatch(raw);
+  if (pt && raw.indexOf(SITE_START) === -1) {
+    return { html: "", chat: (pt.chat ? pt.chat + "\n\n" : "") + (pt.building ? "**Updating your website...**" : "**Applying your changes...**"), building: pt.building };
+  }
+  const edited = raw.includes(EDIT_TAG);
+  raw = raw.replace(EDIT_TAG, "");
   const i = raw.indexOf(SITE_START);
   if (i === -1) return { html: "", chat: raw, building: false };
+  if (edited) {
+    const intro = raw.slice(0, i).trim();
+    const afterE = raw.slice(i + SITE_START.length);
+    const jE = afterE.indexOf(SITE_END);
+    const tailE = jE === -1 ? "" : afterE.slice(jE + SITE_END.length).trim();
+    return { html: (jE === -1 ? afterE : afterE.slice(0, jE)).trim(), chat: (intro ? intro + "\n\n" : "") + "**Website updated.** The changes are live in the panel." + (tailE ? "\n\n" + tailE : ""), building: jE === -1 };
+  }
   const afterStart = raw.slice(i + SITE_START.length);
   const j = afterStart.indexOf(SITE_END);
   if (j === -1) {
