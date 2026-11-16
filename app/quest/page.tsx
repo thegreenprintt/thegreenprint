@@ -14,15 +14,17 @@ const SAVE_KEY = "gp_quest_v2";
 
 type Quiz = { q: string; a: string[]; correct: number; why: string };
 type LinkBtn = { label: string; href: string; ios?: string };
+type Vid = { title: string; by?: string; img?: string; href?: string };
 type Step = {
   id: string; title: string; blurb: string; xp: number;
   kind: "task" | "alerts" | "choice" | "list" | "quiz";
-  links?: LinkBtn[]; note?: string[]; options?: string[]; items?: string[]; quiz?: Quiz[]; done?: string;
+  links?: LinkBtn[]; note?: string[]; options?: string[]; items?: string[]; vids?: Vid[]; quiz?: Quiz[]; done?: string;
 };
 type World = { id: string; name: string; tag: string; icon: string; intro: string; steps: Step[] };
 
 const LIVV = "https://members.livvfxtrading.com/client/register/6a65379bb16ad";
 const CHAT = "https://t.me/TheGreenprintt";
+const V = "https://i.vimeocdn.com/video/";
 
 const WORLDS: World[] = [
   {
@@ -50,7 +52,16 @@ const WORLDS: World[] = [
     id: "w3", name: "Boot Camp", tag: "WORLD 3", icon: "🧠",
     intro: "Your first 72 hours. Watch the Great 8 inside 1House, then prove you were paying attention.",
     steps: [
-      { id: "great8", kind: "list", xp: 80, title: "The Great 8", blurb: "The eight clips to watch first. Tap each one off as you finish it.", links: [{ label: "Open 1House", href: "https://1house.tv" }], items: ["First 48", "Back to Basics", "The Candlestick Bible", "Forex Playbook", "New Trader Start Here", "Partner Program Breakdown", "The Truth You Need to Be Rich", "State of the Partnership"] },
+      { id: "great8", kind: "list", xp: 80, title: "The Great 8", blurb: "The eight videos to watch first, all on 1House. Tap a thumbnail to open it, then check it off when you finish.", links: [{ label: "Open 1House", href: "https://1house.tv" }], items: ["First 48", "Back to Basics", "The Candlestick Bible", "Forex Playbook", "New Trader Start Here", "Partner Program Breakdown", "The Truth You Need to Be Rich", "State of the Partnership"], vids: [
+        { title: "First 48", by: "Marquel Ingram", img: V + "2204911244-ea93ef455ad533c2ed82806197c52f1e1b8d81f3e88117a5e42e2194f18e3893-d_640x360", href: "https://www.1house.tv/educators/marquel-ingram" },
+        { title: "Back to Basics" },
+        { title: "The Candlestick Bible" },
+        { title: "Forex Playbook", by: "Marquel Ingram", img: V + "2205614621-81ad54335dbc4f711de0ead37a51ecc3af0a65ebb4c02ce29d5e42af17b249e0-d_640x360", href: "https://www.1house.tv/educators/marquel-ingram" },
+        { title: "New Trader Start Here", by: "Arin Long", img: V + "2215147371-b3e77e2dcf94fb289b07af055e80e12173b2e354f1c90a67d20b36b786b5fe2f-d_640x360", href: "https://www.1house.tv/educators/arin-long" },
+        { title: "Partner Program Breakdown", by: "Imran Ritchie", img: V + "2196678830-08f1c58ee7a148adaa8520a3eb62ddae68fb85482be598be2e28292d8e001f8a-d_640x360", href: "https://www.1house.tv/educators/imran-ritchie" },
+        { title: "The Truth You Need to Be Rich" },
+        { title: "State of the Partnership" },
+      ] },
       { id: "boss1", kind: "quiz", xp: 60, title: "Boss: The Mindset Check", blurb: "Three questions. Get them all right to clear the world.", quiz: [
         { q: "Whatever skill you learn, it takes...", a: ["90% skillset, 10% mindset", "90% mindset, 10% skillset", "50% luck, 50% timing"], correct: 1, why: "90% mindset, 10% skillset. Trading is mostly psychology." },
         { q: "What does S.Y.S.T.E.M stand for?", a: ["Save Yourself Time, Energy and Money", "Study Your Setups Then Enter Markets", "Stack Your Savings To Earn More"], correct: 0, why: "A system removes the guesswork and keeps you consistent." },
@@ -467,11 +478,23 @@ export default function QuestGame() {
                 {open.items.map((it, i) => {
                   const on = (save.lists[open.id] || []).includes(i);
                   return (
-                    <button key={it} onClick={() => toggleList(open, i)} style={{ ...row, background: on ? "rgba(0,255,135,.08)" : "rgba(255,255,255,.025)", borderColor: on ? "rgba(0,255,135,.35)" : "rgba(255,255,255,.07)" }}>
-                      <span style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,.4)", width: 20 }}>{String(i + 1).padStart(2, "0")}</span>
-                      <span style={{ flex: 1, textAlign: "left", fontSize: 14, fontWeight: 700 }}>{it}</span>
-                      <span style={{ ...tickBox, background: on ? GREEN : "transparent", borderColor: on ? GREEN : "rgba(255,255,255,.22)", color: "#06110c" }}>{on ? "✓" : ""}</span>
-                    </button>
+                    <div key={it} style={{ ...row, cursor: "default", padding: 8, gap: 10, background: on ? "rgba(0,255,135,.08)" : "rgba(255,255,255,.025)", borderColor: on ? "rgba(0,255,135,.35)" : "rgba(255,255,255,.07)" }}>
+                      <button onClick={() => { const v = open.vids && open.vids[i]; sTap(); window.open((v && v.href) || "https://1house.tv", "_blank", "noopener"); }} aria-label={"Watch " + it}
+                        style={{ position: "relative", flex: "0 0 auto", width: 112, height: 63, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,.1)", padding: 0, cursor: "pointer", background: (open.vids && open.vids[i] && open.vids[i].img) ? "#000 center/cover no-repeat url(" + open.vids[i].img + ")" : "linear-gradient(135deg,#0c241b,#05080b)" }}>
+                        {!(open.vids && open.vids[i] && open.vids[i].img) && <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".12em", color: GREEN }}>1HOUSE</span>}
+                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.25)" }}>
+                          <span style={{ width: 26, height: 26, borderRadius: 999, background: "rgba(0,0,0,.6)", border: "1px solid rgba(255,255,255,.5)", color: "#fff", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>▶</span>
+                        </span>
+                        <span style={{ position: "absolute", left: 5, top: 4, fontSize: 9.5, fontWeight: 900, color: "#fff", textShadow: "0 1px 4px #000" }}>{String(i + 1).padStart(2, "0")}</span>
+                      </button>
+                      <button onClick={() => toggleList(open, i)} style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, fontFamily: "inherit", textAlign: "left" }}>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontSize: 14, fontWeight: 800, lineHeight: 1.25 }}>{it}</span>
+                          <span style={{ display: "block", fontSize: 12, color: open.vids && open.vids[i] && open.vids[i].by ? "#9affce" : "rgba(255,255,255,.4)", fontWeight: 600, marginTop: 3 }}>{(open.vids && open.vids[i] && open.vids[i].by) || "On 1House"}</span>
+                        </span>
+                        <span style={{ ...tickBox, background: on ? GREEN : "transparent", borderColor: on ? GREEN : "rgba(255,255,255,.22)", color: "#06110c" }}>{on ? "✓" : ""}</span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
