@@ -20,6 +20,52 @@ const COLORS = ["#00ff87","#ff6b6b","#ffd93d","#6bcbff","#c77dff","#ff9f43"];
 const nc = (n: string) => COLORS[n.split("").reduce((a,c)=>a+c.charCodeAt(0),0)%COLORS.length];
 const fmt = (s: number) => `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 
+const CSS = `
+@keyframes gpPulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes gpFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-200px) scale(1.9)}}
+@keyframes gpAurora{0%{transform:translate(-8%,-8%) rotate(0deg)}50%{transform:translate(8%,5%) rotate(180deg)}100%{transform:translate(-8%,-8%) rotate(360deg)}}
+@keyframes gpRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes gpRing{0%{box-shadow:0 0 0 0 rgba(0,255,133,.45)}100%{box-shadow:0 0 0 18px rgba(0,255,133,0)}}
+@keyframes gpScan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+.gp{position:relative;height:100dvh;background:#040605;color:#fff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;display:flex;flex-direction:column}
+.gp *{box-sizing:border-box}
+.gp-bg{position:absolute;inset:-30%;background:radial-gradient(40% 35% at 30% 30%,rgba(0,255,133,.11),transparent 70%),radial-gradient(35% 30% at 75% 70%,rgba(0,200,120,.07),transparent 70%);animation:gpAurora 40s linear infinite;pointer-events:none}
+.gp-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);pointer-events:none}
+.gp-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(4,6,5,.6);backdrop-filter:blur(18px)}
+.gp-brand{display:flex;align-items:center;gap:12px}
+.gp-logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#00FF85,#00B85F);display:flex;align-items:center;justify-content:center;font-weight:900;color:#04110a;letter-spacing:-.5px;box-shadow:0 0 24px rgba(0,255,133,.35);flex-shrink:0}
+.gp-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);white-space:nowrap}
+.gp-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.gp-main{position:relative;z-index:1;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;padding:18px 22px;overflow:hidden;min-height:0}
+.gp-col{display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;padding-bottom:6px}
+.gp-card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.07);border-radius:20px;backdrop-filter:blur(20px);animation:gpRise .5s ease both}
+.gp-stage{position:relative;aspect-ratio:16/9;width:100%;max-height:62vh;flex-shrink:0;background:#000;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px rgba(0,0,0,.55);transition:border-color .3s ease,box-shadow .3s ease}
+.gp-stage.on{border-color:rgba(255,59,92,.5);box-shadow:0 0 0 1px rgba(255,59,92,.2),0 30px 80px rgba(0,0,0,.55)}
+.gp-scan{position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,255,133,.05),transparent);animation:gpScan 5s linear infinite;pointer-events:none}
+.gp-lbl{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.gp-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;padding:12px 18px;font-weight:800;font-size:14px;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;transition:transform .15s ease,background .2s ease,border-color .2s ease;text-decoration:none;font-family:inherit;white-space:nowrap}
+.gp-btn:hover:not(:disabled){transform:translateY(-1px);background:rgba(255,255,255,.09)}
+.gp-btn:disabled{opacity:.4;cursor:not-allowed}
+.gp-go{background:linear-gradient(135deg,#00FF85,#00C567);color:#03110a;border:none;font-size:16px;padding:16px 30px;animation:gpRing 1.8s ease-out infinite}
+.gp-go:hover:not(:disabled){background:linear-gradient(135deg,#3dffa0,#00d872)}
+.gp-end{background:#FF3B5C;border:none;font-size:16px;padding:16px 30px}
+.gp-end:hover:not(:disabled){background:#ff5470}
+.gp-on{background:rgba(0,255,133,.12);border-color:rgba(0,255,133,.4);color:#00FF85}
+.gp-off{background:rgba(255,59,92,.12);border-color:rgba(255,59,92,.4);color:#FF3B5C}
+.gp-in{width:100%;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;font-size:14px;outline:none;font-family:inherit;min-width:0}
+.gp-in:focus{border-color:rgba(0,255,133,.5)}
+.gp-chk{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 13px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:rgba(255,255,255,.6);font-size:13px;font-family:inherit;transition:all .2s ease}
+.gp-chk.done{border-color:rgba(0,255,133,.35);background:rgba(0,255,133,.07);color:#fff}
+.gp-box{width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;background:rgba(255,255,255,.08);color:#03110a}
+.gp-chk.done .gp-box{background:#00FF85}
+.gp-emo{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;cursor:pointer;font-size:19px;line-height:1;transition:transform .15s ease}
+.gp-emo:hover{transform:translateY(-2px) scale(1.08)}
+.gp-chat{display:flex;flex-direction:column;min-height:0}
+.gp-msg{margin-bottom:10px;line-height:1.5;font-size:13.5px;word-wrap:break-word;animation:gpRise .25s ease both}
+.gp ::-webkit-scrollbar{width:4px}.gp ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px}
+@media(max-width:1000px){.gp-main{grid-template-columns:1fr;overflow-y:auto;padding:14px}.gp-col{overflow:visible}.gp-chatcard{height:440px}.gp-hide-sm{display:none!important}.gp-top{padding:12px 14px}}
+`;
+
 export default function GoLive() {
   const [pw, setPw] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -215,6 +261,7 @@ export default function GoLive() {
       if (screenRef.current) vt.attach(screenRef.current);
       setStatus("Connecting...");
       const tokenRes = await fetch(`/api/token?isHost=1&key=${encodeURIComponent(pw)}`, { cache: "no-store" });
+      if (tokenRes.status === 403) { vt.stop(); if (at) at.stop(); setStatus("Error: the server did not accept your studio password. Refresh the page and sign in again."); return; }
       const {token,url} = tokenRes.ok ? await tokenRes.json().catch(()=>({} as any)) : ({} as any);
       if (!url) { setStatus("Missing LIVEKIT env vars."); return; }
       const room = new Room({adaptiveStream:true,dynacast:true});
@@ -357,229 +404,212 @@ export default function GoLive() {
     else alert("Wrong password");
   };
 
+  const checks: [string, string][] = [
+    ["tabs", "Private tabs and notifications closed"],
+    ["mic", "Mic connected and tested"],
+    ["chart", "Charts open and laid out"],
+    ["alert", "Community alerted (email + Telegram)"],
+    ["record", "Recording started (Win+Alt+R)"],
+  ];
+  const doneCount = checks.filter(([k]) => preflight[k]).length;
+  const allClear = doneCount >= checks.length;
+  const qColor = connQuality === "excellent" ? "#00FF85" : connQuality === "good" ? "#FFC832" : "#FF3B5C";
+  const isErr = status.startsWith("Error") || status.startsWith("Cam") || status.startsWith("Missing");
+  const notifyEmail = async () => {
+    setEmailSending(true);
+    try { const r = await fetch("/api/notify-live", { method: "POST" }); const d = await r.json(); setEmailSent(d.sent ?? d.total ?? 0); } catch {}
+    setEmailSending(false);
+  };
+
   if (!authed) return (
-    <div style={{minHeight:"100dvh",background:"radial-gradient(ellipse at 25% 60%,#071a10 0%,#020807 55%,#020807 100%)",color:"#fff",fontFamily:"system-ui,sans-serif",display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
-      <style>{`
-        @keyframes orbPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.08)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
-        #studio-submit:hover{transform:translateY(-1px) scale(1.02)!important;box-shadow:0 8px 40px rgba(34,197,94,.6)!important}
-        #studio-submit:active{transform:scale(.98)!important}
-      `}</style>
-      <div style={{position:"absolute",top:"5%",left:"5%",width:500,height:500,background:"radial-gradient(circle,rgba(34,197,94,.1) 0%,transparent 65%)",animation:"orbPulse 4s ease-in-out infinite",pointerEvents:"none",zIndex:0}}/>
-      <div style={{position:"absolute",bottom:"0%",right:"0%",width:400,height:400,background:"radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%)",animation:"orbPulse 5s ease-in-out infinite 1s",pointerEvents:"none",zIndex:0}}/>
-      <div style={{position:"absolute",top:"50%",left:"50%",width:800,height:2,background:"linear-gradient(90deg,transparent,rgba(34,197,94,.08),transparent)",transform:"translate(-50%,-50%)",pointerEvents:"none",zIndex:0}}/>
-
-      <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1,animation:"fadeUp .6s ease"}}>
-
-        {/* Logo / Branding */}
-        <div style={{textAlign:"center",marginBottom:44}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:72,height:72,borderRadius:20,background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.25)",marginBottom:20,boxShadow:"0 0 40px rgba(34,197,94,.15)"}}>
-            <span style={{fontSize:34}}>🎙️</span>
-          </div>
-          <div style={{fontSize:11,letterSpacing:"4px",color:"rgba(34,197,94,.6)",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Welcome back</div>
-          <div style={{fontSize:32,fontWeight:900,letterSpacing:"-1px",background:"linear-gradient(135deg,#22c55e 0%,#4ade80 45%,#bbf7d0 100%)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"shimmer 4s linear infinite"}}>Greenprint Studio</div>
+    <div className="gp" style={{ alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <style>{CSS}</style>
+      <div className="gp-bg" /><div className="gp-grid" />
+      <div className="gp-card" style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "40px 34px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", marginBottom: 30 }}>
+          <div className="gp-logo" style={{ width: 58, height: 58, borderRadius: 18, fontSize: 20, marginBottom: 18 }}>GP</div>
+          <div className="gp-lbl" style={{ color: "rgba(0,255,133,.7)", marginBottom: 8 }}>Host access</div>
+          <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px" }}>Greenprint Studio</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,.45)", marginTop: 8 }}>Sign in to open your broadcast room.</div>
         </div>
-
-        {/* Card */}
-        <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(34,197,94,.12)",borderRadius:24,padding:"36px 32px",backdropFilter:"blur(32px)",boxShadow:"0 0 80px rgba(34,197,94,.05),inset 0 1px 0 rgba(255,255,255,.05)"}}>
-          <div style={{marginBottom:10}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.35)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:10}}>Password</label>
-            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&auth()}
-              placeholder="Enter your studio password"
-              style={{width:"100%",padding:"16px 20px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,color:"#fff",fontSize:15,outline:"none",boxSizing:"border-box" as const,letterSpacing:".5px",transition:"border-color .2s ease"}}
-              onFocus={e=>(e.currentTarget.style.borderColor="rgba(34,197,94,.5)")}
-              onBlur={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,.1)")}
-            />
-          </div>
-          <div style={{marginTop:20}}>
-            <button id="studio-submit" onClick={auth}
-              style={{width:"100%",padding:"16px 0",background:"linear-gradient(135deg,#15803d 0%,#22c55e 50%,#4ade80 100%)",border:"none",borderRadius:14,color:"#000",fontWeight:900,fontSize:15,cursor:"pointer",letterSpacing:"1px",boxShadow:"0 4px 28px rgba(34,197,94,.35)",transition:"all .2s ease"}}>
-              ENTER STUDIO
-            </button>
-            <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:12,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
-          </div>
-          <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"rgba(255,255,255,.15)",letterSpacing:"1px"}}>Host access only · thegreenprint.trade</div>
-        </div>
+        <label className="gp-lbl" style={{ display: "block", marginBottom: 8 }}>Studio password</label>
+        <input className="gp-in" type="password" value={pw} autoFocus onChange={e => setPw(e.target.value)} onKeyDown={e => { if (e.key === "Enter") auth(); }} placeholder="Enter your studio password" />
+        <button className="gp-btn gp-go" onClick={auth} style={{ width: "100%", marginTop: 16, animation: "none" }}>Enter Studio</button>
+        <a href="/leads" target="_blank" rel="noopener noreferrer" className="gp-btn" style={{ width: "100%", marginTop: 10, fontSize: 13 }}>📋 Open Leads</a>
+        <div style={{ textAlign: "center", marginTop: 22, fontSize: 11, color: "rgba(255,255,255,.2)", letterSpacing: "1px" }}>thegreenprint.trade</div>
       </div>
     </div>
   );
 
   return (
-    <div style={{height:"100vh",background:"#050505",color:"#fff",display:"flex",flexDirection:"column",overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      <style>{`
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-180px) scale(2)}}
-        @keyframes glow{0%,100%{box-shadow:0 0 16px rgba(0,255,135,.2)}50%{box-shadow:0 0 32px rgba(0,255,135,.5)}}
-        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
-        @media(max-width:900px){.sg{grid-template-columns:1fr!important}.cc{max-height:260px!important}}
-      `}</style>
+    <div className="gp">
+      <style>{CSS}</style>
+      <div className="gp-bg" /><div className="gp-grid" />
 
-      {/* ── STAGE PANEL (additive): call-in requests + on-air guests ── */}
       {live && (stageReqs.length > 0 || stageOn.length > 0) && (
-        <div style={{position:"fixed",bottom:16,left:16,zIndex:9998,width:250,background:"rgba(8,12,9,.95)",border:"1px solid rgba(0,255,135,.3)",borderRadius:14,padding:"12px 14px",backdropFilter:"blur(12px)",boxShadow:"0 8px 30px rgba(0,0,0,.6)"}}>
-          <div style={{fontSize:11,fontWeight:900,letterSpacing:"1.5px",color:"#00ff87",marginBottom:8}}>🎙 STAGE</div>
-          {stageOn.map(g=>(
-            <div key={g.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
-              <span style={{fontSize:12,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🔴 {g.name}</span>
-              <button onClick={()=>removeGuest(g)} style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:7,color:"#ff2d55",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>REMOVE</button>
+        <div className="gp-card" style={{ position: "fixed", bottom: 18, left: 18, zIndex: 50, width: 270, padding: "14px 16px", background: "rgba(6,10,8,.96)", borderColor: "rgba(0,255,133,.3)" }}>
+          <div className="gp-lbl" style={{ color: "#00FF85", marginBottom: 10 }}>🎙 Stage</div>
+          {stageOn.map(g => (
+            <div key={g.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔴 {g.name}</span>
+              <button className="gp-btn gp-off" style={{ padding: "5px 10px", fontSize: 11, borderRadius: 9 }} onClick={() => removeGuest(g)}>Remove</button>
             </div>
           ))}
-          {stageReqs.map(r=>(
-            <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
-              <span style={{fontSize:12,color:"rgba(255,255,255,.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>✋ {r.name}</span>
-              <button onClick={()=>approveGuest(r)} style={{background:"rgba(0,255,135,.15)",border:"1px solid rgba(0,255,135,.4)",borderRadius:7,color:"#00ff87",fontSize:10,fontWeight:800,padding:"3px 8px",cursor:"pointer",flexShrink:0}}>PUT ON AIR</button>
+          {stageReqs.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✋ {r.name}</span>
+              <button className="gp-btn gp-on" style={{ padding: "5px 10px", fontSize: 11, borderRadius: 9 }} onClick={() => approveGuest(r)}>Put on air</button>
             </div>
           ))}
         </div>
       )}
-      
 
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 20px",borderBottom:"1px solid rgba(255,255,255,.06)",background:"rgba(0,0,0,.5)",backdropFilter:"blur(12px)",flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#00ff87,#00c864)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}><span style={{fontWeight:900,color:"#05080b",letterSpacing:"-0.5px"}}>GP</span></div>
-          <div><div style={{fontWeight:900,fontSize:15}}>The Greenprint</div><div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>Broadcast Studio</div></div>
+      <header className="gp-top">
+        <div className="gp-brand">
+          <div className="gp-logo">GP</div>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "-.2px" }}>The Greenprint</div>
+            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)" }}>Broadcast Studio</div>
+          </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {live && <span style={{background:"rgba(255,45,85,.15)",border:"1px solid rgba(255,45,85,.4)",borderRadius:20,padding:"5px 14px",fontSize:12,fontWeight:800,letterSpacing:"1.5px",color:"#ff2d55",display:"flex",alignItems:"center",gap:6}}>
-            <span style={{width:7,height:7,background:"#ff2d55",borderRadius:"50%",animation:"pulse 1.2s infinite",display:"inline-block"}}/>LIVE
-          </span>}
-          <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:13}}>👁 {viewers} watching</span>
-          {live && <span style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:20,padding:"5px 12px",fontSize:12,color:"rgba(255,255,255,.5)"}}>{fmt(dur)}</span>}
-          {live && connQuality && <span title="Your upload connection quality" style={{background:connQuality==="excellent"?"rgba(0,255,135,.12)":connQuality==="good"?"rgba(255,200,50,.12)":"rgba(255,45,85,.15)",border:"1px solid rgba(255,255,255,.12)",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,color:connQuality==="excellent"?"#00ff87":connQuality==="good"?"#ffc832":"#ff2d55"}}>📶 {connQuality}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {live
+            ? <span className="gp-pill" style={{ background: "rgba(255,59,92,.14)", borderColor: "rgba(255,59,92,.45)", color: "#FF3B5C", letterSpacing: "1.5px" }}><span className="gp-dot" style={{ background: "#FF3B5C", animation: "gpPulse 1.2s infinite" }} />LIVE {fmt(dur)}</span>
+            : <span className="gp-pill"><span className="gp-dot" style={{ background: "rgba(255,255,255,.35)" }} />OFF AIR</span>}
+          <span className="gp-pill">👁 {viewers} watching</span>
+          {live && connQuality && <span className="gp-pill gp-hide-sm" style={{ color: qColor }} title="Your upload connection">📶 {connQuality}</span>}
         </div>
-      </div>
+      </header>
 
-      <div className="sg" style={{flex:1,display:"grid",gridTemplateColumns:"1fr 340px",overflow:"hidden"}}>
-        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",padding:16,gap:14}}>
-          <div style={{flex:1,position:"relative",background:"#000",borderRadius:16,overflow:"hidden",border:"1px solid rgba(255,255,255,.08)"}}>
-            <video ref={screenRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"contain"}} />
-            {/* Camera PiP — ALWAYS in DOM */}
-            <div style={{position:"absolute",bottom:16,right:16,width:200,height:113,borderRadius:12,overflow:"hidden",border:"2px solid #00ff87",boxShadow:"0 4px 24px rgba(0,255,135,.35)",display:camOn?"block":"none",zIndex:10}}>
-              <video ref={camRef} autoPlay muted playsInline style={{width:"100%",height:"100%",objectFit:"cover",transform:"scaleX(-1)"}} />
-              <div style={{position:"absolute",top:6,left:8,background:"rgba(0,255,135,.9)",color:"#000",fontSize:9,fontWeight:900,letterSpacing:"1.5px",borderRadius:4,padding:"2px 6px"}}>CAM</div>
+      <main className="gp-main">
+        <section className="gp-col">
+          <div className={live ? "gp-stage on" : "gp-stage"}>
+            <video ref={screenRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+            <div style={{ position: "absolute", bottom: 16, right: 16, width: 210, height: 118, borderRadius: 14, overflow: "hidden", border: "2px solid #00FF85", boxShadow: "0 8px 30px rgba(0,255,133,.3)", display: camOn ? "block" : "none", zIndex: 10 }}>
+              <video ref={camRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+              <div style={{ position: "absolute", top: 6, left: 8, background: "#00FF85", color: "#03110a", fontSize: 9, fontWeight: 900, letterSpacing: "1.5px", borderRadius: 5, padding: "2px 6px" }}>CAM</div>
             </div>
-            <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
-              {floats.map(r=>(
-                <div key={r.id} style={{position:"absolute",bottom:60,left:`${10+r.x*75}%`,fontSize:40,animation:"floatUp 2.5s ease-out forwards",userSelect:"none",filter:"drop-shadow(0 2px 8px rgba(0,0,0,.6))"}}>{r.emoji}</div>
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+              {floats.map(r => (
+                <div key={r.id} style={{ position: "absolute", bottom: 60, left: `${10 + r.x * 75}%`, fontSize: 40, animation: "gpFloat 2.5s ease-out forwards", userSelect: "none", filter: "drop-shadow(0 2px 8px rgba(0,0,0,.6))" }}>{r.emoji}</div>
               ))}
             </div>
-            {!live && <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,background:"rgba(0,0,0,.9)",overflowY:"auto",padding:16}}>
-              <div style={{fontSize:40}}>🎬</div>
-              <div style={{color:"#fff",fontWeight:900,fontSize:17,letterSpacing:".02em"}}>Pre-Flight Checklist</div>
-              <div style={{color:"rgba(255,255,255,.35)",fontSize:12,marginBottom:6}}>Run it down, then hit Go Live.</div>
-              <div style={{display:"flex",flexDirection:"column",gap:7,width:"100%",maxWidth:380}}>
-                {[
-                  ["tabs","Close private tabs & notifications (everything on screen goes out live)"],
-                  ["mic","Mic connected & tested — say something and watch the meter in your OS"],
-                  ["chart","Charts open and laid out the way you want them"],
-                  ["alert","Alert the community — 📧 email button + drop the Telegram link"],
-                  ["record","Start your recording (Win+Alt+R) so we can clip this later"],
-                ].map(([k,label])=>(
-                  <button key={k} onClick={()=>setPreflight(p=>({...p,[k]:!p[k]}))}
-                    style={{display:"flex",alignItems:"center",gap:10,textAlign:"left",background:preflight[k]?"rgba(0,255,135,.08)":"rgba(255,255,255,.04)",border:preflight[k]?"1px solid rgba(0,255,135,.35)":"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"10px 12px",cursor:"pointer",transition:"all .2s"}}>
-                    <span style={{width:20,height:20,borderRadius:6,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,background:preflight[k]?"#00ff87":"rgba(255,255,255,.08)",color:"#000",fontWeight:900}}>{preflight[k]?"✓":""}</span>
-                    <span style={{fontSize:12,color:preflight[k]?"rgba(255,255,255,.85)":"rgba(255,255,255,.5)",lineHeight:1.4}}>{label}</span>
-                  </button>
-                ))}
-              </div>
-              <div style={{color:Object.values(preflight).filter(Boolean).length>=5?"#00ff87":"rgba(255,255,255,.25)",fontSize:12,fontWeight:700,marginTop:4}}>
-                {Object.values(preflight).filter(Boolean).length>=5 ? "✅ All clear — you're ready. Hit Go Live." : `${Object.values(preflight).filter(Boolean).length}/5 checked`}
-              </div>
-            </div>}
-          </div>
-          <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-            {!live
-              ? <button onClick={startStream} style={{background:"linear-gradient(135deg,#00ff87,#00c864)",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer",animation:"glow 2s infinite"}}>🔴 Go Live</button>
-              : <button onClick={stopStream} style={{background:"#ff2d55",border:"none",borderRadius:10,color:"#fff",fontWeight:800,padding:"11px 24px",fontSize:14,cursor:"pointer"}}>⏹ End Stream</button>
-            }
-            {!live && (
-              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",padding:"8px 12px",borderRadius:12,background:"rgba(0,255,135,.05)",border:"1px solid rgba(0,255,135,.18)"}}>
-                <span style={{fontSize:11,fontWeight:900,letterSpacing:"1px",color:"#00ff87"}}>👥 MEETING MODE</span>
-                <input value={meetCode} onChange={e=>{setMeetCode(e.target.value);setMeetSaved(false);}} placeholder="meeting code"
-                  style={{width:110,padding:"8px 10px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"#fff",fontSize:12,outline:"none"}}/>
-                <button onClick={saveMeetCode} style={{background:meetSaved?"rgba(0,255,135,.15)":"rgba(255,255,255,.08)",border:"1px solid rgba(0,255,135,.3)",borderRadius:8,color:meetSaved?"#00ff87":"#fff",fontWeight:700,padding:"8px 12px",fontSize:11,cursor:"pointer"}}>{meetSaved?"✓ Saved":"Save code"}</button>
-                <a href={`/meet?code=${encodeURIComponent(meetCode)}`} target="_blank" rel="noopener noreferrer"
-                  style={{background:meetSaved?"linear-gradient(135deg,#00ff87,#00c864)":"rgba(255,255,255,.08)",border:"none",borderRadius:8,color:meetSaved?"#000":"rgba(255,255,255,.4)",fontWeight:800,padding:"9px 14px",fontSize:11,textDecoration:"none",pointerEvents:meetSaved?"auto":"none"}}>
-                  Open Meeting Room →
-                </a>
+            {live && (
+              <div style={{ position: "absolute", top: 14, left: 14, display: "flex", gap: 8, zIndex: 5 }}>
+                <span className="gp-pill" style={{ background: "rgba(255,59,92,.92)", border: "none", color: "#fff", letterSpacing: "1.5px" }}><span className="gp-dot" style={{ background: "#fff", animation: "gpPulse 1.2s infinite" }} />ON AIR</span>
+                {!micOn && <span className="gp-pill" style={{ background: "rgba(0,0,0,.75)", color: "#FF3B5C" }}>🔇 Mic muted</span>}
               </div>
             )}
-
-            <button onClick={async()=>{setEmailSending(true);try{const r=await fetch('/api/notify-live',{method:'POST'});const d=await r.json();setEmailSent(d.sent??d.total??0);}catch(e){}setEmailSending(false);}} disabled={emailSending} style={{background:emailSent!==null?'rgba(0,255,135,.15)':'rgba(255,255,255,.08)',border:'1px solid rgba(0,255,135,.3)',borderRadius:10,color:emailSent!==null?'#00ff87':'#fff',fontWeight:800,padding:'11px 24px',fontSize:14,cursor:'pointer',width:'100%',marginTop:8}}>{emailSending?'Sending...':emailSent!==null?'\u2705 Sent to '+emailSent+' people':'\uD83D\uDCE7 Notify Email List'}</button>
-            <button onClick={toggleCam} disabled={!live} style={{background:camOn?"rgba(0,255,135,.15)":"rgba(255,255,255,.06)",border:camOn?"1px solid rgba(0,255,135,.4)":"1px solid rgba(255,255,255,.1)",borderRadius:10,color:camOn?"#00ff87":"rgba(255,255,255,.7)",padding:"10px 18px",cursor:live?"pointer":"not-allowed",opacity:live?1:.4,fontWeight:700,fontSize:14}}>
-              {camOn?"📸 Cam ON":"📷 Cam OFF"}
-            </button>
-            <button onClick={toggleMic} disabled={!live} style={{background:micOn?"rgba(0,255,135,.15)":"rgba(255,45,85,.15)",border:micOn?"1px solid rgba(0,255,135,.4)":"1px solid rgba(255,45,85,.4)",borderRadius:10,color:micOn?"#00ff87":"#ff2d55",padding:"10px 18px",cursor:live?"pointer":"not-allowed",opacity:live?1:.4,fontWeight:700,fontSize:14}}>
-              {micOn?"🎤 Mic ON":"🔇 Mic OFF"}
-            </button>
-              <a href="/leads" target="_blank" style={{padding:"10px 18px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.4)",borderRadius:8,color:"#22c55e",fontWeight:800,fontSize:13,textDecoration:"none",letterSpacing:".05em",display:"inline-flex",alignItems:"center",gap:6}}>📋 LEADS ↗</a>
-              <button onClick={notifySubscribers} disabled={notifying} style={{background:"rgba(251,191,36,.1)",border:"1px solid rgba(251,191,36,.4)",borderRadius:8,color:"#fbbf24",fontWeight:800,padding:"10px 18px",fontSize:13,cursor:notifying?"not-allowed":"pointer",opacity:notifying?0.6:1,letterSpacing:".05em"}}>🔔 {notifying?"SENDING...":"NOTIFY SUBSCRIBERS"}</button>
-              {notifyStatus && <span style={{color:notifyStatus.startsWith("✅")?"#22c55e":"#ff4444",fontSize:13,fontWeight:600}}>{notifyStatus}</span>}
-              <button onClick={()=>setShowPreview(p=>!p)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,color:"rgba(255,255,255,.6)",fontWeight:600,padding:"10px 14px",fontSize:12,cursor:"pointer",letterSpacing:".05em"}}>{showPreview?"🙈 Hide Preview":"👁 Preview Email"}</button>
-              {showPreview && (
-                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowPreview(false)}>
-                  <div style={{background:"#0a0a0a",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:0,maxWidth:580,width:"100%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-                    <div style={{padding:"16px 24px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:"#fff",fontWeight:700,fontSize:14}}>📧 Email Preview</span>
-                      <button onClick={()=>setShowPreview(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,.4)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+            {!live && (
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "radial-gradient(ellipse at center,rgba(0,40,22,.6),rgba(0,0,0,.94))", overflowY: "auto" }}>
+                <div className="gp-scan" />
+                <div style={{ position: "relative", width: "100%", maxWidth: 420 }}>
+                  <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div>
+                      <div className="gp-lbl" style={{ color: "rgba(0,255,133,.75)" }}>Pre-flight</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, marginTop: 4 }}>{allClear ? "Cleared. Hit Go Live." : "Run it down, then go live"}</div>
                     </div>
-                    <div style={{padding:"8px 24px 12px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>From: <span style={{color:"rgba(255,255,255,.6)"}}>The Greenprint &lt;noreply@thegreenprint.trade&gt;</span></p>
-                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>Subject: <span style={{color:"rgba(255,255,255,.6)"}}>🟢 The Greenprint is LIVE — Free Day Trading Class</span></p>
-                      <p style={{color:"rgba(255,255,255,.4)",fontSize:11,margin:"4px 0"}}>To: <span style={{color:"rgba(255,255,255,.6)"}}>All subscribers (~890 people)</span></p>
-                    </div>
-                    <div style={{padding:24}}>
-                      <div style={{background:"#111",borderRadius:12,padding:"28px 24px",fontFamily:"-apple-system,sans-serif"}}>
-                        <div style={{textAlign:"center",marginBottom:24}}>
-                          <div style={{display:"inline-block",padding:"6px 16px",background:"rgba(34,197,94,.15)",border:"1px solid rgba(34,197,94,.4)",borderRadius:20,marginBottom:16}}>
-                            <span style={{color:"#22c55e",fontSize:12,fontWeight:700,letterSpacing:2}}>🟢 LIVE NOW</span>
-                          </div>
-                          <h2 style={{color:"#fff",margin:"0 0 6px",fontSize:22,fontWeight:900}}>The Greenprint is Live</h2>
-                          <p style={{color:"rgba(255,255,255,.5)",fontSize:13,margin:0}}>Free Day Trading Class — happening right now</p>
-                        </div>
-                        <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:12,padding:20,marginBottom:20}}>
-                          <p style={{margin:"0 0 10px",fontSize:13,lineHeight:1.6,color:"rgba(255,255,255,.8)"}}>Your free day trading class is live right now. Come watch live trades, scanner alerts, and real-time market analysis with The Greenprint.</p>
-                          <p style={{margin:0,fontSize:12,color:"rgba(255,255,255,.35)"}}>No cost. No catch. Just value.</p>
-                        </div>
-                        <div style={{textAlign:"center",marginBottom:20}}>
-                          <span style={{display:"inline-block",padding:"14px 36px",background:"linear-gradient(135deg,#15803d,#22c55e)",borderRadius:10,color:"#000",fontWeight:900,fontSize:14,letterSpacing:.5}}>JOIN THE CLASS →</span>
-                        </div>
-                        <p style={{textAlign:"center",fontSize:10,color:"rgba(255,255,255,.2)",margin:0}}>The Greenprint · thegreenprint.trade</p>
-                      </div>
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: allClear ? "#00FF85" : "rgba(255,255,255,.45)" }}>{doneCount}/{checks.length}</div>
                   </div>
+                  <div style={{ height: 4, borderRadius: 4, background: "rgba(255,255,255,.08)", marginBottom: 14, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(doneCount / checks.length) * 100}%`, background: "linear-gradient(90deg,#00C567,#00FF85)", transition: "width .35s ease" }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {checks.map(([k, label]) => (
+                      <button key={k} className={preflight[k] ? "gp-chk done" : "gp-chk"} onClick={() => setPreflight(p => ({ ...p, [k]: !p[k] }))}>
+                        <span className="gp-box">{preflight[k] ? "✓" : ""}</span>{label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.35)", marginTop: 12 }}>Everything on the screen you share goes out live.</div>
                 </div>
-              )}
-            <div style={{display:"flex",gap:6,marginLeft:"auto"}}>
-              {EMOJIS.map(e=>(
-                <button key={e} onClick={()=>sendReaction(e)} style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"7px 10px",cursor:"pointer",fontSize:18}}>{e}</button>
-              ))}
-            </div>
-            {status && <span style={{fontSize:13,color:status.startsWith("Error")||status.startsWith("Cam")?"#ff4444":"#00ff87"}}>{status}</span>}
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="cc" style={{borderLeft:"1px solid rgba(255,255,255,.06)",display:"flex",flexDirection:"column",background:"rgba(0,0,0,.4)",backdropFilter:"blur(20px)"}}>
-          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:13}}>💬 Live Chat</div>
-          <div ref={chatBoxRef} style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
-            {chat.length===0&&<div style={{textAlign:"center",padding:"48px 0"}}><div style={{fontSize:36,marginBottom:10}}>💬</div><p style={{color:"rgba(255,255,255,.25)",fontSize:13,margin:0}}>No messages yet</p></div>}
-            {chat.map((m)=>(
-              <div key={m.ts + "|" + m.name} style={{marginBottom:10,lineHeight:1.5}}>
-                <span style={{color:m.name==="Host"?"#ff9900":nc(m.name),fontWeight:700,fontSize:13}}>{m.name}</span>
-                <span style={{color:"rgba(255,255,255,.85)",fontSize:13}}> {m.msg}</span>
+          <div className="gp-card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {!live
+              ? <button className="gp-btn gp-go" onClick={startStream}>● Go Live</button>
+              : <button className="gp-btn gp-end" onClick={stopStream}>■ End Stream</button>}
+            <button className={camOn ? "gp-btn gp-on" : "gp-btn"} onClick={toggleCam} disabled={!live}>{camOn ? "📸 Cam on" : "📷 Cam off"}</button>
+            <button className={micOn ? "gp-btn gp-on" : "gp-btn gp-off"} onClick={toggleMic} disabled={!live}>{micOn ? "🎤 Mic on" : "🔇 Mic off"}</button>
+            <div style={{ display: "flex", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
+              {EMOJIS.map(e => (<button key={e} className="gp-emo" onClick={() => sendReaction(e)}>{e}</button>))}
+            </div>
+            {status && <div style={{ width: "100%", fontSize: 13, fontWeight: 600, color: isErr ? "#FF3B5C" : "#00FF85" }}>{status}</div>}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+            <div className="gp-card" style={{ padding: 16 }}>
+              <div className="gp-lbl" style={{ marginBottom: 12 }}>📣 Bring people in</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button className={emailSent !== null ? "gp-btn gp-on" : "gp-btn"} onClick={notifyEmail} disabled={emailSending}>{emailSending ? "Sending..." : emailSent !== null ? `✅ Emailed ${emailSent} people` : "📧 Notify email list"}</button>
+                <button className="gp-btn" style={{ color: "#FBBF24", borderColor: "rgba(251,191,36,.35)", background: "rgba(251,191,36,.08)" }} onClick={notifySubscribers} disabled={notifying}>🔔 {notifying ? "Sending..." : "Notify subscribers"}</button>
+                {notifyStatus && <div style={{ fontSize: 12.5, fontWeight: 600, color: notifyStatus.startsWith("✅") ? "#00FF85" : "#FF3B5C" }}>{notifyStatus}</div>}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="gp-btn" style={{ flex: 1, fontSize: 12.5 }} onClick={() => setShowPreview(true)}>👁 Preview email</button>
+                  <a className="gp-btn" style={{ flex: 1, fontSize: 12.5, color: "#00FF85" }} href="/leads" target="_blank" rel="noopener noreferrer">📋 Leads ↗</a>
+                </div>
+              </div>
+            </div>
+            <div className="gp-card" style={{ padding: 16 }}>
+              <div className="gp-lbl" style={{ marginBottom: 12 }}>👥 Meeting mode</div>
+              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.45)", marginBottom: 10 }}>Set a code, then open the private meeting room.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input className="gp-in" value={meetCode} onChange={e => { setMeetCode(e.target.value); setMeetSaved(false); }} placeholder="Meeting code" style={{ flex: 1 }} />
+                <button className={meetSaved ? "gp-btn gp-on" : "gp-btn"} onClick={saveMeetCode} style={{ fontSize: 12.5 }}>{meetSaved ? "✓ Saved" : "Save"}</button>
+              </div>
+              <a className={meetSaved ? "gp-btn gp-on" : "gp-btn"} href={`/meet?code=${encodeURIComponent(meetCode)}`} target="_blank" rel="noopener noreferrer" style={{ width: "100%", marginTop: 8, fontSize: 13, pointerEvents: meetSaved ? "auto" : "none", opacity: meetSaved ? 1 : 0.4 }}>Open meeting room →</a>
+            </div>
+          </div>
+        </section>
+
+        <aside className="gp-card gp-chat gp-chatcard" style={{ overflow: "hidden" }}>
+          <div style={{ padding: "15px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontWeight: 800, fontSize: 14 }}>💬 Live chat</span>
+            <span className="gp-lbl">{viewers} in the room</span>
+          </div>
+          <div ref={chatBoxRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+            {chat.length === 0 && <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,.3)", fontSize: 13 }}><div style={{ fontSize: 34, marginBottom: 10 }}>💬</div>Chat shows up here once people join.</div>}
+            {chat.map(m => (
+              <div key={m.ts + "|" + m.name} className="gp-msg">
+                <span style={{ color: m.name === "Host" ? "#FFB020" : m.name === "GP AI" ? "#00FF85" : nc(m.name), fontWeight: 800 }}>{m.name}</span>
+                <span style={{ color: "rgba(255,255,255,.85)" }}> {m.msg}</span>
               </div>
             ))}
-            <div ref={chatEndRef}/>
+            <div ref={chatEndRef} />
           </div>
-          <div style={{padding:"12px 14px",borderTop:"1px solid rgba(255,255,255,.06)",display:"flex",gap:8}}>
-            <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Message as Host..."
-              style={{flex:1,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"#fff",padding:"10px 13px",fontSize:13,outline:"none",boxSizing:"border-box"}} />
-            <button onClick={sendChat} style={{background:"#00ff87",border:"none",borderRadius:10,color:"#000",fontWeight:800,padding:"10px 14px",cursor:"pointer"}}>→</button>
+          <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,.06)", display: "flex", gap: 8 }}>
+            <input className="gp-in" value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="Message as Host..." />
+            <button className="gp-btn gp-go" style={{ padding: "10px 16px", fontSize: 15, animation: "none" }} onClick={sendChat}>↑</button>
+          </div>
+        </aside>
+      </main>
+
+      {showPreview && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", backdropFilter: "blur(6px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setShowPreview(false)}>
+          <div className="gp-card" style={{ background: "#0a0d0b", maxWidth: 560, width: "100%", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "16px 22px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 800, fontSize: 14 }}>📧 Email preview</span>
+              <button onClick={() => setShowPreview(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,.5)", fontSize: 18, cursor: "pointer" }}>✕</button>
+            </div>
+            <div style={{ padding: "10px 22px", borderBottom: "1px solid rgba(255,255,255,.06)", fontSize: 11.5, color: "rgba(255,255,255,.45)", lineHeight: 1.8 }}>
+              <div>From: <span style={{ color: "rgba(255,255,255,.7)" }}>The Greenprint &lt;noreply@thegreenprint.trade&gt;</span></div>
+              <div>Subject: <span style={{ color: "rgba(255,255,255,.7)" }}>🟢 The Greenprint is LIVE, Free Day Trading Class</span></div>
+              <div>To: <span style={{ color: "rgba(255,255,255,.7)" }}>Your email list</span></div>
+            </div>
+            <div style={{ padding: 22 }}>
+              <div style={{ background: "#111", borderRadius: 14, padding: "28px 24px", textAlign: "center" }}>
+                <div style={{ display: "inline-block", padding: "6px 16px", background: "rgba(0,255,133,.12)", border: "1px solid rgba(0,255,133,.4)", borderRadius: 20, marginBottom: 16, color: "#00FF85", fontSize: 12, fontWeight: 800, letterSpacing: 2 }}>🟢 LIVE NOW</div>
+                <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900 }}>The Greenprint is Live</h2>
+                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13, margin: "0 0 18px" }}>Free Day Trading Class, happening right now</p>
+                <p style={{ margin: "0 0 18px", fontSize: 13, lineHeight: 1.6, color: "rgba(255,255,255,.8)", textAlign: "left" }}>Your free day trading class is live right now. Come watch live trades, scanner alerts, and real-time market analysis with The Greenprint.</p>
+                <span style={{ display: "inline-block", padding: "14px 34px", background: "linear-gradient(135deg,#00C567,#00FF85)", borderRadius: 10, color: "#03110a", fontWeight: 900, fontSize: 14 }}>JOIN THE CLASS →</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
