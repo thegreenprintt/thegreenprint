@@ -10,14 +10,19 @@ module.exports = async function handler(req, res) {
   const name = String(q.name || '');
   // SECURITY: a host token (publish rights over the whole stream) now requires the
   // broadcast password — previously anyone could mint one with ?isHost=1.
-  const HOST_HASH = 'bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94';
+  const HOST_HASHES = ['bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94', 'eb2f9ff29cc1016e2588694f8d9b0aa6703e334811a992f0ec550221081651d0'];
   let isHost = false;
   if (String(q.isHost || '') === '1') {
     try {
       const crypto = require('crypto');
       const keyHash = crypto.createHash('sha256').update(String(q.key || '')).digest('hex');
-      isHost = keyHash === HOST_HASH;
+      isHost = HOST_HASHES.includes(keyHash);
     } catch (e) { isHost = false; }
+  }
+  // Host asked for a broadcast pass with the wrong password: say so clearly instead of
+  // silently handing out a viewer pass (that caused 'failed to publish track, insufficient permissions').
+  if (String(q.isHost || '') === '1' && !isHost) {
+    return res.status(403).json({ error: 'Wrong broadcast password' });
   }
   const wantsStage = String(q.stage || '') === '1';
 
@@ -56,8 +61,7 @@ module.exports = async function handler(req, res) {
     if (q.hostkey) {
       try {
         const crypto = require('crypto');
-        isMeetingHost = crypto.createHash('sha256').update(String(q.hostkey)).digest('hex')
-          === 'bec1cb52deb007e890ee601f1a728292d9826ca1cadea014ea6272abf69a8b94';
+        isMeetingHost = HOST_HASHES.includes(crypto.createHash('sha256').update(String(q.hostkey)).digest('hex'));
       } catch (e) {}
     }
     // Waiting room + lock (host-controlled). Host and admitted names bypass both.
