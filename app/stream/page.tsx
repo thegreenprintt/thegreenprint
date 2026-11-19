@@ -278,8 +278,9 @@ export default function StreamPage() {
   useEffect(() => {
     const box = chatBoxRef.current;
     // only auto-scroll when the reader is already at (or near) the bottom
-    if (!box || box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
+      // Scroll only the chat box. scrollIntoView also scrolled the whole page down to the chat.
+      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
     }
   }, [chat]);
   useEffect(() => {
