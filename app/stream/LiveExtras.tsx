@@ -7,7 +7,7 @@ import type { CSSProperties } from "react";
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
 const PATH = `${FB}/live/extras`;
 
-export type LiveTrade = { side?: string; symbol?: string; entry?: string; sl?: string; tps?: string; status?: string; ts?: number };
+export type LiveTrade = { side?: string; symbol?: string; entry?: string; cap?: string; sl?: string; tps?: string; status?: string; auto?: boolean; ts?: number };
 export type LiveExtrasData = {
   pinned?: { msg?: string; ts?: number } | null;
   nowplaying?: { title?: string; ts?: number } | null;
@@ -68,6 +68,7 @@ export function VideoExtras() {
   const x = useLiveExtras();
   // Phones start with the compact card so the chart stays visible; tap to expand.
   const [min, setMin] = useState(() => typeof window !== "undefined" && window.innerWidth < 700);
+  const [copied, setCopied] = useState(false);
   const t = x.trade;
   const np = x.nowplaying?.title;
   const buy = (t?.side || "").toUpperCase() === "BUY";
@@ -92,10 +93,13 @@ export function VideoExtras() {
           {!min && (
             <div style={{ marginTop: 8 }}>
               {t.entry && <div className="lx-row"><span>Entry</span><span>{t.entry}</span></div>}
+              {t.cap && <div className="lx-row"><span>{buy ? "Don't buy above" : "Don't sell below"}</span><span style={{ color: "#FFC832" }}>{t.cap}</span></div>}
               {t.sl && <div className="lx-row"><span>Stop loss</span><span style={{ color: "#FF3B5C" }}>{t.sl}</span></div>}
               {(t.tps || "").split(",").map(s => s.trim()).filter(Boolean).map((tp, i) => (
                 <div key={i} className="lx-row"><span>TP{i + 1}</span><span style={{ color: "#00FF85" }}>{tp}</span></div>
               ))}
+              <button onClick={e => { e.stopPropagation(); const tl = (t.tps || "").split(",").map(s => s.trim()).filter(Boolean); const txt = [(buy ? "BUY " : "SELL ") + t.symbol, t.entry ? "Entry: " + t.entry : "", t.cap ? (buy ? "Don't buy above: " : "Don't sell below: ") + t.cap : "", t.sl ? "Stop loss: " + t.sl : "", ...tl.map((p, i) => "TP" + (i + 1) + ": " + p)].filter(Boolean).join("\n"); try { navigator.clipboard.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }).catch(() => {}); } catch {} }}
+                style={{ marginTop: 8, width: "100%", padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(0,255,133,.45)", background: copied ? "#00FF85" : "rgba(0,255,133,.12)", color: copied ? "#03110a" : "#00FF85", fontWeight: 900, fontSize: 12, letterSpacing: ".5px", cursor: "pointer", fontFamily: "inherit" }}>{copied ? "✓ Copied" : "📋 Copy trade"}</button>
               {t.status && <div style={{ marginTop: 8, textAlign: "center", fontSize: 11.5, fontWeight: 900, letterSpacing: "1px", padding: "6px 8px", borderRadius: 8, background: "rgba(255,255,255,.06)", color: statusColor(t.status) }}>{t.status}</div>}
               <div style={{ marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,.3)", textAlign: "center" }}>Educational only. Not financial advice. Tap to minimize.</div>
             </div>
