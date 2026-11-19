@@ -1,6 +1,13 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalVideoTrack } from "livekit-client";
+import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalVideoTrack, ScreenSharePresets, AudioPresets } from "livekit-client";
+import { HostExtras, setLiveExtra } from "../stream/LiveExtras";
+
+// Worldwide-ready stream: 1080p for strong connections, 720p/360p layers so viewers on weak
+// Wi-Fi or mobile data get a smooth picture. Screen audio (music) goes out as hi-fi stereo.
+const SCREEN_CAPTURE = { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, systemAudio: "include" as const, resolution: ScreenSharePresets.h1080fps30.resolution };
+const SCREEN_PUBLISH = { simulcast: true, screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, screenShareSimulcastLayers: [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps15] };
+const MUSIC_PUBLISH = { audioPreset: AudioPresets.musicHighQualityStereo, dtx: false, red: true, forceStereo: true };
 
 const HASH = "eb2f9ff29cc1016e2588694f8d9b0aa6703e334811a992f0ec550221081651d0";
 const FB = "https://the-greenprint-53d98-default-rtdb.firebaseio.com";
@@ -13,7 +20,7 @@ const put = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.jso
 const push = async (p: string, d: unknown) => { try { await fetch(`${FB}/${p}.json`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); } catch {} };
 const del = async (p: string) => { try { await fetch(`${FB}/${p}.json`,{method:"DELETE"}); } catch {} };
 
-type CM = { name: string; msg: string; ts: number };
+type CM = { name: string; msg: string; ts: number; k?: string };
 type FE = { id: string; emoji: string; x: number };
 const EMOJIS = ["🔥","❤️","😂","👏","💯","🚀"];
 const COLORS = ["#00ff87","#ff6b6b","#ffd93d","#6bcbff","#c77dff","#ff9f43"];
@@ -215,7 +222,7 @@ export default function GoLive() {
     const poll = async () => {
       const data = await get("live/chat");
       if (!data||typeof data!=="object") { setChat([]); return; }
-      setChat((Object.values(data) as CM[]).filter(m=>m?.msg&&m?.name).sort((a,b)=>a.ts-b.ts).slice(-50));
+      setChat(Object.entries(data as Record<string, CM>).map(([k, m]) => ({ ...m, k })).filter(m=>m?.msg&&m?.name).sort((a,b)=>a.ts-b.ts).slice(-50));
     };
     poll(); const id = setInterval(poll,2000); return () => clearInterval(id);
   }, [authed]);
@@ -256,7 +263,7 @@ export default function GoLive() {
     setStatus("Starting — pick your screen in the popup…");
     try {
       setStatus("Requesting screen...");
-      const tracks = await createLocalScreenTracks({audio:true});
+      const tracks = await createLocalScreenTracks(SCREEN_CAPTURE);
       const vt = tracks.find(t=>t.kind===Track.Kind.Video);
       const at = tracks.find(t=>t.kind===Track.Kind.Audio);
       if (!vt) throw new Error("No video track");
@@ -287,8 +294,8 @@ export default function GoLive() {
       });
       room.on(RoomEvent.TrackUnsubscribed,(track:any)=>{ try { track.detach().forEach((el:HTMLElement)=>el.remove()); } catch {} });
       await room.connect(url,token);
-      await room.localParticipant.publishTrack(vt,{name:"screen",source:Track.Source.ScreenShare,simulcast:false});
-      if (at) await room.localParticipant.publishTrack(at,{name:"screen-audio",source:Track.Source.ScreenShareAudio});
+      await room.localParticipant.publishTrack(vt,{name:"screen",source:Track.Source.ScreenShare,...SCREEN_PUBLISH});
+      if (at) await room.localParticipant.publishTrack(at,{name:"screen-audio",source:Track.Source.ScreenShareAudio,...MUSIC_PUBLISH});
       // Publish the mic so "Mic ON" is real from the moment the stream starts
       try { await room.localParticipant.setMicrophoneEnabled(true); setMicOn(true); } catch {}
       setLive(true); setStatus(""); setViewers(room.remoteParticipants.size);
@@ -300,13 +307,13 @@ export default function GoLive() {
         const reshare = window.confirm("Screen sharing stopped. Click OK to share again and keep the stream alive, or Cancel to end the stream.");
         if (!reshare) { stopStream(); return; }
         try {
-          const tracks = await createLocalScreenTracks({ audio: true });
+          const tracks = await createLocalScreenTracks(SCREEN_CAPTURE);
           const nvt = tracks.find(t => t.kind === Track.Kind.Video);
           const nat = tracks.find(t => t.kind === Track.Kind.Audio);
           if (!nvt || !roomRef.current) { stopStream(); return; }
           if (screenRef.current) nvt.attach(screenRef.current);
-          await roomRef.current.localParticipant.publishTrack(nvt, { name: "screen", source: Track.Source.ScreenShare, simulcast: false });
-          if (nat) await roomRef.current.localParticipant.publishTrack(nat, { name: "screen-audio", source: Track.Source.ScreenShareAudio });
+          await roomRef.current.localParticipant.publishTrack(nvt, { name: "screen", source: Track.Source.ScreenShare, ...SCREEN_PUBLISH });
+          if (nat) await roomRef.current.localParticipant.publishTrack(nat, { name: "screen-audio", source: Track.Source.ScreenShareAudio, ...MUSIC_PUBLISH });
           nvt.mediaStreamTrack.addEventListener("ended", () => stopStream());
         } catch { stopStream(); }
       });
@@ -564,6 +571,7 @@ export default function GoLive() {
               <a className={meetSaved ? "gp-btn gp-on" : "gp-btn"} href={`/meet?code=${encodeURIComponent(meetCode)}`} target="_blank" rel="noopener noreferrer" style={{ width: "100%", marginTop: 8, fontSize: 13, pointerEvents: meetSaved ? "auto" : "none", opacity: meetSaved ? 1 : 0.4 }}>Open meeting room →</a>
             </div>
           </div>
+          <HostExtras />
         </section>
 
         <aside className="gp-card gp-chat gp-chatcard" style={{ overflow: "hidden" }}>
@@ -577,6 +585,12 @@ export default function GoLive() {
               <div key={m.ts + "|" + m.name} className="gp-msg">
                 <span style={{ color: m.name === "Host" ? "#FFB020" : m.name === "GP AI" ? "#00FF85" : nc(m.name), fontWeight: 800 }}>{m.name}</span>
                 <span style={{ color: "rgba(255,255,255,.85)" }}> {m.msg}</span>
+                {m.k && (
+                  <span style={{ float: "right", display: "inline-flex", gap: 6, marginLeft: 6 }}>
+                    <button title="Pin for viewers" onClick={() => setLiveExtra("pinned", { msg: m.name + ": " + m.msg, ts: Date.now() })} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.6, padding: 0 }}>📌</button>
+                    <button title="Delete message" onClick={() => { const k = m.k; setChat(c => c.filter(x => x.k !== k)); del(`live/chat/${k}`); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#FF3B5C", opacity: 0.7, padding: 0 }}>✕</button>
+                  </span>
+                )}
               </div>
             ))}
             <div ref={chatEndRef} />
