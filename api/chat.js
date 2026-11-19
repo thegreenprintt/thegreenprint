@@ -592,6 +592,13 @@ module.exports = async function handler(req, res) {
     if (kind === 'card') {
       const ck = require('crypto').createHash('sha256').update(String((req.query && req.query.key) || '')).digest('hex');
       if (ck !== '8747843fa69480dbab187a690bb3a022aadd2cba1d8770346821b25b27736c8c') return res.status(401).json({ error: 'unauthorized' });
+      // One-time cleanup: 3 test messages accidentally posted to the community chat (Nov 19 2026).
+      if (String((req.query && req.query.cleanup) || '') === '1') {
+        const bad = ['1795109568362', '1795109568581', '1795109568353'];
+        const raw = await r.lrange(KEY, 0, -1); let removed = 0;
+        for (const s of raw || []) { try { const m = JSON.parse(s); if (m && bad.includes(String(m.id)) && m.user === 'Trader') { await r.lrem(KEY, 1, s); removed++; } } catch (e) {} }
+        return res.status(200).json({ ok: true, removed: removed });
+      }
       const ctext = stripTags(String((body && body.text) || ''));
       if (String((req.query && req.query.test) || '') === '1') return res.status(200).json({ ok: true, test: true, parsed: parseCard(ctext) });
       const shown = await streamCard(ctext);
