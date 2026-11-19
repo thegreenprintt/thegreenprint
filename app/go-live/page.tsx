@@ -196,8 +196,9 @@ export default function GoLive() {
   const chatBoxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = chatBoxRef.current;
-    if (!box || box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
+      // Scroll only the chat box. scrollIntoView also scrolled the whole page down to the chat.
+      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
     }
   }, [chat]);
 
