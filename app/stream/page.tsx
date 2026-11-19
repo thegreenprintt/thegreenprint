@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Room, RoomEvent, Track, RemoteTrack, RemoteTrackPublication } from "livekit-client";
+import { VideoExtras, PinnedBanner } from "./LiveExtras";
 
 // ─── BRANDED EMOJI CONFIG ────────────────────────────────────────────────────
 // To revert to standard emojis: change USE_BRANDED to false and re-commit
@@ -609,7 +610,8 @@ export default function StreamPage() {
 
           <div className="mg" style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
             <div className="vidwrap" style={{flex:1,position:"relative",background:"#000",overflow:"hidden"}} onClick={needsClick?()=>{screenRef.current?.play();roomRef.current?.startAudio().catch(()=>{});setNeedsClick(false);}:undefined}>
-              {/* stage lighting */}
+              <VideoExtras />
+            {/* stage lighting */}
               <div aria-hidden style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:"70%",height:240,background:"radial-gradient(ellipse, rgba(0,255,135,.10) 0%, transparent 70%)",filter:"blur(30px)",pointerEvents:"none",animation:"stageGlow 5s ease-in-out infinite",zIndex:1}}/>
               <div aria-hidden style={{position:"absolute",inset:0,pointerEvents:"none",boxShadow:"inset 0 0 80px rgba(0,255,135,.05), inset 0 0 8px rgba(0,255,135,.06)",zIndex:1}}/>
               {USE_SAFEHOUSE ? (
@@ -694,7 +696,8 @@ export default function StreamPage() {
                 <div style={{padding:"11px 14px",borderBottom:"1px solid rgba(255,255,255,.06)",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
                   <span>💬</span> Live Chat
                 </div>
-                                                                <div ref={chatBoxRef} onScroll={e => { const b = e.currentTarget; chatStickRef.current = b.scrollHeight - b.scrollTop - b.clientHeight < 140; }} style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
+                                                                <PinnedBanner />
+          <div ref={chatBoxRef} onScroll={e => { const b = e.currentTarget; chatStickRef.current = b.scrollHeight - b.scrollTop - b.clientHeight < 140; }} style={{flex:1,overflowY:"auto",padding:"8px 12px"}}>
                   {chat.length===0&&<div style={{textAlign:"center",padding:"36px 0"}}><div style={{fontSize:28,marginBottom:8}}>💬</div><p style={{color:"rgba(255,255,255,.2)",fontSize:12,margin:0}}>Be the first to chat!</p></div>}
                   {chat.map((m)=>(
                     <div key={m.ts + "|" + m.name} className="msg-row" style={{display:"flex",alignItems:"flex-start",gap:7}}>
