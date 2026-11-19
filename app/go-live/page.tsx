@@ -194,11 +194,12 @@ export default function GoLive() {
   }, [live]);
 
   const chatBoxRef = useRef<HTMLDivElement>(null);
+  const chatStickRef = useRef(true);
   useEffect(() => {
     const box = chatBoxRef.current;
-    if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 140) {
-      // Scroll only the chat box. scrollIntoView also scrolled the whole page down to the chat.
-      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+    if (box && chatStickRef.current) {
+      // Scroll only the chat box (never the page), and only while the reader is at the bottom.
+      box.scrollTop = box.scrollHeight;
     }
   }, [chat]);
 
@@ -570,7 +571,7 @@ export default function GoLive() {
             <span style={{ fontWeight: 800, fontSize: 14 }}>💬 Live chat</span>
             <span className="gp-lbl">{viewers} in the room</span>
           </div>
-          <div ref={chatBoxRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+          <div ref={chatBoxRef} onScroll={e => { const b = e.currentTarget; chatStickRef.current = b.scrollHeight - b.scrollTop - b.clientHeight < 140; }} style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
             {chat.length === 0 && <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,.3)", fontSize: 13 }}><div style={{ fontSize: 34, marginBottom: 10 }}>💬</div>Chat shows up here once people join.</div>}
             {chat.map(m => (
               <div key={m.ts + "|" + m.name} className="gp-msg">
