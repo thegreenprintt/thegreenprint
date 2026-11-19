@@ -66,7 +66,8 @@ function statusColor(s: string) {
 // Overlay on top of the viewer's video: trade card (top right) + now playing (bottom left).
 export function VideoExtras() {
   const x = useLiveExtras();
-  const [min, setMin] = useState(false);
+  // Phones start with the compact card so the chart stays visible; tap to expand.
+  const [min, setMin] = useState(() => typeof window !== "undefined" && window.innerWidth < 700);
   const t = x.trade;
   const np = x.nowplaying?.title;
   const buy = (t?.side || "").toUpperCase() === "BUY";
@@ -85,6 +86,7 @@ export function VideoExtras() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 6, background: buy ? "#00FF85" : "#FF3B5C", color: buy ? "#03110a" : "#fff" }}>{buy ? "BUY" : "SELL"}</span>
             <span style={{ fontWeight: 900, fontSize: 14 }}>{t.symbol}</span>
+            {min && t.status ? <span style={{ fontSize: 10.5, fontWeight: 900, color: statusColor(t.status) }}>{t.status}</span> : null}
             <span style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>{min ? "▾" : "▴"}</span>
           </div>
           {!min && (
