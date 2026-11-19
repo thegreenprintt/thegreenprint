@@ -112,6 +112,36 @@ async function postChat(r, text) {
   return msg;
 }
 
+// ── LIVE STREAM TRADE CARD ──────────────────────────────────────────────────
+// While the host is live, a scanner call puts the trade card on /stream and the
+// TP / SL updates change its status. Never throws, never blocks the chat/push flow.
+async function streamCard(txt) {
+  try {
+    const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
+    const ls = await fetch(FB + '/livestatus.json').then(r => r.json()).catch(() => null);
+    if (!ls || !ls.live || Date.now() - Number(ls.ts || 0) > 60000) return false;
+    const num = (re) => { const m = txt.match(re); return m ? m[1] : ''; };
+    const call = txt.match(/FREE GAME\s*\S\s*(BUY|SELL)\s+([A-Z0-9.!:_-]+)/i);
+    if (call) {
+      const tps = [1, 2, 3, 4, 5].map(i => num(new RegExp('TP' + i + ':\\s*([0-9.,]+)'))).filter(Boolean).join(', ');
+      const card = { side: call[1].toUpperCase(), symbol: call[2].toUpperCase(), entry: num(/Entry:\s*([0-9.,]+)/i), cap: num(/Don.t (?:buy above|sell below):\s*([0-9.,]+)/i), sl: num(/Stop loss:\s*([0-9.,]+)/i), tps: tps, status: 'LIVE TRADE', auto: true, ts: Date.now() };
+      await fetch(FB + '/live/extras/trade.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card) });
+      return true;
+    }
+    const ups = [...txt.matchAll(/(TP[1-5] SMACKED|SL HIT)\s*\n\s*([A-Z0-9.!:_-]+)/gi)];
+    if (ups.length) {
+      const last = ups[ups.length - 1];
+      const cur = await fetch(FB + '/live/extras/trade.json').then(r => r.json()).catch(() => null);
+      if (!cur || String(cur.symbol || '').toUpperCase() !== last[2].toUpperCase()) return false;
+      let st = last[1].toUpperCase();
+      if (st === 'TP5 SMACKED') st = 'TP5 SMACKED · FULL PRINT';
+      await fetch(FB + '/live/extras/trade/status.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(st) });
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -558,6 +588,8 @@ module.exports = async function handler(req, res) {
       // 1. Post into the community chat as The Greenprint (plain text).
       const chatText = stripTags(text);
       await postChat(r, chatText);
+      // 1b. Live stream trade card (only while live).
+      await streamCard(chatText);
       // 2. Push everyone.
       const lines = chatText.split('\n');
       const pTitle = (lines[0] || 'New call').slice(0, 80);
