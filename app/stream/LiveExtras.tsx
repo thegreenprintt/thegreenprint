@@ -53,7 +53,7 @@ const XCSS = `
 .lx-row{display:flex;justify-content:space-between;gap:14px;font-size:12px;padding:3px 0}
 .lx-row span:first-child{color:rgba(255,255,255,.5)}
 .lx-row span:last-child{font-weight:800}
-@media(max-width:700px){.lx-card{transform:scale(.86);transform-origin:top right}.lx-np{max-width:62%!important}}
+@media(max-width:700px){.lx-card{transform:scale(.86);transform-origin:top left}}
 `;
 
 function statusColor(s: string) {
@@ -71,11 +71,17 @@ export function VideoExtras() {
   const np = x.nowplaying?.title;
   const buy = (t?.side || "").toUpperCase() === "BUY";
   return (
-    <>
+    <div style={{ position: "absolute", top: 12, left: 12, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, maxWidth: "calc(100% - 120px)", pointerEvents: "none" }}>
       <style>{XCSS}</style>
+      {np && (
+        <div className="lx-glass" style={{ maxWidth: "100%", padding: "7px 11px", display: "flex", alignItems: "center", gap: 9 }}>
+          <span className="lx-eq"><i /><i /><i /><i /></span>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{np}</span>
+        </div>
+      )}
       {t && t.symbol && (
         <div className="lx-glass lx-card" onClick={e => { e.stopPropagation(); setMin(m => !m); }}
-          style={{ position: "absolute", top: 12, right: 12, zIndex: 20, minWidth: min ? 0 : 190, padding: min ? "8px 12px" : "12px 14px", cursor: "pointer", borderColor: buy ? "rgba(0,255,133,.45)" : "rgba(255,59,92,.45)", animation: "lxIn .4s ease both, lxGlow 3s ease-in-out infinite" }}>
+          style={{ pointerEvents: "auto", minWidth: min ? 0 : 190, padding: min ? "8px 12px" : "12px 14px", cursor: "pointer", borderColor: buy ? "rgba(0,255,133,.45)" : "rgba(255,59,92,.45)", animation: "lxIn .4s ease both, lxGlow 3s ease-in-out infinite" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 6, background: buy ? "#00FF85" : "#FF3B5C", color: buy ? "#03110a" : "#fff" }}>{buy ? "BUY" : "SELL"}</span>
             <span style={{ fontWeight: 900, fontSize: 14 }}>{t.symbol}</span>
@@ -89,18 +95,12 @@ export function VideoExtras() {
                 <div key={i} className="lx-row"><span>TP{i + 1}</span><span style={{ color: "#00FF85" }}>{tp}</span></div>
               ))}
               {t.status && <div style={{ marginTop: 8, textAlign: "center", fontSize: 11.5, fontWeight: 900, letterSpacing: "1px", padding: "6px 8px", borderRadius: 8, background: "rgba(255,255,255,.06)", color: statusColor(t.status) }}>{t.status}</div>}
-              <div style={{ marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,.3)", textAlign: "center" }}>Educational only. Not financial advice.</div>
+              <div style={{ marginTop: 6, fontSize: 9.5, color: "rgba(255,255,255,.3)", textAlign: "center" }}>Educational only. Not financial advice. Tap to minimize.</div>
             </div>
           )}
         </div>
       )}
-      {np && (
-        <div className="lx-glass lx-np" style={{ position: "absolute", left: 12, bottom: 12, zIndex: 20, maxWidth: "45%", padding: "8px 12px", display: "flex", alignItems: "center", gap: 9, pointerEvents: "none" }}>
-          <span className="lx-eq"><i /><i /><i /><i /></span>
-          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{np}</span>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 
