@@ -115,29 +115,37 @@ async function postChat(r, text) {
 // ── LIVE STREAM TRADE CARD ──────────────────────────────────────────────────
 // While the host is live, a scanner call puts the trade card on /stream and the
 // TP / SL updates change its status. Never throws, never blocks the chat/push flow.
+function parseCard(txt) {
+  const num = (re) => { const m = txt.match(re); return m ? m[1] : ''; };
+  const call = txt.match(/FREE GAME\s*\S\s*(BUY|SELL)\s+([A-Z0-9.!:_-]+)/i);
+  if (call) {
+    const tps = [1, 2, 3, 4, 5].map(i => num(new RegExp('TP' + i + ':\\s*([0-9.,]+)'))).filter(Boolean).join(', ');
+    return { type: 'call', card: { side: call[1].toUpperCase(), symbol: call[2].toUpperCase(), entry: num(/Entry:\s*([0-9.,]+)/i), cap: num(/Don.t (?:buy above|sell below):\s*([0-9.,]+)/i), sl: num(/Stop loss:\s*([0-9.,]+)/i), tps: tps, status: 'LIVE TRADE', auto: true, ts: Date.now() } };
+  }
+  const ups = [...txt.matchAll(/(TP[1-5] SMACKED|SL HIT)\s*\n\s*([A-Z0-9.!:_-]+)/gi)];
+  if (ups.length) {
+    const last = ups[ups.length - 1];
+    let st = last[1].toUpperCase();
+    if (st === 'TP5 SMACKED') st = 'TP5 SMACKED · FULL PRINT';
+    return { type: 'update', symbol: last[2].toUpperCase(), status: st };
+  }
+  return null;
+}
 async function streamCard(txt) {
   try {
     const FB = 'https://the-greenprint-53d98-default-rtdb.firebaseio.com';
+    const p = parseCard(txt);
+    if (!p) return false;
     const ls = await fetch(FB + '/livestatus.json').then(r => r.json()).catch(() => null);
     if (!ls || !ls.live || Date.now() - Number(ls.ts || 0) > 60000) return false;
-    const num = (re) => { const m = txt.match(re); return m ? m[1] : ''; };
-    const call = txt.match(/FREE GAME\s*\S\s*(BUY|SELL)\s+([A-Z0-9.!:_-]+)/i);
-    if (call) {
-      const tps = [1, 2, 3, 4, 5].map(i => num(new RegExp('TP' + i + ':\\s*([0-9.,]+)'))).filter(Boolean).join(', ');
-      const card = { side: call[1].toUpperCase(), symbol: call[2].toUpperCase(), entry: num(/Entry:\s*([0-9.,]+)/i), cap: num(/Don.t (?:buy above|sell below):\s*([0-9.,]+)/i), sl: num(/Stop loss:\s*([0-9.,]+)/i), tps: tps, status: 'LIVE TRADE', auto: true, ts: Date.now() };
-      await fetch(FB + '/live/extras/trade.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card) });
+    if (p.type === 'call') {
+      await fetch(FB + '/live/extras/trade.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p.card) });
       return true;
     }
-    const ups = [...txt.matchAll(/(TP[1-5] SMACKED|SL HIT)\s*\n\s*([A-Z0-9.!:_-]+)/gi)];
-    if (ups.length) {
-      const last = ups[ups.length - 1];
-      const cur = await fetch(FB + '/live/extras/trade.json').then(r => r.json()).catch(() => null);
-      if (!cur || String(cur.symbol || '').toUpperCase() !== last[2].toUpperCase()) return false;
-      let st = last[1].toUpperCase();
-      if (st === 'TP5 SMACKED') st = 'TP5 SMACKED · FULL PRINT';
-      await fetch(FB + '/live/extras/trade/status.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(st) });
-      return true;
-    }
+    const cur = await fetch(FB + '/live/extras/trade.json').then(r => r.json()).catch(() => null);
+    if (!cur || String(cur.symbol || '').toUpperCase() !== p.symbol) return false;
+    await fetch(FB + '/live/extras/trade/status.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p.status) });
+    return true;
   } catch (e) {}
   return false;
 }
@@ -579,6 +587,16 @@ module.exports = async function handler(req, res) {
     // sends a copy here. By default we do NOT re-post to Telegram (your direct
     // alert already did). Add &fwd=1 only if you ever want the app to forward to
     // Telegram instead of a direct alert (needs TELEGRAM_BOT_TOKEN set).
+    // ── STREAM CARD ONLY (kind=card) — scanner alert → live stream trade card. ──
+    // No chat post, no push, no Telegram. Add &test=1 to only parse and echo back.
+    if (kind === 'card') {
+      const ck = require('crypto').createHash('sha256').update(String((req.query && req.query.key) || '')).digest('hex');
+      if (ck !== '8747843fa69480dbab187a690bb3a022aadd2cba1d8770346821b25b27736c8c') return res.status(401).json({ error: 'unauthorized' });
+      const ctext = stripTags(String((body && body.text) || ''));
+      if (String((req.query && req.query.test) || '') === '1') return res.status(200).json({ ok: true, test: true, parsed: parseCard(ctext) });
+      const shown = await streamCard(ctext);
+      return res.status(200).json({ ok: true, shown: shown });
+    }
     if (kind === 'tv') {
       const wk = process.env.GP_TV_KEY || '';
       if (!wk || qkey !== wk) return res.status(401).json({ error: 'unauthorized' });
