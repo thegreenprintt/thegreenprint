@@ -729,6 +729,78 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, snapshot: rec, marks: marks, tree: tree, geo: geo, broker: broker });
     }
 
+    // ── LIVE REFRESH KICK — pull fresh data on demand (page open / manual / cron) ──
+    //   GET/POST ?kind=track-kick&key=<GP_ADMIN_KEY | GP_TRACK_KEY | viewer passcode>
+    //   The /track page calls this the moment it opens (and every few minutes while
+    //   it's open), plus a manual "Refresh now" button, so the data is current when
+    //   Jay is looking at it instead of waiting on GitHub's dropped schedule.
+    //     • business (members / counts): no browser needed — triggers the server-side
+    //       1h-refresh inline. Returns fast; the pull finishes in the background.
+    //     • earnings + broker: need a real browser (Playwright), which only runs in
+    //       GitHub Actions — so we dispatch those two workflows via the GitHub API.
+    //       Needs env GH_DISPATCH_TOKEN (a PAT with Actions: read/write on the repo).
+    //       With no token it degrades to the existing schedule — never worse than now.
+    //   Every source is self-rate-limited so rapid opens / multiple tabs can't hammer
+    //   One House, GitHub, or the broker.
+    if (kind === 'track-kick') {
+      const adminKey = process.env.GP_ADMIN_KEY || '';
+      const trackKey = process.env.GP_TRACK_KEY || '';
+      const k = qkey || clean(body.key, 128);
+      let storedPass = '';
+      try { storedPass = (await r.get('gp:track:pass')) || ''; } catch (e) {}
+      const okKey = (adminKey && k === adminKey) || (trackKey && k === trackKey) || (storedPass && k === storedPass);
+      if (!okKey) return res.status(403).json({ error: 'not_admin' });
+
+      const now = Date.now();
+      const out = { ok: true, at: now, business: 'idle', earnings: 'idle', broker: 'idle' };
+      const BIZ_MS = 3 * 60 * 1000;   // business pull at most once / 3 min (endpoint also self-limits to ~9 min)
+      const JOB_MS = 4 * 60 * 1000;   // each GitHub workflow dispatched at most once / 4 min
+
+      // 1) BUSINESS — trigger the server-side One House pull (no browser). The endpoint
+      //    self-limits to ~9 min, so most opens return 'recent' instantly; a real pull
+      //    takes a few seconds and we let it finish (the UI never blocks on this call —
+      //    the page fires it in the background and re-reads as the numbers land).
+      try {
+        let last = 0; try { last = Number(await r.get('gp:track:kick:biz')) || 0; } catch (e) {}
+        if (now - last >= BIZ_MS) {
+          await r.set('gp:track:kick:biz', String(now));
+          const host = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || 'thegreenprint.trade';
+          const proto = (req.headers && req.headers['x-forwarded-proto']) || 'https';
+          const url = proto + '://' + host + '/api/chat?kind=1h-refresh&key=gp1h-cron-pull-v1';
+          try {
+            const rr = await fetch(url, { headers: { 'User-Agent': 'greenprint-refresh-kick' } });
+            const rj = await rr.json().catch(() => null);
+            out.business = (rj && (rj.ok ? (rj.skipped ? 'recent' : 'refreshed') : (rj.error || 'error'))) || 'done';
+          } catch (e) { out.business = 'error'; }
+        } else { out.business = 'recent'; }
+      } catch (e) { out.business = 'error'; }
+
+      // 2 + 3) EARNINGS + BROKER — dispatch the Playwright workflows on GitHub Actions.
+      const ghTok = process.env.GH_DISPATCH_TOKEN || process.env.GH_WORKFLOW_TOKEN || '';
+      const OWNER = process.env.GH_REPO_OWNER || 'thegreenprintt';
+      const REPO = process.env.GH_REPO_NAME || 'thegreenprint';
+      const dispatch = async (file, rkey) => {
+        let last = 0; try { last = Number(await r.get(rkey)) || 0; } catch (e) {}
+        if (now - last < JOB_MS) return 'recent';
+        if (!ghTok) return 'no_token';
+        try {
+          await r.set(rkey, String(now));
+          const gr = await fetch('https://api.github.com/repos/' + OWNER + '/' + REPO + '/actions/workflows/' + file + '/dispatches', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + ghTok, Accept: 'application/vnd.github+json', 'User-Agent': 'GreenprintRefresh', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+            body: JSON.stringify({ ref: 'main' }),
+          });
+          if (gr.status === 204) return 'dispatched';
+          return 'error_' + gr.status;
+        } catch (e) { return 'error'; }
+      };
+      out.earnings = await dispatch('onehouse-earnings.yml', 'gp:track:kick:earn');
+      out.broker = await dispatch('livv-ib.yml', 'gp:track:kick:broker');
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json(out);
+    }
+
     // ── BROKER / IB BOOK — Livv Global IB rebates off referred trading volume ──
     //   Jay earns a flat rebate per lot his referred traders trade (default $25).
     //   POST ?kind=broker {key:GP_ADMIN_KEY, source, perLot?, broker:{totals, traders[]}}

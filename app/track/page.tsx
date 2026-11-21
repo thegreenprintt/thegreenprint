@@ -1261,6 +1261,7 @@ export default function TrackPage() {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [geo, setGeo] = useState<Record<string, { p?: string; c?: string; s?: string }>>({});
   const [broker, setBroker] = useState<Broker | null>(null);
+  const [kicking, setKicking] = useState(false);
 
   const load = useCallback(async (key: string, silent = false) => {
     if (!silent) { setLoading(true); setErr(""); }
@@ -1276,6 +1277,19 @@ export default function TrackPage() {
     } catch { if (!silent) setErr("Could not reach the server."); }
     if (!silent) setLoading(false);
   }, []);
+  // Ask the server to pull fresh upstream data NOW (business instantly, earnings +
+  // broker by kicking their GitHub jobs), then re-read a few times so the new numbers
+  // land without waiting on the 25s loop. The server self-throttles, so calling this on
+  // every open / tab-focus is cheap and safe.
+  const kick = useCallback(async (key: string, manual = false) => {
+    if (!key) return;
+    if (manual) setKicking(true);
+    try { await fetch(`/api/chat?kind=track-kick&key=${encodeURIComponent(key)}&t=${Date.now()}`, { method: "POST" }); } catch {}
+    load(key, true);
+    const timers = [4000, 12000, 30000, 60000].map((ms) => setTimeout(() => load(key, true), ms));
+    if (manual) setTimeout(() => setKicking(false), 1400);
+    return () => timers.forEach(clearTimeout);
+  }, [load]);
   useEffect(() => {
     let k = ""; try { k = localStorage.getItem(LS_KEY) || ""; } catch {}
     try { const lm = JSON.parse(localStorage.getItem(MARKS_LS) || "{}"); if (lm && typeof lm === "object") setMarks(lm); } catch {}
@@ -1294,6 +1308,17 @@ export default function TrackPage() {
   // live clock + silent auto-refresh every 10 min
   useEffect(() => { const t = setInterval(() => setNowTs(Date.now()), 30000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authed || !pass) return; const t = setInterval(() => load(pass, true), 25000); return () => clearInterval(t); }, [authed, pass, load]);
+  // Live refresh: pull fresh upstream data the moment the page opens, again whenever the
+  // tab comes back to the foreground, and every 4 min while it stays open. The server
+  // throttles each source, so this keeps /track current whenever Jay is looking at it.
+  useEffect(() => {
+    if (!authed || !pass) return;
+    kick(pass);
+    const onVis = () => { if (document.visibilityState === "visible") kick(pass); };
+    document.addEventListener("visibilitychange", onVis);
+    const t = setInterval(() => { if (document.visibilityState === "visible") kick(pass); }, 4 * 60 * 1000);
+    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(t); };
+  }, [authed, pass, kick]);
   // Jump to the top whenever the tab changes so the new view's header is visible
   useEffect(() => {
     const toTop = () => {
@@ -1478,6 +1503,8 @@ export default function TrackPage() {
   const showHero = view === "today" || view === "focus" || view === "pipeline";
   const showTiles = view !== "playbook" && view !== "system" && view !== "community" && view !== "broker";
   const agoMin = snap?.updatedAt ? Math.max(0, Math.floor((nowTs - snap.updatedAt) / 60000)) : null;
+  const brokerAgoMin = broker?.updatedAt ? Math.max(0, Math.floor((nowTs - broker.updatedAt) / 60000)) : null;
+  const freshLabel = (m: number | null) => (m == null ? "—" : m === 0 ? "just now" : m < 60 ? m + "m ago" : Math.floor(m / 60) + "h " + (m % 60) + "m ago");
 
   return (
     <main ref={mainScrollRef} style={{ overflowAnchor: "none", paddingTop: "env(safe-area-inset-top)" }} className="gp-root gp-grain h-[100dvh] overflow-y-auto overflow-x-clip overscroll-contain bg-bg text-text relative">
@@ -1510,8 +1537,12 @@ export default function TrackPage() {
           <div className="mt-auto pt-6 space-y-3">
             <NotifyBell />
             <div className="text-[10px] font-mono text-muted leading-relaxed">
-              <div className="flex items-center gap-1.5 mb-1"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" /> live · auto-refresh</div>
-              {agoMin != null ? `updated ${agoMin === 0 ? "just now" : agoMin + "m ago"}` : "no data yet"}
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full bg-accent ${kicking ? "animate-ping" : "animate-pulse"}`} />
+                {kicking ? "pulling live…" : "live · refreshes on open"}
+              </div>
+              <div className="flex items-center justify-between gap-2"><span className="text-muted/70">Business</span><span className="text-text/80">{freshLabel(agoMin)}</span></div>
+              <div className="flex items-center justify-between gap-2"><span className="text-muted/70">Broker</span><span className="text-text/80">{freshLabel(brokerAgoMin)}</span></div>
             </div>
           </div>
         </aside>
@@ -1532,7 +1563,7 @@ export default function TrackPage() {
                 {snap?.source && showTiles ? ` · ${snap.source}` : ""}
               </p>
             </div>
-            <button onClick={() => load(pass)} disabled={loading} className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-mono hover:border-accent hover:text-accent transition-colors disabled:opacity-50 flex items-center gap-2"><span className={loading ? "inline-block animate-spin" : "inline-block"}>↻</span>{loading ? "Refreshing" : "Refresh"}</button>
+            <button onClick={() => kick(pass, true)} disabled={loading || kicking} className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-mono hover:border-accent hover:text-accent transition-colors disabled:opacity-50 flex items-center gap-2"><span className={(loading || kicking) ? "inline-block animate-spin" : "inline-block"}>↻</span>{(loading || kicking) ? "Pulling live…" : "Refresh now"}</button>
           </div>
           <div className="lg:hidden mb-5"><NotifyBell /></div>
 
