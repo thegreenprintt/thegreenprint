@@ -1281,14 +1281,15 @@ export default function TrackPage() {
   // broker by kicking their GitHub jobs), then re-read a few times so the new numbers
   // land without waiting on the 25s loop. The server self-throttles, so calling this on
   // every open / tab-focus is cheap and safe.
-  const kick = useCallback(async (key: string, manual = false) => {
+  const kick = useCallback((key: string, manual = false) => {
     if (!key) return;
     if (manual) setKicking(true);
-    try { await fetch(`/api/chat?kind=track-kick&key=${encodeURIComponent(key)}&t=${Date.now()}`, { method: "POST" }); } catch {}
-    load(key, true);
-    const timers = [4000, 12000, 30000, 60000].map((ms) => setTimeout(() => load(key, true), ms));
-    if (manual) setTimeout(() => setKicking(false), 1400);
-    return () => timers.forEach(clearTimeout);
+    // Fire the server kick but don't block on it — the business pull can take a while,
+    // and the broker/earnings jobs are browser scrapes that take ~60-90s to land. We just
+    // re-read on a schedule so the fresh numbers show up as each source finishes.
+    fetch(`/api/chat?kind=track-kick&key=${encodeURIComponent(key)}${manual ? "&force=1" : ""}&t=${Date.now()}`, { method: "POST" }).catch(() => {});
+    [1500, 5000, 12000, 30000, 60000, 90000].forEach((ms) => setTimeout(() => load(key, true), ms));
+    if (manual) setTimeout(() => setKicking(false), 1600);
   }, [load]);
   useEffect(() => {
     let k = ""; try { k = localStorage.getItem(LS_KEY) || ""; } catch {}

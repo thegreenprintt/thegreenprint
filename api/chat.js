@@ -752,17 +752,46 @@ module.exports = async function handler(req, res) {
       if (!okKey) return res.status(403).json({ error: 'not_admin' });
 
       const now = Date.now();
+      const force = String((req.query && req.query.force) || '') === '1';  // manual "Refresh now" bypasses throttles
       const out = { ok: true, at: now, business: 'idle', earnings: 'idle', broker: 'idle' };
       const BIZ_MS = 3 * 60 * 1000;   // business pull at most once / 3 min (endpoint also self-limits to ~9 min)
-      const JOB_MS = 4 * 60 * 1000;   // each GitHub workflow dispatched at most once / 4 min
+      const JOB_MS = 90 * 1000;       // a browser scrape takes ~60s; allow a fresh dispatch every 90s
 
-      // 1) BUSINESS — trigger the server-side One House pull (no browser). The endpoint
-      //    self-limits to ~9 min, so most opens return 'recent' instantly; a real pull
-      //    takes a few seconds and we let it finish (the UI never blocks on this call —
-      //    the page fires it in the background and re-reads as the numbers land).
+      // 1) EARNINGS + BROKER FIRST. These are quick GitHub API calls and are the whole
+      //    point of the kick, so they must run BEFORE the slower business pull below —
+      //    otherwise a long business pull can burn the serverless function's time budget
+      //    and the request dies before ever dispatching the browser jobs. Run both in
+      //    parallel; `force` (manual Refresh) bypasses the per-job throttle.
+      const ghTok = process.env.GH_DISPATCH_TOKEN || process.env.GH_WORKFLOW_TOKEN || '';
+      const OWNER = process.env.GH_REPO_OWNER || 'thegreenprintt';
+      const REPO = process.env.GH_REPO_NAME || 'thegreenprint';
+      const dispatch = async (file, rkey) => {
+        if (!ghTok) return 'no_token';
+        if (!force) { let last = 0; try { last = Number(await r.get(rkey)) || 0; } catch (e) {} if (now - last < JOB_MS) return 'recent'; }
+        try {
+          await r.set(rkey, String(now));
+          const gr = await fetch('https://api.github.com/repos/' + OWNER + '/' + REPO + '/actions/workflows/' + file + '/dispatches', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + ghTok, Accept: 'application/vnd.github+json', 'User-Agent': 'GreenprintRefresh', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+            body: JSON.stringify({ ref: 'main' }),
+          });
+          if (gr.status === 204) return 'dispatched';
+          let detail = ''; try { detail = (await gr.text()).replace(/\s+/g, ' ').slice(0, 120); } catch (e) {}
+          return 'error_' + gr.status + (detail ? ':' + detail : '');
+        } catch (e) { return 'error'; }
+      };
+      const [earnRes, brokRes] = await Promise.all([
+        dispatch('onehouse-earnings.yml', 'gp:track:kick:earn'),
+        dispatch('livv-ib.yml', 'gp:track:kick:broker'),
+      ]);
+      out.earnings = earnRes; out.broker = brokRes;
+
+      // 2) BUSINESS — trigger the server-side One House pull (no browser). Done AFTER the
+      //    dispatches so even if this long call times the function out, the browser jobs
+      //    have already fired. The pull also finishes in its own invocation regardless.
       try {
         let last = 0; try { last = Number(await r.get('gp:track:kick:biz')) || 0; } catch (e) {}
-        if (now - last >= BIZ_MS) {
+        if (force || now - last >= BIZ_MS) {
           await r.set('gp:track:kick:biz', String(now));
           const host = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || 'thegreenprint.trade';
           const proto = (req.headers && req.headers['x-forwarded-proto']) || 'https';
@@ -774,28 +803,6 @@ module.exports = async function handler(req, res) {
           } catch (e) { out.business = 'error'; }
         } else { out.business = 'recent'; }
       } catch (e) { out.business = 'error'; }
-
-      // 2 + 3) EARNINGS + BROKER — dispatch the Playwright workflows on GitHub Actions.
-      const ghTok = process.env.GH_DISPATCH_TOKEN || process.env.GH_WORKFLOW_TOKEN || '';
-      const OWNER = process.env.GH_REPO_OWNER || 'thegreenprintt';
-      const REPO = process.env.GH_REPO_NAME || 'thegreenprint';
-      const dispatch = async (file, rkey) => {
-        let last = 0; try { last = Number(await r.get(rkey)) || 0; } catch (e) {}
-        if (now - last < JOB_MS) return 'recent';
-        if (!ghTok) return 'no_token';
-        try {
-          await r.set(rkey, String(now));
-          const gr = await fetch('https://api.github.com/repos/' + OWNER + '/' + REPO + '/actions/workflows/' + file + '/dispatches', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + ghTok, Accept: 'application/vnd.github+json', 'User-Agent': 'GreenprintRefresh', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
-            body: JSON.stringify({ ref: 'main' }),
-          });
-          if (gr.status === 204) return 'dispatched';
-          return 'error_' + gr.status;
-        } catch (e) { return 'error'; }
-      };
-      out.earnings = await dispatch('onehouse-earnings.yml', 'gp:track:kick:earn');
-      out.broker = await dispatch('livv-ib.yml', 'gp:track:kick:broker');
 
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(out);
